@@ -1,8 +1,10 @@
+import { Fragment } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
 import { Star, PawPrint } from "lucide-react"
 import { repo } from "@/lib/repo"
+import { getCategoryTree, findNode, type CategoryNode } from "@/lib/categories"
 import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
 
 // ---------------------------------------------------------------------------
@@ -88,12 +90,16 @@ function parseFreeOf(ingredients: string): { main: string; freeOf: string[] | nu
 
 export default async function ProductPage({ params }: Params) {
   const { slug } = await params
+  // /shop/category/… owns the "category" path segment — a product slug that
+  // collides with it can only ever resolve here, so bounce to the catalog.
+  if (slug === "category") redirect("/shop")
   const product = await loadProduct(slug)
   if (!product) notFound()
 
-  const [allReviews, allProducts] = await Promise.all([
+  const [allReviews, allProducts, tree] = await Promise.all([
     repo.list("product_reviews"),
     repo.list("products"),
+    getCategoryTree(),
   ])
   const reviews = allReviews
     .filter((r: any) => r.productId === product.id && r.visible)
@@ -115,6 +121,27 @@ export default async function ProductPage({ params }: Params) {
   const related = [...inCategory, ...outCategory].slice(0, 4)
 
   const category = product.category || "Shop"
+
+  // Real breadcrumb chain: SHOP / [root] / [mid] / [leaf] / name. Each
+  // ancestor links to its /shop/category/[slug] page; when the product has
+  // no category id we fall back to the old single link to /shop.
+  const catNode: CategoryNode | null =
+    product.categoryId != null && tree.ready
+      ? findNode(tree.categories, (n) => n.id === product.categoryId)
+      : null
+  const crumbs: { name: string; slug: string }[] = []
+  if (catNode) {
+    const byId = new Map(tree.flat.map((f) => [f.id, f]))
+    let cursor: CategoryNode | null | undefined = catNode
+    while (cursor) {
+      const parentId: number | null = cursor.parentId
+      crumbs.unshift({ name: cursor.name, slug: cursor.slug })
+      cursor = parentId != null ? byId.get(parentId) : null
+    }
+  }
+  // Skip the generic umbrella root when it is merely an ancestor.
+  const visibleCrumbs = crumbs.filter((c) => c.slug !== "pet-supplies")
+
   const freeOf = hasText(product.ingredients) ? parseFreeOf(product.ingredients) : null
   const specs = hasText(product.specs) ? specRows(product.specs) : []
 
@@ -132,13 +159,29 @@ export default async function ProductPage({ params }: Params) {
         >
           SHOP
         </Link>
-        <span className="text-[10px] text-gold/50">/</span>
-        <Link
-          href="/shop"
-          className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
-        >
-          {String(category).toUpperCase()}
-        </Link>
+        {visibleCrumbs.length > 0 ? (
+          visibleCrumbs.map((c) => (
+            <Fragment key={c.slug}>
+              <span className="text-[10px] text-gold/50">/</span>
+              <Link
+                href={`/shop/category/${c.slug}`}
+                className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
+              >
+                {c.name.toUpperCase()}
+              </Link>
+            </Fragment>
+          ))
+        ) : (
+          <>
+            <span className="text-[10px] text-gold/50">/</span>
+            <Link
+              href="/shop"
+              className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
+            >
+              {String(category).toUpperCase()}
+            </Link>
+          </>
+        )}
         <span className="text-[10px] text-gold/50">/</span>
         <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{product.name}</span>
       </nav>

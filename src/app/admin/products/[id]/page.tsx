@@ -9,11 +9,23 @@ import {
 } from "@phosphor-icons/react"
 import { ImageAssetPicker } from "@/components/cms/asset-picker"
 import { ASSETS } from "@/lib/cms-config"
+import { Skeleton } from "@/components/ui/skeleton"
+
+// Node shape returned by GET /api/shop/categories (migration 0004 taxonomy).
+type CategoryNode = {
+  id: number
+  name: string
+  slug: string
+  parentId: number | null
+  productCount: number
+  children: CategoryNode[]
+}
 
 type Product = {
   id: string
   name: string
   price: string
+  categoryId: number | null
   category: string | null
   badge: string | null
   order: number
@@ -34,15 +46,15 @@ type Product = {
   stripePriceId: string | null
 }
 
-type ProductForm = Omit<Product, "id" | "category" | "badge" | "slug" | "shortDescription" | "description" | "materials" | "ingredients" | "directions" | "warranty" | "specs" | "image" | "alt" | "stripeProductId" | "stripePriceId"> & {
-  category: string; badge: string; slug: string; shortDescription: string
+type ProductForm = Omit<Product, "id" | "categoryId" | "category" | "badge" | "slug" | "shortDescription" | "description" | "materials" | "ingredients" | "directions" | "warranty" | "specs" | "image" | "alt" | "stripeProductId" | "stripePriceId"> & {
+  categoryId: string; category: string; badge: string; slug: string; shortDescription: string
   description: string; materials: string; ingredients: string; directions: string
   warranty: string; specs: string; image: string; alt: string
   stripeProductId: string; stripePriceId: string
 }
 
 const EMPTY_FORM: ProductForm = {
-  name: "", price: "", category: "", badge: "", order: 0, visible: true, featured: false,
+  name: "", price: "", categoryId: "", category: "", badge: "", order: 0, visible: true, featured: false,
   stock: 25, slug: "", shortDescription: "", description: "", materials: "", ingredients: "",
   directions: "", warranty: "", specs: "", image: "", alt: "",
   stripeProductId: "", stripePriceId: "",
@@ -50,7 +62,7 @@ const EMPTY_FORM: ProductForm = {
 
 function toForm(p: Product): ProductForm {
   return {
-    name: p.name || "", price: p.price || "", category: p.category || "", badge: p.badge || "",
+    name: p.name || "", price: p.price || "", categoryId: p.categoryId != null ? String(p.categoryId) : "", category: p.category || "", badge: p.badge || "",
     order: typeof p.order === "number" ? p.order : 0, visible: p.visible !== false,
     featured: p.featured === true, stock: typeof p.stock === "number" ? p.stock : null,
     slug: p.slug || "", shortDescription: p.shortDescription || "", description: p.description || "",
@@ -70,6 +82,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [product, setProduct] = useState<Product | null>(null)
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM)
   const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [taxonomy, setTaxonomy] = useState<{ ready: boolean; categories: CategoryNode[]; flat: CategoryNode[] } | null>(null)
+  const [taxonomyLoading, setTaxonomyLoading] = useState(true)
   const [slugTouched, setSlugTouched] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -100,10 +114,79 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     return () => { alive = false }
   }, [id, isNew])
 
+  // Category taxonomy (public endpoint — names, slugs and counts only).
+  useEffect(() => {
+    let alive = true
+    fetch("/api/shop/categories")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive) return
+        setTaxonomy({
+          ready: !!d?.ready,
+          categories: Array.isArray(d?.categories) ? d.categories : [],
+          flat: Array.isArray(d?.flat) ? d.flat : [],
+        })
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setTaxonomyLoading(false) })
+    return () => { alive = false }
+  }, [])
+
   const categories = useMemo(
     () => Array.from(new Set(allProducts.map((p) => p.category).filter(Boolean) as string[])).sort(),
     [allProducts],
   )
+
+  // ---- Category taxonomy helpers ----
+  const catById = useMemo(() => {
+    const m = new Map<number, CategoryNode>()
+    for (const c of taxonomy?.flat ?? []) m.set(c.id, c)
+    return m
+  }, [taxonomy])
+
+  // Full display path, e.g. "Dog Grooming Supplies › Grooming › Shampoos & Conditioners".
+  const categoryPath = (id: number): string => {
+    const parts: string[] = []
+    let cur: CategoryNode | undefined = catById.get(id)
+    while (cur) {
+      parts.unshift(cur.name)
+      cur = cur.parentId != null ? catById.get(cur.parentId) : undefined
+    }
+    return parts.join(" › ")
+  }
+
+  // <optgroup> per root. Every category is assignable: leaves are the target,
+  // departments (mids) too — some departments only go two levels deep — and a
+  // root works when nothing finer fits.
+  const categoryGroups = useMemo(() => {
+    if (!taxonomy?.ready) return []
+    return taxonomy.categories.map((root) => {
+      const options: CategoryNode[] = [root]
+      for (const mid of root.children) {
+        options.push(mid)
+        for (const leaf of mid.children) options.push(leaf)
+      }
+      return { root, options }
+    })
+  }, [taxonomy])
+
+  const selectedCategory = form.categoryId ? catById.get(Number(form.categoryId)) || null : null
+
+  // Option label is the path relative to its root (the optgroup already shows
+  // the root): "Grooming" for a department, "Grooming › Shampoos & Conditioners"
+  // for a leaf. Product count rides along when > 0.
+  const optionLabel = (c: CategoryNode): string => {
+    const parent = c.parentId != null ? catById.get(c.parentId) : undefined
+    const relative = parent && parent.parentId != null ? `${parent.name} › ${c.name}` : c.name
+    return c.productCount > 0 ? `${relative} (${c.productCount})` : relative
+  }
+
+  // Selecting a category also keeps the legacy `category` text column in sync
+  // with the chosen node's name (storefront breadcrumb + text consumers).
+  const setCategory = (v: string) => {
+    const node = v ? catById.get(Number(v)) : undefined
+    setForm((f) => ({ ...f, categoryId: v, category: node?.name || "" }))
+  }
 
   // Slug base must stay unique against every OTHER product's slug.
   const uniqueSlug = (base: string) => {
@@ -164,7 +247,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const contentPayload = () => ({
-    name: form.name, price: form.price, category: form.category, badge: form.badge,
+    name: form.name, price: form.price,
+    categoryId: form.categoryId ? Number(form.categoryId) : null,
+    category: form.category, badge: form.badge,
     order: Number(form.order) || 0, visible: form.visible, featured: form.featured,
     stock: form.stock === null ? null : Number(form.stock),
     slug: form.slug, shortDescription: form.shortDescription, description: form.description,
@@ -293,16 +378,47 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-[9px] font-bold uppercase tracking-wide text-zinc-400">Category</label>
-            <input
-              list="product-categories"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              placeholder="Coat Care, Tools, Accessories…"
-              className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-            />
-            <datalist id="product-categories">
-              {categories.map((c) => <option key={c} value={c} />)}
-            </datalist>
+            {taxonomyLoading ? (
+              <Skeleton className="h-[38px] w-full" aria-label="Loading categories" />
+            ) : taxonomy?.ready ? (
+              <div>
+                <select
+                  value={form.categoryId}
+                  onChange={(e) => setCategory(e.target.value)}
+                  aria-label="Product category"
+                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[13px] text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                >
+                  <option value="">— Uncategorized —</option>
+                  {categoryGroups.map((g) => (
+                    <optgroup key={g.root.id} label={g.root.name.toUpperCase()}>
+                      {g.options.map((c) => (
+                        <option key={c.id} value={String(c.id)}>{optionLabel(c)}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                {selectedCategory && (
+                  <p className="mt-1 text-[10px] text-zinc-400">
+                    {categoryPath(selectedCategory.id)} — visible at{" "}
+                    <span className="font-medium text-zinc-500">/shop/category/{selectedCategory.slug}</span>
+                  </p>
+                )}
+              </div>
+            ) : (
+              /* Taxonomy unavailable (ready:false) — fall back to free text. */
+              <>
+                <input
+                  list="product-categories"
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  placeholder="Coat Care, Tools, Accessories…"
+                  className="w-full rounded-md border border-black/10 bg-white px-3 py-2 text-[13px] text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                />
+                <datalist id="product-categories">
+                  {categories.map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </>
+            )}
           </div>
           <Field label="Price" value={form.price} onChange={(v) => setForm({ ...form, price: v })} placeholder="$34.00" />
         </div>

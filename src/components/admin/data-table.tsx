@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import {
   MagnifyingGlass, CaretUp, CaretDown, Export, Plus,
 } from "@phosphor-icons/react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import Link from "next/link"
 
 export type Column<T = any> = {
   key: string
@@ -47,6 +47,7 @@ export function DataTable<T extends { id: string }>({
   selectable, bulkActions,
   title, headerActions, filters,
 }: DataTableProps<T>) {
+  const router = useRouter()
   const [query, setQuery] = useState("")
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
@@ -187,15 +188,26 @@ export function DataTable<T extends { id: string }>({
               ) : (
                 paginated.map((row) => {
                   const href = rowHref?.(row)
-                  const Comp = href ? Link : "div" as any
-                  const linkProps = href ? { href } : {}
+                  // NOTE: a <tbody> may only contain <tr> — rendering <Link>/<div>
+                  // as the row element is invalid DOM (React logs a nesting
+                  // error). Navigate with the router instead; the row keeps
+                  // pointer + keyboard access via tabIndex/Enter/Space.
+                  const navigate = () => {
+                    if (href) router.push(href)
+                    onRowClick?.(row)
+                  }
                   return (
-                    <Comp
+                    <tr
                       key={row.id}
-                      {...linkProps}
-                      onClick={() => onRowClick?.(row)}
-                      className={`flex border-b border-black/5 transition-colors hover:bg-zinc-50 ${href ? "cursor-pointer" : ""}`}
-                      style={{ display: "table-row" }}
+                      onClick={href ? navigate : () => onRowClick?.(row)}
+                      onKeyDown={(e) => {
+                        if (href && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault()
+                          navigate()
+                        }
+                      }}
+                      tabIndex={href ? 0 : undefined}
+                      className={`border-b border-black/5 transition-colors hover:bg-zinc-50 ${href ? "cursor-pointer" : ""}`}
                     >
                       {selectable && (
                         <td className="w-10 px-3 py-2.5" onClick={(e: any) => e.stopPropagation()}>
@@ -215,7 +227,7 @@ export function DataTable<T extends { id: string }>({
                           {col.render ? col.render(row) : String((row as any)[col.key] ?? "—")}
                         </td>
                       ))}
-                    </Comp>
+                    </tr>
                   )
                 })
               )}

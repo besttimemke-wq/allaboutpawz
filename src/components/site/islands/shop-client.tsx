@@ -7,6 +7,7 @@ import {
   Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
+import { CategoryNav, type NavCategory } from "./category-nav"
 
 // ---------------------------------------------------------------------------
 // Shop Client — catalog + bag + booking-style checkout flow.
@@ -32,18 +33,17 @@ export type ShopProduct = {
   alt?: string | null
   description?: string | null
   category?: string | null
+  categoryId?: number | null
 }
 
 type View = "catalog" | "checkout" | "success"
 
-export function ShopClient({ products, categories }: { products: ShopProduct[]; categories: string[] }) {
+export function ShopClient({ products, categoryTree }: { products: ShopProduct[]; categoryTree: NavCategory[] }) {
   const s = useCart()
   const [hydrated, setHydrated] = useState(false)
   const [view, setView] = useState<View>("catalog")
-  const [category, setCategory] = useState("ALL")
   const [query, setQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
-  const [added, setAdded] = useState<string | null>(null) // product id just added
   const [verify, setVerify] = useState<"checking" | "paid" | "pending" | null>(null)
 
   // Hydrate from localStorage (avoid SSR mismatch)
@@ -84,29 +84,16 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
   }, [])
 
   // ----- Derived cart data -----
-  const count = s.items.reduce((n, i) => n + i.quantity, 0)
-  const subtotalCents = useMemo(
-    () => s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0),
-    [s.items],
-  )
+  // (The checkout wizard computes its own totals; the persistent bag
+  // indicator now lives in the site header — see HeaderBagLink.)
 
   const filtered = products.filter((p) => {
-    if (category !== "ALL" && (p.category || "General") !== category) return false
     if (query.trim()) {
       const q = query.toLowerCase()
       if (!p.name.toLowerCase().includes(q) && !(p.description || "").toLowerCase().includes(q)) return false
     }
     return true
   })
-
-  const add = (p: ShopProduct) => {
-    s.add({
-      productId: p.id, name: p.name, price: p.price,
-      image: p.image, alt: p.alt, badge: p.badge, category: p.category,
-    })
-    setAdded(p.id)
-    window.setTimeout(() => setAdded((cur) => (cur === p.id ? null : cur)), 1600)
-  }
 
   // SSR-safe skeleton before zustand rehydration
   if (!hydrated) {
@@ -160,36 +147,29 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
         <p className="mt-4 border border-gold/30 bg-cream-deep px-4 py-2 text-[12px] text-gold-deep">{notice}</p>
       )}
 
-      {/* search + category filter */}
-      <div className="mt-8 flex flex-wrap items-center gap-4 border-b border-gold/25 pb-4">
-        <div className="relative min-w-[180px] flex-1">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products…"
-            aria-label="Search products"
-            className="w-full border border-gold/35 bg-cream px-3.5 py-2 text-[12px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-deep"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setCategory("ALL")}
-            className={`pb-1 text-[10px] font-bold tracking-[0.16em] transition-colors ${category === "ALL" ? "text-gold-deep" : "text-ink-soft hover:text-gold-deep"}`}
-          >ALL</button>
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`pb-1 text-[10px] font-bold tracking-[0.16em] transition-colors ${category === c ? "text-gold-deep" : "text-ink-soft hover:text-gold-deep"}`}
-            >{c.toUpperCase()}</button>
-          ))}
-        </div>
+      {/* Department navigation (hamburger taxonomy + quick-link chips) + search.
+          Category browsing now navigates to /shop/category/[slug] pages;
+          the search box still filters the in-page catalog grid client-side. */}
+      <div className="mt-8">
+        <CategoryNav
+          nodes={categoryTree}
+          search={
+            <div className="relative min-w-[180px] flex-1">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search products…"
+                aria-label="Search products"
+                className="w-full border border-gold/35 bg-cream px-3.5 py-2 text-[12px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-deep"
+              />
+            </div>
+          }
+        />
       </div>
 
       {/* product grid */}
       <div className="mt-10 grid grid-cols-2 gap-8 lg:grid-cols-4">
         {filtered.map((p) => {
-          const purchasable = parsePriceToCents(p.price) != null || !!p.stripePriceId
           const href = p.slug ? `/shop/${p.slug}` : null
           const subtitle = p.shortDescription || p.description
           return (
@@ -258,18 +238,16 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
                 )}
                 <p className="mt-2 text-[13px] font-bold text-gold-deep">{p.price}</p>
                 <div className="mt-auto pt-3">
-                  {purchasable ? (
-                    <button
-                      onClick={() => add(p)}
-                      className={`btn-gold w-full text-[9px] ${added === p.id ? "bg-ink" : ""}`}
-                      aria-label={`Add ${p.name} to bag`}
+                  {/* Quantity is chosen on the product page — the card CTA sends
+                      the customer there to review materials, reviews and stock. */}
+                  {href ? (
+                    <Link
+                      href={href}
+                      className="btn-gold w-full text-[9px]"
+                      aria-label={`View ${p.name} details`}
                     >
-                      {added === p.id ? (
-                        <span className="inline-flex items-center gap-1.5"><Check size={12} weight="bold" /> ADDED</span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5"><ShoppingBag size={12} weight="bold" /> ADD TO BAG</span>
-                      )}
-                    </button>
+                      <span className="inline-flex items-center gap-1.5">VIEW DETAILS <CaretRight size={10} weight="bold" /></span>
+                    </Link>
                   ) : (
                     <p className="text-[9px] font-bold tracking-[0.14em] text-ink-soft">IN STORE ONLY</p>
                   )}
@@ -282,49 +260,7 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
       {filtered.length === 0 && (
         <p className="mt-12 text-center text-[12.5px] text-ink-soft">No products match your search.</p>
       )}
-
-      {/* floating bag bar */}
-      <BagBar
-        count={count}
-        subtotalCents={subtotalCents}
-        hidden={count === 0}
-      />
     </>
-  )
-}
-
-// ===========================================================================
-// Sticky bag bar — links to the full bag view (/shop/bag)
-// ===========================================================================
-function BagBar({
-  count, subtotalCents, hidden,
-}: { count: number; subtotalCents: number; hidden: boolean }) {
-  return (
-    <div
-      aria-hidden={hidden}
-      className={`fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-ink/95 backdrop-blur transition-transform duration-300 ${hidden ? "pointer-events-none translate-y-full" : "translate-y-0"}`}
-    >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:px-12">
-        <div className="flex items-center gap-3">
-          <span className="relative flex h-10 w-10 items-center justify-center border border-gold/40">
-            <ShoppingBag size={18} weight="fill" className="text-gold" />
-            {count > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-gold-deep text-[10px] font-bold text-cream">{count}</span>
-            )}
-          </span>
-          <div className="leading-tight">
-            <p className="text-[10px] font-bold tracking-[0.16em] text-gold">YOUR BAG</p>
-            <p className="text-[13px] font-bold text-cream">
-              {count} {count === 1 ? "item" : "items"}
-              {subtotalCents > 0 && ` — ${formatCents(subtotalCents)}`}
-            </p>
-          </div>
-        </div>
-        <Link href="/shop/bag" className="btn-gold text-[9.5px]">
-          <ShoppingBag size={12} weight="fill" /> VIEW BAG
-        </Link>
-      </div>
-    </div>
   )
 }
 

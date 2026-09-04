@@ -8,7 +8,7 @@ import {
   Question, ShieldCheck, Quotes, CalendarCheck, PhoneCall, Tray,
   Gear, ArrowLeft, PawPrint, ListChecks, Users, Dog, Calendar,
   CreditCard, Package, Bell, EnvelopeSimple,
-  FileText, Megaphone, ChatCircle, CurrencyDollar,
+  FileText, Megaphone, ChatCircle, CurrencyDollar, Star, TreeStructure,
 } from "@phosphor-icons/react"
 import type { Icon } from "@phosphor-icons/react"
 import { AdminUserMenu } from "@/components/admin/user-menu"
@@ -46,6 +46,8 @@ const TOP_NAV: { label: string; icon: Icon; items: NavItem[] }[] = [
       { label: "Pricing & Packages", href: "/admin/packages", icon: Tag },
       { label: "Add-ons", href: "/admin/addons", icon: Sparkle },
       { label: "Products", href: "/admin/products", icon: Package },
+      { label: "Categories", href: "/admin/categories", icon: TreeStructure },
+      { label: "Reviews", href: "/admin/reviews", icon: Star },
       { label: "Gallery", href: "/admin/gallery", icon: ImageIcon },
       { label: "Testimonials", href: "/admin/testimonials", icon: Quotes },
       { label: "FAQs", href: "/admin/faqs", icon: Question },
@@ -82,6 +84,8 @@ const CONTEXT_SIDEBARS: Record<string, NavGroup[]> = {
       { label: "Pricing & Packages", href: "/admin/packages", icon: Tag },
       { label: "Add-ons", href: "/admin/addons", icon: Sparkle },
       { label: "Products", href: "/admin/products", icon: Package },
+      { label: "Categories", href: "/admin/categories", icon: TreeStructure },
+      { label: "Reviews", href: "/admin/reviews", icon: Star },
       { label: "Gallery", href: "/admin/gallery", icon: ImageIcon },
       { label: "Testimonials", href: "/admin/testimonials", icon: Quotes },
       { label: "FAQs", href: "/admin/faqs", icon: Question },

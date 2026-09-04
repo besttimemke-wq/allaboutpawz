@@ -3,6 +3,7 @@ import { Award, Lightbulb, Heart, Truck, Lock, Store, Sparkle, ArrowDown, Scisso
 import { PageHeader } from "@/components/site/site-chrome"
 import { ShopClient } from "@/components/site/islands/shop-client"
 import { getSiteContent } from "@/lib/site-data"
+import { getCategoryTree } from "@/lib/categories"
 
 const ASSURANCES = [
   { Icon: Truck, title: "Free Standard Shipping", body: "On every order — 5–7 business days." },
@@ -17,13 +18,15 @@ const BADGES = [
 ]
 
 export default async function ShopPage() {
-  const { products } = await getSiteContent()
+  const [{ products }, tree] = await Promise.all([
+    getSiteContent(),
+    getCategoryTree(),
+  ])
   // getSiteContent already filters visible. The live catalog is deduplicated
   // in the database (unique slugs) — just sort by the catalog `order` field.
   const unique = products.sort(
     (a: any, b: any) => (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)),
   )
-  const cats = Array.from(new Set(unique.map((p: any) => p.category || "General"))).sort()
 
   return (
     <>
@@ -82,7 +85,7 @@ export default async function ShopPage() {
         <h2 className="border-t border-gold/25 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
           SHOP OUR FAVORITES
         </h2>
-        <ShopClient products={unique} categories={cats} />
+        <ShopClient products={unique} categoryTree={tree.categories} />
       </section>
 
       {/* Trust badges */}

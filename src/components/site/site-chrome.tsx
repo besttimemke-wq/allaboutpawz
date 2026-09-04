@@ -25,6 +25,53 @@ function Pinterest({ className = "" }: { className?: string }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Bag indicator — the customer's bag, always visible at the TOP of the page.
+// Rendered client-side only (count lives in localStorage); the hydration gate
+// keeps SSR markup stable so the count never flashes or mismatches.
+// ---------------------------------------------------------------------------
+function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
+  const items = useCart((s) => s.items)
+  const emptySubscribe = () => () => {}
+  const hydrated = useSyncExternalStore(emptySubscribe, () => true, () => false)
+  const count = hydrated ? items.reduce((n, i) => n + i.quantity, 0) : null
+
+  if (variant === "icon") {
+    return (
+      <Link
+        href="/shop/bag"
+        aria-label={count != null ? `View bag (${count} ${count === 1 ? "item" : "items"})` : "View bag"}
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-gold-deep"
+      >
+        <ShoppingBag className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+        {count != null && count > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-gold-deep px-1 text-[9px] font-bold leading-none text-cream">
+            {count}
+          </span>
+        )}
+      </Link>
+    )
+  }
+
+  return (
+    <Link
+      href="/shop/bag"
+      aria-label={count != null ? `View bag (${count} ${count === 1 ? "item" : "items"})` : "View bag"}
+      className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-gold-deep"
+    >
+      <span className="relative flex h-7 w-7 items-center justify-center">
+        <ShoppingBag className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+        {count != null && count > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-gold-deep px-1 text-[8px] font-bold leading-none text-cream">
+            {count}
+          </span>
+        )}
+      </span>
+      BAG{count != null && count > 0 ? ` · ${count}` : ""}
+    </Link>
+  )
+}
+
 export function SiteChrome({ settings, children }: { settings: Record<string, string>; children: ReactNode }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -32,15 +79,18 @@ export function SiteChrome({ settings, children }: { settings: Record<string, st
   return (
     <div className="min-h-screen bg-cream">
       <Sidebar settings={s} pathname={pathname} />
-      {/* Mobile bar */}
+      {/* Mobile bar — logo left, bag + menu right (sticky, top of every page) */}
       <div className="sticky top-0 z-50 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3 lg:hidden">
         <Link href="/" className="flex items-center gap-2">
           <PawGlyph className="h-5 w-5 text-gold-deep" />
           <span className="font-display text-[13px] tracking-[0.14em] text-ink">ALL ABOUT PAWZ</span>
         </Link>
-        <button onClick={() => setOpen((o) => !o)} aria-label="Menu">
-          <Menu className="h-5 w-5 text-ink" />
-        </button>
+        <div className="flex items-center gap-3">
+          <HeaderBagLink variant="icon" />
+          <button onClick={() => setOpen((o) => !o)} aria-label="Menu">
+            <Menu className="h-5 w-5 text-ink" />
+          </button>
+        </div>
       </div>
       {open && (
         <nav className="border-b border-gold/25 bg-cream px-6 py-4 lg:hidden">
@@ -143,33 +193,7 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
           </a>
         ))}
       </div>
-      {/* Bag indicator — live cart count (client-side only) */}
-      <div className="px-7 pb-8 pt-6">
-        <SidebarBagLink />
-      </div>
     </aside>
-  )
-}
-
-function SidebarBagLink() {
-  const items = useCart((s) => s.items)
-
-  // Client-hydration gate (no setState-in-effect): false on the server
-  // snapshot, true once read on the client — the count itself lives in
-  // localStorage, so it only ever renders client-side.
-  const emptySubscribe = () => () => {}
-  const hydrated = useSyncExternalStore(emptySubscribe, () => true, () => false)
-  const count = hydrated ? items.reduce((n, i) => n + i.quantity, 0) : null
-
-  return (
-    <Link
-      href="/shop/bag"
-      className="flex w-full items-center justify-center gap-2 border border-gold/35 bg-cream-deep/60 px-3 py-2.5 text-[9px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-gold-deep"
-      aria-label={count != null ? `View bag (${count} items)` : "View bag"}
-    >
-      <ShoppingBag className="h-3.5 w-3.5 text-gold-deep" strokeWidth={1.6} />
-      BAG{count != null ? ` · ${count}` : ""}
-    </Link>
   )
 }
 
@@ -178,6 +202,21 @@ export function PageHeader({ n, label }: { n: string; label: string }) {
     <div className="flex items-center gap-3 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">{n}</span>
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
+      {/* Bag — always visible at the top-right of every page */}
+      <span className="ml-auto">
+        <HeaderBagLink />
+      </span>
+    </div>
+  )
+}
+
+// Slim top utility strip for pages that render their own hero instead of a
+// PageHeader (currently the home page) — keeps the bag visible at the top on
+// desktop. Mobile already has the sticky mobile bar with the bag icon.
+export function TopUtilityBar() {
+  return (
+    <div className="hidden items-center justify-end border-b border-gold/25 bg-cream px-8 py-2.5 lg:flex">
+      <HeaderBagLink />
     </div>
   )
 }

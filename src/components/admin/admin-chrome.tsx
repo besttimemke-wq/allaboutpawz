@@ -9,6 +9,7 @@ import {
   Question, ShieldCheck, Quotes, CalendarCheck, PhoneCall, Tray, Star,
   Gear, ArrowLeft, PawPrint, ListChecks, Users, Dog, PaintBrush,
   Scissors as ScissorsIcon, HandsPraying, Drop, Tooth, PawPrint as PawIcon,
+  TreeStructure,
 } from "@phosphor-icons/react"
 import type { Icon } from "@phosphor-icons/react"
 import { useEffect, useState } from "react"
@@ -26,6 +27,7 @@ const NAV: Group[] = [
       { key: "services", label: "Services", icon: Scissors },
       { key: "products", label: "Shop", icon: ShoppingBag },
       { key: "reviews", label: "Reviews", icon: Star },
+      { key: "categories", label: "Categories", icon: TreeStructure },
       { key: "gallery", label: "Gallery", icon: ImageIcon },
       { key: "packages", label: "Pricing Packages", icon: Tag },
       { key: "addons", label: "Add-ons", icon: Sparkle },

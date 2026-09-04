@@ -24,6 +24,7 @@ export type CmsResource =
   | "payments" | "blocked_times" | "availability" | "service_pricing"
   | "invoices" | "invoice_items" | "email_messages" | "communications"
   | "product_reviews"
+  | "pet_product_categories" | "pet_product_filters" | "pet_product_filter_values" | "pet_category_filters"
 
 const TABLE: Record<CmsResource, string> = {
   services: "services",
@@ -63,6 +64,18 @@ const TABLE: Record<CmsResource, string> = {
   email_messages: "email_messages",
   communications: "communications",
   product_reviews: "product_reviews",
+  pet_product_categories: "pet_product_categories",
+  pet_product_filters: "pet_product_filters",
+  pet_product_filter_values: "pet_product_filter_values",
+  pet_category_filters: "pet_category_filters",
+}
+
+// Explicit PostgREST order overrides for tables that have no createdAt column.
+const CUSTOM_ORDER: Partial<Record<CmsResource, string>> = {
+  pet_product_categories: "id.asc",
+  pet_product_filters: "display_order.asc,id.asc",
+  pet_product_filter_values: "display_order.asc,id.asc",
+  pet_category_filters: "display_order.asc",
 }
 
 const ORDERED = new Set<CmsResource>([
@@ -130,7 +143,7 @@ export const repo: Repo = {
   async list(r) {
     if (!supabaseReady) return []
     const t = TABLE[r]
-    const order = ORDERED.has(r) ? "order.asc" : "createdAt.desc"
+    const order = CUSTOM_ORDER[r] ?? (ORDERED.has(r) ? "order.asc" : "createdAt.desc")
     const rows = await sb<Row[]>(`${t}?order=${order}`)
     return rows || []
   },

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Play, CalendarDays, Heart, Star, CheckCircle2, Mail, Scissors } from "lucide-react"
 import { PawBadge, PawGlyph, Divider } from "@/components/site/brand"
+import { TopUtilityBar } from "@/components/site/site-chrome"
 import { getIcon } from "@/lib/icons"
 import { getSiteContent } from "@/lib/site-data"
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
@@ -20,6 +21,11 @@ export default async function HomePage() {
 
   return (
     <>
+      {/* Top utility strip — keeps the bag visible at the top on desktop
+          (mobile uses the sticky mobile bar). Home renders its own hero, so
+          it has no PageHeader. */}
+      <TopUtilityBar />
+
       {/* HERO */}
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.92fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-14 lg:py-20">
