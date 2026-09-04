@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import Link from "next/link"
 import {
   Check, CaretLeft, CaretRight, ShoppingBag, Plus, Minus, X, Trash,
   Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle,
@@ -23,6 +24,8 @@ export type ShopProduct = {
   id: string
   name: string
   price: string
+  slug?: string | null
+  shortDescription?: string | null
   stripePriceId?: string | null
   badge?: string | null
   image?: string | null
@@ -46,7 +49,8 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
   // Hydrate from localStorage (avoid SSR mismatch)
   useEffect(() => setHydrated(true), [])
 
-  // Check URL for Stripe return params (success / cancel)
+  // Check URL for Stripe return params (success / cancel) and for the
+  // bag page's PROCEED TO CHECKOUT hand-off (?checkout=1 → step 1).
   useEffect(() => {
     if (typeof window === "undefined") return
     const params = new URLSearchParams(window.location.search)
@@ -68,6 +72,12 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
       window.history.replaceState({}, "", "/shop")
     } else if (result === "cancel") {
       setNotice("Checkout cancelled — your bag is saved whenever you're ready.")
+      window.history.replaceState({}, "", "/shop")
+    } else if (result === "1") {
+      // Arrived from the bag page — jump straight into the checkout wizard.
+      setNotice(null)
+      s.setStep(1)
+      setView("checkout")
       window.history.replaceState({}, "", "/shop")
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,13 +106,6 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
     })
     setAdded(p.id)
     window.setTimeout(() => setAdded((cur) => (cur === p.id ? null : cur)), 1600)
-  }
-
-  const startCheckout = () => {
-    setNotice(null)
-    if (s.items.length === 0) return
-    s.setStep(1)
-    setView("checkout")
   }
 
   // SSR-safe skeleton before zustand rehydration
@@ -187,6 +190,8 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
       <div className="mt-10 grid grid-cols-2 gap-8 lg:grid-cols-4">
         {filtered.map((p) => {
           const purchasable = parsePriceToCents(p.price) != null || !!p.stripePriceId
+          const href = p.slug ? `/shop/${p.slug}` : null
+          const subtitle = p.shortDescription || p.description
           return (
             <article key={p.id} className="group flex flex-col">
               <div className="relative overflow-hidden border border-gold/25 bg-cream-deep p-4 transition-colors group-hover:border-gold-deep/50">
@@ -195,7 +200,23 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
                     {p.badge.toUpperCase()}
                   </span>
                 )}
-                {p.image ? (
+                {href ? (
+                  <Link href={href} aria-label={`View ${p.name}`} className="block">
+                    {p.image ? (
+                      <img
+                        src={p.image}
+                        alt={p.alt || p.name}
+                        width={512}
+                        height={640}
+                        className="mx-auto h-[170px] w-full object-contain transition-transform duration-300 group-hover:scale-[1.04]"
+                      />
+                    ) : (
+                      <div className="flex h-[170px] items-center justify-center">
+                        <PawPrint size={40} className="text-gold/40" />
+                      </div>
+                    )}
+                  </Link>
+                ) : p.image ? (
                   <img
                     src={p.image}
                     alt={p.alt || p.name}
@@ -208,14 +229,32 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
                     <PawPrint size={40} className="text-gold/40" />
                   </div>
                 )}
+                {/* VIEW DETAILS affordance — slides up on hover (sm+) */}
+                {href && (
+                  <Link
+                    href={href}
+                    className="absolute inset-x-0 bottom-0 hidden translate-y-full items-center justify-center gap-1 bg-ink/90 py-2 text-[8.5px] font-bold tracking-[0.16em] text-gold transition-transform duration-300 group-hover:translate-y-0 sm:flex"
+                  >
+                    VIEW DETAILS <CaretRight size={10} weight="bold" />
+                  </Link>
+                )}
               </div>
               <div className="flex flex-1 flex-col pt-4 text-center">
                 {p.category && (
                   <p className="text-[8.5px] font-bold tracking-[0.18em] text-gold-deep/80">{p.category.toUpperCase()}</p>
                 )}
-                <h3 className="mt-1 text-[12.5px] leading-[1.5] text-ink">{p.name}</h3>
-                {p.description && (
-                  <p className="mt-1 text-[10.5px] leading-[1.5] text-ink-soft line-clamp-2">{p.description}</p>
+                {href ? (
+                  <Link
+                    href={href}
+                    className="mt-1 text-[12.5px] leading-[1.5] text-ink transition-colors hover:text-gold-deep"
+                  >
+                    {p.name}
+                  </Link>
+                ) : (
+                  <h3 className="mt-1 text-[12.5px] leading-[1.5] text-ink">{p.name}</h3>
+                )}
+                {subtitle && (
+                  <p className="mt-1 text-[10.5px] leading-[1.5] text-ink-soft line-clamp-2">{subtitle}</p>
                 )}
                 <p className="mt-2 text-[13px] font-bold text-gold-deep">{p.price}</p>
                 <div className="mt-auto pt-3">
@@ -249,18 +288,17 @@ export function ShopClient({ products, categories }: { products: ShopProduct[]; 
         count={count}
         subtotalCents={subtotalCents}
         hidden={count === 0}
-        onOpen={startCheckout}
       />
     </>
   )
 }
 
 // ===========================================================================
-// Sticky bag bar
+// Sticky bag bar — links to the full bag view (/shop/bag)
 // ===========================================================================
 function BagBar({
-  count, subtotalCents, hidden, onOpen,
-}: { count: number; subtotalCents: number; hidden: boolean; onOpen: () => void }) {
+  count, subtotalCents, hidden,
+}: { count: number; subtotalCents: number; hidden: boolean }) {
   return (
     <div
       aria-hidden={hidden}
@@ -282,9 +320,9 @@ function BagBar({
             </p>
           </div>
         </div>
-        <button onClick={onOpen} className="btn-gold text-[9.5px]">
-          <LockKey size={12} weight="fill" /> SECURE CHECKOUT
-        </button>
+        <Link href="/shop/bag" className="btn-gold text-[9.5px]">
+          <ShoppingBag size={12} weight="fill" /> VIEW BAG
+        </Link>
       </div>
     </div>
   )

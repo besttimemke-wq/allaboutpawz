@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useState, useSyncExternalStore, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  MapPin, Phone, Mail, Clock, CalendarDays, Facebook, Instagram, Menu,
+  MapPin, Phone, Mail, Clock, CalendarDays, Facebook, Instagram, Menu, ShoppingBag,
 } from "lucide-react"
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
+import { useCart } from "@/lib/wizard/cart-store"
 
 function TikTok({ className = "" }: { className?: string }) {
   return (
@@ -142,7 +143,33 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
           </a>
         ))}
       </div>
+      {/* Bag indicator — live cart count (client-side only) */}
+      <div className="px-7 pb-8 pt-6">
+        <SidebarBagLink />
+      </div>
     </aside>
+  )
+}
+
+function SidebarBagLink() {
+  const items = useCart((s) => s.items)
+
+  // Client-hydration gate (no setState-in-effect): false on the server
+  // snapshot, true once read on the client — the count itself lives in
+  // localStorage, so it only ever renders client-side.
+  const emptySubscribe = () => () => {}
+  const hydrated = useSyncExternalStore(emptySubscribe, () => true, () => false)
+  const count = hydrated ? items.reduce((n, i) => n + i.quantity, 0) : null
+
+  return (
+    <Link
+      href="/shop/bag"
+      className="flex w-full items-center justify-center gap-2 border border-gold/35 bg-cream-deep/60 px-3 py-2.5 text-[9px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-gold-deep"
+      aria-label={count != null ? `View bag (${count} items)` : "View bag"}
+    >
+      <ShoppingBag className="h-3.5 w-3.5 text-gold-deep" strokeWidth={1.6} />
+      BAG{count != null ? ` · ${count}` : ""}
+    </Link>
   )
 }
 

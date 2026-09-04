@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
 
   const isPickup = deliveryMethod === "pickup"
   const origin = req.headers.get("origin") || "http://localhost:3000"
+  const { address, addressLine2, city, state, postalCode } = body
+  const shippingAddress = isPickup || !address
+    ? null
+    : [address, addressLine2, `${city || ""}, ${state || ""} ${postalCode || ""}`.trim().replace(/^,\s*/, "")].filter(Boolean).join(" · ")
 
   try {
     // ------------------------------------------------------------------
@@ -114,6 +118,10 @@ export async function POST(req: NextRequest) {
       status: "PAYMENT_PENDING",
       paymentStatus: "UNPAID",
       subtotal: fmt(subtotalCents),
+      email: String(email).toLowerCase(),
+      deliveryMethod: isPickup ? "pickup" : "ship",
+      shippingAddress,
+      ...(notes ? { notes: String(notes).slice(0, 500) } : {}),
     })) as any
     if (order?.id) {
       for (const oi of orderItems) {

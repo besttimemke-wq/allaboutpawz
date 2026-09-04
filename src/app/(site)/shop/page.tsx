@@ -18,17 +18,11 @@ const BADGES = [
 
 export default async function ShopPage() {
   const { products } = await getSiteContent()
-  // getSiteContent already filters visible. De-duplicate obvious repeats by
-  // name (keeping the earliest row) and sort by the catalog `order` field.
-  const seen = new Set<string>()
-  const unique = products
-    .filter((p: any) => {
-      const key = String(p.name || "").trim().toLowerCase()
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-    .sort((a: any, b: any) => (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)))
+  // getSiteContent already filters visible. The live catalog is deduplicated
+  // in the database (unique slugs) — just sort by the catalog `order` field.
+  const unique = products.sort(
+    (a: any, b: any) => (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)),
+  )
   const cats = Array.from(new Set(unique.map((p: any) => p.category || "General"))).sort()
 
   return (

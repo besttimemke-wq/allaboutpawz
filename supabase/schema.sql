@@ -34,6 +34,34 @@ create table if not exists products (
   "order" int default 0,
   "visible" boolean default true,
   "createdAt" timestamptz default now(),
+  "updatedAt" timestamptz default now(),
+  -- shop catalog detail fields (see migrations/0002_shop_catalog.sql)
+  "slug" text,
+  "shortDescription" text,
+  "materials" text,
+  "ingredients" text,
+  "directions" text,
+  "warranty" text,
+  "specs" text,
+  "stock" int default 25,
+  "category" text default 'General',
+  "featured" boolean default false,
+  "stripeProductId" text,
+  "stripePriceId" text
+);
+create unique index if not exists products_slug_uniq on products ("slug");
+
+-- Product reviews shown on the public product pages; moderated in the admin.
+create table if not exists product_reviews (
+  id text primary key default gen_random_uuid()::text,
+  "productId" text not null references products(id) on delete cascade,
+  "author" text not null,
+  "rating" int not null default 5,
+  "title" text,
+  "body" text not null,
+  "verified" boolean default true,
+  "visible" boolean default false,
+  "createdAt" timestamptz default now(),
   "updatedAt" timestamptz default now()
 );
 

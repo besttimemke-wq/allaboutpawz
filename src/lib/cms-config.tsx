@@ -63,7 +63,7 @@ export const RESOURCES: ResourceConfig[] = [
     resource: "products",
     title: "Shop",
     singular: "Product",
-    description: "Items in your shop — syncs to the /shop page and (soon) Stripe checkout.",
+    description: "Items in your shop — syncs to the /shop page and Stripe checkout.",
     icon: ShoppingBag,
     fields: [
       { key: "name", label: "Name", type: "text" },

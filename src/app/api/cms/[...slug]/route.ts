@@ -14,7 +14,7 @@ const RESOURCES = new Set<CmsResource>([
   "teeth_services", "deshedding_services", "coat_techniques",
   "dog_grooming_profiles", "appointment_grooming_requests",
   "payments", "blocked_times", "availability", "service_pricing",
-  "invoices", "invoice_items", "email_messages", "communications",
+  "invoices", "invoice_items", "email_messages", "communications", "product_reviews",
 ])
 
 function isResource(k: string): k is CmsResource {
@@ -86,6 +86,27 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ slug: s
   const { slug } = await ctx.params
   const [resource, id] = slug
   if (!isResource(resource) || !id) return NextResponse.json({ error: "Bad request" }, { status: 400 })
+
+  // When a product is deleted, archive its Stripe twin too (fail-soft — the
+  // catalog row is the source of truth, so deletion must always succeed).
+  let stripeCleanup: { ok: boolean; detail?: string } | null = null
+  if (resource === "products") {
+    try {
+      const p = await repo.get("products", id)
+      if (p?.stripeProductId && process.env.STRIPE_SECRET_KEY) {
+        const { default: Stripe } = await import("stripe")
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+        await stripe.products.update(p.stripeProductId, { active: false })
+        if (p.stripePriceId) {
+          await stripe.prices.update(p.stripePriceId, { active: false }).catch(() => {})
+        }
+        stripeCleanup = { ok: true }
+      }
+    } catch (e: any) {
+      stripeCleanup = { ok: false, detail: e?.message || "Stripe archive failed" }
+    }
+  }
+
   await repo.remove(resource, id)
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, ...(stripeCleanup ? { stripeCleanup } : {}) })
 }

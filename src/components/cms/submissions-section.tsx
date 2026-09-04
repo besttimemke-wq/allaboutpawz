@@ -35,10 +35,11 @@ export type SubmissionConfig = {
   icon: typeof Tray
   statuses: string[]
   columns: Column[]
-  detailFields: { label: string; key: string; type?: "text" | "long" }[]
+  detailFields: { label: string; key: string; type?: "text" | "long"; render?: (r: Row) => React.ReactNode }[]
   detailLink?: (row: Row) => string  // if set, clicking a row navigates instead of opening the sheet
   createFields?: { label: string; key: string; type?: "text" | "tel" | "email" }[]  // if set, shows a "Create" button + dialog
   createApiPath?: string  // defaults to `/api/cms/${resource}` — e.g. `/api/customers` for Stripe linkage
+  orderItems?: boolean  // orders: fetch + list the order_items rows for the opened order
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -229,10 +230,11 @@ export function SubmissionsSection({ config }: { config: SubmissionConfig }) {
                     <div key={f.key}>
                       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">{f.label}</p>
                       <p className={`mt-1 text-[13px] text-zinc-900 ${f.type === "long" ? "leading-relaxed" : "font-medium"}`}>
-                        {selected[f.key] || "—"}
+                        {f.render ? f.render(selected) : (selected[f.key] || "—")}
                       </p>
                     </div>
                   ))}
+                  {config.orderItems && <OrderItemsBlock orderId={selected.id} />}
                 </div>
               </ScrollArea>
               <div className="flex items-center gap-2 border-t border-black/10 bg-zinc-50 p-4">
@@ -264,6 +266,50 @@ function timeAgo(iso: string) {
   const d = Math.floor(h / 24)
   if (d < 30) return `${d}d ago`
   return new Date(iso).toLocaleDateString()
+}
+
+// ---- Order items (orders detail sheet) ----
+// Rendered only when the sheet is open for an order — fetches the
+// order_items rows once on mount and lists the ones for that order.
+function OrderItemsBlock({ orderId }: { orderId: string }) {
+  const [items, setItems] = useState<any[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    fetch("/api/cms/order_items")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Could not load order items"))))
+      .then((d: any[]) => { if (alive) setItems(Array.isArray(d) ? d : []) })
+      .catch((e) => { if (alive) setError(e?.message || "Could not load order items") })
+    return () => { alive = false }
+  }, [orderId])
+
+  const mine = (items || []).filter((i) => i.orderId === orderId)
+
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">Items</p>
+      {error ? (
+        <p className="mt-1 text-[13px] text-red-600">{error}</p>
+      ) : items === null ? (
+        <div className="mt-2 space-y-1.5">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-3/4" />
+        </div>
+      ) : mine.length === 0 ? (
+        <p className="mt-1 text-[13px] text-zinc-400">No items recorded for this order.</p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {mine.map((i) => (
+            <li key={i.id} className="flex items-center justify-between gap-3 rounded-md border border-black/10 px-3 py-2 text-[12px]">
+              <span className="min-w-0 flex-1 truncate font-medium text-zinc-900">{i.name || "Item"}</span>
+              <span className="shrink-0 text-zinc-400">× {i.quantity ?? 1} @ {i.unitPrice || "—"}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 export const SUBMISSION_CONFIGS: SubmissionConfig[] = [
@@ -386,17 +432,23 @@ export const SUBMISSION_CONFIGS: SubmissionConfig[] = [
     statuses: ["CART", "PAYMENT_PENDING", "PAID", "PROCESSING", "FULFILLED", "COMPLETED", "PAYMENT_FAILED"],
     columns: [
       { key: "id", label: "Order", render: (r) => r.id?.slice(0, 8) + "…" },
+      { key: "email", label: "Customer", render: (r) => r.email || "—" },
       { key: "subtotal", label: "Total" },
       { key: "paymentStatus", label: "Payment" },
     ],
     detailFields: [
       { label: "Order ID", key: "id" },
+      { label: "Email", key: "email", render: (r) => r.email || "—" },
+      { label: "Delivery method", key: "deliveryMethod", render: (r) => r.deliveryMethod ? String(r.deliveryMethod).charAt(0).toUpperCase() + String(r.deliveryMethod).slice(1) : "—" },
+      { label: "Shipping address", key: "shippingAddress", type: "long", render: (r) => r.shippingAddress || "—" },
+      { label: "Notes", key: "notes", type: "long", render: (r) => r.notes || "—" },
       { label: "Subtotal", key: "subtotal" },
       { label: "Payment status", key: "paymentStatus" },
       { label: "Stripe checkout session", key: "stripeCheckoutSessionId" },
       { label: "Stripe payment intent", key: "stripePaymentIntentId" },
       { label: "Customer ID", key: "customerId" },
     ],
+    orderItems: true,
   },
   {
     resource: "activity_log",

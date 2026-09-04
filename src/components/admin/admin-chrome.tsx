@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import {
   SquaresFour, Scissors, ShoppingBag, Image as ImageIcon, Tag, Sparkle,
-  Question, ShieldCheck, Quotes, CalendarCheck, PhoneCall, Tray,
+  Question, ShieldCheck, Quotes, CalendarCheck, PhoneCall, Tray, Star,
   Gear, ArrowLeft, PawPrint, ListChecks, Users, Dog, PaintBrush,
   Scissors as ScissorsIcon, HandsPraying, Drop, Tooth, PawPrint as PawIcon,
 } from "@phosphor-icons/react"
@@ -25,6 +25,7 @@ const NAV: Group[] = [
     items: [
       { key: "services", label: "Services", icon: Scissors },
       { key: "products", label: "Shop", icon: ShoppingBag },
+      { key: "reviews", label: "Reviews", icon: Star },
       { key: "gallery", label: "Gallery", icon: ImageIcon },
       { key: "packages", label: "Pricing Packages", icon: Tag },
       { key: "addons", label: "Add-ons", icon: Sparkle },

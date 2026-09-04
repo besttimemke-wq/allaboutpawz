@@ -23,6 +23,7 @@ export type CmsResource =
   | "dog_grooming_profiles" | "appointment_grooming_requests"
   | "payments" | "blocked_times" | "availability" | "service_pricing"
   | "invoices" | "invoice_items" | "email_messages" | "communications"
+  | "product_reviews"
 
 const TABLE: Record<CmsResource, string> = {
   services: "services",
@@ -61,6 +62,7 @@ const TABLE: Record<CmsResource, string> = {
   invoice_items: "invoice_items",
   email_messages: "email_messages",
   communications: "communications",
+  product_reviews: "product_reviews",
 }
 
 const ORDERED = new Set<CmsResource>([
