@@ -37,11 +37,12 @@ export default async function ContactPage() {
               <a href={s.facebook || "#"} aria-label="Facebook" className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold-deep transition-colors hover:bg-gold/10"><Facebook className="h-4 w-4" /></a>
             </div>
           </div>
-          { }
-          <img src="/assets/storefront.jpg" alt="All About Pawz boutique grooming salon storefront" width={900} height={1100} className="aspect-[4/5] w-full object-cover" />
+          <div className="border border-gold/25 bg-cream-deep">
+            <img src="/Contact/contact%20page.png" alt="Groomer gently caring for a small dog on the grooming table" width={432} height={578} className="aspect-[4/5] w-full object-contain" />
+          </div>
         </div>
       </section>
-      <ContactForm />
+      <ContactForm image="/Consultation/consultation.png" imageAlt="Groomed apricot doodle sitting attentively awaiting its consultation" />
       <section className="bg-ink px-8 py-12 lg:px-12">
         <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
           <div className="flex h-56 items-center justify-center border border-gold/25 bg-ink-soft/40">

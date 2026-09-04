@@ -49,8 +49,7 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="relative min-h-[380px]">
-          { }
-          <img src="/assets/hero-dog.jpg" alt="Goldendoodle wearing a bow tie on a marble counter in a luxury grooming salon" width={1280} height={1024} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/Home/home%20herojpeg.jpeg" alt="Groomed poodle standing proudly inside the All About Pawz luxury salon" width={2400} height={1792} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute right-6 top-6 lg:right-10 lg:top-8"><PawBadge size={116} /></div>
         </div>
       </section>
@@ -100,7 +99,6 @@ export default async function HomePage() {
           )}
         </div>
         <div className="relative min-h-[300px]">
-          { }
           <img src="/assets/salon-interior.jpg" alt="Interior of the All About Pawz luxury grooming salon" width={1280} height={900} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute right-8 top-6"><PawBadge size={78} /></div>
           <div className="absolute bottom-[26%] left-1/2 -translate-x-1/2 font-display text-[20px] tracking-[0.16em] text-gold-light drop-shadow-lg">ALL ABOUT PAWZ</div>
@@ -131,8 +129,7 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="flex items-center gap-4 lg:border-l lg:border-gold/25 lg:pl-8">
-          { }
-          <img src="/assets/dog-golden.jpg" alt="Happy golden retriever" width={900} height={1024} className="h-[150px] w-[150px] object-contain" />
+          <img src="/Home/home_footer.png" alt="Fluffy cavapoo wearing a bandana with its tongue playfully out" width={432} height={578} className="h-[170px] w-[150px] shrink-0 object-contain" />
           <div>
             <p className="script text-[27px] leading-[1.15]">Your pup<br />deserves this.</p>
             <Link href="/book" className="btn-dark mt-4">BOOK APPOINTMENT</Link>

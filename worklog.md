@@ -235,3 +235,41 @@ Stage Summary:
 - Shop cards send customers to full product pages (VIEW DETAILS) where quantity is chosen; the ☰ SHOP BY CATEGORY menu + department chips + /shop/category/[slug] pages with functional filters make it a real category-driven storefront.
 - The owner can publish real products NOW: DAWG admin → Products/Inventory → Commerce Control Center → Add Product with the 88-category picker (auto Stripe sync, images in Supabase Storage).
 - DB final state: 8 products (all categorized), 88 categories, 122 filter mappings, 17 reviews, 0 orders, 0 QA residue.
+
+---
+Task ID: 6
+Agent: Main agent (Z.ai Code)
+Task: Place the user's uploaded page-by-page image set (About.7z) across the whole site to make every page cozy, and rebuild the shop category UX as a REGULAR SIDEBAR with CHECKBOXES (killing the over-engineered, inconsistent hamburger dropdowns).
+
+Work Log:
+- EXTRACTED upload/About.7z (29 entries, 17 images across 12 page folders: About, Book, Consultation, Contact, FAQ-Policies, Gallery [empty], Home, Login auth Page [empty], Our Process, Pricing, Shop, services) with py7zr; copied the ENTIRE folder structure into public/ as-is per the user's directive ("unzip the entire folder into the public just as it is and use the naming").
+- IMAGE PLACEMENT (replace existing + fill empty spots, all filenames used as the placement reference — no guessing):
+  * Home: hero → /Home/home%20herojpeg.jpeg (poodle in luxury salon); footer-adjacent CTA dog → /Home/home_footer.png (cavapoo cutout, object-contain).
+  * About: section-1 dog → /About/aboutus2.png (framed on cream-deep, object-contain); section-3 → /About/ABOUTUS3RDSECTIONjpeg.jpeg.
+  * Book: hero → /Book/bookhero.jpeg (photo, object-cover).
+  * Contact: intro image → /Contact/contact%20page.png (framed cutout); Consultation/consultation.png added BESIDE the contact form (ContactForm island now accepts image/imageAlt props, 2-col cozy layout).
+  * FAQ: page had ZERO images → added faq.png beside the intro (2-col) and faq2.png beside the Salon Policies (dark section, now 2-col) — policies grid de-duplicated too (see below).
+  * Our Process: hero dog → /Our%20Process/ourprocess2..jpeg (object-cover photo).
+  * Pricing: hero dog → /Pricing/pricinghero.jpeg (object-cover photo).
+  * Shop: hero product shot → /Shop/shop.png (object-contain product bottle on cream-deep).
+  * Services: hero → /services/serviceshero2.jpeg; the 4 service-row thumbnails updated in the LIVE DB via CMS API (GROOMING→grooming_services.jpeg, BATH & SPA→bath_and_spa_.jpeg, NAIL & PAW CARE→nail_&_paw_services…jpeg, ADD-ON→addon_services%20section.jpeg, alts updated).
+  * Gallery/Login folders were empty — nothing to place.
+- DATA BUG FOUND BY VLM: policies table had 8 rows = each of the 4 policies duplicated (pre-existing from the original repo import) — deleted the 4 duplicate rows via CMS API; FAQ policy section now shows each card once.
+- SHOP SIDEBAR REBUILD (user's explicit demand — "a regular sidebar category list with checkboxes is superior"):
+  * NEW src/components/site/islands/shop-sidebar.tsx — regular ecommerce rail: CATEGORIES tree with CHECKBOXES (cascading: checking a node selects its entire subtree, unchecking clears it; parent checkboxes show indeterminate state), uniform row design (caret ONLY where children exist — Pet Supplies is a plain row, no dead dropdown; every caret identical in position + style), rolled-up product counts, PRICE (min/max + Under $25/$25–$50/Over $50 buckets), RATING (4★/3★ & up), AVAILABILITY (In stock/Backordered) — all data-backed, never dead controls; tree scrolls in a capped custom-scrollbar area.
+  * shop-client.tsx catalog view REWRITTEN: hamburger CategoryNav + quick-link chips REMOVED entirely (category-nav.tsx deleted); /shop now lays out as a 220px sidebar + grid (identical rail card/heading/checkbox design to the /shop/category/[slug] pages — consistent by construction), toolbar = mobile FILTERS collapse (active-count badge) + search + live "N OF M" product count, grid 3-col on lg, empty state with CLEAR FILTERS.
+  * Filter logic: search AND category-subtree AND price AND rating AND availability, all client-side; shop/page.tsx now computes the review ratings rollup (same visible/approved pattern as category pages) and passes products+ratings into ShopClient.
+- VERIFIED with agent-browser against the live site, then SCREENSHOTTED every page (desktop 1440px full-page + mobile 390px) and ran each screenshot through the VLM:
+  * All 10 pages: images load, cozy layouts, no awkward gaps, no broken boxes (VLM confirmed each page individually).
+  * All 17 new image URLs HTTP 200; services page img srcs are exactly the new /services/* files from the DB.
+  * Sidebar E2E: check DOG GROOMING SUPPLIES → 7 products; +DOG APPAREL → 8 (union); leaf SHOWER & BATH SUPPLIES → 1; +SHAMPOOS & CONDITIONERS → 4; min $30 → 2; Under $25 → 5; $25–$50 → 3; CLEAR restores 8; search "shampoo" → 2, "zzz" → empty state + CLEAR FILTERS → 8; deep Browse link → /shop/category/grooming (7 products).
+  * VLM on the filtered desktop screenshot: "sidebar is a regular category list with checkboxes… 7 OF 8 shown, all grooming items… consistent and polished, uniform rows".
+  * Mobile 390px: no horizontal scroll on home + shop (scrollWidth === clientWidth), FILTERS opens the rail, VLM confirmed the category checklist renders cleanly.
+  * Regression: home sidebar has NO scrollbar (scrollHeight === clientHeight, 4 social icons), bag flow works (ADD TO BAG → VIEW BAG → /shop/bag shows the item), product detail page renders, category page rail unaffected.
+  * Page-error sweep across all 10 routes: 0 errors; final lint: 0 errors (5 pre-existing warnings); dev.log all 200s.
+- CLEANUP: browser localStorage carts cleared (bag test), QA screenshots kept in verify/ for reference.
+
+Stage Summary:
+- Every page now carries the owner's photography (17/17 placed; folders preserved as-is in public/), filling the gaps the owner called out — FAQ and the contact form section went from imageless to cozy.
+- The shop is a regular ecommerce browsing experience: sidebar CATEGORIES checkbox tree + data-backed facets, one consistent design language across /shop and category pages, no dropdowns anywhere; the inconsistent hamburger + chips are gone.
+- Live DB: 4 duplicate policy rows removed (FAQ policy cards now unique); services thumbnails point at the owner's new photos; no other data touched.

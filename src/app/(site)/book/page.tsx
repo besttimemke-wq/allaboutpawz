@@ -86,7 +86,7 @@ export default async function BookPage() {
             Book an appointment or request a free consultation — all in one simple flow. Start with your name, pick a date, and we&apos;ll take care of the rest.
           </p>
         </div>
-        <img src="/assets/dog-pomeranian.jpg" alt="Happy pomeranian" width={900} height={1024} className="h-[220px] w-full object-contain" />
+        <img src="/Book/bookhero.jpeg" alt="Fluffy poodle wearing a pumpkin bandana under warm autumn lights" width={2752} height={1536} className="h-[260px] w-full border border-gold/25 object-cover" />
       </section>
       <section className="marble bg-cream px-8 pb-14 lg:px-12">
         <div className="border border-gold/30 bg-card p-7 lg:p-10">

@@ -39,8 +39,7 @@ export default async function ProcessPage() {
             ))}
           </ol>
         </div>
-        { }
-        <img src="/assets/dog-schnauzer.jpg" alt="Well groomed miniature schnauzer sitting" width={900} height={1024} className="h-full max-h-[520px] w-full object-contain" />
+        <img src="/Our%20Process/ourprocess2..jpeg" alt="Happy dalmatian smiling under warm string lights at the salon" width={2400} height={1792} className="h-full max-h-[520px] w-full border border-gold/25 object-cover" />
       </section>
       <section className="bg-ink px-8 py-10 lg:px-12">
         <div className="flex items-center gap-3">

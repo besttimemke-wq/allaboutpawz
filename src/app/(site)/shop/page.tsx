@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/site/site-chrome"
 import { ShopClient } from "@/components/site/islands/shop-client"
 import { getSiteContent } from "@/lib/site-data"
 import { getCategoryTree } from "@/lib/categories"
+import { repo } from "@/lib/repo"
 
 const ASSURANCES = [
   { Icon: Truck, title: "Free Standard Shipping", body: "On every order — 5–7 business days." },
@@ -18,15 +19,28 @@ const BADGES = [
 ]
 
 export default async function ShopPage() {
-  const [{ products }, tree] = await Promise.all([
+  const [{ products }, tree, reviews] = await Promise.all([
     getSiteContent(),
     getCategoryTree(),
+    repo.list("product_reviews"),
   ])
   // getSiteContent already filters visible. The live catalog is deduplicated
   // in the database (unique slugs) — just sort by the catalog `order` field.
   const unique = products.sort(
     (a: any, b: any) => (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)),
   )
+
+  // Review rollup per product (same pattern as the category pages: a review
+  // shows when it is visible OR explicitly approved).
+  const ratings: Record<string, { avg: number; count: number }> = {}
+  for (const r of (reviews || []) as any[]) {
+    if (!(r.visible === true || r.status === "approved")) continue
+    const cur = ratings[r.productId] || { avg: 0, count: 0 }
+    ratings[r.productId] = {
+      avg: (cur.avg * cur.count + (r.rating || 0)) / (cur.count + 1),
+      count: cur.count + 1,
+    }
+  }
 
   return (
     <>
@@ -53,11 +67,11 @@ export default async function ShopPage() {
         </div>
         <div className="relative">
           <img
-            src="/assets/product-shampoo.jpg"
-            alt="Pawz signature shampoo on a folded towel"
-            width={900}
-            height={1024}
-            className="h-[340px] w-full border border-gold/25 object-cover"
+            src="/Shop/shop.png"
+            alt="Pawz Signature Shampoo bottle"
+            width={373}
+            height={669}
+            className="h-[340px] w-full border border-gold/25 bg-cream-deep object-contain p-4"
           />
           <span className="absolute left-4 top-4 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-gold">
             GROOMER FAVORITE
@@ -85,7 +99,7 @@ export default async function ShopPage() {
         <h2 className="border-t border-gold/25 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
           SHOP OUR FAVORITES
         </h2>
-        <ShopClient products={unique} categoryTree={tree.categories} />
+        <ShopClient products={unique} categoryTree={tree.categories} ratings={ratings} />
       </section>
 
       {/* Trust badges */}

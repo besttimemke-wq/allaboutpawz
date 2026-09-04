@@ -17,8 +17,7 @@ export default async function PricingPage() {
           <h1 className="font-display text-[38px] leading-[1.1] text-ink">Simple.<br />Transparent.<br />Worth Every Penny.</h1>
           <p className="mt-6 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">Pricing is based on size, coat condition, breed, and service package.</p>
         </div>
-        { }
-        <img src="/assets/dog-bichon.jpg" alt="White bichon frise wearing a black bow tie" width={900} height={1024} className="h-[300px] w-full object-contain" />
+        <img src="/Pricing/pricinghero.jpeg" alt="Fluffy dog wearing a tropical bandana ready for its grooming package" width={2752} height={1536} className="h-[300px] w-full border border-gold/25 object-cover" />
       </section>
       <section className="marble bg-cream px-8 pb-14 lg:px-12">
         <div className="border border-gold/30">

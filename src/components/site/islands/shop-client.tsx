@@ -4,10 +4,10 @@ import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import {
   Check, CaretLeft, CaretRight, ShoppingBag, Plus, Minus, X, Trash,
-  Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle,
+  Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle, Funnel, CaretUp, CaretDown,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
-import { CategoryNav, type NavCategory } from "./category-nav"
+import { ShopSidebar, type SidebarCategory } from "./shop-sidebar"
 
 // ---------------------------------------------------------------------------
 // Shop Client — catalog + bag + booking-style checkout flow.
@@ -34,17 +34,37 @@ export type ShopProduct = {
   description?: string | null
   category?: string | null
   categoryId?: number | null
+  stock?: number | null
 }
 
 type View = "catalog" | "checkout" | "success"
 
-export function ShopClient({ products, categoryTree }: { products: ShopProduct[]; categoryTree: NavCategory[] }) {
+type Rating = { avg: number; count: number }
+
+export function ShopClient({
+  products,
+  categoryTree,
+  ratings = {},
+}: {
+  products: ShopProduct[]
+  categoryTree: SidebarCategory[]
+  ratings?: Record<string, Rating>
+}) {
   const s = useCart()
   const [hydrated, setHydrated] = useState(false)
   const [view, setView] = useState<View>("catalog")
   const [query, setQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
   const [verify, setVerify] = useState<"checking" | "paid" | "pending" | null>(null)
+  // Sidebar filter state — categories (cascading checkboxes) + price/rating/
+  // availability bucket keys (all strings in one bucket array).
+  const [checkedCats, setCheckedCats] = useState<Set<number>>(new Set())
+  const [price, setPrice] = useState<{ min: string; max: string; buckets: string[] }>({
+    min: "",
+    max: "",
+    buckets: [],
+  })
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   // Hydrate from localStorage (avoid SSR mismatch)
   useEffect(() => setHydrated(true), [])
@@ -87,21 +107,74 @@ export function ShopClient({ products, categoryTree }: { products: ShopProduct[]
   // (The checkout wizard computes its own totals; the persistent bag
   // indicator now lives in the site header — see HeaderBagLink.)
 
-  const filtered = products.filter((p) => {
-    if (query.trim()) {
-      const q = query.toLowerCase()
-      if (!p.name.toLowerCase().includes(q) && !(p.description || "").toLowerCase().includes(q)) return false
-    }
-    return true
-  })
+  // Cascade-check a node: checking selects the node + its entire subtree;
+  // unchecking removes the node + its entire subtree.
+  const toggleCategory = (node: SidebarCategory) => {
+    const ids = collectIds(node)
+    const allOn = ids.every((id) => checkedCats.has(id))
+    setCheckedCats((prev) => {
+      const next = new Set(prev)
+      for (const id of ids) {
+        if (allOn) next.delete(id)
+        else next.add(id)
+      }
+      return next
+    })
+  }
+
+  const clearCategories = () => setCheckedCats(new Set())
+
+  const activeFilterCount =
+    checkedCats.size + (price.min.trim() ? 1 : 0) + (price.max.trim() ? 1 : 0) + price.buckets.length
+
+  const clearAll = () => {
+    setCheckedCats(new Set())
+    setPrice({ min: "", max: "", buckets: [] })
+  }
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const min = parseFloat(price.min)
+    const max = parseFloat(price.max)
+    const hasMin = price.min.trim() !== "" && isFinite(min)
+    const hasMax = price.max.trim() !== "" && isFinite(max)
+    const priceBuckets = price.buckets.filter((k) => k === "under25" || k === "25to50" || k === "over50")
+    const ratingFloor = price.buckets.includes("rating4") ? 4 : price.buckets.includes("rating3") ? 3 : 0
+    const stockOnly = price.buckets.includes("instock")
+    const backorderOnly = price.buckets.includes("backorder")
+
+    return products.filter((p) => {
+      if (q && !p.name.toLowerCase().includes(q) && !(p.description || "").toLowerCase().includes(q)) return false
+      if (checkedCats.size > 0 && (p.categoryId == null || !checkedCats.has(p.categoryId))) return false
+      const c = parsePriceToCents(p.price)
+      if (hasMin && (c == null || c < Math.round(min * 100))) return false
+      if (hasMax && (c == null || c > Math.round(max * 100))) return false
+      if (priceBuckets.length > 0) {
+        const ok = priceBuckets.some((k) => {
+          if (c == null) return false
+          if (k === "under25") return c < 2500
+          if (k === "25to50") return c >= 2500 && c <= 5000
+          return c > 5000
+        })
+        if (!ok) return false
+      }
+      if (ratingFloor > 0) {
+        const r = ratings[p.id]
+        if (!r || r.count === 0 || r.avg < ratingFloor) return false
+      }
+      if (stockOnly && p.stock != null && p.stock <= 0) return false
+      if (backorderOnly && p.stock !== 0) return false
+      return true
+    })
+  }, [products, query, checkedCats, price, ratings])
 
   // SSR-safe skeleton before zustand rehydration
   if (!hydrated) {
     return (
       <div className="mt-8 min-h-[420px] animate-pulse">
         <div className="h-10 w-full rounded bg-cream-deep" />
-        <div className="mt-8 grid grid-cols-2 gap-8 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => <div key={i} className="h-[300px] rounded bg-cream-deep" />)}
+        <div className="mt-8 grid grid-cols-2 gap-8 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => <div key={i} className="h-[300px] rounded bg-cream-deep" />)}
         </div>
       </div>
     )
@@ -147,14 +220,43 @@ export function ShopClient({ products, categoryTree }: { products: ShopProduct[]
         <p className="mt-4 border border-gold/30 bg-cream-deep px-4 py-2 text-[12px] text-gold-deep">{notice}</p>
       )}
 
-      {/* Department navigation (hamburger taxonomy + quick-link chips) + search.
-          Category browsing now navigates to /shop/category/[slug] pages;
-          the search box still filters the in-page catalog grid client-side. */}
-      <div className="mt-8">
-        <CategoryNav
-          nodes={categoryTree}
-          search={
-            <div className="relative min-w-[180px] flex-1">
+      {/* Regular ecommerce layout: category/filter sidebar + catalog grid.
+          The rail design matches the /shop/category/[slug] pages exactly. */}
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
+        {/* Desktop sidebar rail */}
+        <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:block">
+          <ShopSidebar
+            categories={categoryTree}
+            products={products}
+            ratings={ratings}
+            checked={checkedCats}
+            onToggleCategory={toggleCategory}
+            onClearCategories={clearCategories}
+            price={price}
+            onPriceChange={setPrice}
+          />
+        </aside>
+
+        <div className="min-w-0">
+          {/* Toolbar: mobile FILTERS toggle + search + result count */}
+          <div className="flex flex-wrap items-center gap-3 border-b border-gold/25 pb-4">
+            <button
+              type="button"
+              onClick={() => setMobileOpen((o) => !o)}
+              aria-expanded={mobileOpen}
+              className="inline-flex min-h-[40px] items-center gap-2 border border-gold/35 bg-cream px-4 py-2 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-gold-deep hover:text-gold-deep lg:hidden"
+            >
+              <Funnel size={12} weight="bold" />
+              FILTERS
+              {activeFilterCount > 0 && (
+                <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-gold-deep px-1 text-[8.5px] font-bold leading-none text-cream">
+                  {activeFilterCount}
+                </span>
+              )}
+              {mobileOpen ? <CaretUp size={10} weight="bold" /> : <CaretDown size={10} weight="bold" />}
+            </button>
+
+            <div className="relative min-w-[180px] flex-1 lg:max-w-[320px]">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -163,12 +265,32 @@ export function ShopClient({ products, categoryTree }: { products: ShopProduct[]
                 className="w-full border border-gold/35 bg-cream px-3.5 py-2 text-[12px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-deep"
               />
             </div>
-          }
-        />
-      </div>
+
+            <p className="ml-auto text-[10px] font-bold tracking-[0.14em] text-ink-soft/70" aria-live="polite">
+              {filtered.length === products.length
+                ? `${products.length} PRODUCTS`
+                : `${filtered.length} OF ${products.length}`}
+            </p>
+          </div>
+
+          {/* Mobile collapsible sidebar (same rail) */}
+          {mobileOpen && (
+            <div className="mt-4 border border-gold/25 bg-card p-5 lg:hidden animate-in fade-in slide-in-from-top-1 duration-150">
+              <ShopSidebar
+                categories={categoryTree}
+                products={products}
+                ratings={ratings}
+                checked={checkedCats}
+                onToggleCategory={toggleCategory}
+                onClearCategories={clearCategories}
+                price={price}
+                onPriceChange={setPrice}
+              />
+            </div>
+          )}
 
       {/* product grid */}
-      <div className="mt-10 grid grid-cols-2 gap-8 lg:grid-cols-4">
+      <div className="mt-8 grid grid-cols-2 gap-8 lg:grid-cols-3">
         {filtered.map((p) => {
           const href = p.slug ? `/shop/${p.slug}` : null
           const subtitle = p.shortDescription || p.description
@@ -258,8 +380,25 @@ export function ShopClient({ products, categoryTree }: { products: ShopProduct[]
         })}
       </div>
       {filtered.length === 0 && (
-        <p className="mt-12 text-center text-[12.5px] text-ink-soft">No products match your search.</p>
+        <div className="mt-2 border border-gold/30 bg-cream-deep/50 px-6 py-12 text-center">
+          <p className="text-[12.5px] text-ink-soft">
+            {query.trim() || activeFilterCount > 0
+              ? "No products match your filters."
+              : "No products available right now."}
+          </p>
+          {(query.trim() || activeFilterCount > 0) && (
+            <button
+              type="button"
+              onClick={() => { clearAll(); setQuery(""); setMobileOpen(false) }}
+              className="btn-ghost mt-5"
+            >
+              CLEAR FILTERS
+            </button>
+          )}
+        </div>
       )}
+        </div>
+      </div>
     </>
   )
 }
@@ -267,6 +406,12 @@ export function ShopClient({ products, categoryTree }: { products: ShopProduct[]
 // ===========================================================================
 // Checkout wizard — 4 steps, same chrome as the booking wizard
 // ===========================================================================
+
+// Flatten a category node + all descendants into a list of ids (cascade).
+function collectIds(node: SidebarCategory): number[] {
+  return [node.id, ...(node.children || []).flatMap(collectIds)]
+}
+
 function CheckoutWizard({ onExit }: { onExit: () => void }) {
   const s = useCart()
   const [submitting, setSubmitting] = useState(false)

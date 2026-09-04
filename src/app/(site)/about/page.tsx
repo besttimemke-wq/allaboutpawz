@@ -25,8 +25,9 @@ export default async function AboutPage() {
             We are more than a grooming salon — we&apos;re a place where dogs feel safe, look their best, and leave happy.
           </p>
         </div>
-        { }
-        <img src="/assets/dog-shihtzu.jpg" alt="Freshly groomed shih tzu wearing a bow tie" width={768} height={1024} className="h-[330px] w-full object-cover" />
+        <div className="border border-gold/25 bg-cream-deep">
+          <img src="/About/aboutus2.png" alt="Groomed black dog with a glossy coat" width={578} height={432} className="h-[330px] w-full object-contain" />
+        </div>
       </section>
       <section className="marble grid grid-cols-2 gap-y-8 border-y border-gold/25 bg-cream px-8 py-10 lg:grid-cols-4 lg:px-12">
         {VALUES.map(({ Icon, title, body }, i) => (
@@ -45,8 +46,7 @@ export default async function AboutPage() {
           <h2 className="mt-9 font-display text-[22px] text-gold">Our Promise</h2>
           <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-on-dark-muted">We treat every pup like our own and every parent like family.</p>
         </div>
-        { }
-        <img src="/assets/salon-interior.jpg" alt="All About Pawz salon reception" width={1280} height={900} className="h-full min-h-[300px] w-full object-cover" />
+        <img src="/About/ABOUTUS3RDSECTIONjpeg.jpeg" alt="Miniature schnauzer with a polka-dot bandana in warm salon light" width={2752} height={1536} className="h-full min-h-[300px] w-full object-cover" />
       </section>
     </>
   )

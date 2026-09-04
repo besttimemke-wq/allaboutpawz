@@ -16,8 +16,7 @@ export default async function ServicesPage() {
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">Premium grooming services tailored to your dog&apos;s breed, coat, and lifestyle.</p>
           <Link href="/pricing" className="btn-gold mt-7">VIEW PACKAGES</Link>
         </div>
-        { }
-        <img src="/assets/dog-doodle.jpg" alt="Goldendoodle wearing a black bow tie" width={768} height={1024} className="h-[330px] w-full object-cover" />
+        <img src="/services/serviceshero2.jpeg" alt="Groomed dog posed under warm salon lights" width={2752} height={1536} className="h-[330px] w-full border border-gold/25 object-cover" />
       </section>
       <section className="marble bg-cream px-8 pb-14 lg:px-12">
         <div className="divide-y divide-gold/20 border-y border-gold/25">
