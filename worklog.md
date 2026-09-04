@@ -43,3 +43,25 @@ Stage Summary:
 - App runs and renders; site + admin verified end-to-end via agent-browser.
 - BLOCKED ON USER INPUT: real Supabase keys (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY) — plus optional Stripe (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET) and Resend (RESEND_API_KEY) keys — to be pasted into /home/z/my-project/.env, then dev server restart.
 - With keys: all data (customers, dogs, bookings, payments, staff, grooming lookups, CMS content) flows from the user's Supabase project; schema is already applied there per user ("all tables in Supabase").
+
+---
+Task ID: 2
+Agent: Main agent (Z.ai Code)
+Task: Activate the app with the user's real keys (Supabase + Stripe live + Resend + admin email) and verify the full stack end-to-end.
+
+Work Log:
+- User supplied all production keys: Supabase URL/anon/service-role (+ management token sbp_…, direct & pooler Postgres strings), Stripe live pk/sk/whsec, Resend send-only key, ADMIN_EMAIL=allaboutpawz901@gmail.com.
+- Wrote real values into /home/z/my-project/.env using the exact var names the code reads (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL/ANON legacy aliases, SUPABASE_ACCESS_TOKEN, STRIPE_SECRET_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY, EMAIL_FROM, SALON_NOTIFY_EMAIL, ADMIN_EMAILS). Postgres connection strings kept as reference comments (app talks to PostgREST, not pg).
+- Killed old dev server; restarted persistently (setsid/nohup, tee dev.log). Ready in 1926ms.
+- Direct Supabase REST validation: services table returns real rows; /auth/v1/health 200.
+- Stripe key validated read-only (GET /v1/balance → livemode true). Resend key is send-restricted (401 on GET /domains — expected for a send-only key; app only sends).
+- /api/cms/status → {"backend":"supabase","supabaseConfigured":true,"resendReady":true}; /api/cms/* now serve real Supabase rows.
+- agent-browser verification: homepage renders real services from Supabase; booking wizard v2 advanced NAME→CONTACT→DOG (breed combobox populated from live dog_breeds); POST /api/customers 201 → verified live Supabase row (status ACTIVE) AND live Stripe customer cus_VCSBEs1AwzUE4N linked back; admin renders Pet Parent/Staff portals + Supabase auth login, all /api/cms/* + /api/analytics/revenue 200; zero console/page errors.
+- Mobile 390px: no horizontal scroll (home, contact); footer in natural flow on long pages.
+- Cleaned up verification data: deleted test customer row from Supabase (verified gone) and deleted Stripe test customer (deleted:true).
+- Final dev.log: zero errors; all routes 200.
+
+Stage Summary:
+- App is fully LIVE against the user's real Supabase project, live Stripe account, and Resend. Zero Prisma anywhere; Supabase is the only backend.
+- Full write path proven end-to-end (browser → API → Stripe + Supabase with linkage) and test data removed.
+- Everything the previous session was blocked on is now resolved.
