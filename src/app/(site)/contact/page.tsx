@@ -1,8 +1,39 @@
-import { Facebook, Instagram, MapPin, Phone, Mail, Clock } from "lucide-react"
+import { Facebook, Instagram, MapPin, Phone, Mail, Clock, Heart } from "lucide-react"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { ContactForm } from "@/components/site/islands/contact-form"
+import { Reveal } from "@/components/site/islands/reveal"
 import { getSiteContent } from "@/lib/site-data"
+
+// Black band under the hero — same structure as the homepage services band
+// (left title column + 4 centered icon items, gold hairline dividers).
+const CONTACT_POINTS = [
+  {
+    Icon: Mail,
+    title: "PERSONAL REPLIES",
+    body: "A real member of our\nteam answers every message.",
+  },
+  {
+    Icon: Clock,
+    title: "FAST RESPONSES",
+    body: "We typically reply within\none business day.",
+  },
+  {
+    Icon: MapPin,
+    title: "VISIT ANYTIME",
+    body: "Meet the team and see\nwhere the magic happens.",
+  },
+  {
+    Icon: Heart,
+    title: "FOLLOW THE FUN",
+    body: "Fresh cuts and pup dates\non Instagram & Facebook.",
+  },
+]
+
+export const metadata = {
+  title: "Contact Us | All About Pawz",
+  description: "Questions about services, packages, or your pup's coat? Reach All About Pawz by phone, email, or a visit to the salon — we respond personally.",
+}
 
 export default async function ContactPage() {
   const { settings: s } = await getSiteContent()
@@ -15,54 +46,76 @@ export default async function ContactPage() {
   return (
     <>
       <PageHeader n="10" label="CONTACT" />
-      {/* Hero raised to the top, natural height. The silhouette sits in the
-          right column, aligned with the text (info) column's height, placed
-          directly against the canvas — no container. */}
-      <section className="marble bg-cream px-8 pt-6 pb-12 lg:px-12 lg:pt-8">
-        <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Come Say<br />Hello.</h1>
-        <Divider />
-        <p className="mt-5 max-w-md text-[12.5px] leading-[1.9] text-ink-soft">
-          Questions about a service, a coat type, or which package suits your pup best? We would love to hear from you. Reach out and a member of our team will respond personally.
-        </p>
-        <div className="mt-10 grid grid-cols-1 items-stretch gap-10 lg:grid-cols-2">
-          <div className="space-y-7">
-            {details.map((d) => (
-              <div key={d.label} className="flex gap-4">
-                <d.icon className="mt-[2px] h-4 w-4 shrink-0 text-gold-deep" />
-                <div>
-                  <p className="text-[10px] font-bold tracking-[0.18em] text-ink">{d.label}</p>
-                  {d.lines.map((l) => <p key={l} className="mt-1 text-[12.5px] leading-[1.8] text-ink-soft">{l}</p>)}
-                </div>
-              </div>
-            ))}
-            <div className="flex items-center gap-4 pt-2">
-              <a href={s.instagram || "#"} aria-label="Instagram" className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold-deep transition-colors hover:bg-gold/10"><Instagram className="h-4 w-4" /></a>
-              <a href={s.facebook || "#"} aria-label="Facebook" className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold-deep transition-colors hover:bg-gold/10"><Facebook className="h-4 w-4" /></a>
-            </div>
-          </div>
+
+      {/* HERO — site standard: centered text left, photo right filling the column. */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+        <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
+          <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Come Say<br />Hello.</h1>
+          <div className="mt-6"><Divider /></div>
+          <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">
+            Questions about a service, a coat type, or which package suits your pup best? We would love to hear from you. Reach out and a member of our team will respond personally.
+          </p>
+        </div>
+        <div className="relative min-h-[300px]">
           <img
-            src="/Contact/contact%20page.png"
-            alt="Groomer gently caring for a small dog on the grooming table"
-            width={386}
-            height={555}
-            className="hidden h-full min-h-[360px] w-full object-contain lg:block"
+            src="/Contact/contacthero-v2.jpeg"
+            alt="Seven dogs of different breeds posing together in the All About Pawz dog grooming salon beneath the shop sign"
+            width={1217}
+            height={679}
+            className="absolute inset-0 h-full w-full object-cover"
           />
         </div>
       </section>
-      <ContactForm />
+
+      {/* SECOND SECTION — black band copied from the homepage services band. */}
       <section className="bg-ink px-8 py-12 lg:px-12">
-        <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
-          <div className="flex h-56 items-center justify-center border border-gold/25 bg-ink-soft/40">
-            <div className="text-center">
-              <MapPin className="mx-auto h-6 w-6 text-gold" />
-              <p className="mt-3 text-[10px] font-bold tracking-[0.18em] text-gold">FIND US ON THE MAP</p>
-              <p className="mt-2 text-[12px] text-on-dark-muted">{s.addressLine1 || "1428 Maple Grove Avenue"}, Riverbend, IL</p>
+        <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_2.4fr]">
+          <div className="lg:border-r lg:border-gold/25 lg:pr-10">
+            <p className="eyebrow-dark">GET IN TOUCH</p>
+            <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-on-dark">Every Pup.<br />Every Question.<br />Every Detail.</h2>
+            <p className="mt-4 max-w-[290px] text-[12px] leading-[1.75] text-on-dark-muted">
+              However you reach out — a call, a note, or a visit — you&apos;ll always get a real person who knows pups and loves what they do.
+            </p>
+            <a href="#message" className="btn-gold mt-6 inline-flex">SEND A MESSAGE</a>
+          </div>
+          <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
+            {CONTACT_POINTS.map(({ Icon, title, body }, i) => (
+              <div key={title} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
+                <Icon className="mx-auto h-10 w-10 text-gold" strokeWidth={1.2} />
+                <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-gold">{title}</h3>
+                <p className="mt-3 whitespace-pre-line text-[12px] leading-[1.7] text-on-dark-muted">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* THIRD SECTION — two columns: the essentials (address, phone, email,
+          hours) share the row with the animated Send Us a Message card. */}
+      <section className="marble bg-cream px-8 py-14 lg:px-12 lg:py-16">
+        <div className="grid gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+          <Reveal>
+            <p className="eyebrow">THE ESSENTIALS</p>
+            <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-ink">Find Us.<br />Call Us.<br />Write Us.</h2>
+            <div className="mt-8 divide-y divide-gold/20">
+              {details.map((d) => (
+                <div key={d.label} className="flex gap-5 py-5 first:pt-0 last:pb-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-cream-deep/40">
+                    <d.icon className="h-4 w-4 text-gold-deep" strokeWidth={1.6} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold tracking-[0.18em] text-gold-deep">{d.label}</p>
+                    {d.lines.map((l) => <p key={l} className="mt-1 text-[12.5px] leading-[1.8] text-ink-soft">{l}</p>)}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-          <div>
-            <h2 className="font-display text-[24px] leading-[1.2] text-on-dark">Free parking directly<br />behind the salon.</h2>
-            <a href={`https://maps.google.com/?q=${encodeURIComponent(s.addressLine1 || "1428 Maple Grove Avenue")}`} target="_blank" rel="noreferrer" className="btn-gold mt-6 inline-flex">GET DIRECTIONS</a>
-          </div>
+            <div className="mt-8 flex items-center gap-4">
+              <a href={s.instagram || "#"} aria-label="Instagram" className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold-deep transition-colors hover:bg-gold/10"><Instagram className="h-4 w-4" /></a>
+              <a href={s.facebook || "#"} aria-label="Facebook" className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold-deep transition-colors hover:bg-gold/10"><Facebook className="h-4 w-4" /></a>
+            </div>
+          </Reveal>
+          <ContactForm />
         </div>
       </section>
     </>

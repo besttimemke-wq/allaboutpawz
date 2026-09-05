@@ -665,3 +665,24 @@ Work Log:
 Stage Summary:
 - Book page hero now matches every other hero on the site (standard split layout, photo fills its column)
 - `public/Book/bookhero-v2.jpeg` is the live hero; legacy `bookhero.jpeg` + `bookingfloW.png` both unreferenced
+
+---
+Task ID: 22
+Agent: main (direct work, no subagents)
+Task: Redesign the contact page — new hero, home-page band as second section, two-column details + animated message card, remove map/free-parking, thin footer
+
+Work Log:
+- Staged new upload `pasted_image_1788596586427.png` (1217×679, seven dogs posing in the salon) as `public/Contact/contacthero-v2.jpeg` — new filename, PNG→JPEG q88, no crop
+- Rebuilt contact hero to the site standard (`grid lg:grid-cols-[1fr_1.25fr]`, "Come Say Hello." + Divider + copy left, photo object-cover right); old `contact page.png` silhouette retired (file kept)
+- Added a black band as the second section copying the homepage services band structure exactly (left col: eyebrow-dark, "Every Pup. Every Question. Every Detail.", copy, gold SEND A MESSAGE button → anchor #message; right: 4 centered icon items PERSONAL REPLIES / FAST RESPONSES / VISIT ANYTIME / FOLLOW THE FUN with gold hairline dividers)
+- Built the two-column third section: left = THE ESSENTIALS (VISIT US / CALL US / EMAIL US / HOURS rows with gold-circle icons + hairline dividers, socials), right = redesigned Send Us a Message card
+- Rewrote `contact-form.tsx` as a premium black card (bg-ink, gold accents): scroll-reveal entry, staggered form-field variants, button hover/tap spring + disabled SENDING… state, AnimatePresence success swap with spring-pop gold check
+- Created reusable client `islands/reveal.tsx` (framer-motion whileInView fade/slide wrapper — server components can pass children across the boundary) and used it for the details column
+- Removed the map + free-parking black section; page now ends on the standard thin footer from the layout
+- Added page metadata (title + description — the contact page had none)
+- Verified: DOM (hero 671×372 right col, card 549×611 right col, map/parking gone, footer present), VLM on desktop + mobile screenshots (no overlap/cut-off), form animation fires (opacity 1 in view), E2E submit → POST /api/cms/messages 201 → row confirmed in `contact_messages` table → test row deleted, band anchor scrolls to card (cardTop 20px), mobile stacks cleanly, lint 0 errors (5 pre-existing warnings), dev.log clean
+
+Stage Summary:
+- Contact page now: standard hero (7-dogs photo) → black band (home-page pattern) → two-column essentials + animated black message card → thin footer
+- New reusable `Reveal` island available site-wide for scroll animations
+- Contact form flow fully working (Supabase `contact_messages`, status UNREAD, visible in admin)
