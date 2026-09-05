@@ -884,3 +884,20 @@ Stage Summary:
 - Build failure root-caused and fixed in both the sandbox (source of truth) and the Vercel export; production build now passes 51/51 pages with the exact Vercel command and environment
 - Commit 0b2de3f sits ready in /tmp/aapawz-deploy (no remotes, clean tree); pushing it triggers Vercel auto-redeploy
 - Next step after push: owner adds Supabase env vars in Vercel (site renders without them, but admin CRM/booking writes need real keys) and attaches aapawz.com
+
+---
+Task ID: 32
+Agent: main (direct work, no subagents)
+Task: Push the Vercel build fix (commit 0b2de3f) to github.com/besttimemke-wq/allaboutpawz using the owner-provided PAT (transient use only; never saved, logged, or committed). Also answer the owner's question about Vercel's "Remove the public framework prefix" advisory on env vars.
+
+Work Log:
+- Verified export hygiene before push: no .env in /tmp/aapawz-deploy (only .env.example placeholders); .gitignore covers .env / .env.local / .env*.local (lines 27-30).
+- PUSH: PAT used once inside the push URL of a single command (output masked via sed; shell var unset in same command; no git remote configured so nothing persisted in config). Result: 610dd6b..0b2de3f HEAD -> main, exit 0.
+- POST-PUSH VERIFICATION (no credential — public repo): git ls-remote shows remote main = 0b2de3f6b8fae5b7d5ca9518188927a160f93d53.
+- HYGIENE SCAN: pattern search for any PAT-shaped value across /tmp/aapawz-deploy and the sandbox (excluding node_modules/.next/dev logs) = ZERO hits; worklog contains no secrets; token never echoed in command output (masked).
+- ENV VAR GUIDANCE given to owner (Vercel advisory is a warning, not an error): keep NEXT_PUBLIC_ prefix on NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY (browser needs them; anon key is protected by Supabase RLS by design) and NEXT_PUBLIC_SITE_URL; NEVER put NEXT_PUBLIC_ on SUPABASE_SERVICE_ROLE_KEY / STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET / RESEND_API_KEY (server-only secrets — a public prefix would ship them into the browser bundle).
+
+Stage Summary:
+- Fix is live on GitHub main (0b2de3f); Vercel auto-redeploys from it — local proof used the exact same pipeline (Next 16.1.3 Turbopack, bun run build, no env vars) and generated 51/51 static pages cleanly
+- Security policy held end-to-end: secrets git-ignored, no secrets in worklog, PAT used transiently and stored nowhere
+- Owner's remaining Vercel steps: add env vars per .env.example (public/server-only split as above), then attach the aapawz.com domain (needed for Stripe active-domain review)
