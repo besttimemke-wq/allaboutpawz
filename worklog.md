@@ -490,3 +490,21 @@ Work Log:
 
 Stage Summary:
 - About third section: owner photo w/ founder overlay (Bree), new elevated Mission/Promise copy on the right
+
+---
+Task ID: 12
+Agent: main agent (direct work, per standing rule)
+Task: SEO tags + sitemap + services page rebuild (hero image, homepage band copy with new headline, enlarged grid, button fix)
+
+Work Log:
+- SEO: keyword-rich alt text on all placed images (home hero poodle, 3rd banner, CTA cavapoo, about schnauzer, about owner, services hero); per-page metadata title+description on home/about/services (e.g. "Dog Grooming Services | All About Pawz"); heading hierarchy already h1(hero)/h2(sections)
+- Sitemap: created src/app/sitemap.ts → /sitemap.xml serving all 10 public routes with priorities (home 1, services/pricing/book 0.9); base URL https://www.allaboutpawz.com (placeholder, swap when domain is live); TN city pages to be appended later per user plan
+- New hero image pasted_image_1788588491273.png (1448×1086, white poodle in salon) → public/services/serviceshero.png
+- Services page rebuilt: hero on the site standard ([1fr_1.25fr] centered text, image fill, same placement as About); second section = homepage black services band copied with headline replaced "Gentle Care. Beautiful Results. Happy Pups." + BOOK APPOINTMENT button; third section = full services list ENLARGED (thumbnails 172×64 → 340×130, description max-w removed so text flows to the image, py-3.5 → py-5, gap-4 → gap-6)
+- Fixed "extremely long button": buttons inside flex-col heroes stretched full-width (flex align-items:stretch default) → self-start on hero VIEW PACKAGES
+- Verified desktop: hero standard split + poodle fill, button normal size, band headline correct w/ 4 icon columns, grid images large + text adjacent (no dead gap) with gold dividers; sitemap.xml returns valid urlset; mobile captured; dev.log 200s; lint 0 errors
+
+Stage Summary:
+- Services page: new poodle hero (standard placement), homepage band with new headline, enlarged grid, normal buttons
+- SEO foundation: alts, page metadata, sitemap.xml live (city pages to come)
+- NEXT (user to decide): services packages UX + package selection → checkout flow

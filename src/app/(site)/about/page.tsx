@@ -3,6 +3,11 @@ import { PawGlyph } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { getSiteContent } from "@/lib/site-data"
 
+export const metadata = {
+  title: "About Us | All About Pawz Dog Grooming",
+  description: "Meet Bree and the All About Pawz team — exceptional dog grooming built on thoughtful care, comfort, and family-level service.",
+}
+
 export default async function AboutPage() {
   await getSiteContent()
   const VALUES = [
@@ -25,7 +30,7 @@ export default async function AboutPage() {
           </p>
         </div>
         <div className="relative min-h-[300px]">
-          <img src="/About/abouthero-schnauzer.png" alt="Black schnauzer standing proudly in the All About Pawz grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/About/abouthero-schnauzer.png" alt="Black schnauzer dog standing proudly in the All About Pawz dog grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       </section>
       {/* Band under the hero — black (matches the homepage services band) */}
@@ -44,7 +49,7 @@ export default async function AboutPage() {
           with the founder's message overlaid, mission/promise text RIGHT. */}
       <section className="marble grid grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
         <div className="relative min-h-[300px]">
-          <img src="/About/about-owner.png" alt="Bree, founder of All About Pawz, with a small dog at her grooming table in the salon" width={1376} height={768} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/About/about-owner.png" alt="Bree, founder of All About Pawz dog grooming, with a small dog at her grooming table in the salon" width={1376} height={768} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 via-ink/45 to-transparent px-8 pb-7 pt-16 lg:px-10">
             <p className="script text-[24px] text-gold-light">A message from our founder</p>
             <p className="mt-2 max-w-[440px] text-[12.5px] leading-[1.8] text-on-dark">

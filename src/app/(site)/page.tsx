@@ -13,6 +13,11 @@ const STEPS = [
   { Icon: CheckCircle2, title: "SEE YOU AGAIN", body: ["We look forward to", "your next visit!"] },
 ]
 
+export const metadata = {
+  title: "Luxury Dog Grooming & Spa | All About Pawz",
+  description: "All About Pawz delivers spa-level dog grooming — breed-specific haircuts, baths, and nail care in a calm, luxury salon.",
+}
+
 export default async function HomePage() {
   const data = await getSiteContent()
   const s = data.settings
@@ -52,7 +57,7 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="relative min-h-[300px]">
-          <img src="/Home/home-hero-poodle.png" alt="Light-colored poodle standing inside the All About Pawz grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/Home/home-hero-poodle.png" alt="White poodle standing in the All About Pawz luxury dog grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       </section>
 
@@ -103,7 +108,7 @@ export default async function HomePage() {
           )}
         </div>
         <div className="relative min-h-[300px]">
-          <img src="/Home/home-3rd-banner.png" alt="All About Pawz grooming salon interior with reception desk and boutique shelving" width={1018} height={269} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/Home/home-3rd-banner.png" alt="All About Pawz dog grooming salon interior with reception desk and boutique pet products" width={1018} height={269} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       </section>
 
@@ -131,7 +136,7 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="flex items-center gap-4 lg:border-l lg:border-gold/25 lg:pl-8">
-          <img src="/Home/home_footer.png" alt="Fluffy cavapoo wearing a bandana with its tongue playfully out" width={287} height={492} className="h-[170px] w-[150px] shrink-0 object-contain" />
+          <img src="/Home/home_footer.png" alt="Fluffy cavapoo dog wearing a bandana after a professional groom at All About Pawz" width={287} height={492} className="h-[170px] w-[150px] shrink-0 object-contain" />
           <div>
             <p className="script text-[27px] leading-[1.15]">Your pup<br />deserves this.</p>
             <Link href="/book" className="btn-dark mt-4">BOOK APPOINTMENT</Link>
