@@ -44,7 +44,7 @@ export default async function AboutPage() {
           with the founder's message overlaid, mission/promise text RIGHT. */}
       <section className="marble grid grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
         <div className="relative min-h-[300px]">
-          <img src="/About/about-founder.png" alt="Black schnauzer wearing a pink bandana standing in the All About Pawz salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/About/about-owner.png" alt="Bree, founder of All About Pawz, with a small dog at her grooming table in the salon" width={1376} height={768} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 via-ink/45 to-transparent px-8 pb-7 pt-16 lg:px-10">
             <p className="script text-[24px] text-gold-light">A message from our founder</p>
             <p className="mt-2 max-w-[440px] text-[12.5px] leading-[1.8] text-on-dark">
@@ -56,9 +56,9 @@ export default async function AboutPage() {
         <div className="flex flex-col justify-center px-8 py-12 lg:px-12">
           <PawGlyph className="h-6 w-6 text-gold-deep" />
           <h2 className="mt-4 font-display text-[22px] text-ink">Our Mission</h2>
-          <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">To provide exceptional grooming in a safe, loving, and luxurious environment.</p>
+          <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">To elevate the grooming experience through thoughtful care, exceptional service, and a calm, luxurious environment.</p>
           <h2 className="mt-9 font-display text-[22px] text-ink">Our Promise</h2>
-          <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">We treat every pup like our own and every parent like family.</p>
+          <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">Every detail is designed around your dog&apos;s comfort, from gentle handling to personalized attention and a welcoming experience for the whole family.</p>
         </div>
       </section>
     </>

@@ -475,3 +475,18 @@ Work Log:
 Stage Summary:
 - About hero: new schnauzer dog, standard layout
 - Third section: canvas color, image left with founder message overlay (Bree signature), mission/promise right
+
+---
+Task ID: 11
+Agent: main agent (direct work, per standing rule)
+Task: About third section — use the owner image (Bree with dog at grooming table) and update Mission/Promise copy
+
+Work Log:
+- Checked pasted_image_1788587411702.png (1376×768): woman (owner) with small dog at grooming table, subjects on left, dark bottom space suits the overlay
+- Copied to public/About/about-owner.png (cache-busted)
+- Swapped the third-section image from the bandana schnauzer to the owner photo; kept the founder message overlay + '— Bree' signature (fits the owner photo)
+- Updated right-column copy: Mission = "To elevate the grooming experience through thoughtful care, exceptional service, and a calm, luxurious environment."; Promise = "Every detail is designed around your dog's comfort, from gentle handling to personalized attention and a welcoming experience for the whole family."
+- Verified desktop + mobile: VLM confirms owner photo left, overlay readable, new Mission/Promise copy present, image fills column; dev.log 200s
+
+Stage Summary:
+- About third section: owner photo w/ founder overlay (Bree), new elevated Mission/Promise copy on the right
