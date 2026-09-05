@@ -60,7 +60,7 @@ export default async function ServicesPage() {
           admin: Services (categories/images) + Service Items (items/prices). */}
       <section className="marble bg-cream px-8 py-10 lg:px-12">
         <ServicesAccordion categories={services} items={serviceItems} />
-        <p className="mt-4 text-center text-[11px] leading-[1.7] text-ink-soft">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
+        <p className="mt-4 text-center text-[11px] italic leading-[1.7] text-ink-soft">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
       </section>
     </>
   )

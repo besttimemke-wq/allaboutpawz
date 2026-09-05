@@ -545,3 +545,21 @@ Stage Summary:
 - Services accordion fully CMS-manageable: edit items/prices/visibility in admin (CMS → Service Items) → publishes to the live services page
 - Layout per owner: no redundant table, image in header (uncropped), pricing inside accordion, wider body, GET PACKAGE CTA column
 - Still pending: GET PACKAGE → real package-selection checkout flow (booking wizard pre-select vs shop-style)
+
+---
+Task ID: 15
+Agent: main agent (direct work, per standing rule)
+Task: Services accordion v3 per owner's latest direction — image in the CENTER column, SEE MORE button (with plus sign) in the THIRD column, evenly spaced; plus confirm the CMS wiring (answer the "did you find the cms setting" question)
+
+Work Log:
+- Confirmed CMS wiring is live and NOT random: service_items table on Supabase (17 rows), admin editor at /admin/serviceItems (CMS → Service Items), /api/cms/serviceItems GET/PUT/POST/DELETE all working; page renders categories (services table) + items/prices (service_items) from the DB
+- Rebuilt services-accordion.tsx HEADER as 3 evenly spaced columns (lg:grid-cols-3, gap-10): col 1 = category title + description (left), col 2 = photo CENTERED at natural aspect (h-20/h-24/lg:h-[130px] w-auto rounded object-cover — 2752×1536 renders 233×130, zero truncation), col 3 = SEE MORE button with Plus icon (right-aligned)
+- Plus sign rotates 45° to × when open; label switches SEE MORE ↔ SEE LESS; button is the toggle (aria-expanded, aria-controls); removed the old left chevron; starts collapsed so all 4 header photos show at once (matches owner's pasted mockup: rows w/ divider lines + images + disclaimer)
+- Body unchanged: pricing INSIDE (package size table + à-la-carte items w/ gold prices) + GET PACKAGE CTA column (/book)
+- Disclaimer under accordion now italic (mockup detail)
+- Verified: VLM confirms all 4 rows = text left / photo centered / SEE MORE+ right, evenly spaced, no crops; click-test opens (Full Groom + Bath & Brush size table + GET PACKAGE visible, button reads SEE LESS w/ ×) and closes (rows return to SEE MORE); mobile 375px = stacked centered title→photo→SEE MORE; lint 0 errors; dev.log all 200s
+
+Stage Summary:
+- Accordion header per owner spec: center image, third-column SEE MORE +, even spacing, plus-sign toggle
+- CMS answer for owner: everything the accordion shows is managed in the admin portal — Services (categories/images/descriptions) and Service Items (items, prices, size prices, visibility, order); edits publish to the live page immediately
+- NEXT: package → checkout flow decision (booking wizard pre-select vs shop-style) still parked

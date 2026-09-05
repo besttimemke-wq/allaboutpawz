@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ChevronDown } from "lucide-react"
+import { Plus } from "lucide-react"
 import { PawGlyph } from "@/components/site/brand"
 
 export type AccordionCategory = {
@@ -39,8 +39,8 @@ export function ServicesAccordion({
   categories: AccordionCategory[]
   items: AccordionItem[]
 }) {
-  // One accordion open at a time — first starts expanded.
-  const [open, setOpen] = useState(0)
+  // One accordion open at a time — first starts collapsed.
+  const [open, setOpen] = useState(-1)
 
   return (
     <div className="border border-gold/30">
@@ -49,43 +49,55 @@ export function ServicesAccordion({
         const catItems = items.filter((it) => it.category === cat.title)
         const packages = catItems.filter((it) => it.isPackage)
         const singles = catItems.filter((it) => !it.isPackage)
+        const panelId = `svc-panel-${cat.id.replace(/[^a-zA-Z0-9-]/g, "")}`
         return (
           <div key={cat.id} className={i > 0 ? "border-t border-gold/25" : ""}>
-            {/* HEADER — image on the outside (right), full natural aspect —
-                never cropped. Wide row: chevron + title/description grow,
-                image anchors the right edge. */}
-            <button
-              type="button"
-              onClick={() => setOpen(isOpen ? -1 : i)}
-              aria-expanded={isOpen}
-              className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-5 px-6 py-4 text-left transition-colors hover:bg-cream-deep/60 lg:gap-8 lg:px-8"
-            >
-              <div className="flex items-center gap-5 lg:gap-8">
-                <ChevronDown
-                  className={`h-5 w-5 shrink-0 text-gold-deep transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
-                  strokeWidth={1.2}
-                />
-                <div>
-                  <h2 className="text-[12.5px] font-bold tracking-[0.16em] text-ink">{cat.title}</h2>
-                  <p className="mt-1 max-w-[560px] text-[11.5px] leading-[1.6] text-ink-soft">{cat.description}</p>
-                </div>
+            {/* HEADER — three evenly spaced columns: category text | centered
+                photo (natural aspect, never cropped) | SEE MORE + button. The
+                plus sign rotates to × when open. */}
+            <div className="grid grid-cols-1 items-center gap-5 px-6 py-5 sm:gap-6 lg:grid-cols-3 lg:gap-10 lg:px-10 lg:py-7">
+              {/* Column 1 — category title + description */}
+              <div className="text-center lg:text-left">
+                <h2 className="text-[12.5px] font-bold tracking-[0.16em] text-ink">{cat.title}</h2>
+                <p className="mt-1.5 text-[11.5px] leading-[1.6] text-ink-soft">{cat.description}</p>
               </div>
+
+              {/* Column 2 — photo, centered, natural aspect ratio */}
               {cat.image && (
-                <img
-                  src={cat.image}
-                  alt={cat.alt || `${cat.title} dog grooming at All About Pawz`}
-                  width={640}
-                  height={512}
-                  className="hidden h-24 w-auto self-stretch object-cover sm:block lg:h-28"
-                />
+                <div className="flex justify-center">
+                  <img
+                    src={cat.image}
+                    alt={cat.alt || `${cat.title} dog grooming at All About Pawz`}
+                    width={2752}
+                    height={1536}
+                    className="h-20 w-auto rounded object-cover sm:h-24 lg:h-[130px]"
+                  />
+                </div>
               )}
-            </button>
+
+              {/* Column 3 — SEE MORE with plus sign, opens the accordion */}
+              <div className="flex justify-center lg:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setOpen(isOpen ? -1 : i)}
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                  className="inline-flex items-center gap-2.5 border border-gold-deep px-5 py-2.5 text-[10.5px] font-bold tracking-[0.16em] text-ink transition-all duration-300 hover:bg-gold-deep hover:text-on-dark"
+                >
+                  {isOpen ? "SEE LESS" : "SEE MORE"}
+                  <Plus
+                    className={`h-3.5 w-3.5 transition-transform duration-300 ${isOpen ? "rotate-45" : ""}`}
+                    strokeWidth={2}
+                  />
+                </button>
+              </div>
+            </div>
 
             {/* BODY — pricing INSIDE the accordion. Packages render as a
                 size table; single items render with their prices. GET
-                PACKAGE CTA closes the row. */}
+                PACKAGE CTA closes the row and encourages checkout. */}
             {isOpen && (
-              <div className="border-t border-gold/20 bg-cream/60 px-6 py-6 lg:px-8">
+              <div id={panelId} className="border-t border-gold/20 bg-cream/60 px-6 py-6 lg:px-10 lg:py-8">
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_240px]">
                   <div className="space-y-5">
                     {packages.length > 0 && (
