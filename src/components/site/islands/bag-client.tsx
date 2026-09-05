@@ -151,7 +151,7 @@ export function BagClient({
               <div className="min-w-0 flex-1">
                 {product?.slug ? (
                   <Link
-                    href={`/shop/${product.slug}`}
+                    href={`/products/${product.slug}`}
                     className="truncate text-[13px] font-bold text-ink transition-colors hover:text-gold-deep"
                   >
                     {item.name}
@@ -254,7 +254,7 @@ export function BagClient({
                     </div>
                     {product?.slug ? (
                       <Link
-                        href={`/shop/${product.slug}`}
+                        href={`/products/${product.slug}`}
                         className="mt-3 block text-[12px] font-bold leading-[1.4] text-ink transition-colors hover:text-gold-deep"
                       >
                         {item.name}

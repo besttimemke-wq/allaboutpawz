@@ -1,8 +1,11 @@
 import type { MetadataRoute } from "next"
+import { getNavTree, flattenNav, getProducts, getMerchCollections } from "@/lib/shop/catalog"
 
-// Public site routes. TN city landing pages will be appended here once the
-// local SEO pages are built.
-export default function sitemap(): MetadataRoute.Sitemap {
+// Public site routes + the canonical shop category routes and product pages
+// (resolved from SQL at generation time — the same server resolver the pages
+// use). Filter combinations are intentionally NOT listed: they render on
+// request, per the SSR-on-demand architecture.
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = "https://aapawz.com"
   const now = new Date()
   const routes: [string, "weekly" | "monthly", number][] = [
@@ -19,10 +22,48 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ["/contact", "monthly", 0.7],
     ["/faq", "monthly", 0.6],
   ]
-  return routes.map(([path, changeFrequency, priority]) => ({
+  const entries: MetadataRoute.Sitemap = routes.map(([path, changeFrequency, priority]) => ({
     url: `${base}${path}`,
     lastModified: now,
     changeFrequency,
     priority,
   }))
+
+  // Shop category + product URLs — fail-safe (static routes survive even if
+  // the data layer is unavailable at generation time).
+  try {
+    const tree = await getNavTree()
+    for (const node of flattenNav(tree)) {
+      // Species landings + departments (level 0/1) and product-bearing
+      // leaves only — empty leaves stay out of the sitemap.
+      if (node.level <= 1 || node.count > 0) {
+        entries.push({
+          url: `${base}${node.path}`,
+          lastModified: now,
+          changeFrequency: "weekly",
+          priority: node.level === 0 ? 0.8 : 0.7,
+        })
+      }
+    }
+    for (const m of await getMerchCollections()) {
+      entries.push({
+        url: `${base}${m.path}`,
+        lastModified: now,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      })
+    }
+    for (const p of await getProducts()) {
+      entries.push({
+        url: `${base}/products/${p.slug}`,
+        lastModified: p.createdAt ? new Date(p.createdAt) : now,
+        changeFrequency: "weekly",
+        priority: 0.7,
+      })
+    }
+  } catch {
+    // Data layer unavailable — static routes only.
+  }
+
+  return entries
 }
