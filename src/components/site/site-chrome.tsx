@@ -223,18 +223,20 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
   ]
   return (
     <footer className="bg-ink px-8 py-8 lg:px-12">
-      {/* Gold logo mark centered above the nav; both rows are centered on it,
-          with the copyright/legal row below. */}
-      <div className="mx-auto flex max-w-3xl flex-col items-center">
-        <img src="/brand/footer-logo.png" alt="All About Pawz" width={559} height={447} className="h-16 w-auto" />
-        <nav aria-label="Footer" className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5">
-          {links.map(([label, to]) => (
-            <Link key={to} href={to} className="text-[10px] font-bold tracking-[0.16em] text-on-dark-muted hover:text-gold">
-              {label}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-[10.5px] text-on-dark-muted">
+      {/* Logo sits to the LEFT of the nav row — the footer stays one thin
+          band; the legal row runs below it under a hairline. */}
+      <div className="mx-auto max-w-5xl">
+        <div className="flex flex-col items-center gap-7 lg:flex-row lg:items-center lg:justify-between">
+          <img src="/brand/footer-logo.png" alt="All About Pawz" width={1021} height={729} className="h-12 w-auto lg:h-14" />
+          <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5">
+            {links.map(([label, to]) => (
+              <Link key={to} href={to} className="text-[10px] font-bold tracking-[0.16em] text-on-dark-muted hover:text-gold">
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 border-t border-gold/15 pt-5 text-[10.5px] text-on-dark-muted">
           <p>{settings.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
           <a href="#" className="text-gold hover:underline">Privacy Policy</a>
           <a href="#" className="text-gold hover:underline">Terms of Service</a>

@@ -77,9 +77,19 @@ export default async function PricingPage() {
           <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-5">
             {addons.map(({ id, title, price, icon }: any, i: number) => {
               const Icon = getIcon(icon, Sparkles)
+              const t = String(title || "").toUpperCase()
+              // The toothbrush & comb marks — gold, from the brand icon set.
+              const customIcon =
+                t === "TEETH BRUSHING" ? "/assets/icon-toothbrush-gold.png"
+                : t === "DE-SHEDDING" ? "/assets/icon-comb-gold.png"
+                : null
               return (
                 <div key={id} className={`px-2 text-center sm:px-4 ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-                  <Icon className="mx-auto h-10 w-10 text-gold" strokeWidth={1.2} />
+                  {customIcon ? (
+                    <img src={customIcon} alt="" width={120} height={120} className="mx-auto h-10 w-10 object-contain" />
+                  ) : (
+                    <Icon className="mx-auto h-10 w-10 text-gold" strokeWidth={1.2} />
+                  )}
                   <h3 className="mt-4 text-[11px] font-bold tracking-[0.14em] text-gold">{title.toUpperCase()}</h3>
                   <p className="mt-2 text-[13px] font-bold text-on-dark">{price}</p>
                 </div>

@@ -753,3 +753,27 @@ Stage Summary:
 - Book: the appointment and consultation entry cards each own a section — black dog | book card below the steps band, brown dog | consult card below the consult band; the wizard itself defaults to appointment mode with a visible mode line, and either card switches the flow
 - Wizard mobile stepper now fits 390px; consultation submissions actually work (notes column bug fixed)
 - Pricing: "Little Extras. Big Joy." is now the black band in slot two, matching the site-wide band pattern; packages follow
+
+---
+Task ID: 26
+Agent: main (direct work, no subagents)
+Task: Fix the book-page mess (full-bleed photos, canvas-colored cards, no visible wizard), make the white-background logo original transparent, place footer logo inline-left (thin footer), add gold toothbrush + comb icons to the pricing add-ons band, remove the "What would you like to do?" gate and move the booking flow above the footer as text on canvas. NO git push — user says not done.
+
+Work Log:
+- USER CORRECTIONS (all applied): photos must touch the bottom rail like every other page; cards must be the color of the canvas; wizard had no business being visible; about page is the reference for multiple images tucked neatly between sections
+- BOOK PAGE restructured: hero → HOW BOOKING WORKS band (9 step cards) → black dog photo left | "Book an Appointment" entry right → FREE CONSULTATIONS band (4 step cards) → brown dog photo left | "Schedule a Consultation" entry right → THE BOOKING FLOW (id=book, last section above footer) → footer
+- Entry sections now use the site-standard split grid [1.25fr_1fr]: photo column absolute inset-0 object-cover (full-bleed, touches both rails — same treatment as about page third section), text column marble bg-cream
+- BookingEntryCard rewritten: plain button, transparent background, no border/box (DOM-verified rgba(0,0,0,0), 0px border), no store subscription (reads state only in the click handler — no re-render churn)
+- Wizard: "What would you like to do?" gate REMOVED — the bands carry the CTAs; wizard opens directly in the appointment flow by default; mode line (RESERVE YOUR VISIT / FREE CONSULTATION REQUEST) reflects the chosen flow; Back hidden at step 1; BOOK ANOTHER resets to step 1; page-level border/bg-card wrapper removed AND internal stepWrapCls unboxed (steps + success screen now plain on the canvas — calendar, photo uploader, and review receipt stay as small controls)
+- LOGO: processed the user's original-on-white upload (gold cursive + paw in P + scissors) — chroma/luminance knockout (white bg + gray drop shadows → transparent, gold preserved, AA edges un-composited from white), cropped to glyph bbox 1021x729; first attempt hit a 3-channel-RGB buffer bug (alpha writes corrupted the buffer — cyan output), fixed with ensureAlpha() before raw pixel ops; replaced public/brand/footer-logo.png
+- FOOTER: logo moved from centered-above-nav (thick) to the LEFT side inline with the nav row (single thin row, legal row below a gold hairline); mobile stacks logo above links at h-12
+- PRICING BAND: uploaded toothbrush (24px) + comb (48px) icons upscaled to 120px lanczos, flat-tinted to the site gold oklch(0.68 0.098 68) = rgb(192,141,83) preserving alpha; saved as public/assets/icon-toothbrush-gold.png + icon-comb-gold.png; wired by title match (TEETH BRUSHING → toothbrush, DE-SHEDDING → comb), rendered h-10 w-10 object-contain to match the lucide cells
+- VERIFIED via agent-browser + VLM: book desktop (section order, full-bleed photos, canvas wizard — 0 large white boxes in DOM), full consultation E2E on the gateless wizard (consult card → 9 steps → Submit → POST /api/cms/consultations 201 → row in Supabase → BOOK ANOTHER resets clean), appointment↔consultation mode switching both ways, anchor #book scrolls wizard to top:96, pricing band (gold toothbrush + comb visible, style matches), footer (logo left inline, thin, crisp, no noise) on desktop + mobile, book mobile 390px no overflow, all 9 public pages 200 with zero console errors, lint 0 errors (5 pre-existing warnings)
+- Test rows deleted from Supabase (consultation, dog, customer)
+- NO PUSH: user postponed the GitHub/Vercel push ("too many issues — not done"); PAT and repo URL were provided in chat only and are NOT recorded here per the no-secrets rule
+
+Stage Summary:
+- Book page: photos tucked full-bleed between sections like the about page; entry cards are canvas-colored text; the booking flow sits above the footer as text on canvas, gateless (bands give the CTA), defaulting to appointment with the consult card switching flows — full E2E verified
+- Footer: the original logo (white background knocked out to clean transparency) sits inline-left with the nav; footer stays thin
+- Pricing add-ons band: gold toothbrush + comb marks from the user's upload
+- PUSH PLAN FOR NEXT SESSION (when user says go): .env contains 12 real-looking secrets and is TRACKED IN GIT HISTORY, so the repo must go out as a fresh orphan single-commit (no history push); exclude upload/, .zshots/, .zscripts/, tool-results/, download/, stray root artifacts; keep src/, public/, supabase/, configs, package.json, bun.lock; repo https://github.com/besttimemke-wq/allaboutpawz.git with the PAT supplied in chat at push time only; Vercel: no env vars needed at build time (repo degrades gracefully unconfigured), ignoreBuildErrors already true

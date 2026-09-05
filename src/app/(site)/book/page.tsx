@@ -170,19 +170,6 @@ export default async function BookPage() {
         </div>
       </section>
 
-      {/* THE WIZARD — the booking flow itself; stays closed until one of
-          the entry cards above is chosen. */}
-      <section id="book" className="marble scroll-mt-24 bg-cream px-8 pt-12 pb-14 lg:px-12">
-        <div className="border border-gold/30 bg-card p-7 lg:p-10">
-          <BookingWizardV2
-            breeds={breeds || []}
-            services={bookableServices}
-            groomers={activeGroomers}
-            lookups={lookups}
-          />
-        </div>
-      </section>
-
       {/* CONSULT BAND — how the free consultation works, in separated cards. */}
       <section className="bg-ink px-8 py-12 lg:px-12">
         <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_2.4fr]">
@@ -207,7 +194,8 @@ export default async function BookPage() {
       </section>
 
       {/* CONSULT ENTRY — brown dog left, the consultation card right. Photo
-          fills its column, bottom edge meeting the footer rail. */}
+          fills its column, tucked between the consult band and the booking
+          flow below. */}
       <section id="consult" className="grid scroll-mt-24 grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
         <div className="relative min-h-[300px]">
           <img
@@ -221,6 +209,18 @@ export default async function BookPage() {
         <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
           <BookingEntryCard type="consultation" />
         </div>
+      </section>
+
+      {/* THE BOOKING FLOW — last section before the footer, text only on the
+          canvas (no box). The bands above carry the calls to action; this is
+          where they land. */}
+      <section id="book" className="marble scroll-mt-24 bg-cream px-8 py-14 lg:px-12">
+        <BookingWizardV2
+          breeds={breeds || []}
+          services={bookableServices}
+          groomers={activeGroomers}
+          lookups={lookups}
+        />
       </section>
     </>
   )
