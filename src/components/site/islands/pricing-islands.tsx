@@ -163,8 +163,10 @@ export function PackageCards() {
               </div>
 
               {/* Call to action — straight into the wizard; a customer who
-                  picks a package knows what they want. */}
-              <div className="mt-7 pt-0">
+                  picks a package knows what they want. mt-auto pins the
+                  button to the card's bottom edge so all three BOOK buttons
+                  sit on one line (the card with the longest copy sets it). */}
+              <div className="mt-auto pt-7">
                 <Link href="/book/appointment" className="btn-gold w-full">BOOK THIS PACKAGE</Link>
               </div>
             </div>

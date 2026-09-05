@@ -1,26 +1,34 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Plus, X } from "@phosphor-icons/react"
+import { ArrowUpRight, Plus, Star, X } from "@phosphor-icons/react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
 // ---------------------------------------------------------------------------
-// Shop Sidebar — the regular ecommerce category rail.
+// Shop Sidebar — the ecommerce filter rail, built to the owner's reference
+// design ("PAWZ & CO." concept):
 //
-//   Left rail (desktop) / collapsible panel (mobile):
-//   CATEGORIES  — the full department tree with CHECKBOXES. Checking a
-//                 category selects its entire subtree (cascading). Every
-//                 row is identical in design: caret (only when the node has
-//                 children) + checkbox + name + product count.
-//   PRICE       — min/max inputs + data-backed quick buckets.
-//   RATING      — 4★ & up / 3★ & up (only when rated products exist).
+//   White panel + hairline border on the cream page.
+//   SHOP header (X closes the mobile drawer).
+//   FILTERS + live count + CLEAR ALL.
+//   CATEGORIES  — checkbox tree with counts (cascading, caret + jump link).
+//   PRICE RANGE — $ MIN / $ MAX inputs + data-backed quick buckets.
+//   RATING      — gold star rows with counts (only when rated products exist).
 //   AVAILABILITY— In stock / Backordered (only when products match).
+//   APPLY FILTERS — full-width, pinned to the rail's bottom edge. The
+//   section list scrolls beneath it; on mobile, applying closes the drawer.
 //
-//   Visual language matches the /shop/category/[slug] filter rail exactly
-//   (same card, headings, checkboxes) so the two sidebars are consistent.
+//   Filters are STAGED: every interaction updates the draft, APPLY commits
+//   via onApply (the grid re-filters on commit only). CLEAR ALL clears the
+//   draft AND commits the empty state in one click. The parent's live state
+//   re-syncs the draft whenever it changes externally.
 //
-// Pure client state — no persistence, no hydration gate.
+//   The rail frame is rendered here (border/bg) — the wrappers in
+//   shop-client.tsx only position it: sticky + max-height on desktop,
+//   slide-over drawer on mobile. Visual language mirrors the
+//   /shop/category/[slug] rail (category-browser.tsx) so the two stay one
+//   system.
 // ---------------------------------------------------------------------------
 
 export type SidebarProduct = {
@@ -40,6 +48,11 @@ export type SidebarCategory = {
 
 export type SidebarRating = { avg: number; count: number }
 
+export type SidebarFilterState = {
+  checked: Set<number>
+  price: { min: string; max: string; buckets: string[] }
+}
+
 const PRICE_BUCKETS: { key: string; label: string; test: (cents: number) => boolean }[] = [
   { key: "under25", label: "Under $25", test: (c) => c < 2500 },
   { key: "25to50", label: "$25 – $50", test: (c) => c >= 2500 && c <= 5000 },
@@ -48,22 +61,24 @@ const PRICE_BUCKETS: { key: string; label: string; test: (cents: number) => bool
 
 // Shared rail visual language (kept identical in category-browser.tsx so
 // the /shop and /shop/category/[slug] rails never drift apart).
-const railHeadingCls = "text-[9.5px] font-bold tracking-[0.16em] text-gold-deep uppercase"
+const railHeadingCls = "text-[9.5px] font-bold tracking-[0.16em] text-ink uppercase"
 const checkRowCls = "flex min-h-[30px] cursor-pointer items-center gap-2.5 py-[3px] text-[11.5px] text-ink-soft transition-colors hover:text-ink"
 const checkBoxCls = "h-4 w-4 shrink-0 accent-gold-deep"
 const countCls = "text-[9.5px] font-bold text-ink-soft/60"
 const numInputCls =
-  "w-full min-w-0 min-h-[38px] border border-gold/35 bg-cream px-3 py-2.5 text-[11.5px] text-ink placeholder:text-ink-soft/50 " +
+  "w-full min-w-0 min-h-[38px] border border-ink/15 bg-white px-3 py-2.5 text-[11.5px] text-ink placeholder:text-ink-soft/50 " +
   "focus:outline-none focus:ring-1 focus:ring-gold-deep [appearance:textfield] " +
   "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 
-const TREE_SCROLL =
-  "max-h-[440px] overflow-y-auto pr-1 " +
+const RAIL_SCROLL =
+  "overflow-y-auto " +
   "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent " +
   "[&::-webkit-scrollbar-thumb]:bg-gold/40 [&::-webkit-scrollbar-thumb]:rounded-full " +
   "hover:[&::-webkit-scrollbar-thumb]:bg-gold-deep/60"
 
-/** Section heading with its live active count (\"PRICE (2)\"). */
+const TREE_SCROLL = "max-h-[440px] overflow-y-auto pr-1 " + RAIL_SCROLL.slice("overflow-y-auto ".length)
+
+/** Section heading with its live active count ("PRICE (2)"). */
 function RailSection({ title, active }: { title: string; active?: number }) {
   return (
     <div className="flex items-baseline gap-2">
@@ -83,22 +98,32 @@ export function ShopSidebar({
   products,
   ratings,
   checked,
-  onToggleCategory,
-  onClearCategories,
   price,
-  onPriceChange,
-  children,
+  onApply,
+  onClose,
 }: {
   categories: SidebarCategory[]
   products: SidebarProduct[]
   ratings: Record<string, SidebarRating>
   checked: Set<number>
-  onToggleCategory: (node: SidebarCategory) => void
-  onClearCategories: () => void
   price: { min: string; max: string; buckets: string[] }
-  onPriceChange: (next: { min: string; max: string; buckets: string[] }) => void
-  children?: React.ReactNode
+  onApply: (next: SidebarFilterState) => void
+  onClose?: () => void
 }) {
+  // ---- staged filter state (draft) — committed only by APPLY FILTERS ----
+  const [draftChecked, setDraftChecked] = useState<Set<number>>(checked)
+  const [draftPrice, setDraftPrice] = useState(price)
+
+  // Keep the draft in sync with the parent's applied state — fires after
+  // APPLY (same identities → no-op) and after external resets (empty-state
+  // CLEAR FILTERS, navigation) so the rail never shows stale checkboxes.
+  useEffect(() => {
+    setDraftChecked(checked)
+  }, [checked])
+  useEffect(() => {
+    setDraftPrice(price)
+  }, [price])
+
   // ---- data-backed facet availability (never render dead controls) ----
   const cents = useMemo(
     () => products.map((p) => ({ p, c: parsePriceToCents(p.price) })),
@@ -120,7 +145,6 @@ export function ShopSidebar({
     return [4, 3]
       .map((v) => ({
         value: v,
-        label: `${v}★ & up`,
         count: rated.filter((p) => (ratings[p.id]?.avg ?? 0) >= v).length,
       }))
       .filter((o) => o.count > 0)
@@ -134,180 +158,234 @@ export function ShopSidebar({
     [products],
   )
 
-  const toggleBucket = (key: string) =>
-    onPriceChange({
-      ...price,
-      buckets: price.buckets.includes(key)
-        ? price.buckets.filter((k) => k !== key)
-        : [...price.buckets, key],
+  // ---- draft mutations (staged until APPLY) ----
+  const toggleCategory = (node: SidebarCategory) => {
+    const ids = subtreeIds(node)
+    setDraftChecked((prev) => {
+      const next = new Set(prev)
+      const allOn = ids.every((id) => next.has(id))
+      for (const id of ids) {
+        if (allOn) next.delete(id)
+        else next.add(id)
+      }
+      return next
     })
-
-  // Live active counts per section — drive the FILTERS (n) badge, the CLEAR
-  // ALL affordance, and each section's (n) hint. Buckets are a shared string
-  // array, so classify them by key shape.
-  const ratingActive = price.buckets.filter((k) => k.startsWith("rating")).length
-  const stockActive = price.buckets.filter((k) => k === "instock" || k === "backorder").length
-  const priceActive =
-    price.buckets.filter((k) => !k.startsWith("rating") && k !== "instock" && k !== "backorder").length +
-    (price.min || price.max ? 1 : 0)
-  const activeCount = checked.size + price.buckets.length + (price.min || price.max ? 1 : 0)
-  const clearAll = () => {
-    onClearCategories()
-    onPriceChange({ min: "", max: "", buckets: [] })
   }
 
-  const rail = (
-    <div className="space-y-7" aria-label="Shop filters">
-      {/* Rail header — FILTERS + live count + CLEAR ALL (mirrors the
-          category-page rail header so the two rails read as one system). */}
-      <div className="flex items-center justify-between border-b border-gold/20 pb-3">
-        <div className="flex items-baseline gap-2">
-          <p className={railHeadingCls}>Filters</p>
-          {activeCount > 0 && (
-            <span className="text-[9px] font-bold text-gold-deep/80">({activeCount})</span>
-          )}
-        </div>
-        {activeCount > 0 && (
+  const toggleBucket = (key: string) =>
+    setDraftPrice((prev) => ({
+      ...prev,
+      buckets: prev.buckets.includes(key)
+        ? prev.buckets.filter((k) => k !== key)
+        : [...prev.buckets, key],
+    }))
+
+  const clearAll = () => {
+    const emptyPrice = { min: "", max: "", buckets: [] as string[] }
+    setDraftChecked(new Set())
+    setDraftPrice(emptyPrice)
+    onApply({ checked: new Set(), price: emptyPrice })
+  }
+
+  const apply = () => {
+    onApply({ checked: draftChecked, price: draftPrice })
+    onClose?.()
+  }
+
+  // ---- live counts per section (draft-driven — the rail shows what's staged) ----
+  const ratingActive = draftPrice.buckets.filter((k) => k.startsWith("rating")).length
+  const stockActive = draftPrice.buckets.filter((k) => k === "instock" || k === "backorder").length
+  const priceActive =
+    draftPrice.buckets.filter((k) => !k.startsWith("rating") && k !== "instock" && k !== "backorder").length +
+    (draftPrice.min || draftPrice.max ? 1 : 0)
+  const activeCount = draftChecked.size + draftPrice.buckets.length + (draftPrice.min || draftPrice.max ? 1 : 0)
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col border border-ink/10 bg-white" aria-label="Shop filters">
+      {/* SHOP header — the rail's title. On mobile it doubles as the drawer
+          header with a close affordance; on desktop it anchors the panel. */}
+      <div className="flex shrink-0 items-center justify-between border-b border-ink/10 px-5 py-4">
+        <p className="text-[10px] font-bold tracking-[0.22em] text-ink">SHOP</p>
+        {onClose && (
           <button
             type="button"
-            onClick={clearAll}
-            className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:text-ink"
+            onClick={onClose}
+            aria-label="Close filters"
+            className="flex h-8 w-8 items-center justify-center text-ink-soft transition-colors hover:text-ink lg:hidden"
           >
-            <X size={10} weight="bold" /> CLEAR ALL
+            <X size={14} weight="bold" />
           </button>
         )}
       </div>
 
-      {/* CATEGORIES — the regular checkbox tree */}
-      <div>
-        <div className="flex items-center justify-between">
-          <RailSection title="Categories" active={checked.size} />
-          {checked.size > 0 && (
-            <button
-              type="button"
-              onClick={onClearCategories}
-              className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep/70 transition-colors hover:text-ink"
-            >
-              <X size={10} weight="bold" /> CLEAR
-            </button>
+      {/* Scrollable filter sections — the APPLY button stays pinned below. */}
+      <div className={`min-h-0 flex-1 p-5 ${RAIL_SCROLL}`}>
+        <div className="space-y-7">
+          {/* FILTERS + live count + CLEAR ALL */}
+          <div className="flex items-center justify-between border-b border-ink/10 pb-3">
+            <div className="flex items-baseline gap-2">
+              <p className={railHeadingCls}>Filters</p>
+              {activeCount > 0 && (
+                <span className="text-[9px] font-bold text-gold-deep/80">({activeCount})</span>
+              )}
+            </div>
+            {activeCount > 0 && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:text-ink"
+              >
+                <X size={10} weight="bold" /> CLEAR ALL
+              </button>
+            )}
+          </div>
+
+          {/* CATEGORIES — the cascading checkbox tree */}
+          <div>
+            <div className="flex items-center justify-between">
+              <RailSection title="Categories" active={draftChecked.size} />
+              {draftChecked.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDraftChecked(new Set())}
+                  className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep/70 transition-colors hover:text-ink"
+                >
+                  <X size={10} weight="bold" /> CLEAR
+                </button>
+              )}
+            </div>
+            <div className={`mt-2 space-y-0.5 ${TREE_SCROLL}`}>
+              {categories.map((root) => (
+                <CategoryNode
+                  key={root.id}
+                  node={root}
+                  depth={0}
+                  checked={draftChecked}
+                  onToggle={toggleCategory}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* PRICE RANGE — $ min/max inputs + data-backed quick buckets */}
+          <div>
+            <RailSection title="Price Range" active={priceActive} />
+            <div className="mt-2.5 flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={draftPrice.min}
+                onChange={(e) => setDraftPrice((p) => ({ ...p, min: e.target.value }))}
+                placeholder="$ MIN"
+                aria-label="Minimum price"
+                className={numInputCls}
+              />
+              <span className="text-ink-soft/40" aria-hidden="true">—</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={draftPrice.max}
+                onChange={(e) => setDraftPrice((p) => ({ ...p, max: e.target.value }))}
+                placeholder="$ MAX"
+                aria-label="Maximum price"
+                className={numInputCls}
+              />
+            </div>
+            {bucketOptions.length > 0 && (
+              <div className="mt-2 space-y-0.5">
+                {bucketOptions.map((b) => (
+                  <label key={b.key} className={checkRowCls}>
+                    <input
+                      type="checkbox"
+                      checked={draftPrice.buckets.includes(b.key)}
+                      onChange={() => toggleBucket(b.key)}
+                      className={checkBoxCls}
+                    />
+                    <span className="flex-1">{b.label}</span>
+                    <span className={countCls}>({b.count})</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* RATING — gold star rows with counts (4★ & up / 3★ & up) */}
+          {ratingOptions.length > 0 && (
+            <div>
+              <RailSection title="Rating" active={ratingActive} />
+              <div className="mt-2 space-y-0.5">
+                {ratingOptions.map((o) => (
+                  <label key={o.value} className={checkRowCls}>
+                    <input
+                      type="checkbox"
+                      checked={draftPrice.buckets.includes(`rating${o.value}`)}
+                      onChange={() => toggleBucket(`rating${o.value}`)}
+                      className={checkBoxCls}
+                    />
+                    <span className="flex flex-1 items-center gap-0.5" aria-hidden="true">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          size={11}
+                          weight={i < o.value ? "fill" : "regular"}
+                          className={i < o.value ? "text-gold" : "text-ink/25"}
+                        />
+                      ))}
+                    </span>
+                    <span className="sr-only">{`${o.value} stars & up`}</span>
+                    <span className={countCls}>({o.count})</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AVAILABILITY — options that actually match products */}
+          {(stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
+            <div>
+              <RailSection title="Availability" active={stockActive} />
+              <div className="mt-2 space-y-0.5">
+                {stockCounts.inStock > 0 && (
+                  <label className={checkRowCls}>
+                    <input
+                      type="checkbox"
+                      checked={draftPrice.buckets.includes("instock")}
+                      onChange={() => toggleBucket("instock")}
+                      className={checkBoxCls}
+                    />
+                    <span className="flex-1">In stock</span>
+                    <span className={countCls}>({stockCounts.inStock})</span>
+                  </label>
+                )}
+                {stockCounts.backordered > 0 && (
+                  <label className={checkRowCls}>
+                    <input
+                      type="checkbox"
+                      checked={draftPrice.buckets.includes("backorder")}
+                      onChange={() => toggleBucket("backorder")}
+                      className={checkBoxCls}
+                    />
+                    <span className="flex-1">Backordered</span>
+                    <span className={countCls}>({stockCounts.backordered})</span>
+                  </label>
+                )}
+              </div>
+            </div>
           )}
         </div>
-        <div className={`mt-2 space-y-0.5 ${TREE_SCROLL}`}>
-          {categories.map((root) => (
-            <CategoryNode
-              key={root.id}
-              node={root}
-              depth={0}
-              checked={checked}
-              onToggle={onToggleCategory}
-            />
-          ))}
-        </div>
       </div>
 
-      {/* PRICE — range + data-backed quick buckets */}
-      <div>
-        <RailSection title="Price" active={priceActive} />
-        <div className="mt-2.5 flex items-center gap-2">
-          <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={price.min}
-            onChange={(e) => onPriceChange({ ...price, min: e.target.value })}
-            placeholder="MIN $"
-            aria-label="Minimum price"
-            className={numInputCls}
-          />
-          <span className="text-gold/60" aria-hidden="true">—</span>
-          <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={price.max}
-            onChange={(e) => onPriceChange({ ...price, max: e.target.value })}
-            placeholder="MAX $"
-            aria-label="Maximum price"
-            className={numInputCls}
-          />
-        </div>
-        {bucketOptions.length > 0 && (
-          <div className="mt-2 space-y-0.5">
-            {bucketOptions.map((b) => (
-              <label key={b.key} className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={price.buckets.includes(b.key)}
-                  onChange={() => toggleBucket(b.key)}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">{b.label}</span>
-                <span className={countCls}>{b.count}</span>
-              </label>
-            ))}
-          </div>
-        )}
+      {/* APPLY FILTERS — pinned to the rail's bottom edge; the sections
+          scroll above it. Committing also closes the mobile drawer. */}
+      <div className="shrink-0 border-t border-ink/10 p-4">
+        <button type="button" onClick={apply} className="btn-gold w-full">
+          APPLY FILTERS
+        </button>
       </div>
-
-      {/* RATING — only when there are rated products */}
-      {ratingOptions.length > 0 && (
-        <div>
-          <RailSection title="Rating" active={ratingActive} />
-          <div className="mt-2 space-y-0.5">
-            {ratingOptions.map((o) => (
-              <label key={o.value} className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={price.buckets.includes(`rating${o.value}`)}
-                  onChange={() => toggleBucket(`rating${o.value}`)}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">{o.label}</span>
-                <span className={countCls}>{o.count}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* AVAILABILITY — options that actually match products */}
-      {(stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
-        <div>
-          <RailSection title="Availability" active={stockActive} />
-          <div className="mt-2 space-y-0.5">
-            {stockCounts.inStock > 0 && (
-              <label className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={price.buckets.includes("instock")}
-                  onChange={() => toggleBucket("instock")}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">In stock</span>
-                <span className={countCls}>{stockCounts.inStock}</span>
-              </label>
-            )}
-            {stockCounts.backordered > 0 && (
-              <label className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={price.buckets.includes("backorder")}
-                  onChange={() => toggleBucket("backorder")}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">Backordered</span>
-                <span className={countCls}>{stockCounts.backordered}</span>
-              </label>
-            )}
-          </div>
-        </div>
-      )}
-
-      {children}
     </div>
   )
-
-  return rail
 }
 
 // ---------------------------------------------------------------------------
@@ -377,7 +455,7 @@ function CategoryNode({
           />
           <span className={`${nameCls} truncate`}>{depth === 0 ? node.name.toUpperCase() : node.name}</span>
           {node.productCount > 0 && (
-            <span className="shrink-0 text-[9.5px] font-bold text-gold-deep/70">{node.productCount}</span>
+            <span className="shrink-0 text-[9.5px] font-bold text-ink-soft/60">({node.productCount})</span>
           )}
         </label>
 

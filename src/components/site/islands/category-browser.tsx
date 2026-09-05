@@ -1,18 +1,20 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Plus, Funnel, PawPrint, X } from "@phosphor-icons/react"
+import { Plus, Funnel, PawPrint, Star, X } from "@phosphor-icons/react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
 // ---------------------------------------------------------------------------
 // Category Browser — the /shop/category/[slug] collection view.
 //
-//   Left rail (desktop) / collapsible panel (mobile): ONLY data-backed,
-//   functional facets — price range + quick buckets, rating floor,
-//   availability. Enterprise honesty: the taxonomy's mapped filters we
-//   can't apply to live product rows (Brand, Material, Scent…) are listed
-//   as "coming" names, never rendered as dead controls.
+//   Left rail (desktop, sticky, white panel) / slide-over drawer (mobile):
+//   ONLY data-backed, functional facets — price range + quick buckets,
+//   rating floor, availability. Filters are STAGED and committed by the
+//   pinned APPLY FILTERS button (same interaction model as the /shop rail).
+//   Enterprise honesty: the taxonomy's mapped filters we can't apply to
+//   live product rows (Brand, Material, Scent…) are listed as "coming"
+//   names, never rendered as dead controls.
 //
 //   Sort: FEATURED (catalog order) / PRICE asc+desc / TOP RATED / NEWEST.
 //   Grid: the same catalog card the /shop collection uses.
@@ -69,14 +71,34 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "newest", label: "NEWEST" },
 ]
 
-const railHeadingCls = "text-[9.5px] font-bold tracking-[0.16em] text-gold-deep uppercase"
+const railHeadingCls = "text-[9.5px] font-bold tracking-[0.16em] text-ink uppercase"
 const checkRowCls = "flex min-h-[30px] cursor-pointer items-center gap-2.5 py-[3px] text-[11.5px] text-ink-soft transition-colors hover:text-ink"
 const checkBoxCls = "h-4 w-4 shrink-0 accent-gold-deep"
 const countCls = "text-[9.5px] font-bold text-ink-soft/60"
 const numInputCls =
-  "w-full min-w-0 min-h-[38px] border border-gold/35 bg-cream px-3 py-2.5 text-[11.5px] text-ink placeholder:text-ink-soft/50 " +
+  "w-full min-w-0 min-h-[38px] border border-ink/15 bg-white px-3 py-2.5 text-[11.5px] text-ink placeholder:text-ink-soft/50 " +
   "focus:outline-none focus:ring-1 focus:ring-gold-deep [appearance:textfield] " +
   "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+
+const RAIL_SCROLL =
+  "overflow-y-auto " +
+  "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent " +
+  "[&::-webkit-scrollbar-thumb]:bg-gold/40 [&::-webkit-scrollbar-thumb]:rounded-full " +
+  "hover:[&::-webkit-scrollbar-thumb]:bg-gold-deep/60"
+
+/** One staged filter snapshot — draft (rail) and applied (grid) pair. */
+type CatFilterState = {
+  min: string
+  max: string
+  buckets: string[]
+  rating: number
+  instock: boolean
+  backorder: boolean
+}
+const EMPTY_FILTERS: CatFilterState = { min: "", max: "", buckets: [], rating: 0, instock: false, backorder: false }
+
+const filterCount = (f: CatFilterState) =>
+  (f.min.trim() ? 1 : 0) + (f.max.trim() ? 1 : 0) + f.buckets.length + (f.rating > 0 ? 1 : 0) + (f.instock ? 1 : 0) + (f.backorder ? 1 : 0)
 
 const centsOf = (p: BrowserProduct) => parsePriceToCents(p.price)
 const nameOf = (p: BrowserProduct) => String(p.name)
@@ -93,14 +115,21 @@ export function CategoryBrowser({
   ratings: Record<string, BrowserRating>
   filters: BrowserFilter[]
 }) {
-  const [minPrice, setMinPrice] = useState("")
-  const [maxPrice, setMaxPrice] = useState("")
-  const [buckets, setBuckets] = useState<string[]>([])
-  const [minRating, setMinRating] = useState(0)
-  const [stockOnly, setStockOnly] = useState(false)
-  const [backorderOnly, setBackorderOnly] = useState(false)
+  const [applied, setApplied] = useState<CatFilterState>(EMPTY_FILTERS)
+  const [draft, setDraft] = useState<CatFilterState>(EMPTY_FILTERS)
   const [sort, setSort] = useState<SortKey>("featured")
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Lock body scroll while the mobile filter drawer is open.
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden"
+      return () => {
+        document.body.style.overflow = ""
+      }
+    }
+  }, [mobileOpen])
 
   // ---- data-backed facet availability (never render dead controls) ----
   const bucketOptions = useMemo(
@@ -142,33 +171,31 @@ export function CategoryBrowser({
     [filters],
   )
 
-  const activeCount =
-    (minPrice.trim() ? 1 : 0) +
-    (maxPrice.trim() ? 1 : 0) +
-    buckets.length +
-    (minRating > 0 ? 1 : 0) +
-    (stockOnly ? 1 : 0) +
-    (backorderOnly ? 1 : 0)
+  // The FILTERS button badge reflects the APPLIED state (what the grid
+  // shows); the rail header count reflects the DRAFT (what's staged).
+  const activeCount = filterCount(applied)
+  const draftCount = filterCount(draft)
 
   const clearAll = () => {
-    setMinPrice("")
-    setMaxPrice("")
-    setBuckets([])
-    setMinRating(0)
-    setStockOnly(false)
-    setBackorderOnly(false)
+    setDraft(EMPTY_FILTERS)
+    setApplied(EMPTY_FILTERS)
+  }
+
+  const applyDraft = () => {
+    setApplied(draft)
+    setMobileOpen(false)
   }
 
   const toggleBucket = (key: string) =>
-    setBuckets((b) => (b.includes(key) ? b.filter((k) => k !== key) : [...b, key]))
+    setDraft((d) => ({ ...d, buckets: d.buckets.includes(key) ? d.buckets.filter((k) => k !== key) : [...d.buckets, key] }))
 
-  // ---- filtering ----
+  // ---- filtering (uses the APPLIED snapshot) ----
   const visible = useMemo(() => {
-    const min = parseFloat(minPrice)
-    const max = parseFloat(maxPrice)
-    const hasMin = minPrice.trim() !== "" && isFinite(min)
-    const hasMax = maxPrice.trim() !== "" && isFinite(max)
-    const activeTests = PRICE_BUCKETS.filter((b) => buckets.includes(b.key))
+    const min = parseFloat(applied.min)
+    const max = parseFloat(applied.max)
+    const hasMin = applied.min.trim() !== "" && isFinite(min)
+    const hasMax = applied.max.trim() !== "" && isFinite(max)
+    const activeTests = PRICE_BUCKETS.filter((b) => applied.buckets.includes(b.key))
 
     return products.filter((p) => {
       const c = centsOf(p)
@@ -178,15 +205,15 @@ export function CategoryBrowser({
         const ok = activeTests.some((b) => c != null && b.test(c))
         if (!ok) return false
       }
-      if (minRating > 0) {
+      if (applied.rating > 0) {
         const r = ratings[p.id]
-        if (!r || r.count === 0 || r.avg < minRating) return false
+        if (!r || r.count === 0 || r.avg < applied.rating) return false
       }
-      if (stockOnly && !inStock(p)) return false
-      if (backorderOnly && p.stock !== 0) return false
+      if (applied.instock && !inStock(p)) return false
+      if (applied.backorder && p.stock !== 0) return false
       return true
     })
-  }, [products, ratings, minPrice, maxPrice, buckets, minRating, stockOnly, backorderOnly])
+  }, [products, ratings, applied])
 
   // ---- sorting ----
   const sorted = useMemo(() => {
@@ -235,17 +262,17 @@ export function CategoryBrowser({
     )
   }
 
-  // ---- the rail (shared by desktop sidebar + mobile collapsible) ----
-  const rail = (
+  // ---- the rail (shared by the desktop panel + mobile drawer) ----
+  const railSections = (
     <div className="space-y-7" aria-label={`Filters for ${node.name}`}>
-      <div className="flex items-center justify-between border-b border-gold/20 pb-3">
+      <div className="flex items-center justify-between border-b border-ink/10 pb-3">
         <div className="flex items-baseline gap-2">
           <p className={railHeadingCls}>Filters</p>
-          {activeCount > 0 && (
-            <span className="text-[9px] font-bold text-gold-deep/80">({activeCount})</span>
+          {draftCount > 0 && (
+            <span className="text-[9px] font-bold text-gold-deep/80">({draftCount})</span>
           )}
         </div>
-        {activeCount > 0 && (
+        {draftCount > 0 && (
           <button
             type="button"
             onClick={clearAll}
@@ -256,28 +283,28 @@ export function CategoryBrowser({
         )}
       </div>
 
-      {/* PRICE — range + data-backed quick buckets */}
+      {/* PRICE RANGE — $ min/max inputs + data-backed quick buckets */}
       <div>
-        <p className={railHeadingCls}>Price</p>
+        <p className={railHeadingCls}>Price Range</p>
         <div className="mt-2.5 flex items-center gap-2">
           <input
             type="number"
             min={0}
             inputMode="numeric"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            placeholder="MIN $"
+            value={draft.min}
+            onChange={(e) => setDraft((d) => ({ ...d, min: e.target.value }))}
+            placeholder="$ MIN"
             aria-label="Minimum price"
             className={numInputCls}
           />
-          <span className="text-gold/60" aria-hidden="true">—</span>
+          <span className="text-ink-soft/40" aria-hidden="true">—</span>
           <input
             type="number"
             min={0}
             inputMode="numeric"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-            placeholder="MAX $"
+            value={draft.max}
+            onChange={(e) => setDraft((d) => ({ ...d, max: e.target.value }))}
+            placeholder="$ MAX"
             aria-label="Maximum price"
             className={numInputCls}
           />
@@ -288,19 +315,19 @@ export function CategoryBrowser({
               <label key={b.key} className={checkRowCls}>
                 <input
                   type="checkbox"
-                  checked={buckets.includes(b.key)}
+                  checked={draft.buckets.includes(b.key)}
                   onChange={() => toggleBucket(b.key)}
                   className={checkBoxCls}
                 />
                 <span className="flex-1">{b.label}</span>
-                <span className={countCls}>{b.count}</span>
+                <span className={countCls}>({b.count})</span>
               </label>
             ))}
           </div>
         )}
       </div>
 
-      {/* RATING — only when there are rated products */}
+      {/* RATING — gold star rows with counts (only when rated products exist) */}
       {ratingOptions.length > 0 && (
         <div>
           <p className={railHeadingCls}>Rating</p>
@@ -309,12 +336,22 @@ export function CategoryBrowser({
               <label key={o.value} className={checkRowCls}>
                 <input
                   type="checkbox"
-                  checked={minRating === o.value}
-                  onChange={() => setMinRating(minRating === o.value ? 0 : o.value)}
+                  checked={draft.rating === o.value}
+                  onChange={() => setDraft((d) => ({ ...d, rating: d.rating === o.value ? 0 : o.value }))}
                   className={checkBoxCls}
                 />
-                <span className="flex-1">{o.label}</span>
-                <span className={countCls}>{o.count}</span>
+                <span className="flex flex-1 items-center gap-0.5" aria-hidden="true">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      size={11}
+                      weight={i < o.value ? "fill" : "regular"}
+                      className={i < o.value ? "text-gold" : "text-ink/25"}
+                    />
+                  ))}
+                </span>
+                <span className="sr-only">{`${o.value} stars & up`}</span>
+                <span className={countCls}>({o.count})</span>
               </label>
             ))}
           </div>
@@ -330,24 +367,24 @@ export function CategoryBrowser({
               <label className={checkRowCls}>
                 <input
                   type="checkbox"
-                  checked={stockOnly}
-                  onChange={() => setStockOnly((v) => !v)}
+                  checked={draft.instock}
+                  onChange={() => setDraft((d) => ({ ...d, instock: !d.instock }))}
                   className={checkBoxCls}
                 />
                 <span className="flex-1">In stock</span>
-                <span className={countCls}>{stockCounts.inStock}</span>
+                <span className={countCls}>({stockCounts.inStock})</span>
               </label>
             )}
             {stockCounts.backordered > 0 && (
               <label className={checkRowCls}>
                 <input
                   type="checkbox"
-                  checked={backorderOnly}
-                  onChange={() => setBackorderOnly((v) => !v)}
+                  checked={draft.backorder}
+                  onChange={() => setDraft((d) => ({ ...d, backorder: !d.backorder }))}
                   className={checkBoxCls}
                 />
                 <span className="flex-1">Backordered</span>
-                <span className={countCls}>{stockCounts.backordered}</span>
+                <span className={countCls}>({stockCounts.backordered})</span>
               </label>
             )}
           </div>
@@ -357,7 +394,7 @@ export function CategoryBrowser({
       {/* Taxonomy filters wired for this category that live product rows
           can't answer yet — names only, never fake controls. */}
       {upcomingFilters.length > 0 && (
-        <div className="border-t border-gold/15 pt-4">
+        <div className="border-t border-ink/10 pt-4">
           <p className="text-[9px] font-bold tracking-[0.14em] text-ink-soft/70">
             MORE FILTERS COMING TO THIS CATEGORY
           </p>
@@ -369,11 +406,37 @@ export function CategoryBrowser({
     </div>
   )
 
+  // The complete rail panel — category header, scrollable sections, and the
+  // pinned APPLY FILTERS button (the frame the /shop rail shares).
+  const railPanel = (
+    <div className="flex min-h-0 flex-1 flex-col border border-ink/10 bg-white" aria-label={`Filters for ${node.name}`}>
+      <div className="flex shrink-0 items-center justify-between border-b border-ink/10 px-5 py-4">
+        <p className="truncate text-[10px] font-bold tracking-[0.22em] text-ink">
+          {node.name.toUpperCase()}
+        </p>
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close filters"
+          className="flex h-8 w-8 shrink-0 items-center justify-center text-ink-soft transition-colors hover:text-ink lg:hidden"
+        >
+          <X size={14} weight="bold" />
+        </button>
+      </div>
+      <div className={`min-h-0 flex-1 p-5 ${RAIL_SCROLL}`}>{railSections}</div>
+      <div className="shrink-0 border-t border-ink/10 p-4">
+        <button type="button" onClick={applyDraft} className="btn-gold w-full">
+          APPLY FILTERS
+        </button>
+      </div>
+    </div>
+  )
+
   return (
-    <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-      {/* Desktop filter rail */}
-      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:block">
-        {rail}
+    <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[260px_1fr]">
+      {/* Desktop filter rail — sticky, sections scroll, APPLY pinned */}
+      <aside className="hidden w-[260px] shrink-0 self-start lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col">
+        {railPanel}
       </aside>
 
       <div className="min-w-0">
@@ -412,10 +475,18 @@ export function CategoryBrowser({
           </label>
         </div>
 
-        {/* Mobile collapsible filter panel (same rail content) */}
+        {/* Mobile filter drawer — slide-over from the left with a scrim;
+            APPLY commits + closes, the X and the scrim close too. */}
         {mobileOpen && (
-          <div className="mt-4 border border-gold/25 bg-card p-5 lg:hidden animate-in fade-in slide-in-from-top-1 duration-150">
-            {rail}
+          <div className="fixed inset-0 z-[80] lg:hidden">
+            <div
+              className="absolute inset-0 bg-ink/45"
+              onClick={() => setMobileOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="absolute inset-y-0 left-0 flex w-[86%] max-w-[330px] flex-col bg-white shadow-2xl animate-in slide-in-from-left duration-300">
+              {railPanel}
+            </div>
           </div>
         )}
 

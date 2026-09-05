@@ -66,6 +66,17 @@ export function ShopClient({
   })
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  // Lock body scroll while the mobile filter drawer is open.
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden"
+      return () => {
+        document.body.style.overflow = ""
+      }
+    }
+  }, [mobileOpen])
+
   // Hydrate from localStorage (avoid SSR mismatch)
   useEffect(() => setHydrated(true), [])
 
@@ -108,29 +119,23 @@ export function ShopClient({
   // indicator now lives in the site header — see HeaderBagLink.)
 
   // Cascade-check a node: checking selects the node + its entire subtree;
-  // unchecking removes the node + its entire subtree.
-  const toggleCategory = (node: SidebarCategory) => {
-    const ids = collectIds(node)
-    const allOn = ids.every((id) => checkedCats.has(id))
-    setCheckedCats((prev) => {
-      const next = new Set(prev)
-      for (const id of ids) {
-        if (allOn) next.delete(id)
-        else next.add(id)
-      }
-      return next
-    })
+  // unchecking removes the node + its entire subtree. (Applied state — the
+  // rail stages its own draft and commits through applyFilters.)
+  const applyFilters = (next: {
+    checked: Set<number>
+    price: { min: string; max: string; buckets: string[] }
+  }) => {
+    setCheckedCats(next.checked)
+    setPrice(next.price)
   }
-
-  const clearCategories = () => setCheckedCats(new Set())
-
-  const activeFilterCount =
-    checkedCats.size + (price.min.trim() ? 1 : 0) + (price.max.trim() ? 1 : 0) + price.buckets.length
 
   const clearAll = () => {
     setCheckedCats(new Set())
     setPrice({ min: "", max: "", buckets: [] })
   }
+
+  const activeFilterCount =
+    checkedCats.size + (price.min.trim() ? 1 : 0) + (price.max.trim() ? 1 : 0) + price.buckets.length
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -220,21 +225,19 @@ export function ShopClient({
         <p className="mt-4 border border-gold/30 bg-cream-deep px-4 py-2 text-[12px] text-gold-deep">{notice}</p>
       )}
 
-      {/* Regular ecommerce layout: category/filter sidebar + catalog grid.
-          The rail design matches the /shop/category/[slug] pages exactly. */}
-      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-        {/* Desktop sidebar rail — sticky so filters stay in view while the
-            catalog scrolls (standard e-commerce rail behavior). */}
-        <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:sticky lg:top-6 lg:block">
+      {/* Regular ecommerce layout: filter rail + catalog grid.
+          Desktop rail: white panel, sticky, sections scroll inside a
+          viewport-capped column with APPLY FILTERS pinned to its bottom.
+          Mobile: the FILTERS toolbar button opens a slide-over drawer. */}
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[260px_1fr]">
+        <aside className="hidden w-[260px] shrink-0 self-start lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col">
           <ShopSidebar
             categories={categoryTree}
             products={products}
             ratings={ratings}
             checked={checkedCats}
-            onToggleCategory={toggleCategory}
-            onClearCategories={clearCategories}
             price={price}
-            onPriceChange={setPrice}
+            onApply={applyFilters}
           />
         </aside>
 
@@ -274,19 +277,26 @@ export function ShopClient({
             </p>
           </div>
 
-          {/* Mobile collapsible sidebar (same rail) */}
+          {/* Mobile filter drawer — slide-over from the left with a scrim;
+              APPLY commits + closes, the X and the scrim close too. */}
           {mobileOpen && (
-            <div className="mt-4 border border-gold/25 bg-card p-5 lg:hidden animate-in fade-in slide-in-from-top-1 duration-150">
-              <ShopSidebar
-                categories={categoryTree}
-                products={products}
-                ratings={ratings}
-                checked={checkedCats}
-                onToggleCategory={toggleCategory}
-                onClearCategories={clearCategories}
-                price={price}
-                onPriceChange={setPrice}
+            <div className="fixed inset-0 z-[80] lg:hidden">
+              <div
+                className="absolute inset-0 bg-ink/45"
+                onClick={() => setMobileOpen(false)}
+                aria-hidden="true"
               />
+              <div className="absolute inset-y-0 left-0 flex w-[86%] max-w-[330px] flex-col bg-white shadow-2xl animate-in slide-in-from-left duration-300">
+                <ShopSidebar
+                  categories={categoryTree}
+                  products={products}
+                  ratings={ratings}
+                  checked={checkedCats}
+                  price={price}
+                  onApply={applyFilters}
+                  onClose={() => setMobileOpen(false)}
+                />
+              </div>
             </div>
           )}
 
@@ -409,9 +419,7 @@ export function ShopClient({
 // ===========================================================================
 
 // Flatten a category node + all descendants into a list of ids (cascade).
-function collectIds(node: SidebarCategory): number[] {
-  return [node.id, ...(node.children || []).flatMap(collectIds)]
-}
+// (collectIds removed — cascade logic now lives inside the rail's draft state.)
 
 function CheckoutWizard({ onExit }: { onExit: () => void }) {
   const s = useCart()
