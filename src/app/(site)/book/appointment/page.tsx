@@ -1,15 +1,16 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
-import { BookingWizardV2 } from "@/components/site/islands/booking-wizard-v2"
-import { getWizardData } from "@/lib/wizard/wizard-data"
+import { WizardLoader } from "@/components/site/islands/wizard-loader"
 
 export const metadata = {
   title: "Book an Appointment | All About Pawz",
   description: "Reserve your pup's grooming visit — nine quick steps, about two minutes, secured with a $25 deposit.",
 }
 
-export default async function AppointmentWizardPage() {
-  const { breeds, services, groomers, lookups } = await getWizardData()
+export default function AppointmentWizardPage() {
+  // CSR architecture: static shell; the wizard's reference data (breeds,
+  // services, groomers, lookups) loads client-side — the form itself is pure
+  // client-side state, exactly as before.
 
   return (
     <>
@@ -31,13 +32,7 @@ export default async function AppointmentWizardPage() {
           Nine quick steps, about two minutes. Your progress saves as you go — step away and pick up right where you left off.
         </p>
         <div className="mt-10">
-          <BookingWizardV2
-            flow="appointment"
-            breeds={breeds}
-            services={services}
-            groomers={groomers}
-            lookups={lookups}
-          />
+          <WizardLoader flow="appointment" />
         </div>
       </section>
     </>

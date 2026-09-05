@@ -920,3 +920,24 @@ Stage Summary:
 - "Design lost" = missing env vars on Vercel, definitively: same build + keys = 17/6/10/7 images with 0 broken
 - Owner now has the complete env var list + values to paste into Vercel → Settings → Environment Variables, then Redeploy
 - After env vars: attach aapawz.com (Stripe active-domain review needs the live domain)
+
+---
+Task ID: 34
+Agent: main (direct work, no subagents)
+Task: Owner directive: restore the client-side-rendering architecture — no database dependency in the page render path; remove ADMIN_EMAILS; explain the env var naming (owner had entered wrong names on Vercel: NEXT_SUPABASE_URL instead of NEXT_PUBLIC_SUPABASE_URL / SUPABASE_URL, which is why "nothing showed").
+
+Work Log:
+- ROOT CAUSE of "I put these in, they don't show": the names pasted into Vercel (NEXT_SUPABASE_URL, NEXT_SUPABASE_ANON_KEY, NEXT_SITE_URL) match nothing the code reads; correct names are SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY (server-only) — after the CSR conversion the public site needs ONLY those.
+- CSR CONVERSION (13 pages + 12 islands): every public page is now a static shell (no await getSiteContent / getWizardData / getSettings anywhere in the render path). Data sections are client islands that fetch /api/cms/* AFTER paint with skeleton loading: home (hero copy/settings/featured band/testimonial), services (featured + accordion), pricing (addons + package cards), gallery (grid), shop (catalog via new ShopLoader), faq (policies + accordion), contact (essentials + social), both wizard pages (new WizardLoader via new /api/wizard/data route — BookingWizardV2 itself untouched, same props), SiteChrome now self-fetches settings (was blocking EVERY page via layout), policies/[slug] now dynamic (admin publish → live immediately), about page dead await removed.
+- New shared hook components/site/islands/use-cms.ts (useCms + useCmsSettings + visibleOnly). Islands keep the exact same markup; skeletons match each section's shape.
+- ADMIN_EMAILS removed as a requirement: auth/server.ts isAdmin() now defaults to any-authenticated-user-is-admin; ADMIN_EMAILS is an optional restriction only. Dropped from .env.example. (What it was: a comma-separated whitelist deciding which signed-in emails get admin access.)
+- .env.example rewritten for the CSR architecture: REQUIRED = SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY (all server-only, no public prefix). OPTIONAL = NEXT_PUBLIC_SUPABASE_URL/ANON (only for browser portal login) + NEXT_PUBLIC_SITE_URL. Email stays: Supabase Auth for sign-up/sign-in, Resend server-side for transactional sends.
+- SANDBOX VERIFIED: dev render time dropped from ~500ms to ~30ms per page (static shell); browser-verified every page fills client-side with identical counts (17/6/7/10 images etc.), wizard mounts on step 1, zero console errors; lint 0 errors.
+- PRODUCTION VERIFIED in export: build with NO env vars = 52/52 static pages, shells render with graceful empty sections; build WITH env vars = same 52/52, browser-verified gallery 17 / services 6 / shop 10 / pricing 7 images, 0 broken, no console errors — data flows through /api/cms/* to the client.
+- PUSHED: commit dcfb93a (28 files) → main on GitHub (PAT transient in push URL only, masked output, unset in same command, verified stored nowhere, no remotes configured).
+- Cleanup: prod test servers stopped, browser closed, .env copy removed from export; git tree clean.
+
+Stage Summary:
+- The demanded architecture is installed and proven: pages are static shells that paint instantly; data loads client-side after paint via the site's own API; nothing in the render path touches the database
+- Vercel needs exactly 6 env vars (server-only names, no public prefix): SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY — plus 2 optional NEXT_PUBLIC_ vars only for portal login
+- Commit dcfb93a is live on main; Vercel auto-redeploys; once the owner adds the 6 vars with the EXACT names and redeploys, the full design renders

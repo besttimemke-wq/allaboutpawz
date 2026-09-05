@@ -9,14 +9,10 @@ type Policy = { id: string; title: string; body?: string }
 
 // Slug is derived from the title (CANCELLATIONS → cancellations) so the
 // owner can publish and update every policy from the admin portal — the
-// pages render live from the `policies` table.
+// pages render live from the `policies` table (dynamic per request, so a
+// newly published policy is visible immediately with no rebuild).
 export function policySlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-}
-
-export async function generateStaticParams() {
-  const policies = (await getResource<Policy>("policies")) || []
-  return policies.map((p) => ({ slug: policySlug(p.title) }))
 }
 
 async function getPolicy(slug: string) {

@@ -1,10 +1,7 @@
 import Link from "next/link"
 import { Award, Lightbulb, Heart, Truck, Lock, Store, Sparkle, ArrowDown, Scissors } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
-import { ShopClient } from "@/components/site/islands/shop-client"
-import { getSiteContent } from "@/lib/site-data"
-import { getCategoryTree } from "@/lib/categories"
-import { repo } from "@/lib/repo"
+import { ShopLoader } from "@/components/site/islands/shop-loader"
 
 const ASSURANCES = [
   { Icon: Truck, title: "Free Standard Shipping", body: "On every order — 5–7 business days." },
@@ -18,29 +15,9 @@ const BADGES = [
   { Icon: Heart, title: "Loved by Pups", body: ["Tried, tested, and", "tail-wag approved."] },
 ]
 
-export default async function ShopPage() {
-  const [{ products }, tree, reviews] = await Promise.all([
-    getSiteContent(),
-    getCategoryTree(),
-    repo.list("product_reviews"),
-  ])
-  // getSiteContent already filters visible. The live catalog is deduplicated
-  // in the database (unique slugs) — just sort by the catalog `order` field.
-  const unique = products.sort(
-    (a: any, b: any) => (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)),
-  )
-
-  // Review rollup per product (same pattern as the category pages: a review
-  // shows when it is visible OR explicitly approved).
-  const ratings: Record<string, { avg: number; count: number }> = {}
-  for (const r of (reviews || []) as any[]) {
-    if (!(r.visible === true || r.status === "approved")) continue
-    const cur = ratings[r.productId] || { avg: 0, count: 0 }
-    ratings[r.productId] = {
-      avg: (cur.avg * cur.count + (r.rating || 0)) / (cur.count + 1),
-      count: cur.count + 1,
-    }
-  }
+export default function ShopPage() {
+  // CSR architecture: static shell (hero, assurances, badges, cross-sell);
+  // the catalog, category tree, and review rollups fetch client-side.
 
   return (
     <>
@@ -100,7 +77,7 @@ export default async function ShopPage() {
         <h2 className="border-t border-gold/25 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
           SHOP OUR FAVORITES
         </h2>
-        <ShopClient products={unique} categoryTree={tree.categories} ratings={ratings} />
+        <ShopLoader />
       </section>
 
       {/* Trust badges */}

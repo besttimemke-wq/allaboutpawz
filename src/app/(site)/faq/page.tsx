@@ -1,20 +1,18 @@
 import Link from "next/link"
-import { Plus } from "lucide-react"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { FaqAccordion } from "@/components/site/islands/faq-accordion"
-import { getSiteContent } from "@/lib/site-data"
-
-const policySlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+import { PolicyBoxes } from "@/components/site/islands/policy-boxes"
 
 export const metadata = {
   title: "FAQ & Policies | All About Pawz",
   description: "Answers to the questions pet parents ask most — appointments, vaccines, matted coats, and the salon policies that keep every pup safe.",
 }
 
-export default async function FaqPage() {
-  const { faqs, policies } = await getSiteContent()
+export default function FaqPage() {
+  // CSR architecture: static shell; policy boxes and the accordion fetch
+  // their content client-side after paint.
   return (
     <>
       <PageHeader n="11" label="FAQ / POLICIES" />
@@ -48,21 +46,7 @@ export default async function FaqPage() {
           <p className="eyebrow-dark">HOUSE RULES</p>
           <p className="text-[11px] text-on-dark-muted">Tap a policy to read the full details</p>
         </div>
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {policies.map((p: any) => (
-            <Link
-              key={p.id}
-              href={`/policies/${policySlug(p.title)}`}
-              className="group flex items-center justify-between gap-4 border border-gold/25 px-6 py-5 transition-colors hover:border-gold-deep hover:bg-gold/5"
-            >
-              <div>
-                <p className="text-[10.5px] font-bold tracking-[0.18em] text-gold">{p.title}</p>
-                <p className="mt-1.5 text-[11px] leading-[1.6] text-on-dark-muted">Read the policy</p>
-              </div>
-              <Plus className="h-4 w-4 shrink-0 text-gold transition-transform duration-300 group-hover:rotate-45" strokeWidth={1.8} />
-            </Link>
-          ))}
-        </div>
+        <PolicyBoxes />
       </section>
 
       {/* FAQ RAIL — the schnauzer sits LEFT of the accordion, stretched to the
@@ -78,7 +62,7 @@ export default async function FaqPage() {
           />
         </div>
         <div className="min-w-0">
-          <FaqAccordion faqs={faqs} />
+          <FaqAccordion />
         </div>
       </section>
     </>

@@ -40,11 +40,15 @@ export async function getCurrentUser() {
   return session.user
 }
 
-// Check if current user is admin (by email or role)
+// Check if current user is admin.
+// Default: any authenticated account is admin (private salon system — the
+// admin portal is itself gated by Supabase Auth sign-in). Optionally set
+// ADMIN_EMAILS to restrict admin access to specific addresses; when unset,
+// the gate is simply "signed in".
 export async function isAdmin() {
   const user = await getCurrentUser()
   if (!user) return false
-  // Admin = specific email addresses (configure in .env as ADMIN_EMAILS)
-  const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map(e => e.trim().toLowerCase())
-  return adminEmails.includes((user.email || "").toLowerCase())
+  const list = (process.env.ADMIN_EMAILS || "").split(",").map(e => e.trim().toLowerCase()).filter(Boolean)
+  if (list.length === 0) return true
+  return list.includes((user.email || "").toLowerCase())
 }

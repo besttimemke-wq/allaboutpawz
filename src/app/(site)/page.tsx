@@ -1,9 +1,9 @@
 import Link from "next/link"
-import { CalendarDays, Heart, CheckCircle2, Mail, Scissors } from "lucide-react"
+import { CalendarDays, Heart, CheckCircle2, Mail } from "lucide-react"
 import { PawGlyph, Divider } from "@/components/site/brand"
 import { TopUtilityBar } from "@/components/site/site-chrome"
-import { getIcon } from "@/lib/icons"
-import { getSiteContent } from "@/lib/site-data"
+import { HomeHeroCopy, HomeHeroSubtitle, HomeTestimonial } from "@/components/site/islands/home-islands"
+import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
 
 const STEPS = [
@@ -18,11 +18,9 @@ export const metadata = {
   description: "All About Pawz delivers spa-level dog grooming — breed-specific haircuts, baths, and nail care in a calm, luxury salon.",
 }
 
-export default async function HomePage() {
-  const data = await getSiteContent()
-  const s = data.settings
-  const services = data.services.slice(0, 4)
-  const testimonial = data.testimonials[0]
+export default function HomePage() {
+  // CSR architecture: this page is a static shell — hero copy, services band,
+  // and the testimonial are client islands that fetch after paint.
 
   return (
     <>
@@ -38,14 +36,9 @@ export default async function HomePage() {
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <p className="eyebrow">LUXURY GROOMING</p>
-          <h1 className="mt-4 whitespace-pre-line font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">
-            {s.heroTitle || "Luxury Grooming.\nExceptional Care."}
-          </h1>
-          <p className="script mt-3 text-[34px]">{s.tagline || "From Pawz to PAWfection"}</p>
+          <HomeHeroCopy />
           <div className="mt-6"><Divider /></div>
-          <p className="mt-6 max-w-[380px] text-[13px] leading-[1.75] text-ink-soft">
-            {s.heroSubtitle || "We deliver a spa-level grooming experience where every detail is designed for your pup's comfort, style, and happiness."}
-          </p>
+          <HomeHeroSubtitle />
           <div className="mt-8 flex flex-wrap gap-4">
             <Link href="/book/appointment" className="btn-gold">BOOK APPOINTMENT</Link>
             <Link href="/book/consultation" className="btn-ghost">SCHEDULE CONSULT</Link>
@@ -67,18 +60,7 @@ export default async function HomePage() {
             </p>
             <Link href="/services" className="btn-gold mt-6">VIEW ALL SERVICES</Link>
           </div>
-          <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
-            {services.map(({ id, icon, title, description }, i) => {
-              const Icon = getIcon(icon, Scissors)
-              return (
-                <div key={id} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-                  <Icon className="mx-auto h-10 w-10 text-gold" strokeWidth={1.2} />
-                  <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-gold">{title}</h3>
-                  <p className="mt-3 whitespace-pre-line text-[12px] leading-[1.7] text-on-dark-muted">{description}</p>
-                </div>
-              )
-            })}
-          </div>
+          <FeaturedServicesGrid />
         </div>
       </section>
 
@@ -92,13 +74,7 @@ export default async function HomePage() {
           <p className="mt-4 max-w-[400px] text-[12.5px] leading-[1.8] text-ink-soft">
             We treat every pup like our own and every parent like family. That&apos;s why our clients stay with us and refer their friends.
           </p>
-          {testimonial && (
-            <>
-              <p className="script mt-5 text-[24px]">A few words from our family</p>
-              <p className="mt-3 max-w-[400px] text-[12.5px] italic leading-[1.8] text-ink-soft">&ldquo;{testimonial.quote}&rdquo;</p>
-              <p className="mt-2 text-[12px] text-ink-soft">– {testimonial.author}</p>
-            </>
-          )}
+          <HomeTestimonial />
         </div>
         <div className="relative min-h-[300px]">
           <img src="/Home/home-3rd-banner.png" alt="All About Pawz dog grooming salon interior with reception desk and boutique pet products" width={1018} height={269} className="absolute inset-0 h-full w-full object-cover" />
