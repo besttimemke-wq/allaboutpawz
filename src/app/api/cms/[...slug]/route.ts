@@ -16,6 +16,7 @@ const RESOURCES = new Set<CmsResource>([
   "payments", "blocked_times", "availability", "service_pricing",
   "invoices", "invoice_items", "email_messages", "communications", "product_reviews",
   "pet_product_categories", "pet_product_filters", "pet_product_filter_values", "pet_category_filters",
+  "serviceItems",
 ])
 
 function isResource(k: string): k is CmsResource {

@@ -7,6 +7,7 @@ import { repo, type CmsResource } from "./repo"
 
 export type SiteContent = {
   services: any[]
+  serviceItems: any[]
   products: any[]
   gallery: any[]
   packages: any[]
@@ -27,15 +28,16 @@ async function list<T = any>(r: CmsResource): Promise<T[]> {
 
 export async function getSiteContent(): Promise<SiteContent> {
   const [
-    services, products, gallery, packages, addons,
+    services, serviceItems, products, gallery, packages, addons,
     faqs, policies, testimonials, settings,
   ] = await Promise.all([
-    list("services"), list("products"), list("gallery"), list("packages"),
+    list("services"), list("serviceItems"), list("products"), list("gallery"), list("packages"),
     list("addons"), list("faqs"), list("policies"), list("testimonials"),
     repo.getSettings(),
   ])
   return {
     services: services.filter((s: any) => s.visible),
+    serviceItems: serviceItems.filter((s: any) => s.visible),
     products: products.filter((p: any) => p.visible),
     gallery: gallery.filter((g: any) => g.visible),
     packages, addons, faqs, policies,

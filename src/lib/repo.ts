@@ -25,6 +25,7 @@ export type CmsResource =
   | "invoices" | "invoice_items" | "email_messages" | "communications"
   | "product_reviews"
   | "pet_product_categories" | "pet_product_filters" | "pet_product_filter_values" | "pet_category_filters"
+  | "serviceItems"
 
 const TABLE: Record<CmsResource, string> = {
   services: "services",
@@ -68,6 +69,7 @@ const TABLE: Record<CmsResource, string> = {
   pet_product_filters: "pet_product_filters",
   pet_product_filter_values: "pet_product_filter_values",
   pet_category_filters: "pet_category_filters",
+  serviceItems: "service_items",
 }
 
 // Explicit PostgREST order overrides for tables that have no createdAt column.
@@ -79,7 +81,7 @@ const CUSTOM_ORDER: Partial<Record<CmsResource, string>> = {
 }
 
 const ORDERED = new Set<CmsResource>([
-  "services", "products", "gallery", "packages", "addons", "faqs", "policies", "testimonials",
+  "services", "products", "gallery", "packages", "addons", "faqs", "policies", "testimonials", "serviceItems",
 ])
 
 // Use NEXT_PUBLIC_ vars (available on both server and client) with fallback

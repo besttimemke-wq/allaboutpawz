@@ -6,7 +6,7 @@ import { useState, useEffect, type ReactNode } from "react"
 import {
   SquaresFour, Scissors, ShoppingBag, Image as ImageIcon, Tag, Sparkle,
   Question, ShieldCheck, Quotes, CalendarCheck, PhoneCall, Tray,
-  Gear, ArrowLeft, PawPrint, ListChecks, Users, Dog, Calendar,
+  Gear, ArrowLeft, PawPrint, ListChecks, Users, Dog, Calendar, List,
   CreditCard, Package, Bell, EnvelopeSimple,
   FileText, Megaphone, ChatCircle, CurrencyDollar, Star, TreeStructure,
 } from "@phosphor-icons/react"
@@ -43,6 +43,7 @@ const TOP_NAV: { label: string; icon: Icon; items: NavItem[] }[] = [
     label: "CMS", icon: FileText,
     items: [
       { label: "Services", href: "/admin/services", icon: Scissors },
+      { label: "Service Items", href: "/admin/serviceItems", icon: List },
       { label: "Pricing & Packages", href: "/admin/packages", icon: Tag },
       { label: "Add-ons", href: "/admin/addons", icon: Sparkle },
       { label: "Products", href: "/admin/products", icon: Package },
@@ -81,6 +82,7 @@ const CONTEXT_SIDEBARS: Record<string, NavGroup[]> = {
   cms: [
     { label: "CMS", items: [
       { label: "Services", href: "/admin/services", icon: Scissors },
+      { label: "Service Items", href: "/admin/serviceItems", icon: List },
       { label: "Pricing & Packages", href: "/admin/packages", icon: Tag },
       { label: "Add-ons", href: "/admin/addons", icon: Sparkle },
       { label: "Products", href: "/admin/products", icon: Package },

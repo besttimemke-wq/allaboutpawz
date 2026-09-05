@@ -526,3 +526,22 @@ Stage Summary:
 - Services page: new headline, packages table with checkout CTAs, accordion service list (3-col: data | centered image | CTA) — same info as pricing, different view
 - Package GET PACKAGE CTAs currently → /pricing (table rows) and /book (accordion) pending the package-selection → checkout flow decision
 - NEXT: decide package → checkout flow (booking wizard step vs shop-style purchase) and payment provider
+
+---
+Task ID: 14
+Agent: main agent (direct work, per standing rule)
+Task: Services accordion v2 — remove redundant packages table, pricing INSIDE the accordion, image in the accordion header (uncropped), wider layout, and make the whole thing CMS-manageable (service_items table + admin editor + publish API)
+
+Work Log:
+- Removed the standalone GROOMING PACKAGES table section (redundant — pricing now lives inside each accordion)
+- Migration 0005_service_items.sql: new Supabase table service_items (category, name, price, isPackage, small/medium/large/xlargePrice, order, visible) + 17 seed rows from the owner's spec (GROOMING: Full Groom+Haircuts+Styling+Bath&Brush; BATH & SPA: Bath&Brush+Deluxe Spa+De-shedding $15–$35+Flea Bath $10; NAIL & PAW: $15 items; ADD-ONS: 7 items incl. De-tangling/Fragrance)
+- Applied to LIVE Supabase via Management API (python urllib got Cloudflare 1010; curl worked → HTTP 201). Verified 17 seeded rows via PostgREST
+- Registered resource end-to-end: repo.ts (CmsResource "serviceItems" → table "service_items", ORDERED set), /api/cms/[...slug] allowlist, site-data.ts (SiteContent.serviceItems, visible-filtered), cms-config.tsx (Service Items editor: category select, name, single price, isPackage switch, 4 size prices, order, visible), admin-shell nav (both menus, /admin/serviceItems)
+- Debugged: /admin/service-items 404 — the [section] route matches URL slug == resource key exactly → href must be /admin/serviceItems
+- Rebuilt services-accordion.tsx: HEADER = chevron + title/description (wide) + photo on the outside right (h-24/lg:h-28, self-stretch object-cover — no fixed-height crop) hidden on xs; BODY = pricing INSIDE (package items → PACKAGE/SMALL/MEDIUM/LARGE/X-LARGE mini-table; single items → name + gold price rows) + GET PACKAGE CTA column (border-l, 240px); one-open-at-a-time
+- Verified: VLM confirms table section gone, header photos outside/uncropped, pricing table inside with size columns + CTA, wide body; accordion click-test (NAIL & PAW expands w/ $15 items, GROOMING collapses); admin /admin/serviceItems lists 17 items + Add Service Item; full publish roundtrip proven (PUT price $15→$16 via API → live page showed $16 → reverted); mobile captured; dev.log 200s incl. the PUTs; lint 0 errors (5 pre-existing warnings)
+
+Stage Summary:
+- Services accordion fully CMS-manageable: edit items/prices/visibility in admin (CMS → Service Items) → publishes to the live services page
+- Layout per owner: no redundant table, image in header (uncropped), pricing inside accordion, wider body, GET PACKAGE CTA column
+- Still pending: GET PACKAGE → real package-selection checkout flow (booking wizard pre-select vs shop-style)

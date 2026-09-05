@@ -5,24 +5,14 @@ import { getIcon } from "@/lib/icons"
 import { getSiteContent } from "@/lib/site-data"
 import { ServicesAccordion } from "@/components/site/islands/services-accordion"
 
-const SIZES = ["SMALL", "MEDIUM", "LARGE", "X-LARGE"]
-const PRICE_KEYS = ["smallPrice", "mediumPrice", "largePrice", "xlargePrice"] as const
-
 export const metadata = {
   title: "Dog Grooming Services | All About Pawz",
   description: "Grooming packages, baths, spa treatments, and nail & paw care — gentle dog grooming tailored to your pup. Book a package today.",
 }
 
 export default async function ServicesPage() {
-  const { services, packages } = await getSiteContent()
+  const { services, serviceItems } = await getSiteContent()
   const featured = services.slice(0, 4)
-  // Dedupe packages by name (seed data contains duplicate rows); keep order.
-  const seen = new Set<string>()
-  const uniquePackages = packages.filter((p: any) => {
-    if (seen.has(p.name)) return false
-    seen.add(p.name)
-    return true
-  })
 
   return (
     <>
@@ -32,7 +22,7 @@ export default async function ServicesPage() {
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Care That Goes<br />Beyond the Groom.</h1>
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">Premium grooming services tailored to your dog&apos;s breed, coat, and lifestyle.</p>
-          <Link href="/pricing" className="btn-gold mt-7 self-start">VIEW PACKAGES</Link>
+          <Link href="/book" className="btn-gold mt-7 self-start">VIEW PACKAGES</Link>
         </div>
         <div className="relative min-h-[300px]">
           <img src="/services/serviceshero.png" alt="White poodle sitting in the All About Pawz dog grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
@@ -65,39 +55,12 @@ export default async function ServicesPage() {
         </div>
       </section>
 
-      {/* GROOMING PACKAGES — same data as the pricing page, table view with
-          a checkout CTA on every row. */}
+      {/* SERVICES ACCORDION — every service category with its pricing INSIDE
+          (packages by size + à-la-carte items). All content is managed in the
+          admin: Services (categories/images) + Service Items (items/prices). */}
       <section className="marble bg-cream px-8 py-10 lg:px-12">
-        <div className="border border-gold/30">
-          <h2 className="border-b border-gold/30 bg-cream-deep py-3 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">GROOMING PACKAGES</h2>
-          <table className="w-full text-[12px]">
-            <thead>
-              <tr className="border-b border-gold/25">
-                <th className="w-[24%] px-3 py-3 text-left"></th>
-                {SIZES.map((sz) => <th key={sz} className="px-2.5 py-3 text-center text-[9.5px] font-bold tracking-[0.16em] text-gold-deep">{sz}</th>)}
-                <th className="w-[18%]"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {uniquePackages.map((p: any) => (
-                <tr key={p.id} className="border-b border-gold/15 last:border-0">
-                  <td className="px-3 py-3.5 text-left text-ink">{p.name}</td>
-                  {PRICE_KEYS.map((k) => <td key={k} className="px-2.5 py-3.5 text-center text-ink-soft">{p[k]}</td>)}
-                  <td className="px-3 py-2 text-center">
-                    <Link href="/book" className="btn-ghost px-4 py-2 text-[9px]">GET PACKAGE</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-4 text-center text-[11px] text-ink-soft">All packages can be booked online — reserve your pup&apos;s spot today.</p>
-      </section>
-
-      {/* SERVICES LIST — each service is an accordion sharing the pricing
-          page data: items + prices left, image centered, checkout CTA right. */}
-      <section className="marble bg-cream px-8 pb-14 pt-2 lg:px-12">
-        <ServicesAccordion services={services} />
+        <ServicesAccordion categories={services} items={serviceItems} />
+        <p className="mt-4 text-center text-[11px] leading-[1.7] text-ink-soft">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
       </section>
     </>
   )
