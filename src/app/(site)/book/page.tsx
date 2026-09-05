@@ -152,27 +152,27 @@ export default async function BookPage() {
         </div>
       </section>
 
-      {/* BOOK ENTRY — black dog left, the appointment card right. The two
-          cards that used to share the wizard's first screen each get their own
-          space on the page; clicking selects the flow and scrolls to the
-          wizard below. */}
-      <section className="marble bg-cream px-8 py-14 lg:px-12">
-        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_1fr]">
-          <div className="relative aspect-[4/3]">
-            <img
-              src="/Book/bookdog-black.jpeg"
-              alt="Black poodle resting on its plush cushion in the All About Pawz salon"
-              width={1365}
-              height={1024}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          </div>
+      {/* BOOK ENTRY — black dog left, the appointment card right. Photo
+          fills its column top to bottom (site standard), bottom edge meeting
+          the wizard section's rail. */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
+        <div className="relative min-h-[300px]">
+          <img
+            src="/Book/bookdog-black.jpeg"
+            alt="Black poodle resting on its plush cushion in the All About Pawz salon"
+            width={1365}
+            height={1024}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        </div>
+        <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
           <BookingEntryCard type="appointment" />
         </div>
       </section>
 
-      {/* THE WIZARD — the booking flow itself. */}
-      <section id="book" className="marble scroll-mt-24 bg-cream px-8 pb-14 lg:px-12">
+      {/* THE WIZARD — the booking flow itself; stays closed until one of
+          the entry cards above is chosen. */}
+      <section id="book" className="marble scroll-mt-24 bg-cream px-8 pt-12 pb-14 lg:px-12">
         <div className="border border-gold/30 bg-card p-7 lg:p-10">
           <BookingWizardV2
             breeds={breeds || []}
@@ -206,20 +206,19 @@ export default async function BookPage() {
         </div>
       </section>
 
-      {/* CONSULT ENTRY — brown dog left, the consultation card right. Its
-          own space below the consult band; clicking it switches the wizard
-          above into the free-consultation flow. */}
-      <section id="consult" className="marble scroll-mt-24 bg-cream px-8 py-14 lg:px-12">
-        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_1fr]">
-          <div className="relative aspect-[4/3]">
-            <img
-              src="/Book/bookdog-brown.jpeg"
-              alt="Golden doodle in a bow tie sitting beneath the All About Pawz sign"
-              width={606}
-              height={455}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          </div>
+      {/* CONSULT ENTRY — brown dog left, the consultation card right. Photo
+          fills its column, bottom edge meeting the footer rail. */}
+      <section id="consult" className="grid scroll-mt-24 grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
+        <div className="relative min-h-[300px]">
+          <img
+            src="/Book/bookdog-brown.jpeg"
+            alt="Golden doodle in a bow tie sitting beneath the All About Pawz sign"
+            width={606}
+            height={455}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        </div>
+        <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
           <BookingEntryCard type="consultation" />
         </div>
       </section>

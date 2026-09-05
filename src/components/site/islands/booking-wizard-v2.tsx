@@ -56,13 +56,12 @@ export function BookingWizardV2({
   const [success, setSuccess] = useState<"booking" | "consultation" | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
 
-  // Hydrate from localStorage (avoid SSR mismatch). The type-selection screen
-  // is gone — the two entry cards on the page choose the flow — so a fresh or
-  // reset wizard always starts at step 1 (appointment is the default mode).
+  // Hydrate from localStorage (avoid SSR mismatch). The wizard stays closed
+  // (no flow chosen) until one of the entry cards on the page opens it.
   useEffect(() => {
     setHydrated(true)
     const st = useWizard.getState()
-    if (st.step < 1) st.patch({ step: 1 })
+    if (st.bookingType && st.step < 1) st.patch({ step: 1 })
   }, [])
 
   // Check URL for success param (return from Stripe)
@@ -335,7 +334,7 @@ export function BookingWizardV2({
           <a href="/" className="btn-gold">RETURN HOME</a>
           <button
             type="button"
-            onClick={() => { s.reset(); s.patch({ step: 1 }); setSuccess(null) }}
+            onClick={() => { s.reset(); setSuccess(null) }}
             className="btn-ghost"
           >BOOK ANOTHER</button>
         </div>
@@ -357,23 +356,48 @@ export function BookingWizardV2({
     )
   }
 
-  // ----- Main wizard (steps 1..9) -----
-  // Back is hidden on step 1 — the type-selection screen it used to return
-  // to has been replaced by the two entry cards on the page itself.
-  const goBack = () => s.setStep(s.step - 1)
+  // ----- Closed state — no flow chosen yet; the entry cards above open it. -----
+  // The full wizard is NOT visible until "Book an Appointment" or "Schedule
+  // a Consultation" is chosen from its card on the page.
+  if (!s.bookingType) {
+    const hasProgress = s.step > 0 || !!s.firstName || !!s.dogName || !!s.customerId
+    return (
+      <div className="space-y-6 text-center">
+        <div>
+          <p className="eyebrow">RESERVE YOUR VISIT</p>
+          <h2 className="mt-2 font-display text-[28px] text-ink">What would you like to do?</h2>
+          <p className="mx-auto mt-2 max-w-md text-[12.5px] leading-relaxed text-ink-soft">
+            Book a grooming appointment or schedule a free consultation with a card on this page — we&apos;ll take it from here.
+          </p>
+        </div>
+        {hasProgress && (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => { if (confirm("Clear all wizard data and start fresh?")) s.reset() }}
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] text-ink-soft hover:text-gold-deep"
+            >
+              <ArrowLeft size={12} weight="bold" /> Start over
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
 
-  const isConsultation = s.bookingType === "consultation"
+  // ----- Main wizard (steps 1..9) -----
+  // From step 1, Back returns to the closed state — the flow is re-chosen
+  // from the entry cards on the page.
+  const goBack = () => {
+    if (s.step === 1) {
+      s.patch({ bookingType: null, step: 0 })
+    } else {
+      s.setStep(s.step - 1)
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Mode line — reflects which entry card was chosen */}
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className="eyebrow">{isConsultation ? "FREE CONSULTATION REQUEST" : "RESERVE YOUR VISIT"}</p>
-        <p className="text-[10px] font-bold tracking-[0.12em] text-ink-soft">
-          {isConsultation ? "FREE — WE REACH OUT TO PLAN THE VISIT" : "$25 DEPOSIT — SECURED AT THE FINAL STEP"}
-        </p>
-      </div>
-
       <Stepper step={s.step} labels={stepLabels} onJump={(i) => i < s.step && s.setStep(i)} />
 
       {apiError && (
@@ -408,13 +432,9 @@ export function BookingWizardV2({
 
       {/* Nav */}
       <div className="flex items-center justify-between border-t border-gold/25 pt-5">
-        {s.step > 1 ? (
-          <button type="button" onClick={goBack} className="btn-ghost">
-            <ArrowLeft size={14} weight="bold" /> Back
-          </button>
-        ) : (
-          <span aria-hidden="true" />
-        )}
+        <button type="button" onClick={goBack} className="btn-ghost">
+          <ArrowLeft size={14} weight="bold" /> Back
+        </button>
         {s.step < 9 ? (
           <button
             type="button"
