@@ -273,3 +273,25 @@ Stage Summary:
 - Every page now carries the owner's photography (17/17 placed; folders preserved as-is in public/), filling the gaps the owner called out — FAQ and the contact form section went from imageless to cozy.
 - The shop is a regular ecommerce browsing experience: sidebar CATEGORIES checkbox tree + data-backed facets, one consistent design language across /shop and category pages, no dropdowns anywhere; the inconsistent hamburger + chips are gone.
 - Live DB: 4 duplicate policy rows removed (FAQ policy cards now unique); services thumbnails point at the owner's new photos; no other data touched.
+
+---
+Task ID: 1
+Agent: main (Z.ai Code)
+Task: Revive dead dev server, finish image placement (Consultation), verify shop sidebar rebuild + all pages with screenshots/VLM
+
+Work Log:
+- Found dev server dead (likely OOM kill, no swap on 4GB box); memory free again; restarted `bun run dev` in background → HTTP 200
+- Confirmed the 17-image copy into public/ survived the crash (diff upload/extracted vs public = zero differences, folders verbatim)
+- Confirmed pre-crash wiring intact: home hero + home_footer, aboutus2 + 3rd section, bookhero, contact, faq x2, pricinghero, ourprocess2, shop.png, serviceshero2, and all 4 service thumbnails already in Supabase services rows
+- Added the only missing image: rebuilt ConsultationForm island as 2-col layout (form left, /Consultation/consultation.png + benefit checklist right) and mounted it on /book below the booking wizard
+- Verified shop category rebuild was complete pre-crash: shop-sidebar.tsx = regular checkbox tree (caret+checkbox+name+count, cascade select, indeterminate state), shop-client renders 220px desktop rail + mobile FILTERS collapsible panel, no dropdowns anywhere, Pet Supplies is a normal checkbox row
+- Interactive tests: checking "Dog Grooming Supplies" cascaded to "Grooming" subcat, counter 8→7 OF 8, CLEAR resets to 8 PRODUCTS
+- Screenshot + VLM verified: home (top/mid/bottom), about, book (consultation section renders), contact, faq, pricing, process, services (5 images), shop (sidebar checkboxes, VIEW DETAILS cards), category/grooming (consistent rail), product detail (qty + ADD TO BAG), mobile shop (FILTERS panel) + mobile home (top bar w/ bag, no overflow)
+- Carried-over items re-verified: bag icon top header (HeaderBagLink desktop top-right + mobile sticky bar), fixed 232px desktop sidebar, shop cards say VIEW DETAILS
+- lint: 0 errors (5 pre-existing warnings); dev.log: all routes 200, no runtime errors; removed temp scripts/ helper
+
+Stage Summary:
+- Dev server revived and stable
+- All 17 uploaded images live on their pages; /book gained a free-consultation section (form + photo)
+- Shop categories = standard sidebar checkbox list with cascading subtree selection, consistent rails across /shop and /shop/category/[slug]
+- Every page browser- and VLM-verified: no broken images, no awkward gaps, responsive, bag icon in top chrome

@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/site/site-chrome"
 import { BookingWizardV2, type WizardLookups } from "@/components/site/islands/booking-wizard-v2"
+import { ConsultationForm } from "@/components/site/islands/consultation-form"
 import { getResource } from "@/lib/site-data"
 
 type Breed = { id: string; name: string; sizeCategory?: string; coatType?: string; akcGroup?: string }
@@ -98,6 +99,8 @@ export default async function BookPage() {
           />
         </div>
       </section>
+      <div className="border-t border-gold/20" />
+      <ConsultationForm />
     </>
   )
 }
