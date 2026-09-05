@@ -26,11 +26,12 @@ export default async function HomePage() {
           it has no PageHeader. */}
       <TopUtilityBar />
 
-      {/* HERO — reference layout: text block 50% width on the left,
-          image 50% on the right spanning the full section height from the
-          very top (no crop, no container, natural aspect). */}
+      {/* HERO — original constraint: text block ~50% left, image right
+          FILLING the full column (object-cover, absolute inset) so it runs
+          from the top of the section down to the black services band — it
+          meets the scissors. No gap, no container styling. */}
       <section className="grid grid-cols-1 lg:grid-cols-2">
-        <div className="marble bg-cream px-8 pt-6 lg:pl-14 lg:pr-8 lg:pt-8">
+        <div className="marble bg-cream px-8 pb-10 pt-6 lg:pl-14 lg:pr-8 lg:pt-8">
           <p className="eyebrow">LUXURY GROOMING</p>
           <h1 className="mt-4 whitespace-pre-line font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">
             {s.heroTitle || "Luxury Grooming.\nExceptional Care."}
@@ -50,7 +51,9 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
-        <img src="/Home/home-hero-poodle.png" alt="Light-colored poodle standing inside the All About Pawz grooming salon" width={1448} height={1086} className="block h-auto w-full" />
+        <div className="relative min-h-[420px]">
+          <img src="/Home/home-hero-poodle.png" alt="Light-colored poodle standing inside the All About Pawz grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
+        </div>
       </section>
 
       {/* SERVICES BAND */}
@@ -79,10 +82,11 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* PAWZITIVE DIFFERENCE — text left, banner right IN LINE with the
-          text (vertically centered beside it), not stacked below */}
-      <section className="marble grid grid-cols-1 items-center gap-8 bg-cream px-8 py-14 lg:grid-cols-2 lg:px-12">
-        <div>
+      {/* PAWZITIVE DIFFERENCE — original constraint: text left, image right
+          FILLING the full column height (object-cover, absolute inset) — no
+          white space around the image. */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+        <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
           <p className="eyebrow">MORE THAN GROOMING</p>
           <h2 className="mt-3 font-display text-[30px] leading-[1.15] text-ink">It&apos;s the Pawzitive Difference.</h2>
           <p className="mt-4 max-w-[400px] text-[12.5px] leading-[1.8] text-ink-soft">
@@ -98,7 +102,9 @@ export default async function HomePage() {
             </>
           )}
         </div>
-        <img src="/Home/home-3rd-banner.png" alt="All About Pawz grooming salon interior with reception desk and boutique shelving" width={1018} height={269} className="block h-auto w-full" />
+        <div className="relative min-h-[300px]">
+          <img src="/Home/home-3rd-banner.png" alt="All About Pawz grooming salon interior with reception desk and boutique shelving" width={1018} height={269} className="absolute inset-0 h-full w-full object-cover" />
+        </div>
       </section>
 
       {/* CTA BAND */}

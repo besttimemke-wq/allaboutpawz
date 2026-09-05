@@ -424,3 +424,20 @@ Stage Summary:
 - Homepage hero: 50/50 split, dog photo right at natural aspect (reference layout)
 - 3rd section: banner in line with the text (side-by-side), no longer below
 - Hero reference pattern (50/50, image full height, text top) established for rollout to other pages on user's direction
+
+---
+Task ID: 8
+Agent: main agent (direct work, per standing rule)
+Task: Homepage — restore the original image constraint (fill the column), hero image must meet the scissors (black services band), eliminate 3rd-section white space
+
+Work Log:
+- Analyzed user's annotated mockup (pasted_image_1788586211487.png — whole-site section collage) with VLM
+- Interpreted directives: images use the ORIGINAL constraint (object-cover filling their column, edge-to-edge); hero image bottom must touch the black services band (scissors icons); 3rd section had white space from my stacked/centered layouts — restore fill
+- Hero: grid-cols-2 (text ~50% left, top-aligned), poodle photo right in relative min-h-[420px] with absolute inset-0 h-full w-full object-cover — fills top-to-bottom, meets the black band seamlessly
+- 3rd section (Pawzitive Difference): restored original [1fr_1.25fr] split, text justify-center left, banner image right absolute inset-0 object-cover filling the full column height — no white space
+- Verified desktop 1440×900 (.zshots/home-meet.png, home-meet-3rd.png): VLM confirms photo fills column, bottom edge touches black section with no gap, dog head fully visible, 3rd-section image fills with no white above/below; mobile captured
+- dev.log all 200s, lint 0 errors
+
+Stage Summary:
+- Homepage back to the original design constraint: images fill their columns edge-to-edge (object-cover), hero meets the scissors, 3rd section has no dead white space
+- Image assignment: hero = poodle (1448×1086), 3rd section = salon banner (1018×269)
