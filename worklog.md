@@ -406,3 +406,21 @@ Stage Summary:
 - About hero = user's newest upload, uncropped, cache-busted filename, flush to headline
 - Band under hero: black; Our Mission column: brown (--color-brown #533520 token added to theme)
 - Lesson: in this Tailwind 4 setup, custom brand colors for utilities must use literal values in @theme inline, not var() indirection through :root
+
+---
+Task ID: 7
+Agent: main agent (direct work, per standing rule)
+Task: Homepage — swap hero/3rd-section images to correct spots, then apply reference hero layout (50/50 split) and put 3rd-section banner in line with the text
+
+Work Log:
+- User correction: the two homepage images had been swapped — dog photo belongs in the hero (hero always had a dog), salon banner belongs in the 3rd section. Renamed public/Home files: home-hero-poodle.png (1448×1086), home-3rd-banner.png (1018×269)
+- Hero: poodle photo right column; rebuilt as reference layout (user's screenshot pasted_image_1788585758523.png, VLM-analyzed: text block ~50% width, image ~50%+ spanning full height from very top) → grid-cols-2, text pt top-aligned, image direct grid child natural aspect
+- 3rd section (Pawzitive Difference): banner was stacked BELOW the text — user wanted it IN LINE with the text → grid-cols-2 items-center: text left, banner right vertically centered beside the text block (banner's baked 'ALL ABOUT PAWZ' sign sits mid-column in line with the text)
+- About hero also set to grid-cols-2 (user: "that's on every page, preserving the original positioning"; they will direct when/where for remaining pages)
+- Verified desktop 1440×900: hero 50/50 with image full-height from top + headline near top; banner beside text, complete, uncropped, balanced; About 50/50; mobile 390×844 captured
+- dev.log all 200s
+
+Stage Summary:
+- Homepage hero: 50/50 split, dog photo right at natural aspect (reference layout)
+- 3rd section: banner in line with the text (side-by-side), no longer below
+- Hero reference pattern (50/50, image full height, text top) established for rollout to other pages on user's direction

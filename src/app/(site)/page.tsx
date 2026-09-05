@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Play, CalendarDays, Heart, Star, CheckCircle2, Mail, Scissors } from "lucide-react"
-import { PawBadge, PawGlyph, Divider } from "@/components/site/brand"
+import { PawGlyph, Divider } from "@/components/site/brand"
 import { TopUtilityBar } from "@/components/site/site-chrome"
 import { getIcon } from "@/lib/icons"
 import { getSiteContent } from "@/lib/site-data"
@@ -26,9 +26,11 @@ export default async function HomePage() {
           it has no PageHeader. */}
       <TopUtilityBar />
 
-      {/* HERO — natural height (the reference hero) */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.92fr]">
-        <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-14 lg:py-20">
+      {/* HERO — reference layout: text block 50% width on the left,
+          image 50% on the right spanning the full section height from the
+          very top (no crop, no container, natural aspect). */}
+      <section className="grid grid-cols-1 lg:grid-cols-2">
+        <div className="marble bg-cream px-8 pt-6 lg:pl-14 lg:pr-8 lg:pt-8">
           <p className="eyebrow">LUXURY GROOMING</p>
           <h1 className="mt-4 whitespace-pre-line font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">
             {s.heroTitle || "Luxury Grooming.\nExceptional Care."}
@@ -48,10 +50,7 @@ export default async function HomePage() {
             </Link>
           </div>
         </div>
-        <div className="relative min-h-[380px]">
-          <img src="/Home/home%20herojpeg.jpeg" alt="Groomed poodle standing proudly inside the All About Pawz luxury salon" width={2400} height={1792} className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute right-6 top-6 lg:right-10 lg:top-8"><PawBadge size={116} /></div>
-        </div>
+        <img src="/Home/home-hero-poodle.png" alt="Light-colored poodle standing inside the All About Pawz grooming salon" width={1448} height={1086} className="block h-auto w-full" />
       </section>
 
       {/* SERVICES BAND */}
@@ -80,9 +79,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* PAWZITIVE DIFFERENCE — restored 2-column layout */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
-        <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
+      {/* PAWZITIVE DIFFERENCE — text left, banner right IN LINE with the
+          text (vertically centered beside it), not stacked below */}
+      <section className="marble grid grid-cols-1 items-center gap-8 bg-cream px-8 py-14 lg:grid-cols-2 lg:px-12">
+        <div>
           <p className="eyebrow">MORE THAN GROOMING</p>
           <h2 className="mt-3 font-display text-[30px] leading-[1.15] text-ink">It&apos;s the Pawzitive Difference.</h2>
           <p className="mt-4 max-w-[400px] text-[12.5px] leading-[1.8] text-ink-soft">
@@ -98,11 +98,7 @@ export default async function HomePage() {
             </>
           )}
         </div>
-        <div className="relative min-h-[300px]">
-          <img src="/assets/salon-interior.jpg" alt="Interior of the All About Pawz luxury grooming salon" width={1280} height={900} className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute right-8 top-6"><PawBadge size={78} /></div>
-          <div className="absolute bottom-[26%] left-1/2 -translate-x-1/2 font-display text-[20px] tracking-[0.16em] text-gold-light drop-shadow-lg">ALL ABOUT PAWZ</div>
-        </div>
+        <img src="/Home/home-3rd-banner.png" alt="All About Pawz grooming salon interior with reception desk and boutique shelving" width={1018} height={269} className="block h-auto w-full" />
       </section>
 
       {/* CTA BAND */}

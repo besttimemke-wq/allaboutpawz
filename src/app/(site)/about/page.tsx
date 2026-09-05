@@ -14,11 +14,9 @@ export default async function AboutPage() {
   return (
     <>
       <PageHeader n="02" label="ABOUT US" />
-      {/* Hero — headline at the top, image at its natural size (no crop, no
-          container) flowing right up against the headline. Image is a direct
-          grid child: block display kills the inline-img gap under it, and the
-          image's own height defines the section — no extra space. */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.92fr]">
+      {/* Hero — reference layout: text 50% left, image 50% right, full height
+          from the top, natural aspect, no crop, no container. */}
+      <section className="grid grid-cols-1 lg:grid-cols-2">
         <div className="marble bg-cream px-8 pt-4 lg:pl-14 lg:pr-8 lg:pt-6">
           <h1 className="font-display text-[48px] leading-[1.05] text-ink lg:text-[60px]">Our Story.<br />Our Promise.</h1>
           <p className="script mt-2 text-[32px]">Built on love. Driven by purpose.</p>
