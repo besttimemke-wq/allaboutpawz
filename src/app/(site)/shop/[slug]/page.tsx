@@ -3,14 +3,8 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
 import { PawPrint } from "lucide-react"
-import {
-  products as allProductsData,
-  productReviews as allReviewsData,
-  categoryTree,
-  findNode,
-  type CategoryNode,
-  type CmsRow,
-} from "@/content/site-content"
+import { repo } from "@/lib/repo"
+import { getCategoryTree, findNode, type CategoryNode } from "@/lib/categories"
 import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
 
 // ---------------------------------------------------------------------------
@@ -18,26 +12,20 @@ import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site
 //   Everything a pet parent needs before buying: what it's made of, the full
 //   ingredient list (the chemicals, in plain words), how to use it, the
 //   warranty, the specs, and verified reviews.
-//   Renders from the embedded published content — zero database access —
-//   and is prerendered statically for every published product slug.
 // ---------------------------------------------------------------------------
 
 type Params = { params: Promise<{ slug: string }> }
 
-// Static prerender for every visible product (the published catalog).
-export function generateStaticParams() {
-  return allProductsData
-    .filter((p: CmsRow) => p.visible && p.slug)
-    .map((p: CmsRow) => ({ slug: String(p.slug) }))
-}
-
-function loadProduct(slug: string) {
-  return allProductsData.find((p: CmsRow) => p.slug === slug && p.visible) || null
+async function loadProduct(slug: string) {
+  const products = await repo.list("products")
+  return (
+    products.find((p: any) => p.slug === slug && p.visible) || null
+  )
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
-  const product = loadProduct(slug)
+  const product = await loadProduct(slug)
   if (!product) return { title: "Product — All About Pawz Shop" }
   return {
     title: `${product.name} — All About Pawz Shop`,
@@ -91,12 +79,14 @@ export default async function ProductPage({ params }: Params) {
   // /shop/category/… owns the "category" path segment — a product slug that
   // collides with it can only ever resolve here, so bounce to the catalog.
   if (slug === "category") redirect("/shop")
-  const product = loadProduct(slug)
+  const product = await loadProduct(slug)
   if (!product) notFound()
 
-  const allReviews = allReviewsData
-  const allProducts = allProductsData
-  const tree = categoryTree
+  const [allReviews, allProducts, tree] = await Promise.all([
+    repo.list("product_reviews"),
+    repo.list("products"),
+    getCategoryTree(),
+  ])
   const reviews = allReviews
     .filter((r: any) => r.productId === product.id && r.visible)
     .sort(

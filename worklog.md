@@ -962,3 +962,25 @@ Stage Summary:
 - The architecture the owner demanded is now installed and PROVEN: public site = embedded content, zero DB, zero API calls on read; identical rendering with or without any env vars
 - Publish flow for admin edits: save in admin → bun run bake → commit → deploy (content updates require a re-bake/redeploy by design — that is what removes the database from the visitor path)
 - 548071b is ready in /tmp/aapawz-deploy; pushing to GitHub (→ Vercel auto-redeploy) needs the owner's PAT or a manual push
+
+---
+Task ID: 36
+Agent: main (direct work, no subagents)
+Task: Owner directive: leave the database-driven architecture alone — REVERT the embedded-content work (Task 35), sync the sandbox with what is live on Vercel by pulling from GitHub, push NOTHING. Owner will bring an engineering plan in ~12 hours.
+
+Work Log:
+- REVERTED Task 35 in the sandbox: restored package.json + 8 code files (use-cms, site-chrome, shop-loader, wizard-loader, shop/[slug], shop/category/[slug], shop/bag, policies/[slug]) to snapshot a064667 (= dcfb93a content); deleted src/content/*, scripts/bake-content.mjs; kept worklog.md (append-only). Removed the two empty stray public/ dirs.
+- SYNCED WITH VERCEL: cloned github.com/besttimemke-wq/allaboutpawz (public, read-only, no credentials used) → remote HEAD = dcfb93a. Diffed the sandbox against it: src/ is BYTE-IDENTICAL; only diffs are documented sandbox-only dev plumbing (next.config.ts standalone+turbopackMemoryLimit, package.json name/dev-scripts/sandbox deps, empty dirs removed).
+- EXPORT RESET: /tmp/aapawz-deploy hard-reset to dcfb93a — commit 548071b (embedded content) is dropped, nothing staged for any future push. Verified via git ls-remote that remote HEAD is still dcfb93a (read-only check; NO push performed).
+- VERIFIED the restored database architecture end-to-end in the sandbox dev server: all pages render (0 console errors), /api/cms reads flowing (settings, testimonials, services, gallery, products), gallery shows all 17 images, home measures exactly 1819 chars at desktop width (identical to this morning's pre-embedding state), product detail page /shop/pawz-signature-shampoo renders server-side from the DB (3202 chars). Lint: 0 errors, 5 pre-existing warnings.
+- OWNER'S ARCHITECTURE DIRECTIVE (for the 12-hour engineering plan — NOT implemented, by explicit instruction):
+  * Marketing bands (hero bands, CTA bands, static sections) must NOT be data-driven — they belong in code.
+  * Data-driven sections should be ONLY: shop, gallery, pricing, services.
+  * Owner wants client state managed via zustand (already used for the cart).
+  * Owner's reasoning: visitors must never wait on rendering for products (Amazon/Alibaba standard); a band/CTA must never depend on a fetch.
+  * Owner observed a deeper issue: "if it was the database, all would fail — but some pages render and some don't" → the next plan should identify the actual per-page difference (some pages were SSR+DB, some CSR+fetch, some static — that mixed architecture is the inconsistency to eliminate).
+
+Stage Summary:
+- Sandbox = Vercel = GitHub main = dcfb93a. Zero divergence, zero pushes, database pipes fully restored and verified working.
+- The embedded-content experiment is fully reverted (sandbox + export); its artifacts exist only in git history (sandbox snapshot c1d05f2, worklog Task 35) if ever needed for reference.
+- HOLDING: no architecture changes until the owner returns with the engineering plan (~12 hours). The plan input above is recorded for that session.

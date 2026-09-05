@@ -1,61 +1,67 @@
 "use client"
 
-// ---------------------------------------------------------------------------
-// Embedded content — the public site's data layer.
-//
-// The content you see on every page lives in src/content/site-content.ts,
-// baked into the bundle at publish time (scripts/bake-content.mjs). The
-// public site therefore makes ZERO requests and touches NO database when a
-// visitor opens a page: no fetches, no API calls, no skeletons, no loading
-// states — nothing that can hang, fail, or blank the page.
-//
-// The database is involved in exactly two places, by design:
-//   1. ADMIN PUBLISHES — the admin portal saves to the database; the owner
-//      then runs `bun run bake` and redeploys to publish the edits.
-//   2. A VISITOR SUBMITS — booking, contact, consultation, newsletter, and
-//      orders POST to the API and write to the database.
-//
-// The hook signatures are unchanged so every island keeps working as-is;
-// `loading` is now always false because the data is already in the bundle.
-// ---------------------------------------------------------------------------
+import { useEffect, useState } from "react"
 
-import {
-  settings,
-  testimonials,
-  services,
-  serviceItems,
-  packages,
-  addons,
-  gallery,
-  products,
-  productReviews,
-  faqs,
-  policies,
-} from "@/content/site-content"
-
-const RESOURCES: Record<string, unknown[]> = {
-  testimonials,
-  services,
-  serviceItems,
-  packages,
-  addons,
-  gallery,
-  products,
-  product_reviews: productReviews,
-  faqs,
-  policies,
-}
+// ---------------------------------------------------------------------------
+// Client-side CMS fetching — the CSR data layer for the public site.
+//
+// Pages render their shell statically (no database at build/render time).
+// Data-driven sections are client islands that fetch from the site's own API
+// (/api/cms/*) AFTER the initial paint, exactly like the booking wizard:
+// skeleton while loading, content when it arrives. The API routes hold the
+// Supabase credentials server-side — the browser never needs any keys.
+// ---------------------------------------------------------------------------
 
 export function useCms<T = any>(resource: string): { data: T[]; loading: boolean } {
-  const rows = RESOURCES[resource]
-  return { data: (rows ?? []) as T[], loading: false }
+  const [data, setData] = useState<T[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    fetch(`/api/cms/${resource}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => {
+        if (!alive) return
+        setData(Array.isArray(d) ? d : [])
+        setLoading(false)
+      })
+      .catch(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [resource])
+
+  return { data, loading }
 }
 
 export function useCmsSettings(): { settings: Record<string, string>; loading: boolean } {
-  return { settings, loading: false }
+  const [settings, setSettings] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    fetch("/api/cms/settings")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => {
+        if (!alive) return
+        setSettings(d && typeof d === "object" && !Array.isArray(d) ? d : {})
+        setLoading(false)
+      })
+      .catch(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  return { settings, loading }
 }
 
-// Rows the admin marked hidden must not render on the public site.
+// Rows the admin marked hidden must not render on the public site
+// (same truthy check the server-side site-data layer used).
 export function visibleOnly<T extends { visible?: boolean }>(rows: T[]): T[] {
   return rows.filter((r) => r.visible)
 }
