@@ -648,3 +648,20 @@ Stage Summary:
 - Pricing page is now a product experience: each package is a defined product with image, copy, transparent size pricing, and its own CTA — no comparison table
 - Data stays DB-driven (pricing_packages + add_ons, deduped); card blurbs/images are static PACKAGE_META keyed by package name (CMS can still change names/prices; blurbs would need a description column update to flow through)
 - BOOK THIS PACKAGE → /book for now (package pre-selection into the booking wizard still parked)
+
+---
+Task ID: 21
+Agent: main (direct work, no subagents)
+Task: Update the book page hero with the newly uploaded image
+
+Work Log:
+- Found newest unique upload `upload/pasted_image_1788596520935.png` (1376×768 landscape) — gray poodle with pumpkin bandana now shown as a full salon photo with the ALL ABOUT PAWZ sign behind him
+- Staged it as a NEW file (cache-bust rule) at `public/Book/bookhero-v2.jpeg` — PNG→JPEG quality 88, same pixels, no crop/resize (1.36MB→136KB)
+- Rebuilt the book hero to the site-wide standard in `src/app/(site)/book/page.tsx`: `grid lg:grid-cols-[1fr_1.25fr]`, text col `marble bg-cream px-8 py-16` (kept headline "Your Pup Deserves This." + copy), image col `relative min-h-[300px]` + `absolute inset-0 object-cover`
+- Retired the transparent `bookingfloW.png` artwork from the page (file kept on disk, now unreferenced)
+- Added `pt-12` to the wizard section below (old layout relied on hero's own padding; new standard hero ends flush)
+- Verified via agent-browser + VLM: hero img renders 671×334 in the right column, old img gone, wizard card has clean breathing room below the photo, mobile stacks headline above full-width 390px photo; lint 0 errors; dev.log clean
+
+Stage Summary:
+- Book page hero now matches every other hero on the site (standard split layout, photo fills its column)
+- `public/Book/bookhero-v2.jpeg` is the live hero; legacy `bookhero.jpeg` + `bookingfloW.png` both unreferenced

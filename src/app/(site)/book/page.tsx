@@ -80,20 +80,25 @@ export default async function BookPage() {
   return (
     <>
       <PageHeader n="09" label="BOOK" />
-      {/* Hero raised to the top, natural height; the transparent artwork
-          stands at the base of its column, directly on the canvas. */}
-      <section className="marble grid grid-cols-1 items-stretch gap-8 bg-cream px-8 pt-6 lg:grid-cols-[1fr_0.7fr] lg:px-12 lg:pt-8">
-        <div className="flex flex-col justify-center pb-10">
+      {/* HERO — site standard: centered text left, photo right filling the column. */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+        <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Your Pup<br />Deserves This.</h1>
-          <p className="mt-5 max-w-[380px] text-[12.5px] leading-[1.85] text-ink-soft">
+          <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">
             Book an appointment or request a free consultation — all in one simple flow. Start with your name, pick a date, and we&apos;ll take care of the rest.
           </p>
         </div>
-        <div className="relative flex min-h-[280px] items-end justify-center pb-2">
-          <img src="/Book/bookingfloW.png" alt="Gray poodle wearing a pumpkin bandana ready for its appointment" width={260} height={416} className="max-h-[400px] w-auto max-w-full object-contain" />
+        <div className="relative min-h-[300px]">
+          <img
+            src="/Book/bookhero-v2.jpeg"
+            alt="Gray poodle wearing a pumpkin bandana sitting in the All About Pawz grooming salon beneath the shop sign"
+            width={1376}
+            height={768}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
         </div>
       </section>
-      <section className="marble bg-cream px-8 pb-14 lg:px-12">
+      <section className="marble bg-cream px-8 pt-12 pb-14 lg:px-12">
         <div className="border border-gold/30 bg-card p-7 lg:p-10">
           <BookingWizardV2
             breeds={breeds || []}
