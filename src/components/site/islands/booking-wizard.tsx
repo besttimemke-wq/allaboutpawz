@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Check, CaretLeft, CaretRight, PawPrint, Calendar, Clock, Scissors, Dog, User, Note, CheckCircle, CreditCard } from "@phosphor-icons/react"
+import { Check, ArrowLeft, ArrowRight, Plus, PawPrint, Calendar, Clock, Scissors, Dog, User, Note, CheckCircle, CreditCard } from "@phosphor-icons/react"
 
 type Breed = { id: string; name: string; sizeCategory: string; coatType: string; akcGroup?: string }
 type Service = { id: string; name: string; price: string; description?: string }
@@ -372,13 +372,13 @@ export function BookingWizard({
       {/* Nav */}
       <div className="flex items-center justify-between border-t border-gold/25 pt-5">
         {step > 0 ? (
-          <button onClick={() => setStep(step - 1)} className="btn-ghost"><CaretLeft size={14} weight="bold" /> Back</button>
+          <button onClick={() => setStep(step - 1)} className="btn-ghost"><ArrowLeft size={14} weight="bold" /> Back</button>
         ) : (
-          <button onClick={() => { setBookingType(""); setStep(0) }} className="text-[11px] font-bold tracking-[0.1em] text-ink-soft hover:text-gold-deep"><CaretLeft size={12} weight="bold" /> Start over</button>
+          <button onClick={() => { setBookingType(""); setStep(0) }} className="text-[11px] font-bold tracking-[0.1em] text-ink-soft hover:text-gold-deep"><ArrowLeft size={12} weight="bold" /> Start over</button>
         )}
         {step < 7 ? (
           <button onClick={() => canNext && setStep(step + 1)} disabled={!canNext} className={`btn-gold ${!canNext ? "opacity-40 cursor-not-allowed" : ""}`}>
-            Continue <CaretRight size={14} weight="bold" />
+            Continue <ArrowRight size={14} weight="bold" />
           </button>
         ) : null}
       </div>
@@ -395,7 +395,7 @@ function BreedDropdown({ breeds, value, onChange }: { breeds: Breed[]; value: st
     <div className="relative">
       <button type="button" onClick={() => setOpen(!open)} className={`flex w-full items-center justify-between border bg-cream px-3.5 py-3 text-[14px] focus:outline-none focus:ring-1 focus:ring-gold-deep ${open ? "border-gold-deep" : "border-gold/35"}`}>
         <span className={selected ? "text-ink" : "text-muted-foreground"}>{selected ? `${selected.name}` : "Select breed…"}</span>
-        <CaretRight size={12} weight="bold" className={`text-gold-deep transition-transform ${open ? "rotate-90" : ""}`} />
+        <Plus size={12} weight="bold" className={`text-gold-deep transition-transform duration-300 ${open ? "rotate-45" : ""}`} />
       </button>
       {open && (
         <div className="absolute z-30 mt-1 w-full border border-gold/35 bg-cream shadow-lg">
@@ -432,9 +432,9 @@ function CalendarGrid({ value, onChange }: { value: string; onChange: (v: string
   return (
     <div className="border border-gold/30 bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="flex h-7 w-7 items-center justify-center text-gold-deep hover:bg-cream-deep"><CaretLeft size={14} weight="bold" /></button>
+        <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} className="flex h-7 w-7 items-center justify-center text-gold-deep hover:bg-cream-deep"><ArrowLeft size={14} weight="bold" /></button>
         <span className="font-display text-[16px] text-ink">{viewMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span>
-        <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="flex h-7 w-7 items-center justify-center text-gold-deep hover:bg-cream-deep"><CaretRight size={14} weight="bold" /></button>
+        <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} className="flex h-7 w-7 items-center justify-center text-gold-deep hover:bg-cream-deep"><ArrowRight size={14} weight="bold" /></button>
       </div>
       <div className="mb-1 grid grid-cols-7 gap-1">{["S","M","T","W","T","F","S"].map((d, i) => <div key={i} className="text-center text-[9px] font-bold text-ink-soft">{d}</div>)}</div>
       <div className="grid grid-cols-7 gap-1">

@@ -583,3 +583,20 @@ Stage Summary:
 - Dev server is up, daemon-owned, and self-healing: OOM-proof (turbopackMemoryLimit), crash-proof (keeper restarts it in seconds), reaper-proof (double-fork daemon), boot-proof (.zscripts/dev.sh runs the keeper at every container boot)
 - The original crash chain: OOM kill → manual restarts reaped by the shell reaper → "server dead" the user saw
 - Recovery runbook: `bash scripts/spawn-keeper.sh` from the project root; the keeper does the rest (also self-documented in dev-keeper.log)
+
+---
+Task ID: 17
+Agent: main agent (direct work, per standing rule)
+Task: Chevron purge (plus signs only on the public site) + Our Process rebuild: new hero image, 1-5 steps moved to a new interactive third section (cards slide in from the left, aligned with each number, stacking as clicked)
+
+Work Log:
+- Copied upload/pasted_image_1788593991723.png → public/Our Process/processhero-v2.png (1448×1086, dalmatian in the salon w/ All About Pawz sign; VLM used only to write the SEO alt text)
+- Process page rebuilt: hero converted to the site-wide standard ([1fr_1.25fr], cream text col w/ BOOK YOUR VISIT self-start CTA, image col object-cover fill) w/ the new image; added metadata title/description; the old 1-5 ol removed from the hero; black pillars band kept as second section
+- NEW third section "THE PAWZ PROCESS / Five Steps. One Happy Pup." + process-steps.tsx island: 5 rows, each = card slot (left) + number button (right, big gold number + plus-in-box). Click a number → black card slides in FROM THE LEFT (framer-motion, x:-56→0, 0.45s) aligned with that number; cards stack in fixed row order; toggle per number (click again slides it out); step 01 auto-revealed so the pattern shows; plus rotates 45° to × on active buttons; aria-expanded/aria-labels; mobile = number button on top, card below (VLM: no overlap, nothing cut off)
+- Chevron/caret purge across the public site (user: "i hate chevrons only modern plus signs"): shop-sidebar (CaretDown→Plus rotate-45; deep-level jump link CaretRight→ArrowRight→then Plus after VLM still read 10px arrows as chevrons), category-browser (filter toggle CaretUp/Down→Plus rotate; 2× VIEW DETAILS CaretRight→Plus), shop-client (filter toggle→Plus rotate; Back/Continue Carets→straight ArrowLeft/ArrowRight), booking-wizard (nav Carets→Arrows; breed dropdown CaretRight rotate-90→Plus rotate-45; calendar Carets→Arrows), booking-wizard-v2 (same + 2 CaretDown accordions→Plus rotate-45). Admin/DAWG + shadcn primitives untouched (standard form controls). grep confirms zero Carets left in src/components/site
+- Verified: process hero VLM (standard layout, new dalmatian image, normal-width button); steps DOM-verified (01 auto card; clicks 02+03 → 3 stacked cards; toggle-off 02 + out-of-order 05 → cards 01/03/05 exactly); VLM confirmed stacked cards aligned left of numbers w/ × on active, plus on inactive; mobile clean; shop: 0 caret/arrow SVGs in sidebar, VIEW DETAILS with plus; lint 0 errors; dev.log 200s (book 200 w/ wizard changes); memory 1.8GB available
+
+Stage Summary:
+- Public site is chevron-free: disclosure = plus sign rotating to × everywhere (services accordion, FAQ, shop sidebar/filters, wizards), direction = straight arrows in nav buttons only, deep-level links = plus
+- Our Process: standard hero w/ new image, pillars band, interactive five-step third section (slide-in-from-left stacking cards) — all step content from the owner's spec verbatim
+- Process step content is currently static in the island (not CMS-managed) — could move to a Supabase table later if the owner wants to edit it

@@ -1,15 +1,14 @@
+import Link from "next/link"
 import { Leaf, Award, Sparkles, ShieldCheck } from "lucide-react"
 import { PawGlyph } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
-import { getSiteContent } from "@/lib/site-data"
+import { ProcessSteps } from "@/components/site/islands/process-steps"
 
-const STEPS = [
-  { n: "01", title: "BOOK YOUR APPOINTMENT", body: "Choose a time that works for you." },
-  { n: "02", title: "WARM WELCOME", body: "We greet your pup and discuss their needs and preferences." },
-  { n: "03", title: "SPA EXPERIENCE", body: "Our groomers work their magic with gentle, expert care." },
-  { n: "04", title: "FINISHING TOUCHES", body: "Style, fragrance, and those perfect little details." },
-  { n: "05", title: "PICK UP & REBOOK", body: "Happy pup, happier you. We'll help you schedule their next visit." },
-]
+export const metadata = {
+  title: "Our Grooming Process | All About Pawz",
+  description: "Five simple steps from booking to pick-up — see how All About Pawz makes every groom calm, gentle, and stress-free for your pup.",
+}
+
 const PILLARS = [
   { Icon: Leaf, title: "Calm Environment" },
   { Icon: Award, title: "Expert Groomers" },
@@ -17,31 +16,29 @@ const PILLARS = [
   { Icon: ShieldCheck, title: "Cage-Free Care" },
 ]
 
-export default async function ProcessPage() {
-  await getSiteContent()
+export default function ProcessPage() {
   return (
     <>
       <PageHeader n="04" label="OUR PROCESS" />
-      {/* Hero raised to the top, natural height; photo fills its column. */}
-      <section className="marble grid grid-cols-1 items-stretch gap-8 bg-cream px-8 pt-6 lg:grid-cols-[1fr_0.85fr] lg:px-12 lg:pt-8">
-        <div className="flex flex-col justify-center pb-10">
+      {/* HERO — site standard: centered text left, image right filling the column. */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+        <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">A Seamless<br />Experience<br />From Start<br />to Finish.</h1>
-          <p className="mt-6 max-w-[300px] text-[12.5px] leading-[1.85] text-ink-soft">We make every visit simple, stress-free, and enjoyable.</p>
-          <ol className="relative mt-9 space-y-7">
-            <span className="absolute bottom-3 left-[15px] top-3 w-px bg-gold/30" />
-            {STEPS.map((s) => (
-              <li key={s.n} className="relative flex gap-5">
-                <span className="relative z-10 flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-full border border-gold-deep bg-cream text-[10px] font-bold text-gold-deep">{s.n}</span>
-                <div className="pt-1">
-                  <h2 className="text-[11px] font-bold tracking-[0.14em] text-ink">{s.title}</h2>
-                  <p className="mt-1.5 max-w-[330px] text-[12px] leading-[1.7] text-ink-soft">{s.body}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">We make every visit simple, stress-free, and enjoyable.</p>
+          <Link href="/book" className="btn-gold mt-7 self-start">BOOK YOUR VISIT</Link>
         </div>
-        <img src="/Our%20Process/ourprocess2..jpeg" alt="Happy dalmatian smiling under warm string lights at the salon" width={2400} height={1792} className="h-full min-h-[260px] w-full object-cover" />
+        <div className="relative min-h-[300px]">
+          <img
+            src="/Our%20Process/processhero-v2.png"
+            alt="Happy dalmatian smiling on the floor of the All About Pawz dog grooming salon with the shop sign behind the bar"
+            width={1448}
+            height={1086}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        </div>
       </section>
+
+      {/* SECOND SECTION — comfort & safety pillars band. */}
       <section className="bg-ink px-8 py-10 lg:px-12">
         <div className="flex items-center gap-3">
           <PawGlyph className="h-6 w-6 text-gold" />
@@ -54,6 +51,22 @@ export default async function ProcessPage() {
               <h3 className="mt-3 text-[10.5px] font-bold tracking-[0.1em] text-on-dark-muted">{title}</h3>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* THIRD SECTION — the five steps, interactive: tap a number and its card
+          slides in from the left, aligned with that number. Cards stack as
+          you tap through 01–05. */}
+      <section className="marble bg-cream px-8 py-12 lg:px-12 lg:py-16">
+        <div className="max-w-[860px]">
+          <p className="eyebrow">THE PAWZ PROCESS</p>
+          <h2 className="mt-3 font-display text-[30px] leading-[1.15] text-ink lg:text-[34px]">Five Steps.<br />One Happy Pup.</h2>
+          <p className="mt-4 max-w-[330px] text-[12px] leading-[1.75] text-ink-soft">
+            Tap each number to reveal every step of the journey — from your first booking to a freshly groomed, happy pup.
+          </p>
+        </div>
+        <div className="mt-10">
+          <ProcessSteps />
         </div>
       </section>
     </>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { CaretDown, CaretRight, X } from "@phosphor-icons/react"
+import { Plus, X } from "@phosphor-icons/react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
 // ---------------------------------------------------------------------------
@@ -299,8 +299,9 @@ function CategoryNode({
         className="flex items-center gap-1.5 rounded-sm py-[5px] pr-1 transition-colors hover:bg-gold/5"
         style={{ paddingLeft: `${depth * 14 + 2}px` }}
       >
-        {/* Caret — rendered ONLY when the node has children, always in the
-            same position and style (consistent across every department). */}
+        {/* Plus sign — rendered ONLY when the node has children, always in the
+            same position and style (consistent across every department).
+            Rotates to × when expanded (site-wide disclosure pattern). */}
         {hasChildren ? (
           <button
             type="button"
@@ -309,10 +310,10 @@ function CategoryNode({
             aria-label={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
             className="flex h-4 w-4 shrink-0 items-center justify-center text-ink-soft/70 transition-colors hover:text-gold-deep"
           >
-            <CaretDown
+            <Plus
               size={11}
               weight="bold"
-              className={expanded ? "rotate-180 text-gold-deep transition-transform" : "transition-transform"}
+              className={`transition-transform duration-300 ${expanded ? "rotate-45 text-gold-deep" : ""}`}
             />
           </button>
         ) : (
@@ -339,7 +340,7 @@ function CategoryNode({
         {/* Deep levels can jump to the category page */}
         {depth > 0 && (
           <Link href={`/shop/category/${node.slug}`} aria-label={`Browse ${node.name}`} className="shrink-0 text-ink-soft/40 transition-colors hover:text-gold-deep">
-            <CaretRight size={10} />
+            <Plus size={10} weight="bold" />
           </Link>
         )}
       </div>

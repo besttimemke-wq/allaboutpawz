@@ -3,8 +3,8 @@
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import {
-  Check, CaretLeft, CaretRight, ShoppingBag, Plus, Minus, X, Trash,
-  Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle, Funnel, CaretUp, CaretDown,
+  Check, ArrowLeft, ArrowRight, ShoppingBag, Plus, Minus, X, Trash,
+  Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle, Funnel,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
 import { ShopSidebar, type SidebarCategory } from "./shop-sidebar"
@@ -253,7 +253,7 @@ export function ShopClient({
                   {activeFilterCount}
                 </span>
               )}
-              {mobileOpen ? <CaretUp size={10} weight="bold" /> : <CaretDown size={10} weight="bold" />}
+              <Plus size={10} weight="bold" className={`transition-transform duration-300 ${mobileOpen ? "rotate-45" : ""}`} />
             </button>
 
             <div className="relative min-w-[180px] flex-1 lg:max-w-[320px]">
@@ -543,7 +543,7 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
       {/* Nav */}
       <div className="flex items-center justify-between border-t border-gold/25 pt-5">
         <button type="button" onClick={goBack} className="btn-ghost">
-          <CaretLeft size={14} weight="bold" /> {s.step === 1 ? "Keep Shopping" : "Back"}
+          <ArrowLeft size={14} weight="bold" /> {s.step === 1 ? "Keep Shopping" : "Back"}
         </button>
         {s.step < 4 ? (
           <button
@@ -552,7 +552,7 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
             disabled={!canNext || submitting}
             className={`btn-gold ${!canNext || submitting ? "cursor-not-allowed opacity-40" : ""}`}
           >
-            {submitting ? "Saving…" : "Continue"} <CaretRight size={14} weight="bold" />
+            {submitting ? "Saving…" : "Continue"} <ArrowRight size={14} weight="bold" />
           </button>
         ) : null}
       </div>
