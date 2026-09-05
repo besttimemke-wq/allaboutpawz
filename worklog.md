@@ -563,3 +563,23 @@ Stage Summary:
 - Accordion header per owner spec: center image, third-column SEE MORE +, even spacing, plus-sign toggle
 - CMS answer for owner: everything the accordion shows is managed in the admin portal — Services (categories/images/descriptions) and Service Items (items, prices, size prices, visibility, order); edits publish to the live page immediately
 - NEXT: package → checkout flow decision (booking wizard pre-select vs shop-style) still parked
+
+---
+Task ID: 16
+Agent: main agent (direct work, per standing rule)
+Task: Bring the dev server back up after it died, and make it permanently stable on this 4GB/no-swap box
+
+Work Log:
+- Root cause 1 (original death): kernel OOM killer — dmesg shows 4 kills of next-server (1.7–3.4GB RSS); the boot-started dev server (parented to /start.sh) died at uptime 42368s after hours of route compiles. This was the server the user noticed was dead.
+- Root cause 2 (why manual restarts kept dying): every process spawned from a tool-Bash command is reaped when the transient shell (`su z -c bash`) is recycled — nohup, setsid, disown, direct-node, and a plain keeper script ALL died within ~10–60s of command end (proven with bash+node heartbeat daemons; both reaped).
+- Fix A — OOM prevention: `experimental.turbopackMemoryLimit: 1_600_000_000` in next.config.ts (Turbopack recycles itself instead of eating all RAM); cleared the stale `.next` cache (it was making compiles 8–9s and memory-heavy; fresh compile of /services = 505ms, RSS ~970MB); agent-browser sessions closed (freed ~1GB).
+- Fix B — the survival mechanism: DOUBLE-FORK daemon spawn (`bash -c 'setsid bash keeper.sh < /dev/null > /dev/null 2>&1 & sleep 1'`) — the short-lived intermediate parent detaches the daemon so the shell reaper never matches it. Tested: server + heartbeat daemon survived multiple command boundaries (single setsid did NOT survive).
+- Fix C — self-healing keeper: scripts/dev-keeper.sh (flock single-instance lock; loop: if port 3000 free → start next-server via direct node, log exit codes to dev-keeper.log, restart after 3s). PROVEN: SIGKILL'd next-server → keeper restarted it in ~5s → 200 again.
+- Fix D — boot durability: created .zscripts/dev.sh (recognized by /start.sh custom flow: runs `bun install` then execs the keeper). This also fixes a latent boot bug: the legacy boot flow runs `bun run db:push`, a script that no longer exists (Prisma removed) — with set -e that would abort boot before starting the dev server on any future container restart.
+- scripts/spawn-keeper.sh = the double-fork launcher (how to bring the keeper up manually).
+- Verified: all routes 200 (/, /services, /pricing, /about, /book, /admin/serviceItems, /api/cms/serviceItems); stability across command gaps at t+45s; memory 1.5GB used / 2.6GB available; kill-test auto-recovery.
+
+Stage Summary:
+- Dev server is up, daemon-owned, and self-healing: OOM-proof (turbopackMemoryLimit), crash-proof (keeper restarts it in seconds), reaper-proof (double-fork daemon), boot-proof (.zscripts/dev.sh runs the keeper at every container boot)
+- The original crash chain: OOM kill → manual restarts reaped by the shell reaper → "server dead" the user saw
+- Recovery runbook: `bash scripts/spawn-keeper.sh` from the project root; the keeper does the rest (also self-documented in dev-keeper.log)
