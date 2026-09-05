@@ -2,11 +2,29 @@
 
 import { useState } from "react"
 import { Minus, Plus } from "lucide-react"
+import { useCms, visibleOnly } from "./use-cms"
 
 type Faq = { id: string; question: string; answer: string }
 
-export function FaqAccordion({ faqs }: { faqs: Faq[] }) {
+export function FaqAccordion() {
+  // CSR: questions load after paint; the page shell never waits.
+  const { data, loading } = useCms<Faq>("faqs")
+  const faqs = data
   const [open, setOpen] = useState<number | null>(0)
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl border-t border-gold/25">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center justify-between gap-6 border-b border-gold/25 py-5">
+            <div className="h-4 w-2/3 animate-pulse bg-ink/5" />
+            <div className="h-4 w-4 animate-pulse bg-ink/5" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-3xl border-t border-gold/25">
       {faqs.map((f, i) => (

@@ -2,15 +2,13 @@ import Link from "next/link"
 import { PawGlyph } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
-import { getSiteContent } from "@/lib/site-data"
 
 export const metadata = {
   title: "About Us | All About Pawz Dog Grooming",
   description: "Meet Bree and the All About Pawz team — exceptional dog grooming built on thoughtful care, comfort, and family-level service.",
 }
 
-export default async function AboutPage() {
-  await getSiteContent()
+export default function AboutPage() {
   const VALUES = [
     { title: "LUXURY EXPERIENCE", body: "Spa-level care in a\ncalming environment" },
     { title: "ALL BREEDS WELCOME", body: "From tiny pups to\ngiant breeds" },

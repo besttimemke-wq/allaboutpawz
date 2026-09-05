@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useSyncExternalStore, type ReactNode } from "react"
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -72,10 +72,26 @@ function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
   )
 }
 
-export function SiteChrome({ settings, children }: { settings: Record<string, string>; children: ReactNode }) {
+export function SiteChrome({ children, settings: initialSettings }: { children: ReactNode; settings?: Record<string, string> }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const s = settings
+  // CSR data layer: the chrome shell renders instantly with built-in
+  // fallbacks, then fills in salon settings (address, phone, hours) from the
+  // site API after paint. No database in the render path.
+  const [fetched, setFetched] = useState<Record<string, string> | null>(null)
+  useEffect(() => {
+    let alive = true
+    fetch("/api/cms/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d && typeof d === "object" && !Array.isArray(d)) setFetched(d)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+  const s = { ...(fetched || initialSettings || {}) }
   return (
     <div className="min-h-screen bg-cream">
       <Sidebar settings={s} pathname={pathname} />

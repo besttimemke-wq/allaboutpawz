@@ -1,9 +1,7 @@
 import Link from "next/link"
-import { Scissors } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
-import { getIcon } from "@/lib/icons"
-import { getSiteContent } from "@/lib/site-data"
+import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
 import { ServicesAccordion } from "@/components/site/islands/services-accordion"
 
 export const metadata = {
@@ -11,9 +9,9 @@ export const metadata = {
   description: "Grooming packages, baths, spa treatments, and nail & paw care — gentle dog grooming tailored to your pup. Book a package today.",
 }
 
-export default async function ServicesPage() {
-  const { services, serviceItems } = await getSiteContent()
-  const featured = services.slice(0, 4)
+export default function ServicesPage() {
+  // CSR architecture: static shell; the featured band and the accordion
+  // fetch their content client-side after paint.
 
   return (
     <>
@@ -41,18 +39,7 @@ export default async function ServicesPage() {
             </p>
             <Link href="/book" className="btn-gold mt-6">BOOK APPOINTMENT</Link>
           </div>
-          <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
-            {featured.map(({ id, icon, title, description }, i) => {
-              const Icon = getIcon(icon, Scissors)
-              return (
-                <div key={id} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-                  <Icon className="mx-auto h-10 w-10 text-gold" strokeWidth={1.2} />
-                  <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-gold">{title}</h3>
-                  <p className="mt-3 whitespace-pre-line text-[12px] leading-[1.7] text-on-dark-muted">{description}</p>
-                </div>
-              )
-            })}
-          </div>
+          <FeaturedServicesGrid />
         </div>
       </section>
 
@@ -60,7 +47,7 @@ export default async function ServicesPage() {
           (packages by size + à-la-carte items). All content is managed in the
           admin: Services (categories/images) + Service Items (items/prices). */}
       <section className="marble bg-cream px-8 py-10 lg:px-12">
-        <ServicesAccordion categories={services} items={serviceItems} />
+        <ServicesAccordion />
         <p className="mt-4 text-center text-[11px] italic leading-[1.7] text-ink-soft">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
       </section>
     </>

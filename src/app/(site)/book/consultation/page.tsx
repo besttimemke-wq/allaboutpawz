@@ -1,15 +1,14 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
-import { BookingWizardV2 } from "@/components/site/islands/booking-wizard-v2"
-import { getWizardData } from "@/lib/wizard/wizard-data"
+import { WizardLoader } from "@/components/site/islands/wizard-loader"
 
 export const metadata = {
   title: "Request a Consultation | All About Pawz",
   description: "Request a free consultation — tell us about your pup and we'll reach out to plan the first groom together.",
 }
 
-export default async function ConsultationWizardPage() {
-  const { breeds, services, groomers, lookups } = await getWizardData()
+export default function ConsultationWizardPage() {
+  // CSR architecture: static shell; wizard reference data loads client-side.
 
   return (
     <>
@@ -32,13 +31,7 @@ export default async function ConsultationWizardPage() {
           Free — no deposit, no pressure. Tell us about your pup and pick a preferred day; we&apos;ll reach out personally to plan the first groom.
         </p>
         <div className="mt-10">
-          <BookingWizardV2
-            flow="consultation"
-            breeds={breeds}
-            services={services}
-            groomers={groomers}
-            lookups={lookups}
-          />
+          <WizardLoader flow="consultation" />
         </div>
       </section>
     </>
