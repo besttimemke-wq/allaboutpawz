@@ -25,7 +25,7 @@ export default async function AboutPage() {
           </p>
         </div>
         <div className="relative min-h-[300px]">
-          <img src="/About/abouthero-new.png" alt="A happy dog being cared for at All About Pawz" width={1672} height={941} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/About/abouthero-schnauzer.png" alt="Black schnauzer standing proudly in the All About Pawz grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       </section>
       {/* Band under the hero — black (matches the homepage services band) */}
@@ -40,16 +40,26 @@ export default async function AboutPage() {
           ))}
         </div>
       </section>
-      {/* Third section — Our Mission column in brown */}
-      <section className="grid grid-cols-1 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="bg-brown px-8 py-12 lg:px-12">
-          <PawGlyph className="h-6 w-6 text-gold" />
-          <h2 className="mt-4 font-display text-[22px] text-gold">Our Mission</h2>
-          <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-on-dark-muted">To provide exceptional grooming in a safe, loving, and luxurious environment.</p>
-          <h2 className="mt-9 font-display text-[22px] text-gold">Our Promise</h2>
-          <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-on-dark-muted">We treat every pup like our own and every parent like family.</p>
+      {/* Third section — global canvas color, columns swapped: image LEFT
+          with the founder's message overlaid, mission/promise text RIGHT. */}
+      <section className="marble grid grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
+        <div className="relative min-h-[300px]">
+          <img src="/About/about-founder.png" alt="Black schnauzer wearing a pink bandana standing in the All About Pawz salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 via-ink/45 to-transparent px-8 pb-7 pt-16 lg:px-10">
+            <p className="script text-[24px] text-gold-light">A message from our founder</p>
+            <p className="mt-2 max-w-[440px] text-[12.5px] leading-[1.8] text-on-dark">
+              At All About Pawz, we provide exceptional grooming in a safe, loving environment. Every pup is treated like our own, and every pet parent is welcomed like family.
+            </p>
+            <p className="script mt-2 text-[22px] text-on-dark">&mdash; Bree</p>
+          </div>
         </div>
-        <img src="/About/ABOUTUS3RDSECTIONjpeg.jpeg" alt="Miniature schnauzer with a polka-dot bandana in warm salon light" width={2752} height={1536} className="h-full min-h-[300px] w-full object-cover" />
+        <div className="flex flex-col justify-center px-8 py-12 lg:px-12">
+          <PawGlyph className="h-6 w-6 text-gold-deep" />
+          <h2 className="mt-4 font-display text-[22px] text-ink">Our Mission</h2>
+          <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">To provide exceptional grooming in a safe, loving, and luxurious environment.</p>
+          <h2 className="mt-9 font-display text-[22px] text-ink">Our Promise</h2>
+          <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">We treat every pup like our own and every parent like family.</p>
+        </div>
       </section>
     </>
   )

@@ -457,3 +457,21 @@ Work Log:
 Stage Summary:
 - SITE HERO STANDARD (locked): section = grid lg:grid-cols-[1fr_1.25fr]; text col = marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12; image col = relative min-h-[300px] with img absolute inset-0 h-full w-full object-cover. Image columns line up across sections; image bottoms meet the following band.
 - Pages on this standard now: homepage (hero + 3rd), about. Remaining pages (services, process, pricing, contact, book, shop, consultation, gallery, faq) to be converted on user's go — user wants site-wide cohesion, ~11 pages total
+
+---
+Task ID: 10
+Agent: main agent (direct work, per standing rule)
+Task: About page — update hero with the new dog image; third section to global canvas color, swap columns, new schnauzer image with founder message overlaid
+
+Work Log:
+- Checked both uploads (both 1448×1086 landscape): 1788587349037 = stacked black schnauzer (hero), 1788587342243 = schnauzer w/ pink bandana, centered subject (founder section)
+- Copied to public/About/abouthero-schnauzer.png and public/About/about-founder.png (cache-busted names)
+- Hero: swapped image (kept the site-standard [1fr_1.25fr] centered-text/fill layout)
+- Third section rebuilt: marble bg-cream (global canvas — brown removed), columns SWAPPED to [1.25fr_1fr]: schnauzer image LEFT filling the column (standard object-cover), founder's message overlaid on it (bottom gradient scrim from-ink/80, script 'A message from our founder' in gold-light, message in on-dark, '— Bree' script signature), Our Mission/Our Promise text RIGHT on canvas (ink/ink-soft colors)
+- Founder message text: "At All About Pawz, we provide exceptional grooming in a safe, loving environment. Every pup is treated like our own, and every pet parent is welcomed like family. — Bree" (completed the truncated 'safe, loving,' phrase with 'environment' per existing mission copy)
+- Old ABOUTUS3RDSECTIONjpeg.jpeg no longer referenced
+- Verified desktop (.zshots/about-founder.png, about-founder-3rd.png): VLM confirms hero dog fill, image-left/text-right swap, overlay message readable w/ '- Bree' signature, cream canvas text column; mobile captured; dev.log all 200s; lint 0 errors
+
+Stage Summary:
+- About hero: new schnauzer dog, standard layout
+- Third section: canvas color, image left with founder message overlay (Bree signature), mission/promise right
