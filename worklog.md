@@ -795,3 +795,27 @@ Work Log:
 Stage Summary:
 - The wizard is hidden behind the gate again: page load shows only plain text above the footer — "What would you like to do?" with the two choices as text links and a Contact us link to /contact
 - Ways into the wizard: the two entry cards in the photo sections, or the plain-text choices at the gate; Back on step 1 and BOOK ANOTHER both return to the gate; mid-flow refresh still resumes saved progress
+
+---
+Task ID: 28
+Agent: main (direct work, no subagents)
+Task: Separate the page from the wizard — user correction: "Page and wizard are two different things. The wizard never exposed itself on the same page as the book page." Also: the consultation flow is not the booking flow.
+
+Work Log:
+- INVESTIGATED the original GitHub repo (all commits, /tmp/AAPAWZ): /book has always been the only public booking route and the wizard was always embedded there in a boxed card with an internal "What would you like to do?" chooser; consultation was a bookingType mode of the same wizard. Dead legacy files existed (consultation-form.tsx, booking-form.tsx, booking-wizard.tsx v1) but were never imported. The user's intent is what stands: page and wizard are different things → split them for real.
+- ARCHITECTURE: /book is now a pure marketing page (zero data fetching, zero forms, zero wizard). Each flow owns its own route: /book/appointment and /book/consultation.
+- NEW src/lib/wizard/wizard-data.ts — getWizardData() server helper (breeds/packages/staff + 21 lookup tables) shared by both flow routes; the /book page fetches nothing.
+- NEW /book/appointment — "Reserve Your Visit." intro (back link, h1, subline) + BookingWizardV2 flow="appointment" as text on canvas. 9 steps (SCHEDULE at 6), $25 deposit, Stripe checkout.
+- NEW /book/consultation — "Start the Conversation." intro + BookingWizardV2 flow="consultation". Different flow by construction: 9 steps with PREFERRED at 6, no service selection (step 5 auto-passes), no deposit, submits to /api/cms/consultations, consultation-specific success screen.
+- WIZARD (booking-wizard-v2.tsx): gate removed entirely (both the boxed original and the plain-text version are gone); flow comes from the route via a `flow` prop; isConsult derives from flow everywhere (stepper labels, validation case 5, submit branch, mode line, step props); hydration forces bookingType to match the route (stale localStorage from an old visit can't leak across flows); Back on step 1 → router.push("/book"); BOOK ANOTHER → reset + same flow step 1.
+- BOOK PAGE: band CTAs now Link to /book/appointment (START BOOKING) and /book/consultation (REQUEST A CONSULTATION); entry cards are next/link Links (no store interaction); removed #book/#consult anchors and the wizard section.
+- STRIPE: success URLs updated — /book/appointment?success=booking and /book/consultation?success=consultation (checkout route.ts).
+- SITEMAP: added /book/appointment and /book/consultation.
+- VERIFIED via agent-browser + VLM: /book fresh load = 0 form fields, no gate text, cards/band CTAs link out; card click → /book/appointment; Back on step 1 → /book; consult stepper shows PREFERRED where appointment shows SCHEDULE; FULL consultation E2E on the new route: name → contact (customer created) → dog (breed search Poodle (Standard), dog created) → coat → grooming (no service required) → preferred date 2026-09-11 + 10:00 AM slot → review "Confirm your consultation request" → Submit → POST 201 → row in Supabase (PENDING, linked customerId+dogId) → success screen "Consultation Requested"; mobile 390px no overflow on /book and /book/appointment; lint 0 errors (same 5 pre-existing warnings); dev.log clean except expected Resend rejection of the fake test email.
+- CLEANUP: deleted test rows — consultations (Flow Check, Test Consult Person), dog Mochi, customer Flow Check, 3 leftover Test customers.
+- Screenshot note: one .zshots image was a stale copy (byte-identical to the old gate shot); re-took fresh screenshots and re-verified with DOM + VLM.
+
+Stage Summary:
+- The book page and the wizard are two different things again: /book is marketing with entry cards; /book/appointment and /book/consultation are the flows — one route each, wizard on its own page, text on canvas
+- The consultation flow is genuinely separate: its own route, no service step, preferred date, no deposit, own success screen — verified end-to-end with a real Supabase submission
+- Stripe return URLs, sitemap, and all site-wide /book links updated; nothing else on the site changed

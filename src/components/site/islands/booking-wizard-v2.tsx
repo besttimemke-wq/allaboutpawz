@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Check, ArrowLeft, ArrowRight, Plus, PawPrint,
   Dog, CreditCard, Sparkle, Camera, Spinner,
@@ -43,28 +43,33 @@ export type WizardLookups = {
 }
 
 export function BookingWizardV2({
-  breeds, services, groomers, lookups,
+  breeds, services, groomers, lookups, flow,
 }: {
   breeds: Breed[]
   services: Service[]
   groomers: Groomer[]
   lookups: WizardLookups
+  flow: BookingType
 }) {
   const s = useWizard()
+  const router = useRouter()
+  const isConsult = flow === "consultation"
   const [hydrated, setHydrated] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
   const [success, setSuccess] = useState<"booking" | "consultation" | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
 
-  // Hydrate from localStorage (avoid SSR mismatch). The wizard stays
-  // HIDDEN behind the gate until a flow is chosen — via the entry cards
-  // in the photo sections or the plain text here above the footer.
+  // Hydrate from localStorage (avoid SSR mismatch). The ROUTE owns the
+  // flow — /book/appointment and /book/consultation each render their own
+  // wizard. Saved progress is restored; the flow is forced to match the
+  // route so stale choices from an old visit never leak across flows.
   useEffect(() => {
     setHydrated(true)
     const st = useWizard.getState()
-    if (st.bookingType && st.step < 1) st.patch({ step: 1 })
-  }, [])
+    if (st.bookingType !== flow) st.patch({ bookingType: flow })
+    if (st.step < 1) st.patch({ step: 1 })
+  }, [flow])
 
   // Check URL for success param (return from Stripe)
   useEffect(() => {
@@ -89,11 +94,11 @@ export function BookingWizardV2({
 
   // ----- Stepper labels (steps 1..9) -----
   const stepLabels = useMemo(() => {
-    if (s.bookingType === "consultation") {
+    if (isConsult) {
       return ["Name", "Contact", "Dog", "Coat", "Grooming", "Preferred", "Groomer", "Notes", "Review"]
     }
     return ["Name", "Contact", "Dog", "Coat", "Grooming", "Schedule", "Groomer", "Notes", "Review"]
-  }, [s.bookingType])
+  }, [isConsult])
 
   // ----- Validation per step -----
   const canNext = useMemo(() => {
@@ -104,7 +109,7 @@ export function BookingWizardV2({
           && !!s.city.trim() && !!s.state.trim() && !!s.postalCode.trim()
       case 3: return !!s.dogName.trim() && !!s.breedId && !!s.weightLbs.trim()
       case 4: return true
-      case 5: return s.bookingType === "consultation" ? true : !!s.serviceId
+      case 5: return isConsult ? true : !!s.serviceId
       case 6: return !!s.date && !!s.time
       case 7: return true
       case 8: return true
@@ -112,7 +117,7 @@ export function BookingWizardV2({
       default: return false
     }
   }, [s.step, s.firstName, s.lastName, s.phone, s.email, s.address, s.city, s.state,
-      s.postalCode, s.dogName, s.breedId, s.weightLbs, s.date, s.time, s.serviceId, s.bookingType])
+      s.postalCode, s.dogName, s.breedId, s.weightLbs, s.date, s.time, s.serviceId, isConsult])
 
   // ----- Continue handler (per-step side-effects) -----
   const onContinue = async () => {
@@ -195,7 +200,7 @@ export function BookingWizardV2({
     setApiError(null)
     setSubmitting(true)
     try {
-      if (s.bookingType === "consultation") {
+      if (isConsult) {
         const res = await fetch("/api/cms/consultations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -336,7 +341,7 @@ export function BookingWizardV2({
           <a href="/" className="btn-gold">RETURN HOME</a>
           <button
             type="button"
-            onClick={() => { s.reset(); setSuccess(null) }}
+            onClick={() => { s.reset(); s.patch({ bookingType: flow, step: 1 }); setSuccess(null) }}
             className="btn-ghost"
           >BOOK ANOTHER</button>
         </div>
@@ -358,54 +363,18 @@ export function BookingWizardV2({
     )
   }
 
-  // ----- The gate — plain text on the canvas, above the footer -----
-  // The wizard is hidden until a flow is chosen. The entry cards in the
-  // photo sections land here; "Contact us" is the way out for callers.
-  if (!s.bookingType) {
-    const choose = (type: BookingType) => s.patch({ bookingType: type, step: 1 })
-    return (
-      <div className="max-w-[560px]">
-        <h2 className="font-display text-[30px] leading-[1.15] text-ink">What would you like to do?</h2>
-        <div className="mt-8 space-y-6">
-          <button type="button" onClick={() => choose("appointment")} className="group block text-left">
-            <span className="font-display text-[19px] text-ink underline decoration-gold/50 underline-offset-[6px] transition-colors group-hover:text-gold-deep group-hover:decoration-gold">
-              Book an appointment
-            </span>
-            <span className="mt-1.5 block text-[12.5px] leading-[1.7] text-ink-soft">
-              A $25 deposit secures your pup&apos;s visit — nine quick steps, about two minutes.
-            </span>
-          </button>
-          <button type="button" onClick={() => choose("consultation")} className="group block text-left">
-            <span className="font-display text-[19px] text-ink underline decoration-gold/50 underline-offset-[6px] transition-colors group-hover:text-gold-deep group-hover:decoration-gold">
-              Request a consultation
-            </span>
-            <span className="mt-1.5 block text-[12.5px] leading-[1.7] text-ink-soft">
-              Free — meet the team, talk through the coat, get a custom plan. No deposit.
-            </span>
-          </button>
-        </div>
-        <p className="mt-9 text-[12.5px] text-ink-soft">
-          Rather talk to a human?{" "}
-          <Link href="/contact" className="font-bold text-gold-deep underline decoration-gold/50 underline-offset-[6px] transition-colors hover:text-ink hover:decoration-gold">
-            Contact us
-          </Link>
-        </p>
-      </div>
-    )
-  }
-
   // ----- Main wizard (steps 1..9) -----
-  // Opens in the chosen flow. Back on step 1 returns to the plain-text
-  // gate; the entry cards on the page switch between the flows.
-  const isConsultation = s.bookingType === "consultation"
+  // This route's flow only — the appointment wizard and the consultation
+  // wizard are separate pages. Back on step 1 returns to the booking
+  // options page (/book).
 
   return (
     <div className="space-y-6">
-      {/* Mode line — reflects which entry card was chosen */}
+      {/* Mode line — reflects which flow page you're on */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className="eyebrow">{isConsultation ? "FREE CONSULTATION REQUEST" : "RESERVE YOUR VISIT"}</p>
+        <p className="eyebrow">{isConsult ? "FREE CONSULTATION REQUEST" : "RESERVE YOUR VISIT"}</p>
         <p className="text-[10px] font-bold tracking-[0.12em] text-ink-soft">
-          {isConsultation ? "FREE — WE REACH OUT TO PLAN THE VISIT" : "$25 DEPOSIT — SECURED AT THE FINAL STEP"}
+          {isConsult ? "FREE — WE REACH OUT TO PLAN THE VISIT" : "$25 DEPOSIT — SECURED AT THE FINAL STEP"}
         </p>
       </div>
 
@@ -422,13 +391,13 @@ export function BookingWizardV2({
         {s.step === 2 && <StepContact submitting={submitting} />}
         {s.step === 3 && <StepDog breeds={breeds} submitting={submitting} />}
         {s.step === 4 && <StepCoat lookups={lookups} />}
-        {s.step === 5 && <StepGroomingRequest lookups={lookups} services={services} bookingType={s.bookingType!} />}
-        {s.step === 6 && <StepSchedule bookingType={s.bookingType!} durationMinutes={selectedService?.durationMinutes || 120} />}
+        {s.step === 5 && <StepGroomingRequest lookups={lookups} services={services} bookingType={flow} />}
+        {s.step === 6 && <StepSchedule bookingType={flow} durationMinutes={selectedService?.durationMinutes || 120} />}
         {s.step === 7 && <StepGroomer groomers={groomers} />}
         {s.step === 8 && <StepNotes />}
         {s.step === 9 && (
           <StepReview
-            bookingType={s.bookingType!}
+            bookingType={flow}
             selectedBreed={selectedBreed}
             selectedService={selectedService}
             selectedGroomer={selectedGroomer}
@@ -441,11 +410,11 @@ export function BookingWizardV2({
         )}
       </div>
 
-      {/* Nav — Back on step 1 tucks the wizard back behind the gate */}
+      {/* Nav — Back on step 1 returns to the booking options page */}
       <div className="flex items-center justify-between border-t border-gold/25 pt-5">
         <button
           type="button"
-          onClick={() => (s.step > 1 ? s.setStep(s.step - 1) : s.patch({ bookingType: null, step: 0 }))}
+          onClick={() => (s.step > 1 ? s.setStep(s.step - 1) : router.push("/book"))}
           className="btn-ghost"
         >
           <ArrowLeft size={14} weight="bold" /> Back

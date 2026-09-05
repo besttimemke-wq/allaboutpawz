@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
 
   // 5. If consultation (no deposit), just return success
   if (bookingType === "CONSULTATION") {
-    return NextResponse.json({ bookingId: booking?.id, type: "consultation", url: `/book?success=consultation` })
+    return NextResponse.json({ bookingId: booking?.id, type: "consultation", url: `/book/consultation?success=consultation` })
   }
 
   // 6. Create Stripe Checkout Session for the $25 deposit
@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
         },
         quantity: 1,
       }],
-      success_url: `${origin}/book?success=booking`,
+      success_url: `${origin}/book/appointment?success=booking`,
       cancel_url: `${origin}/book?cancelled=1`,
       metadata: {
         bookingId: booking?.id || "",

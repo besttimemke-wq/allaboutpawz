@@ -13,6 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ["/pricing", "monthly", 0.9],
     ["/shop", "weekly", 0.8],
     ["/book", "monthly", 0.9],
+    ["/book/appointment", "monthly", 0.9],
+    ["/book/consultation", "monthly", 0.8],
     ["/gallery", "monthly", 0.6],
     ["/contact", "monthly", 0.7],
     ["/faq", "monthly", 0.6],
