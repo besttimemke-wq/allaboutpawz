@@ -441,3 +441,19 @@ Work Log:
 Stage Summary:
 - Homepage back to the original design constraint: images fill their columns edge-to-edge (object-cover), hero meets the scissors, 3rd section has no dead white space
 - Image assignment: hero = poodle (1448×1086), 3rd section = salon banner (1018×269)
+
+---
+Task ID: 9
+Agent: main agent (direct work, per standing rule)
+Task: Homepage hero symmetric with 3rd section — one cohesive design system (user: "it's all about symmetry, 11 pages to fix")
+
+Work Log:
+- Hero restructured to match the 3rd section EXACTLY: identical lg:grid-cols-[1fr_1.25fr] split, identical px-8/py-16/lg:px-12 gutters, justify-center text, image as relative+absolute inset-0 object-cover fill (min-h-[300px], same as 3rd)
+- Result: hero image column and 3rd-section image column start at the same x position and fill to the right edge — they line up vertically; hero image bottom still meets the black services band (scissors)
+- About hero also converted to the identical site standard ([1fr_1.25fr], centered text, object-cover fill) so it's part of the same system
+- Verified desktop full-page + viewport (.zshots/home-sym.png, home-sym-viewport.png): VLM confirms both images' left/right edges line up, hero meets black band, text vertically centered, sections symmetric and cohesive; About (.zshots/about-sym.png) and mobile captured
+- dev.log all 200s
+
+Stage Summary:
+- SITE HERO STANDARD (locked): section = grid lg:grid-cols-[1fr_1.25fr]; text col = marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12; image col = relative min-h-[300px] with img absolute inset-0 h-full w-full object-cover. Image columns line up across sections; image bottoms meet the following band.
+- Pages on this standard now: homepage (hero + 3rd), about. Remaining pages (services, process, pricing, contact, book, shop, consultation, gallery, faq) to be converted on user's go — user wants site-wide cohesion, ~11 pages total

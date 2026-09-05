@@ -14,17 +14,19 @@ export default async function AboutPage() {
   return (
     <>
       <PageHeader n="02" label="ABOUT US" />
-      {/* Hero — reference layout: text 50% left, image 50% right, full height
-          from the top, natural aspect, no crop, no container. */}
-      <section className="grid grid-cols-1 lg:grid-cols-2">
-        <div className="marble bg-cream px-8 pt-4 lg:pl-14 lg:pr-8 lg:pt-6">
+      {/* Hero — site standard (same as homepage hero + 3rd section):
+          [1fr_1.25fr] split, centered text, image filling the full column. */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+        <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[48px] leading-[1.05] text-ink lg:text-[60px]">Our Story.<br />Our Promise.</h1>
           <p className="script mt-2 text-[32px]">Built on love. Driven by purpose.</p>
           <p className="mt-4 max-w-[430px] text-[14px] leading-[1.85] text-ink-soft">
             All About Pawz was created with a simple belief: dogs deserve the same level of care, respect, and luxury we expect for ourselves — a place where they feel safe, look their best, and leave happy.
           </p>
         </div>
-        <img src="/About/abouthero-new.png" alt="A happy dog being cared for at All About Pawz" width={1672} height={941} className="block h-auto w-full" />
+        <div className="relative min-h-[300px]">
+          <img src="/About/abouthero-new.png" alt="A happy dog being cared for at All About Pawz" width={1672} height={941} className="absolute inset-0 h-full w-full object-cover" />
+        </div>
       </section>
       {/* Band under the hero — black (matches the homepage services band) */}
       <section className="bg-ink px-8 py-10 lg:px-12">
