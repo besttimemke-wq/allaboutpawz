@@ -777,3 +777,21 @@ Stage Summary:
 - Footer: the original logo (white background knocked out to clean transparency) sits inline-left with the nav; footer stays thin
 - Pricing add-ons band: gold toothbrush + comb marks from the user's upload
 - PUSH PLAN FOR NEXT SESSION (when user says go): .env contains 12 real-looking secrets and is TRACKED IN GIT HISTORY, so the repo must go out as a fresh orphan single-commit (no history push); exclude upload/, .zshots/, .zscripts/, tool-results/, download/, stray root artifacts; keep src/, public/, supabase/, configs, package.json, bun.lock; repo https://github.com/besttimemke-wq/allaboutpawz.git with the PAT supplied in chat at push time only; Vercel: no env vars needed at build time (repo degrades gracefully unconfigured), ignoreBuildErrors already true
+
+---
+Task ID: 27
+Agent: main (direct work, no subagents)
+Task: Restore the wizard gate — the booking wizard must be HIDDEN on page load, not sprawled across the page. Above the footer: plain text on the canvas ("What would you like to do?" + Contact us). The cards and the plain-text choices are the only ways in.
+
+Work Log:
+- USER CORRECTION: the previous pass (task 26) removed the gate entirely and rendered the wizard unconditionally — wrong. The wizard was never supposed to leave its hiding place; only the boxed bar presentation was to go
+- booking-wizard-v2.tsx: hydration effect no longer forces step 1 (only bumps a chosen flow parked at step 0); new early-return gate renders when bookingType is null — plain text, no box: display heading "What would you like to do?", two text-link choices (Book an appointment / Request a consultation with one-line descriptors), and "Rather talk to a human? Contact us" linking to /contact
+- Back button now always renders; on step 1 it patches { bookingType: null, step: 0 } — the wizard tucks back behind the gate (form data is kept)
+- BOOK ANOTHER on the success screen now calls s.reset() only → returns to the gate instead of jumping into an appointment
+- Entry cards (booking-entry-cards.tsx) unchanged — they were already correct: click sets bookingType and scrolls to #book, which now reveals the wizard
+- VERIFIED via agent-browser + VLM: fresh load (localStorage cleared) shows NO form elements in #book, gate heading only; gate choice → wizard step 1 (RESERVE YOUR VISIT); consult entry card → wizard step 1 (FREE CONSULTATION REQUEST); Back on step 1 → gate returns; fill name → Continue → step 2; full page refresh mid-flow → wizard resumes at step 2 (persistence intact); Contact us href → /contact; gate div computed style: transparent background, 0px border; lint 0 errors (same 5 pre-existing warnings); dev.log clean
+- No Supabase test rows created this session (never crossed the step 2→3 customer-creation boundary); localStorage cleared after testing
+
+Stage Summary:
+- The wizard is hidden behind the gate again: page load shows only plain text above the footer — "What would you like to do?" with the two choices as text links and a Contact us link to /contact
+- Ways into the wizard: the two entry cards in the photo sections, or the plain-text choices at the gate; Back on step 1 and BOOK ANOTHER both return to the gate; mid-flow refresh still resumes saved progress

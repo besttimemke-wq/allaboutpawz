@@ -212,8 +212,10 @@ export default async function BookPage() {
       </section>
 
       {/* THE BOOKING FLOW — last section before the footer, text only on the
-          canvas (no box). The bands above carry the calls to action; this is
-          where they land. */}
+          canvas (no box). Hidden behind the gate: plain text above the
+          footer ("What would you like to do?" + Contact us) and the entry
+          cards above are the only ways in — the wizard appears once a flow
+          is chosen. */}
       <section id="book" className="marble scroll-mt-24 bg-cream px-8 py-14 lg:px-12">
         <BookingWizardV2
           breeds={breeds || []}

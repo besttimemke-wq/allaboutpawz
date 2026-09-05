@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
+import Link from "next/link"
 import {
   Check, ArrowLeft, ArrowRight, Plus, PawPrint,
   Dog, CreditCard, Sparkle, Camera, Spinner,
@@ -56,13 +57,13 @@ export function BookingWizardV2({
   const [success, setSuccess] = useState<"booking" | "consultation" | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
 
-  // Hydrate from localStorage (avoid SSR mismatch). No gate screen — the
-  // bands and entry cards on the page carry the calls to action, and the
-  // wizard opens straight into the flow (appointment by default).
+  // Hydrate from localStorage (avoid SSR mismatch). The wizard stays
+  // HIDDEN behind the gate until a flow is chosen — via the entry cards
+  // in the photo sections or the plain text here above the footer.
   useEffect(() => {
     setHydrated(true)
     const st = useWizard.getState()
-    if (st.step < 1) st.patch({ step: 1 })
+    if (st.bookingType && st.step < 1) st.patch({ step: 1 })
   }, [])
 
   // Check URL for success param (return from Stripe)
@@ -335,7 +336,7 @@ export function BookingWizardV2({
           <a href="/" className="btn-gold">RETURN HOME</a>
           <button
             type="button"
-            onClick={() => { s.reset(); s.patch({ step: 1 }); setSuccess(null) }}
+            onClick={() => { s.reset(); setSuccess(null) }}
             className="btn-ghost"
           >BOOK ANOTHER</button>
         </div>
@@ -357,12 +358,45 @@ export function BookingWizardV2({
     )
   }
 
-  // ----- Main wizard (steps 1..9) -----
-  // Opens directly in the selected flow — appointment by default. Back is
-  // hidden on step 1 (nothing behind it); the entry cards on the page
-  // switch between the appointment and consultation flows.
-  const goBack = () => s.setStep(s.step - 1)
+  // ----- The gate — plain text on the canvas, above the footer -----
+  // The wizard is hidden until a flow is chosen. The entry cards in the
+  // photo sections land here; "Contact us" is the way out for callers.
+  if (!s.bookingType) {
+    const choose = (type: BookingType) => s.patch({ bookingType: type, step: 1 })
+    return (
+      <div className="max-w-[560px]">
+        <h2 className="font-display text-[30px] leading-[1.15] text-ink">What would you like to do?</h2>
+        <div className="mt-8 space-y-6">
+          <button type="button" onClick={() => choose("appointment")} className="group block text-left">
+            <span className="font-display text-[19px] text-ink underline decoration-gold/50 underline-offset-[6px] transition-colors group-hover:text-gold-deep group-hover:decoration-gold">
+              Book an appointment
+            </span>
+            <span className="mt-1.5 block text-[12.5px] leading-[1.7] text-ink-soft">
+              A $25 deposit secures your pup&apos;s visit — nine quick steps, about two minutes.
+            </span>
+          </button>
+          <button type="button" onClick={() => choose("consultation")} className="group block text-left">
+            <span className="font-display text-[19px] text-ink underline decoration-gold/50 underline-offset-[6px] transition-colors group-hover:text-gold-deep group-hover:decoration-gold">
+              Request a consultation
+            </span>
+            <span className="mt-1.5 block text-[12.5px] leading-[1.7] text-ink-soft">
+              Free — meet the team, talk through the coat, get a custom plan. No deposit.
+            </span>
+          </button>
+        </div>
+        <p className="mt-9 text-[12.5px] text-ink-soft">
+          Rather talk to a human?{" "}
+          <Link href="/contact" className="font-bold text-gold-deep underline decoration-gold/50 underline-offset-[6px] transition-colors hover:text-ink hover:decoration-gold">
+            Contact us
+          </Link>
+        </p>
+      </div>
+    )
+  }
 
+  // ----- Main wizard (steps 1..9) -----
+  // Opens in the chosen flow. Back on step 1 returns to the plain-text
+  // gate; the entry cards on the page switch between the flows.
   const isConsultation = s.bookingType === "consultation"
 
   return (
@@ -407,15 +441,15 @@ export function BookingWizardV2({
         )}
       </div>
 
-      {/* Nav */}
+      {/* Nav — Back on step 1 tucks the wizard back behind the gate */}
       <div className="flex items-center justify-between border-t border-gold/25 pt-5">
-        {s.step > 1 ? (
-          <button type="button" onClick={goBack} className="btn-ghost">
-            <ArrowLeft size={14} weight="bold" /> Back
-          </button>
-        ) : (
-          <span aria-hidden="true" />
-        )}
+        <button
+          type="button"
+          onClick={() => (s.step > 1 ? s.setStep(s.step - 1) : s.patch({ bookingType: null, step: 0 }))}
+          className="btn-ghost"
+        >
+          <ArrowLeft size={14} weight="bold" /> Back
+        </button>
         {s.step < 9 ? (
           <button
             type="button"
