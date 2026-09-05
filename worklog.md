@@ -600,3 +600,20 @@ Stage Summary:
 - Public site is chevron-free: disclosure = plus sign rotating to × everywhere (services accordion, FAQ, shop sidebar/filters, wizards), direction = straight arrows in nav buttons only, deep-level links = plus
 - Our Process: standard hero w/ new image, pillars band, interactive five-step third section (slide-in-from-left stacking cards) — all step content from the owner's spec verbatim
 - Process step content is currently static in the island (not CMS-managed) — could move to a Supabase table later if the owner wants to edit it
+
+---
+Task ID: 18
+Agent: main agent (direct work, per standing rule)
+Task: Fix the process steps section per owner's corrections — headline bigger, 1-5 list restored as-given (numbers LEFT, left-to-right, with descriptor text), cards to the RIGHT of the numbers carrying MORE info beyond the descriptor
+
+Work Log:
+- Decoded owner feedback: the 1-5 list was never supposed to change (number + title + descriptor stay in the list, reading left to right); the card's purpose is MORE information BEYOND the descriptor; numbers must be on the LEFT (nobody works right-to-left); headline too small
+- process-steps.tsx v3: left column = the original list verbatim (01-05 gold-bordered number circles connected by the vertical gold line, titles + owner's exact descriptor sentences) as clickable rows w/ plus→× toggle (site pattern, active circle fills gold); right column = black cards that slide in from the left, each ALIGNED with its number's row (DOM-verified: cardTop == number top for 01/02/03; cards start at x=803, list ends x=763), stacking vertically as more numbers are clicked; toggle-off works per number; step 01 auto-revealed
+- Card content = EXPANDED salon-specific info beyond each descriptor (booking details: breed/size/coat intake + confirmations; welcome: treats, wishlist, profile notes; spa: one-groomer-one-pup, force-free, breaks; finishing: brush-out, fragrance, bandana, nails/ears; pickup: recap + rebooking rationale)
+- Section headline bumped 30/34px → 38/48px display type ("Five Steps. One Happy Pup.")
+- Verified: DOM geometry (all cards right of list, tops aligned with numbers, 3 stacked after clicks 02+03); VLM confirms all 5 checks (big headline, left list w/ gold line + descriptors, black cards right w/ longer text, 04/05 list-only, ×/plus states); mobile stacks row-over-card cleanly; toggle-off leaves 01/03; lint 0 errors; dev.log 200s; browser closed after testing (RAM)
+
+Stage Summary:
+- Process steps now matches the owner's mental model: the list is unchanged and primary (left, with its original text), cards add depth to the right, everything reads left to right
+- Expanded card copy gives the "more information beyond the descriptor" the owner wanted
+- Step content still component-local (not CMS tables) — flag for the owner if they want it admin-editable

@@ -60,9 +60,9 @@ export default function ProcessPage() {
       <section className="marble bg-cream px-8 py-12 lg:px-12 lg:py-16">
         <div className="max-w-[860px]">
           <p className="eyebrow">THE PAWZ PROCESS</p>
-          <h2 className="mt-3 font-display text-[30px] leading-[1.15] text-ink lg:text-[34px]">Five Steps.<br />One Happy Pup.</h2>
-          <p className="mt-4 max-w-[330px] text-[12px] leading-[1.75] text-ink-soft">
-            Tap each number to reveal every step of the journey — from your first booking to a freshly groomed, happy pup.
+          <h2 className="mt-3 font-display text-[38px] leading-[1.1] text-ink lg:text-[48px]">Five Steps.<br />One Happy Pup.</h2>
+          <p className="mt-5 max-w-[360px] text-[12.5px] leading-[1.75] text-ink-soft">
+            Tap any number for a closer look — each step has a story, and we take every one of them seriously.
           </p>
         </div>
         <div className="mt-10">
