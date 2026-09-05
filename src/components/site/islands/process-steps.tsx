@@ -42,7 +42,8 @@ const STEPS = [
 // card slides in from the left, aligned with that number, carrying MORE
 // information beyond the descriptor. Cards stack as you tap through.
 export function ProcessSteps() {
-  const [revealed, setRevealed] = useState<number[]>([0])
+  // All cards closed by default — nothing revealed until the user acts.
+  const [revealed, setRevealed] = useState<number[]>([])
 
   const toggle = (i: number) =>
     setRevealed((r) => (r.includes(i) ? r.filter((x) => x !== i) : [...r, i]))

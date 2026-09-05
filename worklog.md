@@ -617,3 +617,15 @@ Stage Summary:
 - Process steps now matches the owner's mental model: the list is unchanged and primary (left, with its original text), cards add depth to the right, everything reads left to right
 - Expanded card copy gives the "more information beyond the descriptor" the owner wanted
 - Step content still component-local (not CMS tables) — flag for the owner if they want it admin-editable
+
+---
+Task ID: 19
+Agent: main agent (direct work, per standing rule)
+Task: Process steps — default all cards closed (nothing shown until the user acts)
+
+Work Log:
+- process-steps.tsx: useState([0]) → useState([]) — no card revealed on load; each card appears only on user click
+- Verified: fresh page load shows 0 cards / 0 expanded buttons; clicking 01+02 reveals exactly those two cards (DOM + VLM confirmed 01/02 cards right of the list, 03-05 list-only); dev.log 200s
+
+Stage Summary:
+- Steps section now starts fully closed — cards appear strictly on user action
