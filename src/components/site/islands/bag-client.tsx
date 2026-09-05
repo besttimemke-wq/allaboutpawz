@@ -3,7 +3,7 @@
 import { useState, useMemo, useSyncExternalStore, Fragment } from "react"
 import Link from "next/link"
 import {
-  ShoppingBag, Trash, Minus, Plus, PawPrint, Star, ArrowRight, Check,
+  ShoppingBag, Trash, Minus, Plus, PawPrint, ArrowRight, Check,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
 
@@ -263,18 +263,9 @@ export function BagClient({
                       <p className="mt-3 text-[12px] font-bold leading-[1.4] text-ink">{item.name}</p>
                     )}
                     {rating && rating.count > 0 && (
-                      <p className="mt-1.5 flex items-center gap-1.5">
-                        <span className="flex items-center gap-0.5">
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <Star
-                              key={n}
-                              size={10}
-                              weight={n <= Math.round(rating.avg) ? "fill" : "regular"}
-                              className={n <= Math.round(rating.avg) ? "text-gold-deep" : "text-gold/35"}
-                            />
-                          ))}
-                        </span>
-                        <span className="text-[10px] text-ink-soft">{rating.avg.toFixed(1)} ({rating.count})</span>
+                      <p className="mt-1.5 flex items-baseline gap-1.5">
+                        <span className="font-display text-[13px] leading-none text-gold-deep">{rating.avg.toFixed(1)}</span>
+                        <span className="text-[10px] text-ink-soft">({rating.count} {rating.count === 1 ? "review" : "reviews"})</span>
                       </p>
                     )}
                   </div>

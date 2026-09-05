@@ -699,7 +699,7 @@ function StepContact({ submitting }: { submitting: boolean }) {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="PHONE" required>
-          <input value={s.phone} onChange={(e) => s.patch({ phone: e.target.value })} type="tel" placeholder="(312) 555-0142" className={inputCls} />
+          <input value={s.phone} onChange={(e) => s.patch({ phone: e.target.value })} type="tel" placeholder="901-800-7182" className={inputCls} />
         </Field>
         <Field label="EMAIL" required>
           <input value={s.email} onChange={(e) => s.patch({ email: e.target.value })} type="email" placeholder="jane@email.com" className={inputCls} />

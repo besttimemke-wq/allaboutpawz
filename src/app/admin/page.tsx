@@ -288,7 +288,7 @@ export default function AdminPage() {
   ]
 
   const locations: LocationItem[] = [
-    { id: "loc-1", name: "All About Pawz – Main Location", type: "Main Location", address: "1428 Maple Grove Avenue", cityStateZip: "Riverbend, IL 60614", phone: "(312) 555-0142", email: "hello@allaboutpawz.com", manager: "Lead Groomer", status: "Active", stationCount: 4, operatingHours: "Tue-Sat 9-6, Sun 10-4", isDefault: true }
+    { id: "loc-1", name: "All About Pawz – Main Location", type: "Main Location", address: "1428 Maple Grove Avenue", cityStateZip: "Riverbend, IL 60614", phone: "901-800-7182", email: "help@aapawz.com", manager: "Lead Groomer", status: "Active", stationCount: 4, operatingHours: "Tue-Sat 9-6, Sun 10-4", isDefault: true }
   ]
 
   // Handlers

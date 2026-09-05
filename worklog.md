@@ -705,3 +705,28 @@ Work Log:
 Stage Summary:
 - FAQ page now: standard hero (white/blue poodle salon photo, image right) → accordion right with full-height schnauzer on the left → black policies band (heading + 2×2 cards)
 - `faqhero-v2.jpeg` live in the hero; `faq.png` (old cutout) and `consultation.png` (brown dog) unreferenced from this page (files kept on disk)
+
+---
+Task ID: 24
+Agent: main (direct work, no subagents)
+Task: Site-wide consistency pass — policies routes + thin band, sidebar address removal, email/phone update everywhere, global hero height, book page bands, footer logo, star purge, band standardization, pricing dog swap
+
+Work Log:
+- POLICIES: created `/policies/[slug]` dynamic route (src/app/(site)/policies/[slug]/page.tsx) — slug derived from title, renders live from the `policies` table (owner publishes/updates via admin), generateStaticParams + generateMetadata, spacious reading layout (HOUSE RULES eyebrow, Divider, paragraphs, BOOK A VISIT + BACK TO FAQ), plus "MORE HOUSE RULES" thin band with the other 3 policies
+- FAQ: replaced the black policies section with a THIN band in section two (bg-ink py-8): HOUSE RULES + 4 clickable boxes (CANCELLATIONS / LATE ARRIVALS / VACCINATIONS / MATTED COATS) → /policies/[slug], Plus signs rotating on hover; accordion section follows
+- SIDEBAR: removed the address block (MapPin + 2 lines) from the desktop sidebar in site-chrome.tsx; phone/email rows remain
+- EMAIL/PHONE: updated site_settings table in Supabase (email → help@aapawz.com, phone → 901-800-7182) + all code fallbacks (site-chrome, contact page) + input placeholders (booking-wizard-v2, booking-wizard v1, shop-client) + admin location card
+- GLOBAL HERO HEIGHT: added lg:min-h-[520px] to every standard hero (about, process, pricing, services, book, contact, faq + shop's first section) — measured all at exactly 520px (home = 522px, the reference)
+- BOOK PAGE: removed the ConsultationForm box entirely; added black band above the wizard — "HOW BOOKING WORKS / Every Step. Every Detail. Every Pup." + the 9 wizard steps (Name, Contact, Dog, Coat, Grooming, Schedule, Groomer, Notes, Review) as SEPARATED numbered cards (3×3 grid, border-gold/25, gap-4) + START BOOKING anchor; below the wizard a consult band — "FREE CONSULTATIONS / Every Pup. Every Question. Every Answer." + 4 separated cards (Tell us about your pup / We reach out / Meet & greet / Their custom plan) + REQUEST A CONSULTATION anchor to the wizard (which offers the consultation flow); fixed corrupted imports found in the file
+- FOOTER LOGO: staged upload (transparent gold cursive "All About Pawz") as public/brand/footer-logo.png; centered above the nav in SiteFooter (h-16) — applies to all pages via shared chrome
+- STARS PURGED (public site): home 5-star row → replaced with script "A few words from our family"; shop/[slug] Stars component → text Rating (display font, gold "4.8 · 12 reviews"); bag-client star row → text rating; product-detail review form star picker → numbered 1-5 toggle buttons + live value; SUBMIT REVIEW icon → PawPrint
+- BANDS STANDARDIZED (home band = the reference): about → OUR VALUES / "Every Pup. Every Parent. Every Promise." + 4 numbered items; process → OUR PROMISE / "Every Pup. Every Step. Every Detail." + 4 numbered items; contact band icons → numbered circles; all bands now exact copies of the home band structure (bg-ink px-8 py-12, [0.85fr_2.4fr] grid, left title col + eyebrow-dark + 3-line "Every" headline + copy + gold CTA, right 4 items with 01-04 gold circles, hairline dividers) — no lucide icons in bands
+- PRICING DOG: staged upload (tan maltipoo, blue beach bandana, salon scene, 1448×1086) as public/Pricing/pricinghero-v2.jpeg, replacing the wrong close-cropped Cavapoo
+- Verified via agent-browser + VLM: all heroes exactly 520px; policies pages render live DB content with working links (4 boxes, 3 cross-links); book page = hero → 9-step band → wizard → consult band (form gone, wizard type screen + anchor work); about/process bands match home structure with numbered circles; footer logo cursive/crisp/centered; no stars on home; FAQ thin band clean; contact shows new email/phone; mobile book page no overflow; lint 0 errors (5 pre-existing warnings); dev.log all 200s
+
+Stage Summary:
+- Every black band now shares the home band's exact structure + "Every X. Every Y. Every Z." language, with numbered circles (01-04) instead of lucide icons
+- Policies are CMS-published pages at /policies/[slug]; FAQ carries the thin 4-box band
+- Zero lucide Star glyphs on the public site; footer carries the gold cursive logo
+- Contact channels unified: help@aapawz.com / 901-800-7182 (DB + code)
+- All standard heroes: 520px tall, image right, text left — symmetry enforced globally

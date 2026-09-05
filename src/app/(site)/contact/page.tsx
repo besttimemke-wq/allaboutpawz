@@ -1,30 +1,27 @@
-import { Facebook, Instagram, MapPin, Phone, Mail, Clock, Heart } from "lucide-react"
+import { Facebook, Instagram, MapPin, Phone, Mail, Clock } from "lucide-react"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { ContactForm } from "@/components/site/islands/contact-form"
 import { Reveal } from "@/components/site/islands/reveal"
 import { getSiteContent } from "@/lib/site-data"
 
-// Black band under the hero — same structure as the homepage services band
-// (left title column + 4 centered icon items, gold hairline dividers).
+// Black band under the hero — exact copy of the homepage services band
+// structure: left title column + 4 centered items with numbered gold
+// circles (the site's numbers language) and gold hairline dividers.
 const CONTACT_POINTS = [
   {
-    Icon: Mail,
     title: "PERSONAL REPLIES",
     body: "A real member of our\nteam answers every message.",
   },
   {
-    Icon: Clock,
     title: "FAST RESPONSES",
     body: "We typically reply within\none business day.",
   },
   {
-    Icon: MapPin,
     title: "VISIT ANYTIME",
     body: "Meet the team and see\nwhere the magic happens.",
   },
   {
-    Icon: Heart,
     title: "FOLLOW THE FUN",
     body: "Fresh cuts and pup dates\non Instagram & Facebook.",
   },
@@ -39,8 +36,8 @@ export default async function ContactPage() {
   const { settings: s } = await getSiteContent()
   const details = [
     { icon: MapPin, label: "VISIT US", lines: [s.addressLine1 || "1428 Maple Grove Avenue", s.addressLine2 || "Suite 4, Riverbend, IL 60614"] },
-    { icon: Phone, label: "CALL US", lines: [s.phone || "(312) 555-0142"] },
-    { icon: Mail, label: "EMAIL US", lines: [s.email || "hello@allaboutpawz.com"] },
+    { icon: Phone, label: "CALL US", lines: [s.phone || "901-800-7182"] },
+    { icon: Mail, label: "EMAIL US", lines: [s.email || "help@aapawz.com"] },
     { icon: Clock, label: "HOURS", lines: [`Tuesday – Saturday  ${s.hoursTueSat || "9am – 6pm"}`, `Sunday  ${s.hoursSun || "10am – 4pm"}`, `Monday  ${s.hoursMon || "Closed"}`] },
   ]
   return (
@@ -48,7 +45,7 @@ export default async function ContactPage() {
       <PageHeader n="10" label="CONTACT" />
 
       {/* HERO — site standard: centered text left, photo right filling the column. */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+      <section className="grid grid-cols-1 lg:min-h-[520px] lg:grid-cols-[1fr_1.25fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Come Say<br />Hello.</h1>
           <div className="mt-6"><Divider /></div>
@@ -79,9 +76,9 @@ export default async function ContactPage() {
             <a href="#message" className="btn-gold mt-6 inline-flex">SEND A MESSAGE</a>
           </div>
           <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
-            {CONTACT_POINTS.map(({ Icon, title, body }, i) => (
+            {CONTACT_POINTS.map(({ title, body }, i) => (
               <div key={title} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-                <Icon className="mx-auto h-10 w-10 text-gold" strokeWidth={1.2} />
+                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-gold/40 text-[12px] font-bold tracking-[0.08em] text-gold">{String(i + 1).padStart(2, "0")}</span>
                 <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-gold">{title}</h3>
                 <p className="mt-3 whitespace-pre-line text-[12px] leading-[1.7] text-on-dark-muted">{body}</p>
               </div>

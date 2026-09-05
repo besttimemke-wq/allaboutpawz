@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  MapPin, Phone, Mail, Clock, CalendarDays, Facebook, Instagram, Menu, ShoppingBag,
+  Phone, Mail, Clock, CalendarDays, Facebook, Instagram, Menu, ShoppingBag,
 } from "lucide-react"
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
@@ -119,10 +119,8 @@ export function SiteChrome({ settings, children }: { settings: Record<string, st
 
 function Sidebar({ settings, pathname }: { settings: Record<string, string>; pathname: string }) {
   const s = settings
-  const addr1 = s.addressLine1 || "1428 Maple Grove Avenue"
-  const addr2 = s.addressLine2 || "Suite 4, Riverbend, IL 60614"
-  const phone = s.phone || "(312) 555-0142"
-  const email = s.email || "hello@allaboutpawz.com"
+  const phone = s.phone || "901-800-7182"
+  const email = s.email || "help@aapawz.com"
   return (
     <aside className="marble fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream lg:flex">
       <div className="px-7 pt-8">
@@ -165,10 +163,6 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
         </Link>
       </div>
       <div className="mt-7 space-y-3.5 px-7 text-[10.5px] leading-[1.55] text-ink-soft">
-        <div className="flex gap-2.5">
-          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-deep" />
-          <span>{addr1}<br />{addr2}</span>
-        </div>
         <div className="flex gap-2.5">
           <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-deep" />
           <span>{phone}</span>
@@ -229,11 +223,11 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
   ]
   return (
     <footer className="bg-ink px-8 py-8 lg:px-12">
-      {/* Paw logo sits directly beside the Home tab; both rows are centered
-          on the footer icon, with the copyright/legal row below the nav. */}
+      {/* Gold logo mark centered above the nav; both rows are centered on it,
+          with the copyright/legal row below. */}
       <div className="mx-auto flex max-w-3xl flex-col items-center">
-        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5">
-          <PawGlyph className="h-5 w-5 shrink-0 text-gold" />
+        <img src="/brand/footer-logo.png" alt="All About Pawz" width={559} height={447} className="h-16 w-auto" />
+        <nav aria-label="Footer" className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5">
           {links.map(([label, to]) => (
             <Link key={to} href={to} className="text-[10px] font-bold tracking-[0.16em] text-on-dark-muted hover:text-gold">
               {label}

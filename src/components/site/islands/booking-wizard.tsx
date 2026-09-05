@@ -197,7 +197,7 @@ export function BookingWizard({
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[9px] font-bold tracking-[0.16em] text-gold-deep">PHONE</label>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="(312) 555-0142" className="w-full border border-gold/35 bg-cream px-3.5 py-3 text-[14px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-deep" />
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="901-800-7182" className="w-full border border-gold/35 bg-cream px-3.5 py-3 text-[14px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-deep" />
               </div>
               <div>
                 <label className="mb-1.5 block text-[9px] font-bold tracking-[0.16em] text-gold-deep">EMAIL</label>

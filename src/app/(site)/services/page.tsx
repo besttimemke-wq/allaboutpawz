@@ -18,7 +18,7 @@ export default async function ServicesPage() {
     <>
       <PageHeader n="03" label="SERVICES" />
       {/* HERO — site standard: centered text left, image right filling the column. */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+      <section className="grid grid-cols-1 lg:min-h-[520px] lg:grid-cols-[1fr_1.25fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Care That Goes<br />Beyond the Groom.</h1>
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">Premium grooming services tailored to your dog&apos;s breed, coat, and lifestyle.</p>

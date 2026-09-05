@@ -1,4 +1,4 @@
-import { Sparkles, Dog, ShieldCheck, Heart } from "lucide-react"
+import Link from "next/link"
 import { PawGlyph } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { getSiteContent } from "@/lib/site-data"
@@ -11,17 +11,17 @@ export const metadata = {
 export default async function AboutPage() {
   await getSiteContent()
   const VALUES = [
-    { Icon: Sparkles, title: "Luxury Experience", body: ["Spa-level care in", "a calming", "environment"] },
-    { Icon: Dog, title: "All Breeds Welcome", body: ["From tiny pups", "to giant breeds"] },
-    { Icon: ShieldCheck, title: "Safety & Comfort", body: ["Clean, cage-free", "care with gentle", "handling"] },
-    { Icon: Heart, title: "Happy Pups", body: ["Tail wags", "guaranteed", "every time"] },
+    { title: "LUXURY EXPERIENCE", body: "Spa-level care in a\ncalming environment" },
+    { title: "ALL BREEDS WELCOME", body: "From tiny pups to\ngiant breeds" },
+    { title: "SAFETY & COMFORT", body: "Clean, cage-free care\nwith gentle handling" },
+    { title: "HAPPY PUPS", body: "Tail wags guaranteed\nevery single time" },
   ]
   return (
     <>
       <PageHeader n="02" label="ABOUT US" />
       {/* Hero — site standard (same as homepage hero + 3rd section):
           [1fr_1.25fr] split, centered text, image filling the full column. */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+      <section className="grid grid-cols-1 lg:min-h-[520px] lg:grid-cols-[1fr_1.25fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[48px] leading-[1.05] text-ink lg:text-[60px]">Our Story.<br />Our Promise.</h1>
           <p className="script mt-2 text-[32px]">Built on love. Driven by purpose.</p>
@@ -33,16 +33,28 @@ export default async function AboutPage() {
           <img src="/About/abouthero-schnauzer.png" alt="Black schnauzer dog standing proudly in the All About Pawz dog grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       </section>
-      {/* Band under the hero — black (matches the homepage services band) */}
-      <section className="bg-ink px-8 py-10 lg:px-12">
-        <div className="grid grid-cols-2 gap-y-8 lg:grid-cols-4">
-          {VALUES.map(({ Icon, title, body }, i) => (
-            <div key={title} className={`px-5 ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-              <Icon className="h-6 w-6 text-gold" strokeWidth={1.2} />
-              <h3 className="mt-3 text-[11.5px] font-bold tracking-[0.06em] text-gold-light">{title}</h3>
-              <p className="mt-2 text-[11.5px] leading-[1.7] text-on-dark-muted">{body.map((l) => <span key={l} className="block">{l}</span>)}</p>
-            </div>
-          ))}
+      {/* Band under the hero — exact copy of the homepage services band
+          structure: left title column + 4 centered items, gold hairline
+          dividers, numbered circles (the site's numbers language). */}
+      <section className="bg-ink px-8 py-12 lg:px-12">
+        <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_2.4fr]">
+          <div className="lg:border-r lg:border-gold/25 lg:pr-10">
+            <p className="eyebrow-dark">OUR VALUES</p>
+            <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-on-dark">Every Pup.<br />Every Parent.<br />Every Promise.</h2>
+            <p className="mt-4 max-w-[290px] text-[12px] leading-[1.75] text-on-dark-muted">
+              The values we hold ourselves to on every single visit — the standards that make All About Pawz feel like family.
+            </p>
+            <Link href="/book" className="btn-gold mt-6">BOOK A VISIT</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
+            {VALUES.map(({ title, body }, i) => (
+              <div key={title} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
+                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-gold/40 text-[12px] font-bold tracking-[0.08em] text-gold">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-gold">{title}</h3>
+                <p className="mt-3 whitespace-pre-line text-[12px] leading-[1.7] text-on-dark-muted">{body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
       {/* Third section — global canvas color, columns swapped: image LEFT

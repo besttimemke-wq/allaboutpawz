@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import {
-  Check, Minus, Plus, ShoppingBag, Star, Truck, Lock, Medal, PawPrint,
+  Check, Minus, Plus, ShoppingBag, Truck, Lock, Medal, PawPrint,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
 
@@ -206,7 +206,7 @@ export function ReviewForm({ productId }: { productId: string }) {
         </div>
         <div>
           <label className={labelCls}>YOUR RATING *</label>
-          <div className="flex h-[46px] items-center gap-1.5" role="radiogroup" aria-label="Rating">
+          <div className="flex h-[46px] items-center gap-1" role="radiogroup" aria-label="Rating">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
@@ -214,16 +214,13 @@ export function ReviewForm({ productId }: { productId: string }) {
                 onClick={() => setRating(n)}
                 role="radio"
                 aria-checked={rating === n}
-                aria-label={`${n} star${n === 1 ? "" : "s"}`}
-                className="p-1 transition-transform hover:scale-110"
+                aria-label={`Rate ${n} out of 5`}
+                className={`h-9 w-9 border text-[13px] font-bold transition-colors ${n === rating ? "border-gold-deep bg-gold-deep text-on-dark" : rating === 0 ? "border-gold/35 text-ink-soft" : "border-gold/25 text-ink-soft"} ${n <= rating && n !== rating ? "border-gold/50 bg-gold/15 text-gold-deep" : ""}`}
               >
-                <Star
-                  size={20}
-                  weight={n <= rating ? "fill" : "regular"}
-                  className={n <= rating ? "text-gold-deep" : "text-gold/40"}
-                />
+                {n}
               </button>
             ))}
+            <span className="ml-2 font-display text-[15px] text-gold-deep">{rating > 0 ? rating.toFixed(1) : "–"}</span>
           </div>
         </div>
       </div>
@@ -264,7 +261,7 @@ export function ReviewForm({ productId }: { productId: string }) {
         {submitting ? (
           <span className="inline-flex items-center gap-1.5"><PawPrint size={12} weight="fill" /> SUBMITTING…</span>
         ) : (
-          <span className="inline-flex items-center gap-1.5"><Star size={12} weight="fill" /> SUBMIT REVIEW</span>
+          <span className="inline-flex items-center gap-1.5"><PawPrint size={12} weight="fill" /> SUBMIT REVIEW</span>
         )}
       </button>
       <p className="mt-2.5 text-[10.5px] text-ink-soft">

@@ -48,7 +48,7 @@ export default async function ShopPage() {
 
       {/* Hero — raised to the top, natural height; the bottle stands at the
           base of its column, directly against the canvas (no container). */}
-      <section className="marble grid grid-cols-1 items-stretch gap-10 bg-cream px-8 pt-6 lg:grid-cols-[1fr_0.8fr] lg:px-12 lg:pt-8">
+      <section className="marble grid grid-cols-1 items-stretch gap-10 bg-cream px-8 pt-6 lg:min-h-[520px] lg:grid-cols-[1fr_0.8fr] lg:px-12 lg:pt-8">
         <div className="flex flex-col justify-center pb-10">
           <p className="eyebrow flex items-center gap-2">
             <Sparkle className="h-3.5 w-3.5" strokeWidth={1.5} /> THE PAWZ COLLECTION

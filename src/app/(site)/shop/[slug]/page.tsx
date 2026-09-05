@@ -2,7 +2,7 @@ import { Fragment } from "react"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
-import { Star, PawPrint } from "lucide-react"
+import { PawPrint } from "lucide-react"
 import { repo } from "@/lib/repo"
 import { getCategoryTree, findNode, type CategoryNode } from "@/lib/categories"
 import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
@@ -33,26 +33,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 }
 
-// Star row rendered on the server (lucide) — supports a fractional value
-// by clipping the filled layer.
-function Stars({ value, size = 13, className = "" }: { value: number; size?: number; className?: string }) {
-  const pct = Math.max(0, Math.min(100, (value / 5) * 100))
+// Rating rendered as text — no star glyphs, matches the site's type-driven
+// design language.
+function Rating({ value, className = "" }: { value: number; className?: string }) {
   return (
-    <span className={`relative inline-flex items-center gap-0.5 ${className}`} aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <Star key={i} style={{ width: size, height: size }} className="text-gold/30" />
-      ))}
-      <span className="absolute inset-0 overflow-hidden" style={{ width: `${pct}%` }}>
-        <span className="inline-flex items-center gap-0.5">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Star
-              key={i}
-              style={{ width: size, height: size }}
-              className="fill-gold-deep text-gold-deep"
-            />
-          ))}
-        </span>
-      </span>
+    <span className={`font-display text-[15px] leading-none text-gold-deep ${className}`}>
+      {value.toFixed(1)}
     </span>
   )
 }
@@ -216,11 +202,10 @@ export default async function ProductPage({ params }: Params) {
           </h1>
 
           {reviews.length > 0 && (
-            <a href="#reviews" className="mt-3 inline-flex items-center gap-2.5">
-              <Stars value={avg} />
+            <a href="#reviews" className="mt-3 inline-flex items-baseline gap-2.5">
+              <Rating value={avg} />
               <span className="text-[11.5px] font-bold text-ink">
-                {avg.toFixed(1)}
-                <span className="font-normal text-ink-soft"> · {reviews.length} {reviews.length === 1 ? "review" : "reviews"}</span>
+                <span className="font-normal text-ink-soft">· {reviews.length} {reviews.length === 1 ? "review" : "reviews"}</span>
               </span>
             </a>
           )}
@@ -322,8 +307,8 @@ export default async function ProductPage({ params }: Params) {
           <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="font-display text-[26px] text-ink">What pet parents say</h2>
             {reviews.length > 0 ? (
-              <p className="flex items-center gap-2 text-[11.5px] text-ink-soft">
-                <Stars value={avg} />
+              <p className="flex items-baseline gap-2 text-[11.5px] text-ink-soft">
+                <Rating value={avg} />
                 <span className="font-bold text-ink">{avg.toFixed(1)}</span>
                 {" · "}
                 {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
@@ -337,8 +322,8 @@ export default async function ProductPage({ params }: Params) {
             <ul className="mt-7 divide-y divide-gold/20 border-y border-gold/20">
               {reviews.map((r: any) => (
                 <li key={r.id} className="py-6">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Stars value={r.rating || 0} />
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <Rating value={r.rating || 0} className="text-[14px]" />
                     <p className="text-[10.5px] text-ink-soft">{fmtDate(r.createdAt)}</p>
                   </div>
                   {hasText(r.title) && (

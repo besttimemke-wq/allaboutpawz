@@ -1,7 +1,11 @@
+import Link from "next/link"
+import { Plus } from "lucide-react"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { FaqAccordion } from "@/components/site/islands/faq-accordion"
 import { getSiteContent } from "@/lib/site-data"
+
+const policySlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 
 export const metadata = {
   title: "FAQ & Policies | All About Pawz",
@@ -15,7 +19,7 @@ export default async function FaqPage() {
       <PageHeader n="11" label="FAQ / POLICIES" />
 
       {/* HERO — site standard: centered text left, photo right filling the column. */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] lg:min-h-[520px]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Good<br />To Know.</h1>
           <div className="mt-6"><Divider /></div>
@@ -34,8 +38,32 @@ export default async function FaqPage() {
         </div>
       </section>
 
-      {/* FAQ RAIL — positions swapped: the schnauzer (brought up from the
-          policies band) now sits LEFT of the accordion, stretched to the
+      {/* SECTION TWO — thin band: four clickable policy boxes. Each box opens
+          its own page (/policies/[slug]) so the owner can publish and update
+          every policy from the admin portal. */}
+      <section className="bg-ink px-8 py-8 lg:px-12">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="eyebrow-dark">HOUSE RULES</p>
+          <p className="text-[11px] text-on-dark-muted">Tap a policy to read the full details</p>
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {policies.map((p: any) => (
+            <Link
+              key={p.id}
+              href={`/policies/${policySlug(p.title)}`}
+              className="group flex items-center justify-between gap-4 border border-gold/25 px-6 py-5 transition-colors hover:border-gold-deep hover:bg-gold/5"
+            >
+              <div>
+                <p className="text-[10.5px] font-bold tracking-[0.18em] text-gold">{p.title}</p>
+                <p className="mt-1.5 text-[11px] leading-[1.6] text-on-dark-muted">Read the policy</p>
+              </div>
+              <Plus className="h-4 w-4 shrink-0 text-gold transition-transform duration-300 group-hover:rotate-45" strokeWidth={1.8} />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ RAIL — the schnauzer sits LEFT of the accordion, stretched to the
           accordion's full height; the accordion takes the right column. */}
       <section className="marble grid grid-cols-1 gap-10 bg-cream px-8 py-14 lg:grid-cols-[0.7fr_1fr] lg:px-12">
         <div className="relative hidden min-h-[200px] lg:block">
@@ -49,28 +77,6 @@ export default async function FaqPage() {
         </div>
         <div className="min-w-0">
           <FaqAccordion faqs={faqs} />
-        </div>
-      </section>
-
-      {/* SALON POLICIES — black band pattern: heading column left, policy
-          cards right (the schnauzer moved up to the FAQ rail). */}
-      <section className="bg-ink px-8 py-14 lg:px-12">
-        <div className="grid items-start gap-10 lg:grid-cols-[0.4fr_1fr]">
-          <div>
-            <p className="eyebrow-dark">HOUSE RULES</p>
-            <h2 className="mt-3 font-display text-[26px] text-on-dark">Salon Policies</h2>
-            <p className="mt-4 max-w-[290px] text-[12px] leading-[1.75] text-on-dark-muted">
-              A few simple guidelines that keep the salon calm, safe, and right on schedule for every pup.
-            </p>
-          </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {policies.map((p: any) => (
-              <div key={p.id} className="border border-gold/25 p-6">
-                <p className="text-[10px] font-bold tracking-[0.18em] text-gold">{p.title}</p>
-                <p className="mt-3 text-[12px] leading-[1.8] text-on-dark-muted">{p.body}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
     </>

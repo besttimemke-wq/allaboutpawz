@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Play, CalendarDays, Heart, Star, CheckCircle2, Mail, Scissors } from "lucide-react"
+import { Play, CalendarDays, Heart, CheckCircle2, Mail, Scissors } from "lucide-react"
 import { PawGlyph, Divider } from "@/components/site/brand"
 import { TopUtilityBar } from "@/components/site/site-chrome"
 import { getIcon } from "@/lib/icons"
@@ -97,12 +97,10 @@ export default async function HomePage() {
           <p className="mt-4 max-w-[400px] text-[12.5px] leading-[1.8] text-ink-soft">
             We treat every pup like our own and every parent like family. That&apos;s why our clients stay with us and refer their friends.
           </p>
-          <div className="mt-5 flex gap-1">
-            {[0, 1, 2, 3, 4].map((i) => <Star key={i} className="h-4 w-4 fill-gold-deep text-gold-deep" />)}
-          </div>
           {testimonial && (
             <>
-              <p className="mt-4 max-w-[400px] text-[12.5px] italic leading-[1.8] text-ink-soft">&ldquo;{testimonial.quote}&rdquo;</p>
+              <p className="script mt-5 text-[24px]">A few words from our family</p>
+              <p className="mt-3 max-w-[400px] text-[12.5px] italic leading-[1.8] text-ink-soft">&ldquo;{testimonial.quote}&rdquo;</p>
               <p className="mt-2 text-[12px] text-ink-soft">– {testimonial.author}</p>
             </>
           )}
