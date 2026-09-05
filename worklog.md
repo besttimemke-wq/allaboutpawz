@@ -901,3 +901,22 @@ Stage Summary:
 - Fix is live on GitHub main (0b2de3f); Vercel auto-redeploys from it — local proof used the exact same pipeline (Next 16.1.3 Turbopack, bun run build, no env vars) and generated 51/51 static pages cleanly
 - Security policy held end-to-end: secrets git-ignored, no secrets in worklog, PAT used transiently and stored nowhere
 - Owner's remaining Vercel steps: add env vars per .env.example (public/server-only split as above), then attach the aapawz.com domain (needed for Stripe active-domain review)
+
+---
+Task ID: 33
+Agent: main (direct work, no subagents)
+Task: Diagnose "half the pictures/heroes/banners missing, design lost" on the Vercel deploy + owner request: hand over every env var the app depends on. (No secret VALUES in this log — names only, per policy.)
+
+Work Log:
+- Verified public/ is byte-identical sandbox vs export (43,426,749 bytes, 66 committed files) — all hero/banner/icon image files ARE on GitHub. No next/image usage anywhere (plain <img>, no optimizer), so Vercel image config is not a factor.
+- Reproduced the owner's symptom exactly: ran the export's production build with ZERO env vars (Vercel's current state) on localhost:3100 and browsed every page. Result: 0 broken images anywhere, but data-driven sections render EMPTY (gallery 1 img vs 17, shop 2 vs 10, pricing 2 vs 7, services 2 vs 6).
+- ROOT CAUSE (not lost design, not removed client rendering): gallery/services/packages/addons/products/pricing content is database-driven — rows in Supabase (gallery_photos, services, pricing_packages, products...) fetched via repo at render; with no env vars supabaseReady=false → reads return empty → sections collapse. The image FILES they reference are all committed in public/.
+- PROOF: rebuilt the same export WITH the sandbox env vars (transient .env copy, gitignored, deleted after test): production server renders gallery=17 imgs, services=6, shop=10, pricing=7, ZERO broken — identical to sandbox. Same code, same build, only env vars differ.
+- Email architecture confirmed for owner: Supabase Auth handles all sign-up/sign-in; Resend (RESEND_API_KEY, server-side only via src/lib/email.ts) handles transactional sends (booking confirmation, consultation, payment receipt, welcome) with every send audited in the email_messages table. ADMIN_EMAILS = just the role whitelist for admin access. EMAIL_FROM / SALON_NOTIFY_EMAIL / SUPABASE_ACCESS_TOKEN / NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY / Postgres strings are NOT read by any code — no need on Vercel.
+- Gave owner the exact Vercel env var set (names + values delivered in chat at owner's explicit request; values NOT recorded here): 7 required = NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY (first 3 = site design fills in), STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY, ADMIN_EMAILS; optional NEXT_PUBLIC_SITE_URL (code already defaults to https://aapawz.com). SUPABASE_URL/ANON aliases unnecessary (NEXT_PUBLIC_ names win in code).
+- Cleanup: prod test server stopped, browser closed, .env copy deleted from export; git tree clean (nothing secret ever staged/committed).
+
+Stage Summary:
+- "Design lost" = missing env vars on Vercel, definitively: same build + keys = 17/6/10/7 images with 0 broken
+- Owner now has the complete env var list + values to paste into Vercel → Settings → Environment Variables, then Redeploy
+- After env vars: attach aapawz.com (Stripe active-domain review needs the live domain)
