@@ -14,16 +14,19 @@ export default async function AboutPage() {
   return (
     <>
       <PageHeader n="02" label="ABOUT US" />
-      <section className="marble grid grid-cols-1 min-h-[calc(100svh-6.5rem)] items-stretch gap-10 bg-cream px-8 py-14 lg:grid-cols-[1fr_0.72fr] lg:min-h-[calc(100svh-3rem)] lg:px-12">
-        <div className="flex flex-col justify-center">
+      {/* Hero raised to the top (minimal top padding); the dog's feet sit on
+          the section's bottom edge so the next section sits directly on them. */}
+      <section className="marble grid grid-cols-1 items-stretch gap-10 bg-cream px-8 pt-6 lg:grid-cols-[1fr_0.72fr] lg:px-12 lg:pt-8">
+        <div className="flex flex-col justify-center pb-10">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Our Story.<br />Our Promise.</h1>
           <p className="script mt-3 text-[26px]">Built on love. Driven by purpose.</p>
           <p className="mt-7 max-w-[430px] text-[12.5px] leading-[1.85] text-ink-soft">
             All About Pawz was created with a simple belief: dogs deserve the same level of care, respect, and luxury we expect for ourselves — a place where they feel safe, look their best, and leave happy.
           </p>
         </div>
-        {/* Transparent cutout — directly against the canvas, no container */}
-        <img src="/About/aboutus2.png" alt="Groomed black dog with a glossy coat" width={578} height={432} className="h-full min-h-[320px] w-full object-contain" />
+        {/* Transparent cutout — directly against the canvas, feet grounded on
+            the bottom edge of the section (image is trimmed to content) */}
+        <img src="/About/aboutus2.png" alt="Groomed black dog with a glossy coat" width={329} height={371} className="h-auto w-full self-end object-contain" />
       </section>
       <section className="marble grid grid-cols-2 gap-y-8 border-y border-gold/25 bg-cream px-8 py-10 lg:grid-cols-4 lg:px-12">
         {VALUES.map(({ Icon, title, body }, i) => (

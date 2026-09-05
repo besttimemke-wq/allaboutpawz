@@ -26,9 +26,8 @@ export default async function HomePage() {
           it has no PageHeader. */}
       <TopUtilityBar />
 
-      {/* HERO — the reference hero: fills the viewport, headline is the
-          type-scale reference for every other page hero. */}
-      <section className="grid grid-cols-1 min-h-[calc(100svh-6.5rem)] lg:grid-cols-[1fr_0.92fr] lg:min-h-[calc(100svh-3rem)]">
+      {/* HERO — natural height (the reference hero) */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.92fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-14 lg:py-20">
           <p className="eyebrow">LUXURY GROOMING</p>
           <h1 className="mt-4 whitespace-pre-line font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">
@@ -81,9 +80,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* PAWZITIVE DIFFERENCE — third section: text | transparent cutout on
-          the canvas | salon photo */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.42fr_1.2fr]">
+      {/* PAWZITIVE DIFFERENCE — restored 2-column layout */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
           <p className="eyebrow">MORE THAN GROOMING</p>
           <h2 className="mt-3 font-display text-[30px] leading-[1.15] text-ink">It&apos;s the Pawzitive Difference.</h2>
@@ -100,14 +98,10 @@ export default async function HomePage() {
             </>
           )}
         </div>
-        {/* The white poodle (from the FAQ hero) — transparent cutout placed
-            directly against the cream canvas, no container. */}
-        <div className="marble flex items-end justify-center bg-cream py-8 lg:py-0">
-          <img src="/FAQ-Policies/faq.png" alt="Fluffy white poodle with blue-tipped ears and a bow tie" width={432} height={578} className="h-[300px] w-auto object-contain lg:h-[86%]" />
-        </div>
         <div className="relative min-h-[300px]">
           <img src="/assets/salon-interior.jpg" alt="Interior of the All About Pawz luxury grooming salon" width={1280} height={900} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute right-8 top-6"><PawBadge size={78} /></div>
+          <div className="absolute bottom-[26%] left-1/2 -translate-x-1/2 font-display text-[20px] tracking-[0.16em] text-gold-light drop-shadow-lg">ALL ABOUT PAWZ</div>
         </div>
       </section>
 
@@ -135,7 +129,7 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="flex items-center gap-4 lg:border-l lg:border-gold/25 lg:pl-8">
-          <img src="/Home/home_footer.png" alt="Fluffy cavapoo wearing a bandana with its tongue playfully out" width={432} height={578} className="h-[170px] w-[150px] shrink-0 object-contain" />
+          <img src="/Home/home_footer.png" alt="Fluffy cavapoo wearing a bandana with its tongue playfully out" width={287} height={492} className="h-[170px] w-[150px] shrink-0 object-contain" />
           <div>
             <p className="script text-[27px] leading-[1.15]">Your pup<br />deserves this.</p>
             <Link href="/book" className="btn-dark mt-4">BOOK APPOINTMENT</Link>

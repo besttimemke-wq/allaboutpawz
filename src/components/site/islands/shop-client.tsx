@@ -337,7 +337,7 @@ export function ShopClient({
                     href={href}
                     className="absolute inset-x-0 bottom-0 hidden translate-y-full items-center justify-center gap-1 bg-ink/90 py-2 text-[8.5px] font-bold tracking-[0.16em] text-gold transition-transform duration-300 group-hover:translate-y-0 sm:flex"
                   >
-                    VIEW DETAILS <CaretRight size={10} weight="bold" />
+                    VIEW DETAILS <Plus size={10} weight="bold" />
                   </Link>
                 )}
               </div>
@@ -368,7 +368,7 @@ export function ShopClient({
                       className="btn-gold w-full text-[9px]"
                       aria-label={`View ${p.name} details`}
                     >
-                      <span className="inline-flex items-center gap-1.5">VIEW DETAILS <CaretRight size={10} weight="bold" /></span>
+                      <span className="inline-flex items-center gap-1.5">VIEW DETAILS <Plus size={10} weight="bold" /></span>
                     </Link>
                   ) : (
                     <p className="text-[9px] font-bold tracking-[0.14em] text-ink-soft">IN STORE ONLY</p>

@@ -240,8 +240,7 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
             </Link>
           ))}
         </nav>
-        <div className="mt-5 h-px w-24 bg-gold/25" />
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-[10.5px] text-on-dark-muted">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-[10.5px] text-on-dark-muted">
           <p>{settings.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
           <a href="#" className="text-gold hover:underline">Privacy Policy</a>
           <a href="#" className="text-gold hover:underline">Terms of Service</a>

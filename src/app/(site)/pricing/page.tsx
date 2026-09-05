@@ -12,13 +12,13 @@ export default async function PricingPage() {
   return (
     <>
       <PageHeader n="05" label="PRICING" />
-      <section className="marble grid grid-cols-1 min-h-[calc(100svh-6.5rem)] items-stretch gap-8 bg-cream px-8 py-10 lg:grid-cols-[1fr_0.8fr] lg:min-h-[calc(100svh-3rem)] lg:px-12">
-        <div className="flex flex-col justify-center">
+      {/* Hero raised to the top, natural height; photo fills its column. */}
+      <section className="marble grid grid-cols-1 items-stretch gap-8 bg-cream px-8 pt-6 lg:grid-cols-[1fr_0.8fr] lg:px-12 lg:pt-8">
+        <div className="flex flex-col justify-center pb-10">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Simple.<br />Transparent.<br />Worth Every Penny.</h1>
           <p className="mt-6 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">Pricing is based on size, coat condition, breed, and service package.</p>
         </div>
-        {/* Hero image fills the viewport — no fixed height, no container */}
-        <img src="/Pricing/pricinghero.jpeg" alt="Fluffy dog wearing a tropical bandana ready for its grooming package" width={2752} height={1536} className="h-full min-h-[280px] w-full object-cover" />
+        <img src="/Pricing/pricinghero.jpeg" alt="Fluffy dog wearing a tropical bandana ready for its grooming package" width={2752} height={1536} className="h-full min-h-[260px] w-full object-cover" />
       </section>
       <section className="marble bg-cream px-8 pb-14 pt-8 lg:px-12">
         <div className="border border-gold/30">

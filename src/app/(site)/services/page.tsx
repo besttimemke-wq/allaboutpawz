@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { Scissors } from "lucide-react"
-import { PawGlyph } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { getIcon } from "@/lib/icons"
 import { getSiteContent } from "@/lib/site-data"
@@ -10,14 +9,15 @@ export default async function ServicesPage() {
   return (
     <>
       <PageHeader n="03" label="SERVICES" />
-      <section className="marble grid grid-cols-1 min-h-[calc(100svh-6.5rem)] items-stretch gap-8 bg-cream px-8 pt-8 lg:grid-cols-[1fr_0.72fr] lg:min-h-[calc(100svh-3rem)] lg:px-12">
-        <div className="flex flex-col justify-center">
+      {/* Hero raised to the top, natural height; photo fills its column so the
+          services grid sits tight beneath it. */}
+      <section className="marble grid grid-cols-1 items-stretch gap-8 bg-cream px-8 pt-6 lg:grid-cols-[1fr_0.72fr] lg:px-12 lg:pt-8">
+        <div className="flex flex-col justify-center pb-10">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Every Pup.<br />Every Breed.<br />Every Detail.</h1>
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">Premium grooming services tailored to your dog&apos;s breed, coat, and lifestyle.</p>
           <Link href="/pricing" className="btn-gold mt-7">VIEW PACKAGES</Link>
         </div>
-        {/* Hero image fills the viewport — no fixed height, no container */}
-        <img src="/services/serviceshero2.jpeg" alt="Groomed dog posed under warm salon lights" width={2752} height={1536} className="h-full min-h-[280px] w-full object-cover lg:pb-0" />
+        <img src="/services/serviceshero2.jpeg" alt="Groomed dog posed under warm salon lights" width={2752} height={1536} className="h-full min-h-[260px] w-full object-cover" />
       </section>
       <section className="marble bg-cream px-8 pb-14 pt-6 lg:px-12">
         <div className="divide-y divide-gold/20 border-y border-gold/25">
@@ -38,10 +38,6 @@ export default async function ServicesPage() {
             )
           })}
         </div>
-      </section>
-      <section className="flex flex-col items-center gap-3 bg-ink px-8 py-9 text-center">
-        <PawGlyph className="h-6 w-6 text-gold" />
-        <p className="text-[12px] leading-[1.7] text-on-dark-muted">All services include premium products, one-on-one care, and a whole lot of love.</p>
       </section>
     </>
   )

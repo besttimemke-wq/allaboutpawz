@@ -80,17 +80,17 @@ export default async function BookPage() {
   return (
     <>
       <PageHeader n="09" label="BOOK" />
-      <section className="marble grid grid-cols-1 min-h-[calc(100svh-6.5rem)] items-stretch gap-8 bg-cream px-8 py-12 lg:grid-cols-[1fr_0.7fr] lg:min-h-[calc(100svh-3rem)] lg:px-12">
-        <div className="flex flex-col justify-center">
+      {/* Hero raised to the top, natural height; the transparent artwork
+          stands at the base of its column, directly on the canvas. */}
+      <section className="marble grid grid-cols-1 items-stretch gap-8 bg-cream px-8 pt-6 lg:grid-cols-[1fr_0.7fr] lg:px-12 lg:pt-8">
+        <div className="flex flex-col justify-center pb-10">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Your Pup<br />Deserves This.</h1>
           <p className="mt-5 max-w-[380px] text-[12.5px] leading-[1.85] text-ink-soft">
             Book an appointment or request a free consultation — all in one simple flow. Start with your name, pick a date, and we&apos;ll take care of the rest.
           </p>
         </div>
-        {/* Transparent booking-flow artwork — placed directly against the
-            canvas, no container; the dog stands at the base of the hero. */}
-        <div className="relative flex min-h-[300px] items-end justify-center">
-          <img src="/Book/bookingfloW.png" alt="Gray poodle wearing a pumpkin bandana ready for its appointment" width={500} height={500} className="h-[92%] w-auto max-w-full object-contain" />
+        <div className="relative flex min-h-[280px] items-end justify-center pb-2">
+          <img src="/Book/bookingfloW.png" alt="Gray poodle wearing a pumpkin bandana ready for its appointment" width={260} height={416} className="max-h-[400px] w-auto max-w-full object-contain" />
         </div>
       </section>
       <section className="marble bg-cream px-8 pb-14 lg:px-12">

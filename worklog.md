@@ -325,3 +325,29 @@ Stage Summary:
 - Image shuffle complete: bookingfloW→book hero, silhouette→book consultation, brown dog→contact hero (opposite info rail), faq.png→home third section, all boxes removed
 - Add-ons: deduped (5 items), professional toothbrush + comb custom icons
 - Pricing first column tightened; services hero→grid gap + row spacing tightened
+
+---
+Task ID: 3
+Agent: main (Z.ai Code)
+Task: Fix user-reported regressions from the UI update — hero over-extension, misplaced images, footer divider, services strip, shop plus icon
+
+Work Log:
+- Trimmed transparent margins from all 8 cutout PNGs (aboutus2, faq, faq2, consultation, contact page, bookingfloW, shop, home_footer) so visible paws/feet reach image edges; updated width/height attrs to trimmed dims
+- Removed viewport-height forcing (min-h-[calc(100svh-…)]) from ALL heroes — home, about, services, pricing, process, book, shop, faq, contact: every hero now natural content height, no empty bands
+- Raised every hero to the top: pt-6 lg:pt-8 (was py-10/py-14) — minimal space under the header bar; VLM confirmed on all pages
+- About: dog trimmed + self-end bottom-anchored, section has no bottom padding → the VALUES row (border-t) sits DIRECTLY on the dog's feet (VLM-verified "no gap")
+- Services: removed the ink strip ("All services include premium products, one-on-one care, and a whole lot of love"); removed unused PawGlyph import
+- Footer: removed the gold divider line I had added — nav row then copyright row directly below, both centered (VLM-verified)
+- Homepage: hero restored to natural 2-col (no min-h); third section restored to the original 2-col (text | salon photo) — the FAQ poodle REMOVED from the homepage entirely; home_footer img attrs updated
+- FAQ: white poodle (faq.png) restored to the FAQ hero (left column, no box, grounded feet); brown dog (consultation.png) placed directly opposite the FAQ accordion rail in a right column (no box); faq2 attrs updated
+- Contact: silhouette (contact page.png) back in the contact hero right column, aligned with the info text column height, no container; brown dog removed from contact; ContactForm full-width unchanged
+- Book: hero natural height with bookingfloW standing at base (max-h-400, trimmed attrs); consultation section = form card + 2-col checklist ONLY (silhouette removed)
+- Shop: hero natural height, bottle standing at column base (max-h-460, trimmed attrs, badge kept); product card CTA chevrons swapped to Plus icons (both the hover bar and the VIEW DETAILS button)
+- Verified via agent-browser + VLM (desktop 1440 + mobile 390): about feet/tight-top, services (no strip, tight grid), pricing, process, home hero + third section + footer (no divider), FAQ (poodle hero + brown dog at rail), contact (silhouette aligned, no brown dog), book (dog hero, form-only consultation), shop (bottle + PLUS icons); all mobile clean, no overflow/broken images
+- lint: 0 errors (5 pre-existing warnings); dev.log: all routes 200, no errors
+
+Stage Summary:
+- Heroes: natural height everywhere, minimal top space, photos full-column (no viewport conversion, no boxes)
+- Images back where they belong: poodle → FAQ hero, brown dog → FAQ rail (opposite the accordion), silhouette → contact (aligned with text column), dog off the homepage
+- About values section sits directly on the dog's feet (trimmed cutout, bottom-anchored)
+- Services strip removed; footer divider removed; shop card CTAs now Plus icons
