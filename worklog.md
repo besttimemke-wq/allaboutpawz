@@ -941,3 +941,24 @@ Stage Summary:
 - The demanded architecture is installed and proven: pages are static shells that paint instantly; data loads client-side after paint via the site's own API; nothing in the render path touches the database
 - Vercel needs exactly 6 env vars (server-only names, no public prefix): SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY — plus 2 optional NEXT_PUBLIC_ vars only for portal login
 - Commit dcfb93a is live on main; Vercel auto-redeploys; once the owner adds the 6 vars with the EXACT names and redeploys, the full design renders
+
+---
+Task ID: 35
+Agent: main (direct work, no subagents)
+Task: Kill the "page tries to load then goes blank" failure permanently: make the public site render from content EMBEDDED in the bundle — zero database, zero API calls on the read path. DB only when admin publishes (re-bake) or a visitor submits.
+
+Work Log:
+- DIAGNOSED: dev log showed only 200s — the blank page is client-side/DB-path failure the server log can't see. All 11 top-level pages tested clean in dev, but the read path still depended on /api/cms/* (Supabase) fetches after paint + 3 server pages (shop/[slug], shop/category/[slug], shop/bag) + policies/[slug] read the DB at render — on Vercel with missing/wrong env vars these collapse/throw → blank.
+- BUILT scripts/bake-content.mjs (bun run bake): pulls all published tables via the CMS API once and emits src/content/site-content.ts (settings, testimonials, services, serviceItems, packages, addons, gallery, products, productReviews, faqs, policies, categoryTree, deduped filter sets + filtersForCategory) and src/content/wizard-data.ts (breeds/services/groomers/lookups). 147KB + 126KB baked.
+- REWIRED the read path (no island rewrites needed): use-cms.ts useCms/useCmsSettings now resolve synchronously from the embedded module (loading always false); site-chrome settings from embedded content (fetch removed); shop-loader + wizard-loader render instantly from embedded data (skeletons gone); shop/[slug] + shop/category/[slug] + policies/[slug] are fully static with generateStaticParams (8 products, 88 categories, 4 policies prerendered); shop/bag embedded.
+- Remaining fetches are submission-path ONLY (booking, consultation, contact, newsletter, reviews, checkout, availability) — the DB is touched exactly when a visitor submits, plus admin publish.
+- Removed stray repo-root artifacts (--full-page, --viewport). Lint: 0 errors, 5 pre-existing warnings.
+- DEV VERIFIED: 18 routes browsed (incl. product detail, category, bag, policy pages) — 0 page errors, 0 localhost API calls in the network log, content counts identical to the DB version (home 1819 chars, gallery 17 imgs, pricing 7 imgs, wizard mounts on step 1); VLM screenshot check on home/wizard/shop/services: fully rendered, no skeletons, no broken images; mobile 390px: no horizontal overflow, footer present.
+- PROD VERIFIED (the proof): built the export with env -i (ZERO env vars — Vercel's worst case), build succeeded with all products/categories/policies prerendered as static HTML; served on :3100 and browsed 16 routes: 0 errors, 0 API calls, IDENTICAL content counts to the database-backed version. VLM-verified home/gallery/mobile screenshots render complete. The site cannot blank from database/env problems anymore — there is nothing to load.
+- Sandbox dev server healthy (/ 200, render ~80-127ms). Test prod server stopped.
+- Export committed: 548071b "Zero-database public site: content baked into the bundle" (16 files: src/content/*, scripts/bake-content.mjs, use-cms, site-chrome, loaders, 4 static pages, package.json bake script).
+
+Stage Summary:
+- The architecture the owner demanded is now installed and PROVEN: public site = embedded content, zero DB, zero API calls on read; identical rendering with or without any env vars
+- Publish flow for admin edits: save in admin → bun run bake → commit → deploy (content updates require a re-bake/redeploy by design — that is what removes the database from the visitor path)
+- 548071b is ready in /tmp/aapawz-deploy; pushing to GitHub (→ Vercel auto-redeploy) needs the owner's PAT or a manual push

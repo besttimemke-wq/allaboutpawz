@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useState, useSyncExternalStore, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -9,6 +9,7 @@ import {
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
 import { useCart } from "@/lib/wizard/cart-store"
+import { settings as embeddedSettings } from "@/content/site-content"
 
 function TikTok({ className = "" }: { className?: string }) {
   return (
@@ -72,26 +73,12 @@ function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
   )
 }
 
-export function SiteChrome({ children, settings: initialSettings }: { children: ReactNode; settings?: Record<string, string> }) {
+export function SiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  // CSR data layer: the chrome shell renders instantly with built-in
-  // fallbacks, then fills in salon settings (address, phone, hours) from the
-  // site API after paint. No database in the render path.
-  const [fetched, setFetched] = useState<Record<string, string> | null>(null)
-  useEffect(() => {
-    let alive = true
-    fetch("/api/cms/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (alive && d && typeof d === "object" && !Array.isArray(d)) setFetched(d)
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [])
-  const s = { ...(fetched || initialSettings || {}) }
+  // Salon settings (address, phone, hours, socials) come from the embedded
+  // published content — no fetch, no database, rendered on first paint.
+  const s = embeddedSettings
   return (
     <div className="min-h-screen bg-cream">
       <Sidebar settings={s} pathname={pathname} />

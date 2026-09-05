@@ -10,36 +10,45 @@ import {
   type BrowserFilter,
 } from "@/components/site/islands/category-browser"
 import {
-  getCategoryTree,
+  categoryTree,
   findNode,
   collectSubtreeIds,
-  getFiltersForCategory,
+  filtersForCategory,
+  products as allProductsData,
+  productReviews,
   type CategoryNode,
   type CategoryFilter,
-} from "@/lib/categories"
-import { getSiteContent } from "@/lib/site-data"
-import { repo } from "@/lib/repo"
+  type CmsRow,
+} from "@/content/site-content"
 
 // ---------------------------------------------------------------------------
 // Category page — /shop/category/[slug]
 //   Root, mid and leaf nodes are all resolvable here; roots and mids show
 //   their whole subtree (visible products matched via products."categoryId"
-//   rolled-up subtree ids). Filters come from the category filter framework
+//   rolled-up subtree ids). Filters come from the baked filter framework
 //   (mapped to the node, inherited from the nearest mapped ancestor — the
 //   department root in the live taxonomy).
+//   Renders from the embedded published content — zero database access —
+//   and is prerendered statically for every published category slug.
 // ---------------------------------------------------------------------------
 
 type Params = { params: Promise<{ slug: string }> }
 
-async function loadCategory(slug: string) {
-  const tree = await getCategoryTree()
-  if (!tree.ready) return null
-  return findNode(tree.categories, (n) => n.slug === slug)
+// Static prerender for every category in the published taxonomy.
+export function generateStaticParams() {
+  return categoryTree.flat
+    .filter((c: CategoryNode) => c.slug)
+    .map((c: CategoryNode) => ({ slug: c.slug }))
+}
+
+function loadCategory(slug: string) {
+  if (!categoryTree.ready) return null
+  return findNode(categoryTree.categories, (n) => n.slug === slug)
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
-  const node = await loadCategory(slug)
+  const node = loadCategory(slug)
   if (!node) return { title: "Category — All About Pawz Shop" }
   return {
     title: `${node.name} — All About Pawz Shop`,
@@ -62,21 +71,11 @@ function buildChain(node: CategoryNode, flat: CategoryNode[]): CategoryNode[] {
   return chain.filter((n) => !(n.id !== node.id && n.slug === "pet-supplies"))
 }
 
-// Mapped filters for this node, inherited from the nearest ancestor that has
-// mappings (the department root in practice) when the node itself has none.
-async function resolveFilters(node: CategoryNode, flat: CategoryNode[]): Promise<CategoryFilter[]> {
-  const own = await getFiltersForCategory(node.id)
-  if (own.length) return own
-  const byId = new Map(flat.map((f) => [f.id, f]))
-  let parentId = node.parentId
-  while (parentId != null) {
-    const parent = byId.get(parentId)
-    if (!parent) break
-    const inherited = await getFiltersForCategory(parent.id)
-    if (inherited.length) return inherited
-    parentId = parent.parentId
-  }
-  return []
+// Mapped filters for this node — pre-resolved at bake time (own mappings,
+// else inherited from the nearest mapped ancestor; the department root in
+// practice).
+function resolveFilters(node: CategoryNode): CategoryFilter[] {
+  return filtersForCategory(node.id)
 }
 
 // Keep the PageHeader label on one line even for the longest department names.
@@ -90,21 +89,19 @@ const crumbLinkCls =
 
 export default async function CategoryPage({ params }: Params) {
   const { slug } = await params
-  const tree = await getCategoryTree()
+  const tree = categoryTree
   const node = tree.ready ? findNode(tree.categories, (n) => n.slug === slug) : null
   if (!node) notFound()
 
-  const [{ products: allProducts }, reviews] = await Promise.all([
-    getSiteContent(),
-    repo.list("product_reviews"),
-  ])
+  const allProducts = allProductsData
+  const reviews = productReviews
 
   // Visible products anywhere in this node's subtree.
   const subtreeIds = new Set(collectSubtreeIds(node))
   const products: BrowserProduct[] = allProducts
-    .filter((p: any) => p.categoryId != null && subtreeIds.has(p.categoryId))
+    .filter((p: CmsRow) => p.visible && p.categoryId != null && subtreeIds.has(p.categoryId))
     .sort(
-      (a: any, b: any) =>
+      (a: CmsRow, b: CmsRow) =>
         (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)),
     )
 
@@ -120,7 +117,7 @@ export default async function CategoryPage({ params }: Params) {
     }
   }
 
-  const filters = await resolveFilters(node, tree.flat)
+  const filters = resolveFilters(node)
   const chain = buildChain(node, tree.flat)
 
   const countLine =
