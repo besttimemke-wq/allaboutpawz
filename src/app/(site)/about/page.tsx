@@ -25,7 +25,7 @@ export default async function AboutPage() {
           </p>
         </div>
         <div className="relative min-h-[300px] lg:min-h-[360px]">
-          <img src="/About/abouthero.png" alt="A happy dog enjoying hands-on care at All About Pawz" width={1597} height={985} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/About/abouthero.png" alt="A happy dog being cared for at All About Pawz" width={1200} height={896} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       </section>
       <section className="marble grid grid-cols-2 gap-y-8 border-y border-gold/25 bg-cream px-8 py-10 lg:grid-cols-4 lg:px-12">

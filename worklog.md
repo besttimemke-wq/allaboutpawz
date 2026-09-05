@@ -371,3 +371,18 @@ Work Log:
 Stage Summary:
 - About hero now: raised headline, larger typography, tight spacing, new user-supplied photo full-bleed on canvas
 - Homepage hero pattern (two-col, object-cover fill) applied as the reference treatment
+
+---
+Task ID: 5
+Agent: main agent (direct work, per standing rule)
+Task: Swap About hero image to user's second upload (pasted_image_1788581691858.png)
+
+Work Log:
+- Checked new upload: 1200×896 RGB landscape
+- Copied verbatim to public/About/abouthero.png (overwrote previous hero photo)
+- Updated img width/height attrs in src/app/(site)/about/page.tsx (1200×896); layout treatment unchanged — full-bleed object-cover right column, raised headline kept
+- Verified desktop 1440×900 (.zshots/about-hero-swap.png): VLM confirms fluffy light-brown poodle with black bow tie fills column fully, headline high on page; mobile 390×844 captured (.zshots/about-hero-swap-mobile.png)
+- dev.log all 200s
+
+Stage Summary:
+- About hero now uses the poodle photo; previous fix (raised headline, large type, tight spacing) retained
