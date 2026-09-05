@@ -47,7 +47,7 @@ export function AddonsGrid() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className={`px-2 text-center sm:px-4 ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
             <div className="mx-auto h-10 w-10 animate-pulse rounded-full bg-white/10" />
@@ -60,7 +60,7 @@ export function AddonsGrid() {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-5">
       {addons.map(({ id, title, price, icon }, i: number) => {
         const Icon = getIcon(icon, Sparkles)
         const t = String(title || "").toUpperCase()
@@ -69,8 +69,11 @@ export function AddonsGrid() {
           t === "TEETH BRUSHING" ? "/assets/icon-toothbrush-gold.png"
           : t === "DE-SHEDDING" ? "/assets/icon-comb-gold.png"
           : null
+        // Odd row: the last item takes the full mobile row (centered by the
+        // text-center flow) instead of hugging the left column.
+        const orphan = i === addons.length - 1 && addons.length % 2 === 1
         return (
-          <div key={id} className={`px-2 text-center sm:px-4 ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
+          <div key={id} className={`px-2 text-center sm:px-4 ${orphan ? "col-span-2 lg:col-span-1" : ""} ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
             {customIcon ? (
               <img src={customIcon} alt="" width={120} height={120} className="mx-auto h-10 w-10 object-contain" />
             ) : (
@@ -102,12 +105,12 @@ export function PackageCards() {
         {Array.from({ length: 3 }).map((_, i) => (
           <article key={i} className="flex flex-col border border-gold/30 bg-card">
             <div className="aspect-[4/3] animate-pulse bg-ink/5" />
-            <div className="space-y-3 p-7 lg:p-8">
+            <div className="space-y-3 p-5 sm:p-7 lg:p-8">
               <div className="h-2.5 w-28 animate-pulse bg-ink/5" />
               <div className="h-6 w-36 animate-pulse bg-ink/5" />
               <div className="h-3 w-full animate-pulse bg-ink/5" />
               <div className="h-3 w-2/3 animate-pulse bg-ink/5" />
-              <div className="mt-7 grid grid-cols-4 gap-2 pt-6">
+              <div className="mt-7 grid grid-cols-2 gap-x-2 gap-y-4 pt-6 sm:grid-cols-4">
                 {SIZES.map(([label]) => (
                   <div key={label} className="text-center">
                     <div className="mx-auto h-2 w-8 animate-pulse bg-ink/5" />
@@ -141,26 +144,28 @@ export function PackageCards() {
             </div>
 
             {/* Product body */}
-            <div className="flex flex-1 flex-col p-7 lg:p-8">
+            <div className="flex flex-1 flex-col p-5 sm:p-7 lg:p-8">
               <p className="text-[9.5px] font-bold tracking-[0.2em] text-gold-deep">GROOMING PACKAGE</p>
               <h3 className="mt-2.5 font-display text-[26px] leading-[1.12] text-ink">{p.name}</h3>
               <p className="mt-3.5 text-[12px] leading-[1.75] text-ink-soft">{meta.blurb}</p>
 
-              {/* Divider + transparent size pricing */}
+              {/* Divider + transparent size pricing — 2×2 on phones (the
+                  4-across row is too tight under 400px), 4-across from sm. */}
               <div className="mt-7 border-t border-gold/25 pt-6">
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-4 sm:gap-x-2 sm:gap-y-0">
                   {SIZES.map(([label, key]) => (
                     <div key={key} className="text-center">
-                      <p className="text-[8.5px] font-bold tracking-[0.14em] text-ink-soft/70">{label}</p>
-                      <p className="mt-1.5 text-[14px] font-bold text-ink">{p[key]}</p>
+                      <p className="text-[9px] font-bold tracking-[0.14em] text-ink-soft/70">{label}</p>
+                      <p className="mt-1.5 text-[15px] font-bold text-ink">{p[key]}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Call to action */}
+              {/* Call to action — straight into the wizard; a customer who
+                  picks a package knows what they want. */}
               <div className="mt-7 pt-0">
-                <Link href="/book" className="btn-gold w-full">BOOK THIS PACKAGE</Link>
+                <Link href="/book/appointment" className="btn-gold w-full">BOOK THIS PACKAGE</Link>
               </div>
             </div>
           </article>

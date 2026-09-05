@@ -124,6 +124,16 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
               </li>
             ))}
           </ul>
+          {/* Same direct-to-wizard CTA as the desktop sidebar — mobile has no
+              sidebar, so the menu carries it. */}
+          <Link
+            href="/book/appointment"
+            onClick={() => setOpen(false)}
+            className="mt-4 flex w-full items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink"
+          >
+            <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
+            BOOK APPOINTMENT
+          </Link>
         </nav>
       )}
       <main className="lg:pl-[232px]">{children}</main>
@@ -173,7 +183,7 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
         </ul>
       </nav>
       <div className="px-6">
-        <Link href="/book" className="flex w-full items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
+        <Link href="/book/appointment" className="flex w-full items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
           <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
           BOOK APPOINTMENT
         </Link>

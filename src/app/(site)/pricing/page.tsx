@@ -39,7 +39,7 @@ export default function PricingPage() {
             <p className="mt-4 max-w-[290px] text-[12px] leading-[1.75] text-on-dark-muted">
               Small finishing touches that make a big difference. Add any of these when you book — your groomer takes care of the rest.
             </p>
-            <Link href="/book" className="btn-gold mt-6">BOOK A GROOM</Link>
+            <Link href="/book/appointment" className="btn-gold mt-6">BOOK A GROOM</Link>
           </div>
           <AddonsGrid />
         </div>

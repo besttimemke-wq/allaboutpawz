@@ -984,3 +984,29 @@ Stage Summary:
 - Sandbox = Vercel = GitHub main = dcfb93a. Zero divergence, zero pushes, database pipes fully restored and verified working.
 - The embedded-content experiment is fully reverted (sandbox + export); its artifacts exist only in git history (sandbox snapshot c1d05f2, worklog Task 35) if ever needed for reference.
 - HOLDING: no architecture changes until the owner returns with the engineering plan (~12 hours). The plan input above is recorded for that session.
+
+---
+Task ID: 37
+Agent: main (direct work, no subagents)
+Task: Owner's pre-meeting fixes: (1) sidebar BOOK APPOINTMENT goes straight into the wizard, (2) pricing page mobile optimization for any device. Document the meeting concerns. NO architecture changes, NO push.
+
+Work Log:
+- SIDEBAR → WIZIER DIRECT: site-chrome sidebar "BOOK APPOINTMENT" button changed /book → /book/appointment. Mobile has no sidebar, so the mobile menu now carries the same gold button (direct-to-wizard) under the nav list. Verified by click: lands on /book/appointment with the wizard mounted ("Reserve Your Visit", 9 steps, form present).
+- PRICING PAGE MOBILE (was the owner's explicit ask): audited at 390px via browser + VLM review — found: add-on items had NO column gap on mobile (touched), 5th add-on was an awkward left-aligned orphan, package price grid 4-across was too tight under 400px, card padding heavy on small screens.
+  * AddonsGrid: added gap-x-6; odd-count last item now spans the full mobile row (centered), reverts to normal on lg; skeleton matches.
+  * PackageCards: size price grid is now 2×2 on phones (grid-cols-2 → sm:grid-cols-4), labels 9px, prices 15px — comfortable at 390px AND 320px (iPhone SE class); card padding p-5 on mobile (sm:p-7 lg:p-8); skeleton matches.
+  * "BOOK THIS PACKAGE" and the add-ons band "BOOK A GROOM" now go straight to /book/appointment (same "customer knows what they want" rule; HeroCtas already did).
+- VERIFIED: 390px full-page screenshot → VLM 9/10, no touching, orphan centered, grids readable; 320px → no overflow, still readable; desktop 1440px → 3 cards / 4-col prices / 5 add-ons row, NO regression (VLM-confirmed); 16 routes audited at 390px → zero horizontal overflow sitewide; 0 console errors everywhere; lint 0 errors (5 pre-existing warnings); dev.log clean.
+- MOBILE AUDIT (390px, all 16 routes incl. product/category/bag/policy): zero horizontal overflow sitewide. Deeper mobile polish (touch targets, tap flows) left for the plan per owner's "no new problems" instruction.
+
+MEETING NOTES — recorded for the owner's 12-hour engineering plan (owner's words, NOT yet implemented):
+1. SSR for SEO is wanted — need a reconciled strategy before implementing: which parts SSR (SEO-critical content), which parts client/zustand, which parts static code. The current mixed architecture (some pages SSR+DB, some CSR-fetch, some static) is the root inconsistency to eliminate.
+2. SHOP NEEDS A PURE OVERHAUL — the owner's biggest meeting concern: shop sidebar, shop categories, category pages, sub-category pages, product pages, and filters are "not done right". Full redesign, not patches.
+3. Bands + icons must NOT be database-driven (the prior agent was building a CMS and data-drove everything) — bands/CTAs/icons belong in code; data-driven ONLY: shop, gallery, pricing, services.
+4. Client state should run through zustand (already the cart store).
+5. Mobile optimization beyond pricing is still open (overflow-free today, but full mobile UX pass needed).
+
+Stage Summary:
+- Two owner asks delivered and browser-verified: sidebar/menu/pricing CTAs go straight into the wizard; pricing page renders properly on any device (390px 9/10, 320px clean, desktop unchanged)
+- Zero architecture changes, zero pushes — sandbox matches Vercel (dcfb93a) plus these three files' local improvements (site-chrome, pricing-islands, pricing page)
+- Meeting notes recorded above for the 12-hour plan
