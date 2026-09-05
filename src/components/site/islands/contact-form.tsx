@@ -6,7 +6,7 @@ export function ContactForm({ image, imageAlt }: { image?: string; imageAlt?: st
   const [sent, setSent] = useState(false)
   return (
     <section className="marble bg-cream px-8 py-14 lg:px-12">
-      <div className="grid items-center gap-8 lg:grid-cols-[0.55fr_1fr]">
+      <div className={`grid items-center gap-8 ${image ? "lg:grid-cols-[0.55fr_1fr]" : "mx-auto max-w-3xl"}`}>
         {image && (
           <div className="hidden border border-gold/25 bg-cream-deep lg:block">
             <img src={image} alt={imageAlt || "A happy groomed pup"} width={373} height={669} className="h-full max-h-[460px] w-full object-contain" />

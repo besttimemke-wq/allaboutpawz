@@ -111,8 +111,8 @@ export function SiteChrome({ settings, children }: { settings: Record<string, st
         </nav>
       )}
       <main className="lg:pl-[232px]">{children}</main>
-      {/* Home page has its own footer strip; all other pages get the full footer */}
-      {pathname !== "/" && <SiteFooter settings={s} />}
+      {/* Every page — including home — gets the same centered footer */}
+      <SiteFooter settings={s} />
     </div>
   )
 }
@@ -228,29 +228,24 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
     ["BOOK", "/book"], ["CONTACT", "/contact"],
   ]
   return (
-    <footer className="bg-ink">
-      <div className="flex flex-col gap-6 px-8 py-8 lg:flex-row lg:items-center lg:justify-between lg:px-12">
-        <div className="flex items-center gap-3">
-          <PawGlyph className="h-7 w-7 text-gold" />
-          <div>
-            <div className="font-display text-[17px] tracking-[0.14em] text-on-dark">ALL ABOUT PAWZ</div>
-            <div className="text-[10.5px] italic text-on-dark-muted">&ldquo;From Pawz to PAWfection&rdquo;</div>
-          </div>
-        </div>
-        <nav className="flex flex-wrap gap-x-7 gap-y-2">
+    <footer className="bg-ink px-8 py-8 lg:px-12">
+      {/* Paw logo sits directly beside the Home tab; both rows are centered
+          on the footer icon, with the copyright/legal row below the nav. */}
+      <div className="mx-auto flex max-w-3xl flex-col items-center">
+        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5">
+          <PawGlyph className="h-5 w-5 shrink-0 text-gold" />
           {links.map(([label, to]) => (
             <Link key={to} href={to} className="text-[10px] font-bold tracking-[0.16em] text-on-dark-muted hover:text-gold">
               {label}
             </Link>
           ))}
         </nav>
-        <div className="space-y-1.5 text-[10.5px] text-on-dark-muted lg:text-right">
+        <div className="mt-5 h-px w-24 bg-gold/25" />
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-[10.5px] text-on-dark-muted">
           <p>{settings.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
-          <p className="flex gap-4 lg:justify-end">
-            <a href="#" className="text-gold hover:underline">Privacy Policy</a>
-            <a href="#" className="text-gold hover:underline">Terms of Service</a>
-            <a href="#" className="text-gold hover:underline">Investor Information</a>
-          </p>
+          <a href="#" className="text-gold hover:underline">Privacy Policy</a>
+          <a href="#" className="text-gold hover:underline">Terms of Service</a>
+          <a href="#" className="text-gold hover:underline">Investor Information</a>
         </div>
       </div>
     </footer>

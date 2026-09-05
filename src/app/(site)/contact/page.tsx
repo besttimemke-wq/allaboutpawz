@@ -15,13 +15,14 @@ export default async function ContactPage() {
   return (
     <>
       <PageHeader n="10" label="CONTACT" />
-      <section className="marble bg-cream px-8 py-14 lg:px-12">
-        <h1 className="font-display text-[38px] leading-[1.1] text-ink">Come Say<br />Hello.</h1>
+      <section className="marble bg-cream px-8 py-10 lg:min-h-[calc(100svh-3rem)] lg:px-12 lg:py-14">
+        <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Come Say<br />Hello.</h1>
         <Divider />
         <p className="mt-5 max-w-md text-[12.5px] leading-[1.9] text-ink-soft">
           Questions about a service, a coat type, or which package suits your pup best? We would love to hear from you. Reach out and a member of our team will respond personally.
         </p>
-        <div className="mt-10 grid gap-10 lg:grid-cols-2">
+        <div className="mt-10 grid grid-cols-1 items-stretch gap-10 lg:grid-cols-2">
+          {/* Info rail (the FAQ-style details column) */}
           <div className="space-y-7">
             {details.map((d) => (
               <div key={d.label} className="flex gap-4">
@@ -37,12 +38,18 @@ export default async function ContactPage() {
               <a href={s.facebook || "#"} aria-label="Facebook" className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold-deep transition-colors hover:bg-gold/10"><Facebook className="h-4 w-4" /></a>
             </div>
           </div>
-          <div className="border border-gold/25 bg-cream-deep">
-            <img src="/Contact/contact%20page.png" alt="Groomer gently caring for a small dog on the grooming table" width={432} height={578} className="aspect-[4/5] w-full object-contain" />
-          </div>
+          {/* The brown dog — placed directly opposite the info rail, aligned
+              with its height, transparent cutout against the canvas (no box) */}
+          <img
+            src="/Consultation/consultation.png"
+            alt="Groomed apricot doodle sitting attentively awaiting its consultation"
+            width={373}
+            height={669}
+            className="hidden h-full min-h-[360px] w-full object-contain lg:block"
+          />
         </div>
       </section>
-      <ContactForm image="/Consultation/consultation.png" imageAlt="Groomed apricot doodle sitting attentively awaiting its consultation" />
+      <ContactForm />
       <section className="bg-ink px-8 py-12 lg:px-12">
         <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
           <div className="flex h-56 items-center justify-center border border-gold/25 bg-ink-soft/40">

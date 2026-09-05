@@ -295,3 +295,33 @@ Stage Summary:
 - All 17 uploaded images live on their pages; /book gained a free-consultation section (form + photo)
 - Shop categories = standard sidebar checkbox list with cascading subtree selection, consistent rails across /shop and /shop/category/[slug]
 - Every page browser- and VLM-verified: no broken images, no awkward gaps, responsive, bag icon in top chrome
+
+---
+Task ID: 2
+Agent: main (Z.ai Code)
+Task: Site-wide UI update per user spec — hero system, footer, image placement (bookingfloW.png), add-ons icons/dedupe, contact/book/FAQ image moves
+
+Work Log:
+- Inspected upload/bookingfloW.png (500×500 transparent gray poodle w/ pumpkin bandana) + alpha-checked every site image to know which are transparent cutouts vs photos
+- Global hero system: all page heroes now min-h-[calc(100svh-6.5rem)] lg:min-h-[calc(100svh-3rem)] (matches home hero), all hero h1s bumped to the home scale text-[42px]/lg:text-[52px] leading-[1.08]
+- Photo heroes (services/pricing/process) deboxed: no fixed heights, no borders, object-cover fill of the viewport-height section
+- Transparent cutouts deboxed everywhere: aboutus2 (about hero, container removed), shop.png (bottle now directly on canvas, GROOMER FAVORITE badge kept), faq2 (FAQ policies, dark canvas), bookingfloW (book hero, stands at base of hero)
+- Footer restructured (site-wide, incl. home now): paw glyph inline beside HOME in centered nav row, thin gold divider, copyright + legal row below nav, both rows centered; home's custom strip removed, SiteFooter renders on every page
+- Services page: hero fills viewport; hero→grid gap reduced (pt-8→pt-6, hero pt-8); service rows tightened py-5→py-3.5, gap-6→gap-4, thumbnails 190×70→172×64
+- Pricing page: hero fills viewport; packages table first column narrowed w-[34%]→w-[28%] with px-5→px-3 so it sits closer to price columns; add_ons table deduped in Supabase (all 5 items were duplicated — Teeth Brushing etc. now single) and icons fixed: Teeth Brushing→custom Toothbrush SVG, De-shedding→custom Comb SVG (drawn Lucide-style in src/lib/icons.tsx, registered in ICONS map)
+- Shop page: hero container removed — bottle sits against cream canvas
+- Book page: hero replaced with bookingfloW.png transparent artwork (no container, bottom-anchored at 92% height); consultation section restructured — silhouette (contact page.png) LEFT aligned with the form card (text column) RIGHT, no container, checklist moved under the form; removed the border-t divider and the dog's bordered box (the only "roof"-like container beside the contact card — no other roof graphic exists anywhere in the code, verified by search + VLM scans of wizard steps, heroes, contact map)
+- Contact page: brown dog (consultation.png) moved from the contact form to the hero right column, directly opposite the info rail (VISIT/CALL/EMAIL/HOURS), aligned height, no box; ContactForm renders full-width (no image); silhouette removed from the contact hero (→ book page)
+- FAQ page: faq.png removed from hero (text-only viewport hero at home type scale)
+- Homepage: faq.png (white poodle cutout) added to the third section (Pawzitive Difference) as its own column on the cream canvas between the text and the salon photo (tried overlay-on-photo first — VLM said it looked like a floating sticker, so switched to the literal canvas placement; VLM then approved balance)
+- Renamed src/lib/icons.ts → icons.tsx (JSX in custom icons)
+- Verified via agent-browser + VLM on desktop 1440px: home (hero/3rd section/footer), about, services, pricing (table + add-ons incl. toothbrush/comb icons + dedupe), process, shop, faq (text hero + deboxed policies dog), book (hero + consultation silhouette/form), contact (brown dog opposite rail + full-width form)
+- Verified mobile 390px: home, contact, book, services, pricing, shop, faq — no overflow, no broken images
+- lint 0 errors (5 pre-existing warnings); dev.log all 200s, no runtime errors
+
+Stage Summary:
+- One hero design system site-wide: viewport-height heroes, home-scale headlines, full-bleed photos, transparent cutouts on canvas with no containers
+- Footer: paw logo beside HOME, copyright/legal row below nav, both centered — identical on every page
+- Image shuffle complete: bookingfloW→book hero, silhouette→book consultation, brown dog→contact hero (opposite info rail), faq.png→home third section, all boxes removed
+- Add-ons: deduped (5 items), professional toothbrush + comb custom icons
+- Pricing first column tightened; services hero→grid gap + row spacing tightened

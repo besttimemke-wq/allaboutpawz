@@ -26,8 +26,9 @@ export default async function HomePage() {
           it has no PageHeader. */}
       <TopUtilityBar />
 
-      {/* HERO */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.92fr]">
+      {/* HERO — the reference hero: fills the viewport, headline is the
+          type-scale reference for every other page hero. */}
+      <section className="grid grid-cols-1 min-h-[calc(100svh-6.5rem)] lg:grid-cols-[1fr_0.92fr] lg:min-h-[calc(100svh-3rem)]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-14 lg:py-20">
           <p className="eyebrow">LUXURY GROOMING</p>
           <h1 className="mt-4 whitespace-pre-line font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">
@@ -80,8 +81,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* PAWZITIVE DIFFERENCE */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+      {/* PAWZITIVE DIFFERENCE — third section: text | transparent cutout on
+          the canvas | salon photo */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.42fr_1.2fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
           <p className="eyebrow">MORE THAN GROOMING</p>
           <h2 className="mt-3 font-display text-[30px] leading-[1.15] text-ink">It&apos;s the Pawzitive Difference.</h2>
@@ -98,10 +100,14 @@ export default async function HomePage() {
             </>
           )}
         </div>
+        {/* The white poodle (from the FAQ hero) — transparent cutout placed
+            directly against the cream canvas, no container. */}
+        <div className="marble flex items-end justify-center bg-cream py-8 lg:py-0">
+          <img src="/FAQ-Policies/faq.png" alt="Fluffy white poodle with blue-tipped ears and a bow tie" width={432} height={578} className="h-[300px] w-auto object-contain lg:h-[86%]" />
+        </div>
         <div className="relative min-h-[300px]">
           <img src="/assets/salon-interior.jpg" alt="Interior of the All About Pawz luxury grooming salon" width={1280} height={900} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute right-8 top-6"><PawBadge size={78} /></div>
-          <div className="absolute bottom-[26%] left-1/2 -translate-x-1/2 font-display text-[20px] tracking-[0.16em] text-gold-light drop-shadow-lg">ALL ABOUT PAWZ</div>
         </div>
       </section>
 
@@ -147,15 +153,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* FOOTER STRIP */}
-      <footer className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 bg-ink px-8 py-4">
-        <p className="text-[10.5px] text-on-dark-muted">{s.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
-        <a href="#" className="text-[10.5px] text-gold hover:underline">Privacy Policy</a>
-        <span className="text-on-dark-muted/40">|</span>
-        <a href="#" className="text-[10.5px] text-gold hover:underline">Terms of Service</a>
-        <span className="text-on-dark-muted/40">|</span>
-        <a href="#" className="text-[10.5px] text-gold hover:underline">Investor Information</a>
-      </footer>
     </>
   )
 }

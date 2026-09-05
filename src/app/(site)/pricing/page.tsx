@@ -12,28 +12,29 @@ export default async function PricingPage() {
   return (
     <>
       <PageHeader n="05" label="PRICING" />
-      <section className="marble grid grid-cols-1 gap-10 bg-cream px-8 py-14 lg:grid-cols-[1fr_0.8fr] lg:px-12">
-        <div>
-          <h1 className="font-display text-[38px] leading-[1.1] text-ink">Simple.<br />Transparent.<br />Worth Every Penny.</h1>
+      <section className="marble grid grid-cols-1 min-h-[calc(100svh-6.5rem)] items-stretch gap-8 bg-cream px-8 py-10 lg:grid-cols-[1fr_0.8fr] lg:min-h-[calc(100svh-3rem)] lg:px-12">
+        <div className="flex flex-col justify-center">
+          <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Simple.<br />Transparent.<br />Worth Every Penny.</h1>
           <p className="mt-6 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">Pricing is based on size, coat condition, breed, and service package.</p>
         </div>
-        <img src="/Pricing/pricinghero.jpeg" alt="Fluffy dog wearing a tropical bandana ready for its grooming package" width={2752} height={1536} className="h-[300px] w-full border border-gold/25 object-cover" />
+        {/* Hero image fills the viewport — no fixed height, no container */}
+        <img src="/Pricing/pricinghero.jpeg" alt="Fluffy dog wearing a tropical bandana ready for its grooming package" width={2752} height={1536} className="h-full min-h-[280px] w-full object-cover" />
       </section>
-      <section className="marble bg-cream px-8 pb-14 lg:px-12">
+      <section className="marble bg-cream px-8 pb-14 pt-8 lg:px-12">
         <div className="border border-gold/30">
           <h2 className="border-b border-gold/30 bg-cream-deep py-3 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">GROOMING PACKAGES</h2>
           <table className="w-full text-[12px]">
             <thead>
               <tr className="border-b border-gold/25">
-                <th className="w-[34%] px-5 py-3 text-left"></th>
-                {SIZES.map((sz) => <th key={sz} className="px-3 py-3 text-center text-[9.5px] font-bold tracking-[0.16em] text-gold-deep">{sz}</th>)}
+                <th className="w-[28%] px-3 py-3 text-left"></th>
+                {SIZES.map((sz) => <th key={sz} className="px-2.5 py-3 text-center text-[9.5px] font-bold tracking-[0.16em] text-gold-deep">{sz}</th>)}
               </tr>
             </thead>
             <tbody>
               {packages.map((p: any) => (
                 <tr key={p.id} className="border-b border-gold/15 last:border-0">
-                  <td className="px-5 py-3.5 text-left text-ink">{p.name}</td>
-                  {PRICE_KEYS.map((k) => <td key={k} className="px-3 py-3.5 text-center text-ink-soft">{p[k]}</td>)}
+                  <td className="px-3 py-3.5 text-left text-ink">{p.name}</td>
+                  {PRICE_KEYS.map((k) => <td key={k} className="px-2.5 py-3.5 text-center text-ink-soft">{p[k]}</td>)}
                 </tr>
               ))}
             </tbody>

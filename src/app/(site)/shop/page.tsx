@@ -47,12 +47,12 @@ export default async function ShopPage() {
       <PageHeader n="06" label="SHOP" />
 
       {/* Hero */}
-      <section className="marble grid grid-cols-1 gap-10 bg-cream px-8 py-14 lg:grid-cols-[1fr_0.8fr] lg:px-12">
+      <section className="marble grid grid-cols-1 min-h-[calc(100svh-6.5rem)] items-stretch gap-10 bg-cream px-8 py-12 lg:grid-cols-[1fr_0.8fr] lg:min-h-[calc(100svh-3rem)] lg:px-12">
         <div className="flex flex-col justify-center">
           <p className="eyebrow flex items-center gap-2">
             <Sparkle className="h-3.5 w-3.5" strokeWidth={1.5} /> THE PAWZ COLLECTION
           </p>
-          <h1 className="mt-3 font-display text-[38px] leading-[1.1] text-ink">
+          <h1 className="mt-3 font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">
             Bring the<br />Pawfection<br />Home.
           </h1>
           <p className="mt-6 max-w-[340px] text-[12.5px] leading-[1.85] text-ink-soft">
@@ -65,15 +65,16 @@ export default async function ShopPage() {
             <Link href="/book" className="btn-ghost">BOOK A GROOM</Link>
           </div>
         </div>
-        <div className="relative">
+        {/* Transparent cutout — placed directly against the canvas, no container */}
+        <div className="relative flex items-center justify-center">
           <img
             src="/Shop/shop.png"
             alt="Pawz Signature Shampoo bottle"
             width={373}
             height={669}
-            className="h-[340px] w-full border border-gold/25 bg-cream-deep object-contain p-4"
+            className="h-full max-h-[560px] w-full object-contain"
           />
-          <span className="absolute left-4 top-4 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-gold">
+          <span className="absolute left-0 top-0 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-gold">
             GROOMER FAVORITE
           </span>
         </div>

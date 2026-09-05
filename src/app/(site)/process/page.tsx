@@ -22,9 +22,9 @@ export default async function ProcessPage() {
   return (
     <>
       <PageHeader n="04" label="OUR PROCESS" />
-      <section className="marble grid grid-cols-1 gap-10 bg-cream px-8 py-14 lg:grid-cols-[1fr_0.85fr] lg:px-12">
-        <div>
-          <h1 className="font-display text-[38px] leading-[1.1] text-ink">A Seamless<br />Experience<br />From Start<br />to Finish.</h1>
+      <section className="marble grid grid-cols-1 min-h-[calc(100svh-6.5rem)] items-stretch gap-8 bg-cream px-8 py-10 lg:grid-cols-[1fr_0.85fr] lg:min-h-[calc(100svh-3rem)] lg:px-12">
+        <div className="flex flex-col justify-center">
+          <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">A Seamless<br />Experience<br />From Start<br />to Finish.</h1>
           <p className="mt-6 max-w-[300px] text-[12.5px] leading-[1.85] text-ink-soft">We make every visit simple, stress-free, and enjoyable.</p>
           <ol className="relative mt-9 space-y-7">
             <span className="absolute bottom-3 left-[15px] top-3 w-px bg-gold/30" />
@@ -39,7 +39,8 @@ export default async function ProcessPage() {
             ))}
           </ol>
         </div>
-        <img src="/Our%20Process/ourprocess2..jpeg" alt="Happy dalmatian smiling under warm string lights at the salon" width={2400} height={1792} className="h-full max-h-[520px] w-full border border-gold/25 object-cover" />
+        {/* Hero image fills the viewport — no fixed height, no container */}
+        <img src="/Our%20Process/ourprocess2..jpeg" alt="Happy dalmatian smiling under warm string lights at the salon" width={2400} height={1792} className="h-full min-h-[280px] w-full object-cover" />
       </section>
       <section className="bg-ink px-8 py-10 lg:px-12">
         <div className="flex items-center gap-3">
