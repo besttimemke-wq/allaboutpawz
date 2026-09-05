@@ -629,3 +629,22 @@ Work Log:
 
 Stage Summary:
 - Steps section now starts fully closed — cards appear strictly on user action
+
+---
+Task ID: 20
+Agent: main agent (direct work, per standing rule)
+Task: Redesign the Pricing page as an elegant, enterprise-style product experience — individual product cards instead of the comparison table (per owner's Product Direction + pasted mockup)
+
+Work Log:
+- Read the mockup (VLM): 3-column product-card grid — photo top, serif name, concise description, divider, size-labeled price row, full-width CTA; premium spacing; no comparison table
+- Rebuilt pricing/page.tsx: kept the standard site hero (Simple. Transparent. Worth Every Penny. + BOOK A GROOM, bandana dog fills the image column); added metadata title/description
+- PACKAGES section: eyebrow "PACKAGES & PRICING" + big display headline "Choose Their Experience." + 3 product cards (lg:grid-cols-3, gap-10, generous p-7/p-8): 4/3 product photo (Bath & Brush = sink bath photo; Full Groom = grooming station + MOST POPULAR badge from DB featured flag; Deluxe Spa = serviceshero2 bandana dog), GROOMING PACKAGE eyebrow, serif display name, 2-3 line blurb (concise enterprise copy: what's included, product feel), hairline divider, 4-col transparent price grid (SMALL/MEDIUM/LARGE/X-LARGE), full-width gold BOOK THIS PACKAGE CTA
+- Dedupe applied (seed data has duplicate package rows per name) — 3 cards, not 6
+- ADD-ONS restyled: "ENHANCE ANY VISIT / Little Extras, Big Joy." — 5-cell hairline grid (gap-px bg-gold/20 trick, responsive 2/3/5 cols), icon + name + gold price
+- Kept italic disclaimer; removed the old comparison table + the old 5-col add-ons strip
+- Verified: DOM (3 cards w/ correct names/prices/CTAs/badge); VLM all 4 checks (3-col product cards w/ photo/serif name/description/divider/4-size prices/full-width CTA; MOST POPULAR on middle card; premium spacious no-table; add-ons separate row); mobile stacks cleanly; hero VLM-verified; lint 0 errors; dev.log 200s
+
+Stage Summary:
+- Pricing page is now a product experience: each package is a defined product with image, copy, transparent size pricing, and its own CTA — no comparison table
+- Data stays DB-driven (pricing_packages + add_ons, deduped); card blurbs/images are static PACKAGE_META keyed by package name (CMS can still change names/prices; blurbs would need a description column update to flow through)
+- BOOK THIS PACKAGE → /book for now (package pre-selection into the booking wizard still parked)
