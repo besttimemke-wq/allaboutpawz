@@ -3,24 +3,34 @@ import { Scissors } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
 import { getIcon } from "@/lib/icons"
 import { getSiteContent } from "@/lib/site-data"
+import { ServicesAccordion } from "@/components/site/islands/services-accordion"
+
+const SIZES = ["SMALL", "MEDIUM", "LARGE", "X-LARGE"]
+const PRICE_KEYS = ["smallPrice", "mediumPrice", "largePrice", "xlargePrice"] as const
 
 export const metadata = {
   title: "Dog Grooming Services | All About Pawz",
-  description: "Breed-specific haircuts, spa baths, and nail & paw care — gentle dog grooming services tailored to your pup's breed, coat, and lifestyle.",
+  description: "Grooming packages, baths, spa treatments, and nail & paw care — gentle dog grooming tailored to your pup. Book a package today.",
 }
 
 export default async function ServicesPage() {
-  const { services } = await getSiteContent()
+  const { services, packages } = await getSiteContent()
   const featured = services.slice(0, 4)
+  // Dedupe packages by name (seed data contains duplicate rows); keep order.
+  const seen = new Set<string>()
+  const uniquePackages = packages.filter((p: any) => {
+    if (seen.has(p.name)) return false
+    seen.add(p.name)
+    return true
+  })
+
   return (
     <>
       <PageHeader n="03" label="SERVICES" />
-      {/* HERO — site standard (same placement as About/homepage): centered
-          text left, image right filling the full column. Button uses
-          self-start so it stays button-sized (no full-width stretch). */}
+      {/* HERO — site standard: centered text left, image right filling the column. */}
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
-          <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Every Pup.<br />Every Breed.<br />Every Detail.</h1>
+          <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Care That Goes<br />Beyond the Groom.</h1>
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">Premium grooming services tailored to your dog&apos;s breed, coat, and lifestyle.</p>
           <Link href="/pricing" className="btn-gold mt-7 self-start">VIEW PACKAGES</Link>
         </div>
@@ -29,8 +39,7 @@ export default async function ServicesPage() {
         </div>
       </section>
 
-      {/* SECOND SECTION — the homepage services band, copied to this page,
-          with the headline replaced. */}
+      {/* SECOND SECTION — homepage services band with the new headline. */}
       <section className="bg-ink px-8 py-12 lg:px-12">
         <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_2.4fr]">
           <div className="lg:border-r lg:border-gold/25 lg:pr-10">
@@ -56,26 +65,39 @@ export default async function ServicesPage() {
         </div>
       </section>
 
-      {/* FULL SERVICES LIST — enlarged grid: bigger images, text flows right
-          up to the image (no dead white space between text and image). */}
+      {/* GROOMING PACKAGES — same data as the pricing page, table view with
+          a checkout CTA on every row. */}
       <section className="marble bg-cream px-8 py-10 lg:px-12">
-        <div className="divide-y divide-gold/20 border-y border-gold/25">
-          {services.map(({ id, icon, title, description, image, alt }) => {
-            const Icon = getIcon(icon, Scissors)
-            return (
-              <div key={id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-6 py-5">
-                <Icon className="h-8 w-8 text-gold-deep" strokeWidth={1.2} />
-                <div>
-                  <h2 className="text-[12px] font-bold tracking-[0.14em] text-ink">{title}</h2>
-                  <p className="mt-1.5 text-[12.5px] leading-[1.7] text-ink-soft">{description}</p>
-                </div>
-                {image && (
-                  <img src={image} alt={alt || `${title} dog grooming service at All About Pawz`} width={640} height={512} className="h-[130px] w-[340px] object-cover" />
-                )}
-              </div>
-            )
-          })}
+        <div className="border border-gold/30">
+          <h2 className="border-b border-gold/30 bg-cream-deep py-3 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">GROOMING PACKAGES</h2>
+          <table className="w-full text-[12px]">
+            <thead>
+              <tr className="border-b border-gold/25">
+                <th className="w-[24%] px-3 py-3 text-left"></th>
+                {SIZES.map((sz) => <th key={sz} className="px-2.5 py-3 text-center text-[9.5px] font-bold tracking-[0.16em] text-gold-deep">{sz}</th>)}
+                <th className="w-[18%]"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {uniquePackages.map((p: any) => (
+                <tr key={p.id} className="border-b border-gold/15 last:border-0">
+                  <td className="px-3 py-3.5 text-left text-ink">{p.name}</td>
+                  {PRICE_KEYS.map((k) => <td key={k} className="px-2.5 py-3.5 text-center text-ink-soft">{p[k]}</td>)}
+                  <td className="px-3 py-2 text-center">
+                    <Link href="/book" className="btn-ghost px-4 py-2 text-[9px]">GET PACKAGE</Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+        <p className="mt-4 text-center text-[11px] text-ink-soft">All packages can be booked online — reserve your pup&apos;s spot today.</p>
+      </section>
+
+      {/* SERVICES LIST — each service is an accordion sharing the pricing
+          page data: items + prices left, image centered, checkout CTA right. */}
+      <section className="marble bg-cream px-8 pb-14 pt-2 lg:px-12">
+        <ServicesAccordion services={services} />
       </section>
     </>
   )

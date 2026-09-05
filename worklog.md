@@ -508,3 +508,21 @@ Stage Summary:
 - Services page: new poodle hero (standard placement), homepage band with new headline, enlarged grid, normal buttons
 - SEO foundation: alts, page metadata, sitemap.xml live (city pages to come)
 - NEXT (user to decide): services packages UX + package selection → checkout flow
+
+---
+Task ID: 13
+Agent: main agent (direct work, per standing rule)
+Task: Services page restructure — new hero headline, packages table w/ checkout CTA, services as accordions (info | centered image | CTA columns) sharing pricing data
+
+Work Log:
+- Probed data sources: services from Supabase 'services' (4 categories w/ images); packages from 'pricing_packages' via repo (Bath & Brush/Full Groom/Deluxe Spa × 4 size prices — seed data had duplicate rows per name, deduped by name in the page); addons from 'add_ons' (Teeth Brushing $15, De-shedding $15-35, Paw Treatment $15, Nail Trim $15, Flea Bath $10)
+- Hero headline changed to "Care That Goes Beyond the Groom." (kept site-standard layout + poodle image)
+- Created src/components/site/islands/services-accordion.tsx (client island): one-open accordion per service category; expanded row = 3 columns [items+prices | centered image | GET PACKAGE CTA]; items/price map matches the pricing page data (packages shown only in the table; category sections are service descriptions per user's dedup note); chevron rotate animation, aria-expanded, eyebrow shows item count
+- Packages table added on the page (same SIZES/PRICE_KEYS rendering as pricing page, unique rows) with a GET PACKAGE button on every row (ghost button) + checkout encouragement line
+- Kept the homepage black band (Gentle Care...) w/ icons + descriptions; fixed 'component created during render' lint warning by inlining getIcon in the map
+- Verified: hero headline text, table (3 packages × 4 sizes + per-row CTAs), accordion expands/collapses (clicked BATH & SPA — items+prices, centered photo, GET PACKAGE right, GROOMING collapsed), VLM confirmed all; mobile captured; dev.log 200s; services lint warnings cleared
+
+Stage Summary:
+- Services page: new headline, packages table with checkout CTAs, accordion service list (3-col: data | centered image | CTA) — same info as pricing, different view
+- Package GET PACKAGE CTAs currently → /pricing (table rows) and /book (accordion) pending the package-selection → checkout flow decision
+- NEXT: decide package → checkout flow (booking wizard step vs shop-style purchase) and payment provider
