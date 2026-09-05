@@ -864,3 +864,23 @@ Stage Summary:
 - Vercel first-click deploy is verified safe: the fresh clone + install test is exactly the deploy pipeline; no build-time env vars required
 - STOPPING POINT for tonight. TOMORROW per owner: shop, pricing, services, customer portal flows; admin POS checkout for onsite; all Stripe work incl. custom checkout page + customer portal login page. Owner needs the site published on aapawz.com so Stripe can review the active domain
 - NOTE for future sessions: /tmp/aapawz-deploy is the sanitized export; the sandbox keeps its own dev plumbing (tee dev.log, standalone output, memory limit) — future re-exports should repeat the same sanitization steps
+
+---
+Task ID: 31
+Agent: main (direct work, no subagents)
+Task: Fix the Vercel first-deploy build failure (commit 610dd6b): prerender error "useSearchParams() should be wrapped in a suspense boundary at page /admin/login".
+
+Work Log:
+- ROOT CAUSE: /admin/login/page.tsx and /admin/page.tsx both call useSearchParams() in the default export of "use client" pages → static prerender bails out with an error; the sandbox dev server never runs `next build`, so it only surfaced on Vercel (died at 25/51 pages). Also a deprecation warning: middleware.ts → proxy.ts (Next 16 convention).
+- FIX 1 (src/app/admin/login/page.tsx): form + query-param logic moved into AdminLoginForm; default export renders static shell (logo/title/footer) with <Suspense fallback={AdminLoginFallback}> (pulse-skeleton card, same shape as the form).
+- FIX 2 (src/app/admin/page.tsx): renamed AdminPage → AdminWorkspace (reads ?portal= param); new default export wraps it in <Suspense> with the identical auth-check spinner.
+- FIX 3: src/middleware.ts → src/proxy.ts, function middleware → proxy (no-op passthrough, matcher unchanged).
+- SANDBOX VERIFIED: dev server hot-swapped to proxy.ts (log lines now show proxy.ts timing), /admin, /admin/login and /admin/login?redirect=&error= all 200; bun run lint = 0 errors (5 pre-existing warnings, none new).
+- EXPORT MIRRORED: same 3 file changes copied into /tmp/aapawz-deploy; committed as 0b2de3f on top of 610dd6b (same author identity; 3 files, 88 insertions/44 deletions; tree clean; .next ignored).
+- BUILD PROVEN: `bun run build` in /tmp/aapawz-deploy (Next 16.1.3 Turbopack, no .env — exact Vercel environment): ✓ Compiled successfully, ✓ 51/51 static pages generated, no errors, middleware warning gone. This is byte-for-byte the pipeline Vercel runs.
+- PUSH BLOCKED BY DESIGN: full existence-only credential scan (bash history files, session history, env, git configs, /tmp incl. export repo, dev.log backups) = ZERO token remnants — yesterday's transient-PAT discipline held. Push of 0b2de3f requires the owner to re-share a PAT (will again be used transiently in the push URL only, never echoed) or push it themselves.
+
+Stage Summary:
+- Build failure root-caused and fixed in both the sandbox (source of truth) and the Vercel export; production build now passes 51/51 pages with the exact Vercel command and environment
+- Commit 0b2de3f sits ready in /tmp/aapawz-deploy (no remotes, clean tree); pushing it triggers Vercel auto-redeploy
+- Next step after push: owner adds Supabase env vars in Vercel (site renders without them, but admin CRM/booking writes need real keys) and attaches aapawz.com

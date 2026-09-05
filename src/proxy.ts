@@ -3,8 +3,9 @@ import type { NextRequest } from "next/server"
 
 // Auth temporarily disabled — will be re-enabled when ready to ship.
 // All /admin routes are accessible without login during development.
+// (Next.js 16 renamed the middleware convention to "proxy".)
 
-export function middleware(_request: NextRequest) {
+export function proxy(_request: NextRequest) {
   return NextResponse.next()
 }
 
