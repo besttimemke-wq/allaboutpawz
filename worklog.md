@@ -819,3 +819,25 @@ Stage Summary:
 - The book page and the wizard are two different things again: /book is marketing with entry cards; /book/appointment and /book/consultation are the flows — one route each, wizard on its own page, text on canvas
 - The consultation flow is genuinely separate: its own route, no service step, preferred date, no deposit, own success screen — verified end-to-end with a real Supabase submission
 - Stripe return URLs, sitemap, and all site-wide /book links updated; nothing else on the site changed
+
+---
+Task ID: 29
+Agent: main (direct work, no subagents)
+Task: Verify the full user→Supabase→Stripe pipe survived the route split, set real-domain (aapawz.com) Stripe callbacks, swap the consult section (card left, dog right), add the two-button hero CTA pair to every page except shop, commit.
+
+Work Log:
+- PIPE VERIFIED INTACT: ran the appointment flow E2E on /book/appointment through to Stripe — customer (25dd000e), dog (41ddc3e9), grooming profile (32f1dda1), booking 36b95976 PAYMENT_PENDING with stripeCheckoutSessionId linked + groomingRequestId linked, payment record $25.00 deposit pending. Browser redirected to the live Stripe checkout page (cs_live_…), which loads 200.
+- NEW src/lib/site-url.ts — SITE_URL = NEXT_PUBLIC_SITE_URL || https://aapawz.com (aapawz.com confirmed as the real domain: already used in email FROM, admin links, notification addresses). callbackBase() used by all four Stripe routes: bookings checkout, shop checkout, legacy checkout, customer billing portal.
+- Stripe session retrieved via API and CONFIRMED: success_url = https://aapawz.com/book/appointment?success=booking, cancel_url = https://aapawz.com/book?cancelled=1, amount 2500 usd, metadata.bookingId linked.
+- Sitemap base changed to https://aapawz.com to match.
+- NEW src/components/site/hero-ctas.tsx — the standard pair: BOOK (btn-gold → /book/appointment) + SCHEDULE CONSULT (btn-ghost → /book/consultation). Added to about (BOOK TODAY), gallery, faq, contact (with new one-line descriptor), services, process (BOOK YOUR VISIT), pricing (BOOK A GROOM), and book (BOOK AN APPOINTMENT / SCHEDULE A CONSULTATION). Shop intentionally excluded per owner.
+- HOME: WATCH OUR STORY button removed (Play import dropped) → BOOK APPOINTMENT → /book/appointment + SCHEDULE CONSULT → /book/consultation.
+- BOOK PAGE consult section SWAPPED per owner: consultation card on the LEFT, golden doodle photo on the RIGHT (grid [1fr_1.25fr]); DOM + VLM verified. Appointment section unchanged (black dog left, card right).
+- VERIFIED: all 9 public pages return the pair via curl (each has href=/book/appointment + /book/consultation; shop has neither); home WATCH text gone; lint 0 errors (same 5 pre-existing warnings); dev.log clean; mobile no overflow.
+- CLEANUP: deleted all pipe test rows (payment, appointment grooming request, booking, dog, grooming profile, customer) and EXPIRED the live Stripe checkout session (200).
+- COMMIT b0b1f3a — 16 files, includes the hero-ctas + site-url components. NO push (owner has not called for the GitHub push yet; PAT stays out of all records).
+
+Stage Summary:
+- The booking pipe is proven whole: wizard route split did NOT break customer/dog/booking/payment/Stripe creation — verified with a live Stripe session and real-domain callbacks (aapawz.com)
+- Every page except shop now funnels to the two flows from the hero; the book page consult card sits left with the dog right
+- All work committed locally (b0b1f3a); push to GitHub awaits the owner's go
