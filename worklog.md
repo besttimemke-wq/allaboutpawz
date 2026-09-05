@@ -686,3 +686,22 @@ Stage Summary:
 - Contact page now: standard hero (7-dogs photo) → black band (home-page pattern) → two-column essentials + animated black message card → thin footer
 - New reusable `Reveal` island available site-wide for scroll animations
 - Contact form flow fully working (Supabase `contact_messages`, status UNREAD, visible in admin)
+
+---
+Task ID: 23
+Agent: main (direct work, no subagents)
+Task: Update FAQ page — standard hero (new white/blue poodle photo, image right), swap accordion↔dog positions, schnauzer brought up from policies section to span the accordion's full height, remove brown dog
+
+Work Log:
+- Staged newest upload `pasted_image_1788597133163.png` (1448×1086, white poodle with blue-tipped ears + blue bow tie in the salon — the "updated white and blue dog" photo) as `public/FAQ-Policies/faqhero-v2.jpeg` (PNG→JPEG q88, no crop, new filename)
+- Rebuilt FAQ hero to the site standard: text left ("Good To Know." + Divider + copy), photo right full-bleed object-cover — old mirrored layout (cutout left / text right) retired along with `faq.png`
+- Accordion section: swapped positions — schnauzer cutout (`faq2.png`, brought UP from the third section) now sits LEFT of the accordion; accordion moved to the right column
+- Tuned the dog column from 0.5fr → 0.62fr → 0.68fr → 0.7fr until the visible dog spans the accordion's full height (measured: visible dog 829px vs accordion 833px, 99.5%); dog is bottom-anchored (`object-contain object-bottom`, no max-h cap, self-stretch)
+- Removed the brown dog (`/Consultation/consultation.png`) from the page entirely
+- Policies section restructured as the black band pattern: HOUSE RULES eyebrow + "Salon Policies" heading + copy left, 2×2 policy card grid right (schnauzer vacated it)
+- Removed the accordion's internal `mt-10` (top spacing now comes from section py-14)
+- Verified: DOM (hero photo right col 671×372, brown dog gone, dog left of accordion x=280 vs x=677, dog element 833px = accordion height), VLM desktop (hero fills column, dog spans full height bottom-anchored, no overlap, policies balanced with all 4 cards readable), accordion interactivity (12 questions, click toggles aria-expanded + answers), mobile (hero 390px full-width, dog column hidden on mobile), lint 0 errors, dev.log clean
+
+Stage Summary:
+- FAQ page now: standard hero (white/blue poodle salon photo, image right) → accordion right with full-height schnauzer on the left → black policies band (heading + 2×2 cards)
+- `faqhero-v2.jpeg` live in the hero; `faq.png` (old cutout) and `consultation.png` (brown dog) unreferenced from this page (files kept on disk)

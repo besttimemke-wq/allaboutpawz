@@ -8,7 +8,7 @@ type Faq = { id: string; question: string; answer: string }
 export function FaqAccordion({ faqs }: { faqs: Faq[] }) {
   const [open, setOpen] = useState<number | null>(0)
   return (
-    <div className="mt-10 max-w-3xl border-t border-gold/25">
+    <div className="max-w-3xl border-t border-gold/25">
       {faqs.map((f, i) => (
         <div key={f.id} className="border-b border-gold/25">
           <button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i} className="flex w-full items-center justify-between gap-6 py-5 text-left">
