@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo, supabaseConfig } from "@/lib/repo"
+import { callbackBase } from "@/lib/site-url"
 
 // POST /api/checkout
 // Body: { productId, quantity }
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const qty = Math.max(1, Math.min(99, Number(quantity) || 1))
-  const origin = req.headers.get("origin") || "http://localhost:3000"
+  const origin = callbackBase(req)
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: "Payments are not configured yet. Set STRIPE_SECRET_KEY in .env to enable shop checkout." }, { status: 503 })
   }

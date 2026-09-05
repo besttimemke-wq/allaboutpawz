@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Play, CalendarDays, Heart, CheckCircle2, Mail, Scissors } from "lucide-react"
+import { CalendarDays, Heart, CheckCircle2, Mail, Scissors } from "lucide-react"
 import { PawGlyph, Divider } from "@/components/site/brand"
 import { TopUtilityBar } from "@/components/site/site-chrome"
 import { getIcon } from "@/lib/icons"
@@ -47,13 +47,8 @@ export default async function HomePage() {
             {s.heroSubtitle || "We deliver a spa-level grooming experience where every detail is designed for your pup's comfort, style, and happiness."}
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
-            <Link href="/book" className="btn-gold">BOOK APPOINTMENT</Link>
-            <Link href="/about" className="btn-ghost">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-deep">
-                <Play className="h-2.5 w-2.5 fill-cream text-cream" />
-              </span>
-              WATCH OUR STORY
-            </Link>
+            <Link href="/book/appointment" className="btn-gold">BOOK APPOINTMENT</Link>
+            <Link href="/book/consultation" className="btn-ghost">SCHEDULE CONSULT</Link>
           </div>
         </div>
         <div className="relative min-h-[300px]">

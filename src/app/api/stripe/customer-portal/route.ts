@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
+import { callbackBase } from "@/lib/site-url"
 
 // POST /api/stripe/customer-portal
 // Creates a Stripe Billing Portal session for a customer.
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. Create Stripe Billing Portal session
-  const origin = req.headers.get("origin") || "http://localhost:3000"
+  const origin = callbackBase(req)
   try {
     const session = await getStripe().billingPortal.sessions.create({
       customer: customer.stripeCustomerId,

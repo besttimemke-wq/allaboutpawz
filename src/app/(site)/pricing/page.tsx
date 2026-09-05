@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
+import { HeroCtas } from "@/components/site/hero-ctas"
 import { getIcon } from "@/lib/icons"
 import { getSiteContent } from "@/lib/site-data"
 
@@ -55,7 +56,7 @@ export default async function PricingPage() {
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Simple.<br />Transparent.<br />Worth Every Penny.</h1>
           <p className="mt-6 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">Honest pricing by dog size — no surprises, just exceptional care. Choose the experience that fits your pup.</p>
-          <Link href="/book" className="btn-gold mt-7 self-start">BOOK A GROOM</Link>
+          <HeroCtas bookLabel="BOOK A GROOM" />
         </div>
         <div className="relative min-h-[300px]">
           <img src="/Pricing/pricinghero-v2.jpeg" alt="Fluffy tan maltipoo wearing a blue beach bandana sitting in the All About Pawz grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />

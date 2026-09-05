@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next"
 // Public site routes. TN city landing pages will be appended here once the
 // local SEO pages are built.
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://www.allaboutpawz.com"
+  const base = "https://aapawz.com"
   const now = new Date()
   const routes: [string, "weekly" | "monthly", number][] = [
     ["", "weekly", 1],

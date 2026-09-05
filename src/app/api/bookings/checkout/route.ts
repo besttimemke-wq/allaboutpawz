@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
 import { sendEmail } from "@/lib/email"
+import { callbackBase } from "@/lib/site-url"
 
 const salonNotifyTo = "notifications@confirmation.aapawz.com"
 
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
 
   // 5. If consultation (no deposit), just return success
   if (bookingType === "CONSULTATION") {
-    return NextResponse.json({ bookingId: booking?.id, type: "consultation", url: `/book/consultation?success=consultation` })
+    return NextResponse.json({ bookingId: booking?.id, type: "consultation", url: `${callbackBase(req)}/book/consultation?success=consultation` })
   }
 
   // 6. Create Stripe Checkout Session for the $25 deposit
@@ -184,7 +185,7 @@ export async function POST(req: NextRequest) {
       error: "Payments are not configured yet. Set STRIPE_SECRET_KEY in .env to enable the $25 deposit checkout.",
     }, { status: 503 })
   }
-  const origin = req.headers.get("origin") || "http://localhost:3000"
+  const origin = callbackBase(req)
   try {
     const session = await getStripe().checkout.sessions.create({
       mode: "payment",

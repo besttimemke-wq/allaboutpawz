@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { PawGlyph } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
+import { HeroCtas } from "@/components/site/hero-ctas"
 import { getSiteContent } from "@/lib/site-data"
 
 export const metadata = {
@@ -28,6 +29,7 @@ export default async function AboutPage() {
           <p className="mt-4 max-w-[430px] text-[14px] leading-[1.85] text-ink-soft">
             All About Pawz was created with a simple belief: dogs deserve the same level of care, respect, and luxury we expect for ourselves — a place where they feel safe, look their best, and leave happy.
           </p>
+          <HeroCtas />
         </div>
         <div className="relative min-h-[300px]">
           <img src="/About/abouthero-schnauzer.png" alt="Black schnauzer dog standing proudly in the All About Pawz dog grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />

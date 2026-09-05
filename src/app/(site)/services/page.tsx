@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Scissors } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
+import { HeroCtas } from "@/components/site/hero-ctas"
 import { getIcon } from "@/lib/icons"
 import { getSiteContent } from "@/lib/site-data"
 import { ServicesAccordion } from "@/components/site/islands/services-accordion"
@@ -22,7 +23,7 @@ export default async function ServicesPage() {
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Care That Goes<br />Beyond the Groom.</h1>
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">Premium grooming services tailored to your dog&apos;s breed, coat, and lifestyle.</p>
-          <Link href="/book" className="btn-gold mt-7 self-start">VIEW PACKAGES</Link>
+          <HeroCtas />
         </div>
         <div className="relative min-h-[300px]">
           <img src="/services/serviceshero.png" alt="White poodle sitting in the All About Pawz dog grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />

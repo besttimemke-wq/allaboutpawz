@@ -1,6 +1,7 @@
 import { Facebook, Instagram, MapPin, Phone, Mail, Clock } from "lucide-react"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
+import { HeroCtas } from "@/components/site/hero-ctas"
 import { ContactForm } from "@/components/site/islands/contact-form"
 import { Reveal } from "@/components/site/islands/reveal"
 import { getSiteContent } from "@/lib/site-data"
@@ -52,6 +53,7 @@ export default async function ContactPage() {
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">
             Questions about a service, a coat type, or which package suits your pup best? We would love to hear from you. Reach out and a member of our team will respond personally.
           </p>
+          <HeroCtas />
         </div>
         <div className="relative min-h-[300px]">
           <img

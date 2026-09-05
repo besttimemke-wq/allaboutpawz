@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
+import { HeroCtas } from "@/components/site/hero-ctas"
 import { BookingEntryCard } from "@/components/site/islands/booking-entry-cards"
 
 // The nine appointment-wizard steps — what happens on the flow page.
@@ -40,6 +41,7 @@ export default function BookPage() {
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">
             Book an appointment or request a free consultation — all in one simple flow. Nine quick steps and we&apos;ll take care of the rest.
           </p>
+          <HeroCtas bookLabel="BOOK AN APPOINTMENT" consultLabel="SCHEDULE A CONSULTATION" />
         </div>
         <div className="relative min-h-[300px]">
           <img
@@ -118,11 +120,15 @@ export default function BookPage() {
         </div>
       </section>
 
-      {/* CONSULT ENTRY — brown dog left, the consultation card right. The
-          card links to the consultation flow page (/book/consultation) —
-          its own flow, not the booking flow. Photo fills its column,
-          tucked between the consult band and the footer. */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
+      {/* CONSULT ENTRY — consultation card LEFT, brown dog RIGHT (swapped per
+          owner request: dog on the right, schedule consult on the left). The
+          card links to the consultation flow page (/book/consultation) — its
+          own flow, not the booking flow. Photo fills its column, tucked
+          between the consult band and the footer. */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+        <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
+          <BookingEntryCard type="consultation" />
+        </div>
         <div className="relative min-h-[300px]">
           <img
             src="/Book/bookdog-brown.jpeg"
@@ -131,9 +137,6 @@ export default function BookPage() {
             height={455}
             className="absolute inset-0 h-full w-full object-cover"
           />
-        </div>
-        <div className="marble flex flex-col justify-center bg-cream px-8 py-14 lg:px-12">
-          <BookingEntryCard type="consultation" />
         </div>
       </section>
     </>

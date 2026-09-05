@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
+import { callbackBase } from "@/lib/site-url"
 
 // POST /api/shop/checkout
 // Body: { customerId, items: [{productId, quantity}], deliveryMethod: "ship"|"pickup",
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   }
 
   const isPickup = deliveryMethod === "pickup"
-  const origin = req.headers.get("origin") || "http://localhost:3000"
+  const origin = callbackBase(req)
   const { address, addressLine2, city, state, postalCode } = body
   const shippingAddress = isPickup || !address
     ? null

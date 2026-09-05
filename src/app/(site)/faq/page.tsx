@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Plus } from "lucide-react"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
+import { HeroCtas } from "@/components/site/hero-ctas"
 import { FaqAccordion } from "@/components/site/islands/faq-accordion"
 import { getSiteContent } from "@/lib/site-data"
 
@@ -26,6 +27,7 @@ export default async function FaqPage() {
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">
             Everything you might want to ask before your first visit, and the house rules that keep every pup safe and every appointment on time.
           </p>
+          <HeroCtas />
         </div>
         <div className="relative min-h-[300px]">
           <img
