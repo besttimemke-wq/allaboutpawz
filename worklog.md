@@ -386,3 +386,23 @@ Work Log:
 
 Stage Summary:
 - About hero now uses the poodle photo; previous fix (raised headline, large type, tight spacing) retained
+
+---
+Task ID: 6
+Agent: main agent (direct work, per standing rule)
+Task: About page — use the correct uploaded hero image, un-crop it, flush to headline, black values band, brown mission column
+
+Work Log:
+- Found the missed upload: pasted_image_1788581792640.png (1672×941, newest at 04:16). Previous swap used the 04:15 poodle upload — user's browser also had the old filename cached
+- Copied newest image to public/About/abouthero-new.png (NEW filename = cache-bust guarantee)
+- Hero rebuilt: img is a direct grid child, block display, h-auto w-full — natural aspect, NO object-cover crop (dog head + vignette fully visible), NO container/min-h/absolute, image height defines the section (no extra space), text col right padding tightened (lg:pr-8) so the photo flows right up to the headline
+- Values band (4-icon band under hero) → black: bg-ink, icons text-gold, titles text-gold-light, bodies text-on-dark-muted (matches homepage services band)
+- Our Mission column → bg-brown; added --color-brown: oklch(0.36 0.055 55) token to @theme inline in globals.css
+- Debugged: first attempt used --color-brown: var(--brown) + :root --brown — the utility compiled but the :root var never made it into the emitted CSS (bg-brown resolved to transparent → cream showed). Fix: literal oklch value directly in @theme inline → .bg-brown compiles to #533520/lab fallback
+- Verified desktop 1440×900 (.zshots/about-fix2.png + about-fix2-mission.png): VLM confirms photo complete/uncropped/flush with headline, band black, mission column dark brown; mobile 390×844 captured
+- dev.log all 200s; lint 0 errors
+
+Stage Summary:
+- About hero = user's newest upload, uncropped, cache-busted filename, flush to headline
+- Band under hero: black; Our Mission column: brown (--color-brown #533520 token added to theme)
+- Lesson: in this Tailwind 4 setup, custom brand colors for utilities must use literal values in @theme inline, not var() indirection through :root
