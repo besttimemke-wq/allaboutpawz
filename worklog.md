@@ -841,3 +841,26 @@ Stage Summary:
 - The booking pipe is proven whole: wizard route split did NOT break customer/dog/booking/payment/Stripe creation — verified with a live Stripe session and real-domain callbacks (aapawz.com)
 - Every page except shop now funnels to the two flows from the hero; the book page consult card sits left with the dog right
 - All work committed locally (b0b1f3a); push to GitHub awaits the owner's go
+
+---
+Task ID: 30
+Agent: main (direct work, no subagents)
+Task: Push the sanitized site to GitHub (besttimemke-wq/allaboutpawz) for Vercel first-click deploy. Secrets ignored, PAT used transiently only, code clean, deps current.
+
+Work Log:
+- SECURITY AUDIT before push: local history had .env (real credentials) + 213 .zshots + 64 upload files + tool-results + worklog.md + Caddyfile + dev.log backups TRACKED — so the push was built as a FRESH ORPHAN SINGLE-COMMIT (no local history ever leaves the machine)
+- EXPORT built at /tmp/aapawz-deploy (byte-identical app code): src/ (201 files), public/ (66 site assets, 42MB), supabase/ (schema + 5 migrations + send-email function, .temp excluded), 8 config files, .env.example, README.md, sanitized .gitignore (.env ignored)
+- SANITIZED vs sandbox (sandbox untouched): package.json renamed to allaboutpawz@1.0.0, scripts cleaned to next dev/build/start/lint (no tee dev.log, no standalone cp chain), removed unused z-ai-web-dev-sdk + sharp deps; next.config.ts dropped output:standalone + turbopackMemoryLimit (sandbox-only plumbing), kept ignoreBuildErrors + image remotePatterns; .env.example extended with SUPABASE_URL/ANON_KEY aliases + NEXT_PUBLIC_SITE_URL
+- LOCKFILE pinned to the VERIFIED sandbox versions (next@16.1.3, react@19.2.3, 908 packages) — regenerated from the sandbox lock, SDK pruned; full `bun install` test passed (820 pkgs, 3s)
+- DEP FRESHNESS verified: Next 16 / React 19 / Tailwind 4 / Stripe 22 / supabase-js 2.115 / resend 6 / zustand 5 / zod 4 — all current majors; sharp in lock only as Next's own optional image optimizer
+- SECRET SCAN of the exact staged tree (excl. node_modules): PAT patterns, sk_live/sk_test, re_ keys, whsec_, service-role JWTs, and the token VALUE itself — ALL CLEAN; the two rg hits in src/lib/repo.ts + supabase/schema.sql are placeholder-detection code and documentation comments
+- PUSHED: single commit 610dd6b → main on github.com/besttimemke-wq/allaboutpawz (repo was empty; public). PAT used ONLY inside the one-time push/ls-remote/clone URLs; no git config, file, or log retains it; the PAT-bearing test clone was deleted; export dir has NO remotes configured
+- POST-PUSH VERIFICATION: fresh clone from GitHub → bun install → 820 packages in 3s (exactly what Vercel's first deploy runs); remote HEAD = 610dd6b
+- VERCEL: CLI available (bunx vercel 59.11.7) but no account token/auth exists in this environment — deployment needs the owner's Vercel login (one click: vercel.com/new → import allaboutpawz repo → Deploy; zero build config needed, site renders with no env vars). After deploy: add env vars from .env.example + attach the aapawz.com domain (needed for the Stripe active-domain review)
+- Sandbox dev server untouched and healthy (/, /book/appointment 200)
+
+Stage Summary:
+- The repo is live on GitHub as one clean commit: 285 files, no secrets, no junk, no history, pinned verified deps, installs in seconds
+- Vercel first-click deploy is verified safe: the fresh clone + install test is exactly the deploy pipeline; no build-time env vars required
+- STOPPING POINT for tonight. TOMORROW per owner: shop, pricing, services, customer portal flows; admin POS checkout for onsite; all Stripe work incl. custom checkout page + customer portal login page. Owner needs the site published on aapawz.com so Stripe can review the active domain
+- NOTE for future sessions: /tmp/aapawz-deploy is the sanitized export; the sandbox keeps its own dev plumbing (tee dev.log, standalone output, memory limit) — future re-exports should repeat the same sanitization steps
