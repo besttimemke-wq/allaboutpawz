@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { Suspense, useState, useEffect, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { useSearchParams } from "next/navigation"
 import {
@@ -50,7 +50,9 @@ async function fetchAPI<T>(endpoint: string): Promise<T[]> {
   } catch { return [] }
 }
 
-export default function AdminPage() {
+// Reads ?portal=groomer|customer from the query string — must render inside
+// a Suspense boundary so the page can be statically prerendered.
+function AdminWorkspace() {
   const searchParams = useSearchParams()
   const forcePortal = searchParams.get("portal") // "groomer" or "customer"
   const supabase = createClient()
@@ -544,5 +546,22 @@ export default function AdminPage() {
         onNavigateSection={setActiveSection}
       />
     </div>
+  )
+}
+
+// Identical to the in-app loading state so the transition is seamless.
+function AdminFallback() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-[#fafbfc]">
+      <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
+    </div>
+  )
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={<AdminFallback />}>
+      <AdminWorkspace />
+    </Suspense>
   )
 }

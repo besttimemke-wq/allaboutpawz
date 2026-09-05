@@ -1,11 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/auth/client"
 import { PawPrint } from "@phosphor-icons/react"
 
-export default function AdminLoginPage() {
+// Reads redirect/error from the query string — must be inside a Suspense
+// boundary so the page can still be statically prerendered (the search
+// params are only read on the client after hydration).
+function AdminLoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get("redirect") || "/admin"
@@ -35,6 +38,63 @@ export default function AdminLoginPage() {
   }
 
   return (
+    <form onSubmit={signIn} className="space-y-4 rounded-lg border border-white/10 bg-white/5 p-6">
+      {error && (
+        <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">
+          {error}
+        </div>
+      )}
+
+      <div>
+        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-zinc-400">Email</label>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2.5 text-[14px] text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+          placeholder="admin@aapawz.com"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-zinc-400">Password</label>
+        <input
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2.5 text-[14px] text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+          placeholder="••••••••"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full rounded-md bg-white px-4 py-2.5 text-[13px] font-bold text-black hover:bg-zinc-200 disabled:opacity-40"
+      >
+        {loading ? "Signing in…" : "Sign In"}
+      </button>
+    </form>
+  )
+}
+
+// Same card shape as the form, shown for the instant before the client
+// takes over — keeps the layout from flashing.
+function AdminLoginFallback() {
+  return (
+    <div className="animate-pulse space-y-4 rounded-lg border border-white/10 bg-white/5 p-6">
+      <div className="h-9 rounded-md bg-white/5" />
+      <div className="h-10 rounded-md bg-white/5" />
+      <div className="h-10 rounded-md bg-white/5" />
+      <div className="h-10 rounded-md bg-white/10" />
+    </div>
+  )
+}
+
+export default function AdminLoginPage() {
+  return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
@@ -43,45 +103,9 @@ export default function AdminLoginPage() {
           <p className="mt-1 text-[10px] font-bold tracking-[0.3em] text-zinc-500">ADMIN PORTAL</p>
         </div>
 
-        <form onSubmit={signIn} className="space-y-4 rounded-lg border border-white/10 bg-white/5 p-6">
-          {error && (
-            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-zinc-400">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2.5 text-[14px] text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
-              placeholder="admin@aapawz.com"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-zinc-400">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2.5 text-[14px] text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-white px-4 py-2.5 text-[13px] font-bold text-black hover:bg-zinc-200 disabled:opacity-40"
-          >
-            {loading ? "Signing in…" : "Sign In"}
-          </button>
-        </form>
+        <Suspense fallback={<AdminLoginFallback />}>
+          <AdminLoginForm />
+        </Suspense>
 
         <p className="mt-4 text-center text-[10px] text-zinc-600">
           Authorized personnel only. All actions are logged.
