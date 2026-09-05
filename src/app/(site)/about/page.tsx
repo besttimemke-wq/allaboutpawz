@@ -14,19 +14,19 @@ export default async function AboutPage() {
   return (
     <>
       <PageHeader n="02" label="ABOUT US" />
-      {/* Hero raised to the top (minimal top padding); the dog's feet sit on
-          the section's bottom edge so the next section sits directly on them. */}
-      <section className="marble grid grid-cols-1 items-stretch gap-10 bg-cream px-8 pt-6 lg:grid-cols-[1fr_0.72fr] lg:px-12 lg:pt-8">
-        <div className="flex flex-col justify-center pb-10">
-          <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Our Story.<br />Our Promise.</h1>
-          <p className="script mt-3 text-[26px]">Built on love. Driven by purpose.</p>
-          <p className="mt-7 max-w-[430px] text-[12.5px] leading-[1.85] text-ink-soft">
+      {/* Hero — headline pinned to the top, larger type, tight spacing. The
+          new photo fills the right column edge-to-edge (no container). */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_0.92fr]">
+        <div className="marble bg-cream px-8 pb-10 pt-4 lg:px-14 lg:pt-6">
+          <h1 className="font-display text-[48px] leading-[1.05] text-ink lg:text-[60px]">Our Story.<br />Our Promise.</h1>
+          <p className="script mt-2 text-[32px]">Built on love. Driven by purpose.</p>
+          <p className="mt-4 max-w-[430px] text-[14px] leading-[1.85] text-ink-soft">
             All About Pawz was created with a simple belief: dogs deserve the same level of care, respect, and luxury we expect for ourselves — a place where they feel safe, look their best, and leave happy.
           </p>
         </div>
-        {/* Transparent cutout — directly against the canvas, feet grounded on
-            the bottom edge of the section (image is trimmed to content) */}
-        <img src="/About/aboutus2.png" alt="Groomed black dog with a glossy coat" width={329} height={371} className="h-auto w-full self-end object-contain" />
+        <div className="relative min-h-[300px] lg:min-h-[360px]">
+          <img src="/About/abouthero.png" alt="A happy dog enjoying hands-on care at All About Pawz" width={1597} height={985} className="absolute inset-0 h-full w-full object-cover" />
+        </div>
       </section>
       <section className="marble grid grid-cols-2 gap-y-8 border-y border-gold/25 bg-cream px-8 py-10 lg:grid-cols-4 lg:px-12">
         {VALUES.map(({ Icon, title, body }, i) => (

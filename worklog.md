@@ -351,3 +351,23 @@ Stage Summary:
 - Images back where they belong: poodle → FAQ hero, brown dog → FAQ rail (opposite the accordion), silhouette → contact (aligned with text column), dog off the homepage
 - About values section sits directly on the dog's feet (trimmed cutout, bottom-anchored)
 - Services strip removed; footer divider removed; shop card CTAs now Plus icons
+
+---
+Task ID: 4
+Agent: main agent (direct work, per standing rule)
+Task: About page hero fix — raise headline, enlarge text, remove excess gap, swap hero image to user's newly uploaded photo
+
+Work Log:
+- Inspected upload: /home/z/my-project/upload/pasted_image_1788581264773.png (1597×985, RGB, landscape photo)
+- Copied it verbatim to public/About/abouthero.png
+- Root cause of low headline: old hero used items-stretch + justify-center pb-10 against a self-end cutout image, so the tall image row pulled the centered headline down
+- Rebuilt hero in src/app/(site)/about/page.tsx: two-col grid [1fr_0.92fr], text column top-aligned (pt-4/pt-6, no justify-center, no pb-10, no gap-10)
+- Enlarged type: h1 42/52 → 48/60px, script 26 → 32px, body 12.5 → 14px; tightened mt-7 → mt-4, mt-3 → mt-2
+- New photo fills right column edge-to-edge (absolute inset-0 object-cover, min-h 300/360) — matches homepage hero treatment, no container
+- Old cutout /About/aboutus2.png no longer referenced (file left in public, unused)
+- Verified: agent-browser desktop 1440×900 (.zshots/about-hero-fix.png) + mobile 390×844 (.zshots/about-hero-fix-mobile.png); VLM confirmed headline high near top, photo fills fully, no excessive gap, no layout problems on both viewports
+- dev.log all 200s, bun run lint 0 errors
+
+Stage Summary:
+- About hero now: raised headline, larger typography, tight spacing, new user-supplied photo full-bleed on canvas
+- Homepage hero pattern (two-col, object-cover fill) applied as the reference treatment
