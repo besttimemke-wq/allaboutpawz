@@ -247,3 +247,59 @@
 
 /* shadcn defaults already applied; ensure inputs use body font */
 input, textarea, select { font-family: var(--font-body); }
+
+/* ==========================================================================
+   Desktop-mode phones (html.dm-phone)
+   --------------------------------------------------------------------------
+   When a phone browser runs in "Request desktop site" mode (Chrome/Firefox
+   Android: 1024px layout viewport; iOS Safari: 980px), every md:/lg:
+   breakpoint fires while the page is squeezed onto a ~414px screen — the
+   pricing cards render three-squeezed-wide and type becomes unreadable.
+   The inline <head> script tags exactly those sessions (phone UA + viewport
+   ≥ 768). These unlayered rules then serve the mobile layout:
+
+     1. zoom the body so the page lays out at a true phone width (~430px)
+        and type renders at real phone sizes;
+     2. neutralize the prefixed grid templates — the site is mobile-first,
+        so each element's base class already encodes the intended phone
+        layout (grid-template-columns: revert falls back to the single
+        implicit column; explicit restores keep the designed 2/3-col
+        mobile grids such as the add-ons and the 2×2 size price grid);
+     3. keep split rows stacked (band heroes, CTA strips, footer);
+     4. mobile chrome on (hamburger), desktop-only rails off;
+     5. rescale viewport-unit heights, which double-count under zoom.
+
+   Everything is wrapped in (min-width: 48rem) so the overrides retire the
+   moment a real mobile viewport returns (desktop mode off / re-layout).
+   Real desktops never carry the class. Real phones below 768px are
+   untouched — their base classes already produce this exact layout.
+   ========================================================================== */
+@media (min-width: 48rem) {
+  html.dm-phone body { zoom: var(--dm-zoom, 2.4); }
+
+  html.dm-phone [class*=":grid-cols-"] { grid-template-columns: revert; }
+  html.dm-phone .grid-cols-2[class*=":grid-cols-"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html.dm-phone .grid-cols-3[class*=":grid-cols-"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  html.dm-phone .lg\:flex-row { flex-direction: column; }
+
+  /* Desktop-only rails are hidden above — retire the 232px gutter the fixed
+     sidebar carves out of <main> so content spans the full mobile width. */
+  html.dm-phone .lg\:pl-\[232px\] { padding-left: 0; }
+
+  html.dm-phone .lg\:hidden { display: block; }
+  html.dm-phone .flex.lg\:hidden { display: flex; }
+  html.dm-phone .inline-flex.lg\:hidden { display: inline-flex; }
+  html.dm-phone .hidden.lg\:flex,
+  html.dm-phone .hidden.lg\:block,
+  html.dm-phone .hidden.lg\:grid,
+  html.dm-phone .hidden.xl\:block { display: none; }
+
+  /* sm:-revealed affordances (wizard step labels, ≥640 form layouts) are
+     sized for a ≥640 canvas; at the ~430px effective width they must stay
+     in their compact mobile form. */
+  html.dm-phone .hidden.sm\:block,
+  html.dm-phone .hidden.sm\:flex { display: none; }
+
+  html.dm-phone .min-h-screen { min-height: calc(100vh / var(--dm-zoom, 1)); }
+}

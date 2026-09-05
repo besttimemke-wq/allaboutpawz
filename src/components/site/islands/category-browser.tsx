@@ -69,9 +69,12 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "newest", label: "NEWEST" },
 ]
 
-const railHeadingCls = "text-[9px] font-bold tracking-[0.18em] text-gold-deep uppercase"
+const railHeadingCls = "text-[9.5px] font-bold tracking-[0.16em] text-gold-deep uppercase"
+const checkRowCls = "flex min-h-[30px] cursor-pointer items-center gap-2.5 py-[3px] text-[11.5px] text-ink-soft transition-colors hover:text-ink"
+const checkBoxCls = "h-4 w-4 shrink-0 accent-gold-deep"
+const countCls = "text-[9.5px] font-bold text-ink-soft/60"
 const numInputCls =
-  "w-full min-w-0 border border-gold/35 bg-cream px-2.5 py-2 text-[11px] text-ink placeholder:text-ink-soft/50 " +
+  "w-full min-w-0 min-h-[38px] border border-gold/35 bg-cream px-3 py-2.5 text-[11.5px] text-ink placeholder:text-ink-soft/50 " +
   "focus:outline-none focus:ring-1 focus:ring-gold-deep [appearance:textfield] " +
   "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 
@@ -234,9 +237,14 @@ export function CategoryBrowser({
 
   // ---- the rail (shared by desktop sidebar + mobile collapsible) ----
   const rail = (
-    <div className="space-y-6" aria-label={`Filters for ${node.name}`}>
+    <div className="space-y-7" aria-label={`Filters for ${node.name}`}>
       <div className="flex items-center justify-between border-b border-gold/20 pb-3">
-        <p className={railHeadingCls}>Filters</p>
+        <div className="flex items-baseline gap-2">
+          <p className={railHeadingCls}>Filters</p>
+          {activeCount > 0 && (
+            <span className="text-[9px] font-bold text-gold-deep/80">({activeCount})</span>
+          )}
+        </div>
         {activeCount > 0 && (
           <button
             type="button"
@@ -275,17 +283,17 @@ export function CategoryBrowser({
           />
         </div>
         {bucketOptions.length > 0 && (
-          <div className="mt-2.5 space-y-1.5">
+          <div className="mt-2 space-y-0.5">
             {bucketOptions.map((b) => (
-              <label key={b.key} className="flex cursor-pointer items-center gap-2 text-[11px] text-ink-soft">
+              <label key={b.key} className={checkRowCls}>
                 <input
                   type="checkbox"
                   checked={buckets.includes(b.key)}
                   onChange={() => toggleBucket(b.key)}
-                  className="h-3.5 w-3.5 shrink-0 accent-gold-deep"
+                  className={checkBoxCls}
                 />
                 <span className="flex-1">{b.label}</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{b.count}</span>
+                <span className={countCls}>{b.count}</span>
               </label>
             ))}
           </div>
@@ -296,17 +304,17 @@ export function CategoryBrowser({
       {ratingOptions.length > 0 && (
         <div>
           <p className={railHeadingCls}>Rating</p>
-          <div className="mt-2.5 space-y-1.5">
+          <div className="mt-2 space-y-0.5">
             {ratingOptions.map((o) => (
-              <label key={o.value} className="flex cursor-pointer items-center gap-2 text-[11px] text-ink-soft">
+              <label key={o.value} className={checkRowCls}>
                 <input
                   type="checkbox"
                   checked={minRating === o.value}
                   onChange={() => setMinRating(minRating === o.value ? 0 : o.value)}
-                  className="h-3.5 w-3.5 shrink-0 accent-gold-deep"
+                  className={checkBoxCls}
                 />
                 <span className="flex-1">{o.label}</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{o.count}</span>
+                <span className={countCls}>{o.count}</span>
               </label>
             ))}
           </div>
@@ -317,29 +325,29 @@ export function CategoryBrowser({
       {(stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
         <div>
           <p className={railHeadingCls}>Availability</p>
-          <div className="mt-2.5 space-y-1.5">
+          <div className="mt-2 space-y-0.5">
             {stockCounts.inStock > 0 && (
-              <label className="flex cursor-pointer items-center gap-2 text-[11px] text-ink-soft">
+              <label className={checkRowCls}>
                 <input
                   type="checkbox"
                   checked={stockOnly}
                   onChange={() => setStockOnly((v) => !v)}
-                  className="h-3.5 w-3.5 shrink-0 accent-gold-deep"
+                  className={checkBoxCls}
                 />
                 <span className="flex-1">In stock</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{stockCounts.inStock}</span>
+                <span className={countCls}>{stockCounts.inStock}</span>
               </label>
             )}
             {stockCounts.backordered > 0 && (
-              <label className="flex cursor-pointer items-center gap-2 text-[11px] text-ink-soft">
+              <label className={checkRowCls}>
                 <input
                   type="checkbox"
                   checked={backorderOnly}
                   onChange={() => setBackorderOnly((v) => !v)}
-                  className="h-3.5 w-3.5 shrink-0 accent-gold-deep"
+                  className={checkBoxCls}
                 />
                 <span className="flex-1">Backordered</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{stockCounts.backordered}</span>
+                <span className={countCls}>{stockCounts.backordered}</span>
               </label>
             )}
           </div>

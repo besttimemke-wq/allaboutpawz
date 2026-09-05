@@ -9,12 +9,36 @@ export const metadata: Metadata = {
   icons: { icon: "/assets/paw.png" },
 };
 
+// Desktop-mode phones ("Request desktop site" in Chrome/Firefox on Android,
+// "Request Desktop Website" in iOS Safari) force a 980–1024px layout viewport
+// while the page is squeezed onto a ~414px screen: every lg: breakpoint fires
+// and the pricing cards render three-squeezed-wide with unreadable type.
+// This inline script (runs before first paint) tags those sessions on the
+// <html> element so the dm-phone CSS in globals.css can serve the real mobile
+// layout. Ordinary desktops never match (desktop UA), ordinary phones never
+// match (narrow viewport) — the class appears only on a phone UA at desktop
+// width.
+const DESKTOP_MODE_PHONE_SCRIPT = `(function(){try{
+var ua=navigator.userAgent;
+var phone=/iPhone|iPod/.test(ua)||(/Android/.test(ua)&&/Mobile/.test(ua))||/Windows Phone|BlackBerry|Opera Mini|IEMobile/.test(ua);
+if(!phone)return;
+var root=document.documentElement;
+var apply=function(){
+var w=root.clientWidth||window.innerWidth;
+if(w>=768){root.classList.add('dm-phone');root.style.setProperty('--dm-zoom',String(Math.min(2.6,w/430)));}
+};
+apply();
+window.addEventListener('resize',apply);
+window.addEventListener('orientationchange',function(){setTimeout(apply,250)});
+}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: DESKTOP_MODE_PHONE_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

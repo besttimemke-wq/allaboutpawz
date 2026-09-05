@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { Plus, X } from "@phosphor-icons/react"
+import { ArrowUpRight, Plus, X } from "@phosphor-icons/react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
 // ---------------------------------------------------------------------------
@@ -46,19 +46,32 @@ const PRICE_BUCKETS: { key: string; label: string; test: (cents: number) => bool
   { key: "over50", label: "Over $50", test: (c) => c > 5000 },
 ]
 
-const railHeadingCls = "text-[9px] font-bold tracking-[0.18em] text-gold-deep uppercase"
-const checkRowCls = "flex cursor-pointer items-center gap-2 text-[11px] text-ink-soft"
-const checkBoxCls = "h-3.5 w-3.5 shrink-0 accent-gold-deep"
+// Shared rail visual language (kept identical in category-browser.tsx so
+// the /shop and /shop/category/[slug] rails never drift apart).
+const railHeadingCls = "text-[9.5px] font-bold tracking-[0.16em] text-gold-deep uppercase"
+const checkRowCls = "flex min-h-[30px] cursor-pointer items-center gap-2.5 py-[3px] text-[11.5px] text-ink-soft transition-colors hover:text-ink"
+const checkBoxCls = "h-4 w-4 shrink-0 accent-gold-deep"
+const countCls = "text-[9.5px] font-bold text-ink-soft/60"
 const numInputCls =
-  "w-full min-w-0 border border-gold/35 bg-cream px-2.5 py-2 text-[11px] text-ink placeholder:text-ink-soft/50 " +
+  "w-full min-w-0 min-h-[38px] border border-gold/35 bg-cream px-3 py-2.5 text-[11.5px] text-ink placeholder:text-ink-soft/50 " +
   "focus:outline-none focus:ring-1 focus:ring-gold-deep [appearance:textfield] " +
   "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 
 const TREE_SCROLL =
-  "max-h-[380px] overflow-y-auto pr-1 " +
+  "max-h-[440px] overflow-y-auto pr-1 " +
   "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent " +
   "[&::-webkit-scrollbar-thumb]:bg-gold/40 [&::-webkit-scrollbar-thumb]:rounded-full " +
   "hover:[&::-webkit-scrollbar-thumb]:bg-gold-deep/60"
+
+/** Section heading with its live active count (\"PRICE (2)\"). */
+function RailSection({ title, active }: { title: string; active?: number }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <p className={railHeadingCls}>{title}</p>
+      {active ? <span className="text-[9px] font-bold text-gold-deep/80">({active})</span> : null}
+    </div>
+  )
+}
 
 /** Flatten a node + all descendants into a list of ids. */
 function subtreeIds(node: SidebarCategory): number[] {
@@ -129,23 +142,57 @@ export function ShopSidebar({
         : [...price.buckets, key],
     })
 
+  // Live active counts per section — drive the FILTERS (n) badge, the CLEAR
+  // ALL affordance, and each section's (n) hint. Buckets are a shared string
+  // array, so classify them by key shape.
+  const ratingActive = price.buckets.filter((k) => k.startsWith("rating")).length
+  const stockActive = price.buckets.filter((k) => k === "instock" || k === "backorder").length
+  const priceActive =
+    price.buckets.filter((k) => !k.startsWith("rating") && k !== "instock" && k !== "backorder").length +
+    (price.min || price.max ? 1 : 0)
+  const activeCount = checked.size + price.buckets.length + (price.min || price.max ? 1 : 0)
+  const clearAll = () => {
+    onClearCategories()
+    onPriceChange({ min: "", max: "", buckets: [] })
+  }
+
   const rail = (
-    <div className="space-y-6" aria-label="Shop filters">
+    <div className="space-y-7" aria-label="Shop filters">
+      {/* Rail header — FILTERS + live count + CLEAR ALL (mirrors the
+          category-page rail header so the two rails read as one system). */}
+      <div className="flex items-center justify-between border-b border-gold/20 pb-3">
+        <div className="flex items-baseline gap-2">
+          <p className={railHeadingCls}>Filters</p>
+          {activeCount > 0 && (
+            <span className="text-[9px] font-bold text-gold-deep/80">({activeCount})</span>
+          )}
+        </div>
+        {activeCount > 0 && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:text-ink"
+          >
+            <X size={10} weight="bold" /> CLEAR ALL
+          </button>
+        )}
+      </div>
+
       {/* CATEGORIES — the regular checkbox tree */}
       <div>
-        <div className="flex items-center justify-between border-b border-gold/20 pb-3">
-          <p className={railHeadingCls}>Categories</p>
+        <div className="flex items-center justify-between">
+          <RailSection title="Categories" active={checked.size} />
           {checked.size > 0 && (
             <button
               type="button"
               onClick={onClearCategories}
-              className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:text-ink"
+              className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep/70 transition-colors hover:text-ink"
             >
               <X size={10} weight="bold" /> CLEAR
             </button>
           )}
         </div>
-        <div className={`mt-2.5 space-y-0.5 ${TREE_SCROLL}`}>
+        <div className={`mt-2 space-y-0.5 ${TREE_SCROLL}`}>
           {categories.map((root) => (
             <CategoryNode
               key={root.id}
@@ -160,7 +207,7 @@ export function ShopSidebar({
 
       {/* PRICE — range + data-backed quick buckets */}
       <div>
-        <p className={railHeadingCls}>Price</p>
+        <RailSection title="Price" active={priceActive} />
         <div className="mt-2.5 flex items-center gap-2">
           <input
             type="number"
@@ -185,7 +232,7 @@ export function ShopSidebar({
           />
         </div>
         {bucketOptions.length > 0 && (
-          <div className="mt-2.5 space-y-1.5">
+          <div className="mt-2 space-y-0.5">
             {bucketOptions.map((b) => (
               <label key={b.key} className={checkRowCls}>
                 <input
@@ -195,7 +242,7 @@ export function ShopSidebar({
                   className={checkBoxCls}
                 />
                 <span className="flex-1">{b.label}</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{b.count}</span>
+                <span className={countCls}>{b.count}</span>
               </label>
             ))}
           </div>
@@ -205,8 +252,8 @@ export function ShopSidebar({
       {/* RATING — only when there are rated products */}
       {ratingOptions.length > 0 && (
         <div>
-          <p className={railHeadingCls}>Rating</p>
-          <div className="mt-2.5 space-y-1.5">
+          <RailSection title="Rating" active={ratingActive} />
+          <div className="mt-2 space-y-0.5">
             {ratingOptions.map((o) => (
               <label key={o.value} className={checkRowCls}>
                 <input
@@ -216,7 +263,7 @@ export function ShopSidebar({
                   className={checkBoxCls}
                 />
                 <span className="flex-1">{o.label}</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{o.count}</span>
+                <span className={countCls}>{o.count}</span>
               </label>
             ))}
           </div>
@@ -226,8 +273,8 @@ export function ShopSidebar({
       {/* AVAILABILITY — options that actually match products */}
       {(stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
         <div>
-          <p className={railHeadingCls}>Availability</p>
-          <div className="mt-2.5 space-y-1.5">
+          <RailSection title="Availability" active={stockActive} />
+          <div className="mt-2 space-y-0.5">
             {stockCounts.inStock > 0 && (
               <label className={checkRowCls}>
                 <input
@@ -237,7 +284,7 @@ export function ShopSidebar({
                   className={checkBoxCls}
                 />
                 <span className="flex-1">In stock</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{stockCounts.inStock}</span>
+                <span className={countCls}>{stockCounts.inStock}</span>
               </label>
             )}
             {stockCounts.backordered > 0 && (
@@ -249,7 +296,7 @@ export function ShopSidebar({
                   className={checkBoxCls}
                 />
                 <span className="flex-1">Backordered</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{stockCounts.backordered}</span>
+                <span className={countCls}>{stockCounts.backordered}</span>
               </label>
             )}
           </div>
@@ -288,17 +335,14 @@ function CategoryNode({
 
   const nameCls =
     depth === 0
-      ? "flex-1 text-[10px] font-bold tracking-[0.1em] text-ink"
+      ? "flex-1 text-[10.5px] font-bold tracking-[0.1em] text-ink"
       : depth === 1
-        ? "flex-1 text-[10.5px] text-ink-soft"
-        : "flex-1 text-[10.5px] text-ink-soft/90"
+        ? "flex-1 text-[11px] text-ink-soft"
+        : "flex-1 text-[11px] text-ink-soft/90"
 
   return (
     <div>
-      <div
-        className="flex items-center gap-1.5 rounded-sm py-[5px] pr-1 transition-colors hover:bg-gold/5"
-        style={{ paddingLeft: `${depth * 14 + 2}px` }}
-      >
+      <div className="flex items-center gap-1.5 rounded-md py-[7px] pr-1 transition-colors hover:bg-gold/5">
         {/* Plus sign — rendered ONLY when the node has children, always in the
             same position and style (consistent across every department).
             Rotates to × when expanded (site-wide disclosure pattern). */}
@@ -308,19 +352,19 @@ function CategoryNode({
             onClick={() => setExpanded((e) => !e)}
             aria-expanded={expanded}
             aria-label={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
-            className="flex h-4 w-4 shrink-0 items-center justify-center text-ink-soft/70 transition-colors hover:text-gold-deep"
+            className="flex h-5 w-5 shrink-0 items-center justify-center text-ink-soft/70 transition-colors hover:text-gold-deep"
           >
             <Plus
-              size={11}
+              size={12}
               weight="bold"
               className={`transition-transform duration-300 ${expanded ? "rotate-45 text-gold-deep" : ""}`}
             />
           </button>
         ) : (
-          <span className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="h-5 w-5 shrink-0" aria-hidden="true" />
         )}
 
-        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5">
           <input
             type="checkbox"
             checked={state === "on"}
@@ -337,16 +381,24 @@ function CategoryNode({
           )}
         </label>
 
-        {/* Deep levels can jump to the category page */}
+        {/* Deep levels can jump to the category page — an arrow (open page),
+          deliberately distinct from the Plus expand caret above. */}
         {depth > 0 && (
-          <Link href={`/shop/category/${node.slug}`} aria-label={`Browse ${node.name}`} className="shrink-0 text-ink-soft/40 transition-colors hover:text-gold-deep">
-            <Plus size={10} weight="bold" />
+          <Link
+            href={`/shop/category/${node.slug}`}
+            aria-label={`Browse ${node.name}`}
+            title="Browse this category"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-ink-soft/35 transition-colors hover:text-gold-deep"
+          >
+            <ArrowUpRight size={11} weight="bold" />
           </Link>
         )}
       </div>
 
+      {/* Children sit on a hairline guide rail under the parent's caret —
+          depth reads at a glance without counting indents. */}
       {expanded && hasChildren && (
-        <div>
+        <div className="ml-[15px] border-l border-gold/15 pl-[7px]">
           {node.children.map((child) => (
             <CategoryNode key={child.id} node={child} depth={depth + 1} checked={checked} onToggle={onToggle} />
           ))}
