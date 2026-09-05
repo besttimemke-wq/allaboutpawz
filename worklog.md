@@ -730,3 +730,26 @@ Stage Summary:
 - Zero lucide Star glyphs on the public site; footer carries the gold cursive logo
 - Contact channels unified: help@aapawz.com / 901-800-7182 (DB + code)
 - All standard heroes: 520px tall, image right, text left — symmetry enforced globally
+
+---
+Task ID: 25
+Agent: main (direct work, no subagents)
+Task: FAQ headline larger + logo position fix, book page two-column dog/card sections (cards no longer share space), pricing add-ons band moved up + black
+
+Work Log:
+- Read both new uploads via VLM: (1) black poodle lying on cushion in salon 1536×1024, (2) golden doodle with bow tie + circular gold ALL ABOUT PAWZ wall sign 819×415
+- Measured the sign's top edge in every hero photo with pixel scans (gold-on-dark-wall detection): FAQ 1.9% from top (rendered ~10px gap — squeezed at the top), BOOK 8.9% (~46px), PRICING 10.1% (~53px), CONTACT 2.5%, new doodle upload 0.5% (nearly flush) → the FAQ page's logo sat "above" the other pages' logos
+- Staged 3 new images: public/Book/bookdog-black.jpeg (4/3 crop x171-1536 — dog right, salon context left), public/Book/bookdog-brown.jpeg (crop x139-745 dog+sign, +40px dark-wall extension above the sign so it sits at ~11% like the other photos; per-column median of top rows + matched noise so window/chains/wall continue naturally), public/FAQ-Policies/faqhero-v3.jpeg (+120px wall extension → sign at 11.7%; renders ~47px gap ≈ book hero's 46px; hero img gets object-bottom so the poodle's paws stay pinned and the crop eats the extension instead)
+- FAQ page: headline "Good To Know." 42/52px → 46/58px ("a bit larger"); hero img swapped to faqhero-v3 + object-bottom
+- Book page restructured: hero → HOW BOOKING WORKS band → NEW two-column section (black dog photo left, "Book an Appointment" entry card right) → THE WIZARD (id=book) → FREE CONSULTATIONS band → NEW two-column section (brown dog photo left, "Schedule a Consultation" entry card right, id=consult); consult band CTA now anchors #consult
+- New client island booking-entry-cards.tsx (BookingEntryCard): clicking a card patches the shared wizard store ({bookingType, step: max(1, step)}) and smooth-scrolls to #book; active mode highlighted (border-gold-deep, aria-pressed); hydration via useSyncExternalStore gate (same pattern as bag indicator)
+- Wizard v2 changes: step-0 type screen REMOVED (the two cards no longer share one space — they're the page sections now); null bookingType = appointment default; mount effect normalizes step<1 → 1; mode line above the stepper (RESERVE YOUR VISIT / $25 DEPOSIT vs FREE CONSULTATION REQUEST / FREE); Back hidden at step 1; BOOK ANOTHER resets then patches step 1; stepper circles h-8 w-8 sm:h-9 sm:w-9 + connectors hidden on mobile (fixed a mobile horizontal overflow that the type screen had been masking — 449px → 390px)
+- Fixed pre-existing consultation-submit bug found during E2E: payload sent `notes` but live consultations table has no notes column (Supabase PGRST204 → 500); removed the field (concerns already carries notes fallback)
+- Pricing page: ADD-ONS "Little Extras, Big Joy." lifted out of the marble packages section and rebuilt as the SECOND section directly after the hero as a BLACK band in the standard home-band structure (eyebrow-dark, display headline, copy, gold BOOK A GROOM CTA, right side 5 add-on cells with gold icons + gold titles + prices, hairline lg:border-l dividers, responsive 2/5 cols); packages section + italic disclaimer follow unchanged
+- Verified via agent-browser + VLM: FAQ (headline 58px, sign gap 49px ≈ book 46px, sign fully visible, paws visible, VLM clean on desktop + mobile); book (6-section order confirmed, both dog photos fully visible & well-framed, doodle photo shows the sign with wall above it, cards in separate sections); entry-card interactions (consult card click → mode line FREE CONSULTATION REQUEST + stepper PREFERRED + scroll to wizard; book card click → switches back to SCHEDULE); full consultation E2E (name→contact→dog→coat→grooming→preferred date/time→groomer→notes→review→submit → POST /api/cms/consultations 201 → row confirmed in Supabase with PENDING status → BOOK ANOTHER resets to step 1 appointment with cleared fields); anchors #book (top 96) and #consult work; pricing (black band second, 5 add-ons readable, packages after, mobile 2-col grid clean); no horizontal overflow on any of the 3 pages at 390px; test rows deleted from Supabase; lint 0 errors (5 pre-existing warnings); dev.log clean after fix
+
+Stage Summary:
+- FAQ: bigger headline; the wall sign now sits at the same height as the other pages' signs (wall-extension technique, new faqhero-v3.jpeg)
+- Book: the appointment and consultation entry cards each own a section — black dog | book card below the steps band, brown dog | consult card below the consult band; the wizard itself defaults to appointment mode with a visible mode line, and either card switches the flow
+- Wizard mobile stepper now fits 390px; consultation submissions actually work (notes column bug fixed)
+- Pricing: "Little Extras. Big Joy." is now the black band in slot two, matching the site-wide band pattern; packages follow

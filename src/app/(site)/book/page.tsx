@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { BookingWizardV2, type WizardLookups } from "@/components/site/islands/booking-wizard-v2"
+import { BookingEntryCard } from "@/components/site/islands/booking-entry-cards"
 import { getResource } from "@/lib/site-data"
 
 type Breed = { id: string; name: string; sizeCategory?: string; coatType?: string; akcGroup?: string }
@@ -151,8 +152,27 @@ export default async function BookPage() {
         </div>
       </section>
 
+      {/* BOOK ENTRY — black dog left, the appointment card right. The two
+          cards that used to share the wizard's first screen each get their own
+          space on the page; clicking selects the flow and scrolls to the
+          wizard below. */}
+      <section className="marble bg-cream px-8 py-14 lg:px-12">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_1fr]">
+          <div className="relative aspect-[4/3]">
+            <img
+              src="/Book/bookdog-black.jpeg"
+              alt="Black poodle resting on its plush cushion in the All About Pawz salon"
+              width={1365}
+              height={1024}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          </div>
+          <BookingEntryCard type="appointment" />
+        </div>
+      </section>
+
       {/* THE WIZARD — the booking flow itself. */}
-      <section id="book" className="marble scroll-mt-24 bg-cream px-8 pt-12 pb-14 lg:px-12">
+      <section id="book" className="marble scroll-mt-24 bg-cream px-8 pb-14 lg:px-12">
         <div className="border border-gold/30 bg-card p-7 lg:p-10">
           <BookingWizardV2
             breeds={breeds || []}
@@ -170,9 +190,9 @@ export default async function BookPage() {
             <p className="eyebrow-dark">FREE CONSULTATIONS</p>
             <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-on-dark">Every Pup.<br />Every Question.<br />Every Answer.</h2>
             <p className="mt-4 max-w-[290px] text-[12px] leading-[1.75] text-on-dark-muted">
-              New to grooming, a tricky coat, or just want to talk it through first? Request a free consultation — choose it at the start of the flow above.
+              New to grooming, a tricky coat, or just want to talk it through first? Request a free consultation with the card below — no deposit, no pressure.
             </p>
-            <a href="#book" className="btn-gold mt-6 inline-flex">REQUEST A CONSULTATION</a>
+            <a href="#consult" className="btn-gold mt-6 inline-flex">REQUEST A CONSULTATION</a>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {CONSULT_STEPS.map((s) => (
@@ -183,6 +203,24 @@ export default async function BookPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* CONSULT ENTRY — brown dog left, the consultation card right. Its
+          own space below the consult band; clicking it switches the wizard
+          above into the free-consultation flow. */}
+      <section id="consult" className="marble scroll-mt-24 bg-cream px-8 py-14 lg:px-12">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_1fr]">
+          <div className="relative aspect-[4/3]">
+            <img
+              src="/Book/bookdog-brown.jpeg"
+              alt="Golden doodle in a bow tie sitting beneath the All About Pawz sign"
+              width={606}
+              height={455}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          </div>
+          <BookingEntryCard type="consultation" />
         </div>
       </section>
     </>

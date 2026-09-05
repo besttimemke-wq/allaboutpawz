@@ -62,6 +62,33 @@ export default async function PricingPage() {
         </div>
       </section>
 
+      {/* ADD-ONS — little extras on black, directly after the hero. Same
+          band structure as the homepage services band. */}
+      <section className="bg-ink px-8 py-12 lg:px-12">
+        <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_2.4fr]">
+          <div className="lg:border-r lg:border-gold/25 lg:pr-10">
+            <p className="eyebrow-dark">ENHANCE ANY VISIT</p>
+            <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-on-dark">Little Extras.<br />Big Joy.</h2>
+            <p className="mt-4 max-w-[290px] text-[12px] leading-[1.75] text-on-dark-muted">
+              Small finishing touches that make a big difference. Add any of these when you book — your groomer takes care of the rest.
+            </p>
+            <Link href="/book" className="btn-gold mt-6">BOOK A GROOM</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-5">
+            {addons.map(({ id, title, price, icon }: any, i: number) => {
+              const Icon = getIcon(icon, Sparkles)
+              return (
+                <div key={id} className={`px-2 text-center sm:px-4 ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
+                  <Icon className="mx-auto h-10 w-10 text-gold" strokeWidth={1.2} />
+                  <h3 className="mt-4 text-[11px] font-bold tracking-[0.14em] text-gold">{title.toUpperCase()}</h3>
+                  <p className="mt-2 text-[13px] font-bold text-on-dark">{price}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* PACKAGES — each service is a clearly defined product card: image,
           name, concise description, transparent size-based pricing, and a
           clear call to action. Premium, spacious, easy to scan. */}
@@ -116,25 +143,7 @@ export default async function PricingPage() {
           })}
         </div>
 
-        {/* ADD-ONS — enhance any visit. */}
-        <div className="mt-16 lg:mt-20">
-          <p className="eyebrow">ENHANCE ANY VISIT</p>
-          <h2 className="mt-3 font-display text-[24px] leading-[1.15] text-ink lg:text-[28px]">Little Extras,<br />Big Joy.</h2>
-          <div className="grid grid-cols-2 gap-px border border-gold/30 bg-gold/20 md:grid-cols-3 lg:grid-cols-5">
-            {addons.map(({ id, title, price, icon }: any) => {
-              const Icon = getIcon(icon, Sparkles)
-              return (
-                <div key={id} className="flex flex-col items-center gap-3 bg-cream px-4 py-7 text-center">
-                  <Icon className="h-6 w-6 text-gold-deep" strokeWidth={1.2} />
-                  <h3 className="text-[11px] font-bold tracking-[0.12em] text-ink">{title.toUpperCase()}</h3>
-                  <p className="text-[13px] font-bold text-gold-deep">{price}</p>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        <p className="mt-10 text-center text-[11px] italic leading-[1.7] text-ink-soft">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
+        <p className="mt-16 text-center text-[11px] italic leading-[1.7] text-ink-soft lg:mt-20">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
       </section>
     </>
   )

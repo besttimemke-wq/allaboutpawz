@@ -21,7 +21,7 @@ export default async function FaqPage() {
       {/* HERO — site standard: centered text left, photo right filling the column. */}
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] lg:min-h-[520px]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
-          <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Good<br />To Know.</h1>
+          <h1 className="font-display text-[46px] leading-[1.08] text-ink lg:text-[58px]">Good<br />To Know.</h1>
           <div className="mt-6"><Divider /></div>
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">
             Everything you might want to ask before your first visit, and the house rules that keep every pup safe and every appointment on time.
@@ -29,11 +29,11 @@ export default async function FaqPage() {
         </div>
         <div className="relative min-h-[300px]">
           <img
-            src="/FAQ-Policies/faqhero-v2.jpeg"
+            src="/FAQ-Policies/faqhero-v3.jpeg"
             alt="Fluffy white poodle with blue-tipped ears and a blue bow tie sitting in the All About Pawz salon"
             width={1448}
-            height={1086}
-            className="absolute inset-0 h-full w-full object-cover"
+            height={1206}
+            className="absolute inset-0 h-full w-full object-cover object-bottom"
           />
         </div>
       </section>

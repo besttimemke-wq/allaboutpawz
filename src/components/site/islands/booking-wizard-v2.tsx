@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import {
   Check, ArrowLeft, ArrowRight, Plus, PawPrint,
-  Scissors, Dog, CreditCard, Sparkle, Camera, Spinner,
+  Dog, CreditCard, Sparkle, Camera, Spinner,
 } from "@phosphor-icons/react"
 import { useWizard, type BookingType } from "@/lib/wizard/wizard-store"
 
@@ -56,8 +56,14 @@ export function BookingWizardV2({
   const [success, setSuccess] = useState<"booking" | "consultation" | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
 
-  // Hydrate from localStorage (avoid SSR mismatch)
-  useEffect(() => setHydrated(true), [])
+  // Hydrate from localStorage (avoid SSR mismatch). The type-selection screen
+  // is gone — the two entry cards on the page choose the flow — so a fresh or
+  // reset wizard always starts at step 1 (appointment is the default mode).
+  useEffect(() => {
+    setHydrated(true)
+    const st = useWizard.getState()
+    if (st.step < 1) st.patch({ step: 1 })
+  }, [])
 
   // Check URL for success param (return from Stripe)
   useEffect(() => {
@@ -203,7 +209,6 @@ export function BookingWizardV2({
             preferredTime: s.time,
             preferredDate: s.date,
             concerns: s.consultationReason || s.notes || "",
-            notes: s.notes,
             status: "PENDING",
           }),
         })
@@ -330,7 +335,7 @@ export function BookingWizardV2({
           <a href="/" className="btn-gold">RETURN HOME</a>
           <button
             type="button"
-            onClick={() => { s.reset(); setSuccess(null) }}
+            onClick={() => { s.reset(); s.patch({ step: 1 }); setSuccess(null) }}
             className="btn-ghost"
           >BOOK ANOTHER</button>
         </div>
@@ -352,68 +357,23 @@ export function BookingWizardV2({
     )
   }
 
-  // ----- Step 0: type selection (no stepper) -----
-  if (!s.bookingType) {
-    // Detect if there's any persisted progress to offer "Start over".
-    const hasProgress = s.step > 0 || !!s.firstName || !!s.dogName || !!s.customerId
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <p className="eyebrow">RESERVE YOUR VISIT</p>
-          <h2 className="mt-2 font-display text-[28px] text-ink">What would you like to do?</h2>
-          <p className="mx-auto mt-2 max-w-md text-[12.5px] leading-relaxed text-ink-soft">
-            Book a grooming appointment or schedule a free consultation with our team. You can change your choice at any time.
-          </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => s.patch({ bookingType: "appointment", step: 1 })}
-              className="group border border-gold/35 bg-cream p-8 text-center transition-colors hover:border-gold-deep hover:bg-cream-deep"
-            >
-              <Scissors size={32} weight="fill" className="mx-auto text-gold-deep" />
-              <h3 className="mt-3 font-display text-[20px] text-ink">Book an Appointment</h3>
-              <p className="mt-1 text-[11.5px] leading-relaxed text-ink-soft">$25 deposit secures your appointment.</p>
-              <span className="mt-4 inline-block text-[10px] font-bold tracking-[0.18em] text-gold-deep">CONTINUE →</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => s.patch({ bookingType: "consultation", step: 1 })}
-              className="group border border-gold/35 bg-cream p-8 text-center transition-colors hover:border-gold-deep hover:bg-cream-deep"
-            >
-              <PawPrint size={32} weight="fill" className="mx-auto text-gold-deep" />
-              <h3 className="mt-3 font-display text-[20px] text-ink">Schedule a Consultation</h3>
-              <p className="mt-1 text-[11.5px] leading-relaxed text-ink-soft">Free — meet with our team.</p>
-              <span className="mt-4 inline-block text-[10px] font-bold tracking-[0.18em] text-gold-deep">CONTINUE →</span>
-            </button>
-          </div>
-        </div>
-        {hasProgress && (
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => { if (confirm("Clear all wizard data and start fresh?")) s.reset() }}
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] text-ink-soft hover:text-gold-deep"
-            >
-              <ArrowLeft size={12} weight="bold" /> Start over
-            </button>
-          </div>
-        )}
-      </div>
-    )
-  }
-
   // ----- Main wizard (steps 1..9) -----
-  const goBack = () => {
-    if (s.step === 1) {
-      // From step 1, Back returns to the type-selection screen.
-      s.patch({ bookingType: null, step: 0 })
-    } else {
-      s.setStep(s.step - 1)
-    }
-  }
+  // Back is hidden on step 1 — the type-selection screen it used to return
+  // to has been replaced by the two entry cards on the page itself.
+  const goBack = () => s.setStep(s.step - 1)
+
+  const isConsultation = s.bookingType === "consultation"
 
   return (
     <div className="space-y-6">
+      {/* Mode line — reflects which entry card was chosen */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="eyebrow">{isConsultation ? "FREE CONSULTATION REQUEST" : "RESERVE YOUR VISIT"}</p>
+        <p className="text-[10px] font-bold tracking-[0.12em] text-ink-soft">
+          {isConsultation ? "FREE — WE REACH OUT TO PLAN THE VISIT" : "$25 DEPOSIT — SECURED AT THE FINAL STEP"}
+        </p>
+      </div>
+
       <Stepper step={s.step} labels={stepLabels} onJump={(i) => i < s.step && s.setStep(i)} />
 
       {apiError && (
@@ -448,9 +408,13 @@ export function BookingWizardV2({
 
       {/* Nav */}
       <div className="flex items-center justify-between border-t border-gold/25 pt-5">
-        <button type="button" onClick={goBack} className="btn-ghost">
-          <ArrowLeft size={14} weight="bold" /> Back
-        </button>
+        {s.step > 1 ? (
+          <button type="button" onClick={goBack} className="btn-ghost">
+            <ArrowLeft size={14} weight="bold" /> Back
+          </button>
+        ) : (
+          <span aria-hidden="true" />
+        )}
         {s.step < 9 ? (
           <button
             type="button"
@@ -485,7 +449,7 @@ function Stepper({ step, labels, onJump }: { step: number; labels: string[]; onJ
               disabled={!canJump}
               className={`flex flex-col items-center gap-1.5 ${canJump ? "cursor-pointer" : "cursor-default"}`}
             >
-              <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-colors ${isActive ? "border-gold-deep bg-gold-deep text-cream" : isDone ? "border-gold-deep bg-gold-deep text-cream" : "border-gold/30 bg-cream text-gold-deep"}`}>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-colors sm:h-9 sm:w-9 ${isActive ? "border-gold-deep bg-gold-deep text-cream" : isDone ? "border-gold-deep bg-gold-deep text-cream" : "border-gold/30 bg-cream text-gold-deep"}`}>
                 {isDone ? <Check size={14} weight="bold" /> : stepNumber}
               </span>
               <span className={`hidden text-[8px] font-bold tracking-[0.08em] sm:block ${isActive ? "text-gold-deep" : "text-ink-soft"}`}>
@@ -493,7 +457,7 @@ function Stepper({ step, labels, onJump }: { step: number; labels: string[]; onJ
               </span>
             </button>
             {idx < labels.length - 1 && (
-              <span className={`mx-1 h-px flex-1 ${step > stepNumber ? "bg-gold-deep" : "bg-gold/25"}`} />
+              <span className={`mx-1 hidden h-px flex-1 sm:block ${step > stepNumber ? "bg-gold-deep" : "bg-gold/25"}`} />
             )}
           </div>
         )
