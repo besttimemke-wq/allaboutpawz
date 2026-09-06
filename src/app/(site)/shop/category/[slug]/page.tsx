@@ -1,8 +1,10 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, PawPrint } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
+import { TrustServiceBand } from "@/components/site/trust-band"
+import { resolveCategoryArt } from "@/lib/category-art"
 import {
   CategoryBrowser,
   type BrowserProduct,
@@ -27,7 +29,12 @@ import { repo } from "@/lib/repo"
 // Category page — /shop/category/[slug]
 //
 // The layout is the design library's category-page family:
-//   breadcrumb → header → hero → catalog (SIDEBAR + products grid)
+//   breadcrumb → hero (editorial copy + category art, from CODE) → trust &
+//   service band → catalog (SIDEBAR + products grid)
+//
+// Category art (hero images + copy) is imported from the remote project and
+// lives in CODE — never the database (src/lib/category-art.ts). Only shop,
+// gallery, pricing, and services data are database-driven.
 //
 // The DEPARTMENTS nav lives in the header MEGA MENU (every shop route), so
 // the SIDEBAR stays clean:
@@ -216,8 +223,15 @@ export default async function CategoryPage({ params }: Params) {
         ? "1 product"
         : `${products.length} products`
 
+  // Category art from CODE — the node's own, else the nearest ancestor's
+  // (department art covers every subcategory page).
+  const art = resolveCategoryArt(chain.map((n) => n.slug))
+  const heroDescription = art?.description || countLine
+
   return (
     <>
+      <PageHeader n="06" label={headerLabel(node.name)} />
+
       {/* Breadcrumb — real chain from the root department down */}
       <nav
         aria-label="Breadcrumb"
@@ -239,25 +253,51 @@ export default async function CategoryPage({ params }: Params) {
         <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{node.name}</span>
       </nav>
 
-      <PageHeader n="06" label={headerLabel(node.name)} />
-
-      {/* Hero-lite */}
-      <section className="marble bg-cream px-8 pb-12 pt-10 lg:px-12">
-        <p className="eyebrow">SHOP BY CATEGORY</p>
-        <h1 className="mt-3 font-display text-[32px] leading-[1.12] text-ink lg:text-[38px]">
-          {node.name}
-        </h1>
-        <p className="mt-3 text-[12px] text-ink-soft">{countLine}</p>
-        <div className="mt-6">
-          <Link href="/shop" className="btn-ghost">
-            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} /> BROWSE ALL
-          </Link>
+      {/* HERO — the remote category header pattern: editorial copy left,
+          category art right (in CODE, from the remote project's imagery). */}
+      <section className="marble border-b border-gold/25 bg-cream py-10 lg:py-12">
+        <div className="grid grid-cols-1 items-center gap-10 px-8 lg:grid-cols-12 lg:px-12">
+          <div className="flex flex-col justify-center lg:col-span-7">
+            <p className="eyebrow">{art?.eyebrow || "SHOP BY CATEGORY"}</p>
+            <h1 className="mt-3 font-display text-[32px] leading-[1.12] text-ink lg:text-[40px]">
+              {node.name}
+            </h1>
+            <p className="mt-4 max-w-xl text-[12.5px] leading-[1.85] text-ink-soft">
+              {heroDescription}
+            </p>
+            <div className="mt-6">
+              <Link href="/shop" className="btn-ghost">
+                <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} /> BROWSE ALL
+              </Link>
+            </div>
+          </div>
+          <div className="flex justify-center lg:col-span-5 lg:justify-end">
+            <div className="relative aspect-[16/10] w-full max-w-[440px] overflow-hidden border border-gold/25 bg-cream-deep shadow-xs">
+              {art?.img ? (
+                <img
+                  src={art.img}
+                  alt={art.alt || node.name}
+                  width={600}
+                  height={340}
+                  className="h-full w-full object-cover object-center transition-transform duration-500 hover:scale-[1.02]"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <PawPrint className="h-10 w-10 text-gold/30" strokeWidth={1.2} aria-hidden="true" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
+      {/* Trust & service band — the remote project's 4-section band,
+          directly beneath every hero */}
+      <TrustServiceBand />
+
       {/* Collection — sticky filter sidebar + products grid. The page expands;
           subcategory routes live in the sidebar, never above the products. */}
-      <section id="collection" className="marble scroll-mt-24 border-t border-gold/25 bg-cream px-8 pb-14 lg:px-12">
+      <section id="collection" className="marble scroll-mt-24 bg-cream px-8 pb-14 lg:px-12">
         <h2 className="border-t border-gold/25 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
           {node.name.toUpperCase()}
         </h2>

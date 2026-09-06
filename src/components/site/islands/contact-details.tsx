@@ -1,12 +1,10 @@
 "use client"
 
 import { MapPin, Phone, Mail, Clock, Facebook, Instagram } from "lucide-react"
-import { useCmsSettings } from "./use-cms"
 
-// Contact page social links — CSR with "#" fallbacks until the
-// admin-published URLs arrive.
-export function SocialLinks() {
-  const { settings: s } = useCmsSettings()
+// Contact page social links — presentational, fed by the SERVER-RENDERED
+// settings ("#" fallbacks when the admin has not published URLs).
+export function SocialLinks({ settings: s }: { settings: Record<string, string> }) {
   return (
     <>
       <a href={s.instagram || "#"} aria-label="Instagram" className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 text-gold-deep transition-colors hover:bg-gold/10"><Instagram className="h-4 w-4" /></a>
@@ -15,12 +13,11 @@ export function SocialLinks() {
   )
 }
 
-// Contact page essentials — CSR: renders instantly with the built-in fallback
-// values, swaps in the admin-published salon details when they arrive.
-export function ContactDetails() {
-  const { settings: s } = useCmsSettings()
+// Contact page essentials — presentational, fed by the SERVER-RENDERED
+// settings with the salon's real values as code fallbacks.
+export function ContactDetails({ settings: s }: { settings: Record<string, string> }) {
   const details = [
-    { icon: MapPin, label: "VISIT US", lines: [s.addressLine1 || "1428 Maple Grove Avenue", s.addressLine2 || "Suite 4, Riverbend, IL 60614"] },
+    { icon: MapPin, label: "VISIT US", lines: [s.addressLine1 || "699 Waring Rd", s.addressLine2 || "Memphis, TN 38122"] },
     { icon: Phone, label: "CALL US", lines: [s.phone || "901-800-7182"] },
     { icon: Mail, label: "EMAIL US", lines: [s.email || "help@aapawz.com"] },
     { icon: Clock, label: "HOURS", lines: [`Tuesday – Saturday  ${s.hoursTueSat || "9am – 6pm"}`, `Sunday  ${s.hoursSun || "10am – 4pm"}`, `Monday  ${s.hoursMon || "Closed"}`] },

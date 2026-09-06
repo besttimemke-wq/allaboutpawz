@@ -1,13 +1,11 @@
 import Link from "next/link"
-import { Award, Lightbulb, Heart, Truck, Lock, Store, Sparkle, ArrowDown, Scissors } from "lucide-react"
+import { Award, Lightbulb, Heart, Store, Sparkle, ArrowDown, Scissors } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
-import { ShopLoader } from "@/components/site/islands/shop-loader"
-
-const ASSURANCES = [
-  { Icon: Truck, title: "Free Standard Shipping", body: "On every order — 5–7 business days." },
-  { Icon: Lock, title: "Secure Checkout", body: "Payments processed by Stripe." },
-  { Icon: Award, title: "Groomer Approved", body: "The same tools we use in-salon." },
-]
+import { TrustServiceBand } from "@/components/site/trust-band"
+import { ShopClient, type ShopProduct } from "@/components/site/islands/shop-client"
+import type { SidebarCategory } from "@/components/site/islands/shop-sidebar"
+import { getCategoryTree, type CategoryNode } from "@/lib/categories"
+import { getResource } from "@/lib/site-data"
 
 const BADGES = [
   { Icon: Award, title: "Premium Quality", body: ["Only the best for", "your best friend."] },
@@ -15,9 +13,58 @@ const BADGES = [
   { Icon: Heart, title: "Loved by Pups", body: ["Tried, tested, and", "tail-wag approved."] },
 ]
 
-export default function ShopPage() {
-  // CSR architecture: static shell (hero, assurances, badges, cross-sell);
-  // the catalog, category tree, and review rollups fetch client-side.
+// Data-driven surface: SERVER-RENDERED from Supabase (catalog, category
+// tree, review rollups) and revalidated on the same cadence as the category
+// pages (ISR 300). The hero, badges, and cross-sell chrome stay in code.
+export const revalidate = 300
+
+export const metadata = {
+  title: "Shop the Collection — All About Pawz",
+  description:
+    "Curated grooming products, tools, and accessories — hand-selected by our groomers for coat health, comfort, and style.",
+}
+
+// Department tree for the landing rail — the same shape the mega menu and
+// category pages use. The generic pet-supplies umbrella is never a link.
+function toSidebarTree(nodes: CategoryNode[]): SidebarCategory[] {
+  return nodes
+    .filter((n) => n.slug !== "pet-supplies")
+    .map((n) => ({
+      id: n.id,
+      name: n.name,
+      slug: n.slug,
+      productCount: n.productCount,
+      children: toSidebarTree(n.children),
+    }))
+}
+
+export default async function ShopPage() {
+  const [productRows, reviewRows, tree] = await Promise.all([
+    getResource("products"),
+    getResource("product_reviews"),
+    getCategoryTree(),
+  ])
+
+  const products: ShopProduct[] = productRows
+    .filter((p: any) => p.visible)
+    .sort(
+      (a: any, b: any) =>
+        (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)),
+    )
+
+  // Review rollup per product (a review shows when it is visible OR
+  // explicitly approved — same rule as the category pages).
+  const ratings: Record<string, { avg: number; count: number }> = {}
+  for (const r of reviewRows) {
+    if (!(r.visible === true || r.status === "approved")) continue
+    const cur = ratings[r.productId] || { avg: 0, count: 0 }
+    ratings[r.productId] = {
+      avg: (cur.avg * cur.count + (r.rating || 0)) / (cur.count + 1),
+      count: cur.count + 1,
+    }
+  }
+
+  const categoryTree: SidebarCategory[] = tree.ready ? toSidebarTree(tree.categories) : []
 
   return (
     <>
@@ -57,27 +104,17 @@ export default function ShopPage() {
         </div>
       </section>
 
-      {/* Assurance strip */}
-      <section className="border-y border-gold/25 bg-cream-deep px-8 py-6 lg:px-12">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-3">
-          {ASSURANCES.map(({ Icon, title, body }, i) => (
-            <div key={title} className={`flex items-start gap-3 ${i > 0 ? "sm:border-l sm:border-gold/25 sm:pl-6" : ""}`}>
-              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" strokeWidth={1.4} />
-              <div>
-                <p className="text-[11px] font-bold tracking-[0.08em] text-ink">{title.toUpperCase()}</p>
-                <p className="mt-1 text-[11.5px] leading-[1.6] text-ink-soft">{body}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Trust & service band — the remote project's 4-section band,
+          directly beneath the hero (free shipping / secure checkout /
+          groomer approved / return policy) */}
+      <TrustServiceBand />
 
       {/* Collection */}
       <section id="collection" className="marble scroll-mt-24 bg-cream px-8 pb-14 pt-12 lg:px-12">
         <h2 className="border-t border-gold/25 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
           SHOP OUR FAVORITES
         </h2>
-        <ShopLoader />
+        <ShopClient products={products} categoryTree={categoryTree} ratings={ratings} />
       </section>
 
       {/* Trust badges */}

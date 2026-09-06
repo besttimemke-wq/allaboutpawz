@@ -3,6 +3,8 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
 import { PawPrint } from "lucide-react"
+import { PageHeader } from "@/components/site/site-chrome"
+import { TrustServiceBand } from "@/components/site/trust-band"
 import { repo } from "@/lib/repo"
 import { getCategoryTree, findNode, type CategoryNode } from "@/lib/categories"
 import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
@@ -133,6 +135,10 @@ export default async function ProductPage({ params }: Params) {
 
   return (
     <>
+      {/* Header row — carries the departments mega menu + the bag in the
+          top-right corner, exactly like every other shop page */}
+      <PageHeader n="06" label="SHOP" />
+
       {/* Breadcrumb */}
       <nav
         aria-label="Breadcrumb"
@@ -220,6 +226,10 @@ export default async function ProductPage({ params }: Params) {
           <ProductBuyBox product={product as BuyBoxProduct} />
         </div>
       </section>
+
+      {/* Trust & service band — the remote project's 4-section band,
+          directly beneath every hero */}
+      <TrustServiceBand />
 
       {/* Detail sections */}
       {(hasText(product.description) ||

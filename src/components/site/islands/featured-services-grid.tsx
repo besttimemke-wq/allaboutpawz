@@ -1,35 +1,17 @@
-"use client"
-
 import { Scissors } from "lucide-react"
 import { getIcon } from "@/lib/icons"
-import { useCms, visibleOnly } from "./use-cms"
 
 // The 4-up featured services band used on the home page and the services
-// page. CSR: fetches after paint — the band's headline/CTA never wait.
-export function FeaturedServicesGrid({ count = 4 }: { count?: number }) {
-  const { data, loading } = useCms<{
-    id: string
-    icon?: string
-    title: string
-    description: string
-    visible?: boolean
-  }>("services")
-  const services = visibleOnly(data).slice(0, count)
+// page. Presentational — the SERVER fetches the services and passes them in
+// (visible rows only, already trimmed to `count`).
+export type FeaturedService = {
+  id: string
+  icon?: string
+  title: string
+  description: string
+}
 
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-            <div className="mx-auto h-10 w-10 animate-pulse rounded-full bg-white/10" />
-            <div className="mx-auto mt-4 h-3 w-24 animate-pulse bg-white/10" />
-            <div className="mx-auto mt-3 h-2.5 w-32 animate-pulse bg-white/10" />
-          </div>
-        ))}
-      </div>
-    )
-  }
-
+export function FeaturedServicesGrid({ services }: { services: FeaturedService[] }) {
   return (
     <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
       {services.map(({ id, icon, title, description }, i) => {

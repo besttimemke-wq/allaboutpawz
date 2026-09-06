@@ -3,19 +3,19 @@
 import { useState } from "react"
 import { Instagram } from "lucide-react"
 import { PawGlyph } from "@/components/site/brand"
-import { useCms, useCmsSettings, visibleOnly } from "./use-cms"
 
-type Photo = { id: string; alt: string; category: string; image: string; visible?: boolean }
+export type GalleryPhoto = {
+  id: string
+  alt: string
+  category: string
+  image: string
+}
+
 const FILTERS = ["ALL", "GROOMING", "BATH & SPA", "TRANSFORMATIONS"] as const
 
-export function GalleryGrid() {
-  // CSR: the grid fetches its photos after paint — the page shell (headline,
-  // CTAs, hero) never waits on the database.
-  const { data, loading } = useCms<Photo>("gallery")
-  const { settings } = useCmsSettings()
-  const photos = visibleOnly(data)
-  const instagram = settings.instagram
-
+// Gallery grid — client island for the filter tabs only. The photos arrive
+// SERVER-RENDERED (visible rows, from the database) as props.
+export function GalleryGrid({ photos, instagram }: { photos: GalleryPhoto[]; instagram?: string }) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL")
   const shown = filter === "ALL" ? photos : photos.filter((p) => p.category === filter)
 
@@ -34,14 +34,9 @@ export function GalleryGrid() {
         ))}
       </div>
       <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {loading
-          ? // Skeleton — same grid shape as the photos it replaces.
-            Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="aspect-[5/6] w-full animate-pulse bg-ink/5" />
-            ))
-          : shown.map((p) => (
-            <img key={p.id} src={p.image} alt={p.alt} width={640} height={768} className="aspect-[5/6] w-full object-cover" />
-          ))}
+        {shown.map((p) => (
+          <img key={p.id} src={p.image} alt={p.alt} width={640} height={768} className="aspect-[5/6] w-full object-cover" />
+        ))}
       </div>
       <section className="mt-10 flex flex-col items-center gap-4 bg-ink px-8 py-10 text-center lg:flex-row lg:justify-center lg:gap-6 lg:text-left">
         <PawGlyph className="h-7 w-7 text-gold" />

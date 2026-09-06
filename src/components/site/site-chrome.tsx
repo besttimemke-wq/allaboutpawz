@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useState, useSyncExternalStore, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -28,73 +28,41 @@ function Pinterest({ className = "" }: { className?: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Bag indicator — the customer's bag, always visible at the TOP of the page.
-// Rendered client-side only (count lives in localStorage); the hydration gate
-// keeps SSR markup stable so the count never flashes or mismatches.
+// Bag button — the customer's bag, always in the top corner of EVERY page.
+// A prominent boxed button (the remote header pattern in site tokens): bag
+// icon + live count badge. Rendered client-side only (count lives in the
+// persisted Zustand store); the hydration gate keeps SSR markup stable so
+// the count never flashes or mismatches.
 // ---------------------------------------------------------------------------
-function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
+function HeaderBagLink() {
   const items = useCart((s) => s.items)
   const emptySubscribe = () => () => {}
   const hydrated = useSyncExternalStore(emptySubscribe, () => true, () => false)
   const count = hydrated ? items.reduce((n, i) => n + i.quantity, 0) : null
 
-  if (variant === "icon") {
-    return (
-      <Link
-        href="/shop/bag"
-        aria-label={count != null ? `View bag (${count} ${count === 1 ? "item" : "items"})` : "View bag"}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-gold-deep"
-      >
-        <ShoppingBag className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
-        {count != null && count > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-gold-deep px-1 text-[9px] font-bold leading-none text-cream">
-            {count}
-          </span>
-        )}
-      </Link>
-    )
-  }
-
   return (
     <Link
       href="/shop/bag"
       aria-label={count != null ? `View bag (${count} ${count === 1 ? "item" : "items"})` : "View bag"}
-      className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-gold-deep"
+      className="relative flex h-10 w-10 shrink-0 items-center justify-center border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:bg-gold/10 hover:text-gold-deep"
     >
-      <span className="relative flex h-7 w-7 items-center justify-center">
-        <ShoppingBag className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
-        {count != null && count > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-gold-deep px-1 text-[8px] font-bold leading-none text-cream">
-            {count}
-          </span>
-        )}
-      </span>
-      BAG{count != null && count > 0 ? ` · ${count}` : ""}
+      <ShoppingBag className="h-5 w-5 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+      {count != null && count > 0 && (
+        <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center bg-gold-deep px-1 text-[10px] font-bold leading-none text-cream">
+          {count}
+        </span>
+      )}
     </Link>
   )
 }
 
-export function SiteChrome({ children, settings: initialSettings }: { children: ReactNode; settings?: Record<string, string> }) {
+export function SiteChrome({ children, settings }: { children: ReactNode; settings?: Record<string, string> }) {
   const pathname = usePathname()
   const isShopRoute = pathname.startsWith("/shop")
   const [open, setOpen] = useState(false)
-  // CSR data layer: the chrome shell renders instantly with built-in
-  // fallbacks, then fills in salon settings (address, phone, hours) from the
-  // site API after paint. No database in the render path.
-  const [fetched, setFetched] = useState<Record<string, string> | null>(null)
-  useEffect(() => {
-    let alive = true
-    fetch("/api/cms/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (alive && d && typeof d === "object" && !Array.isArray(d)) setFetched(d)
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [])
-  const s = { ...(fetched || initialSettings || {}) }
+  // Settings arrive SERVER-RENDERED (fetched once in the (site) layout) —
+  // no client-side fetch, no flash. Code fallbacks cover any missing key.
+  const s = { ...(settings || {}) }
   return (
     <div className="min-h-screen bg-cream">
       <Sidebar settings={s} pathname={pathname} />
@@ -105,7 +73,7 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           <span className="font-display text-[13px] tracking-[0.14em] text-ink">ALL ABOUT PAWZ</span>
         </Link>
         <div className="flex items-center gap-3">
-          <HeaderBagLink variant="icon" />
+          <HeaderBagLink />
           <button onClick={() => setOpen((o) => !o)} aria-label="Menu">
             <Menu className="h-5 w-5 text-ink" />
           </button>
@@ -222,7 +190,7 @@ export function PageHeader({ n, label }: { n: string; label: string }) {
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">{n}</span>
       <span className="min-w-0 truncate text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
       {isShop && <ShopMegaMenu />}
-      {/* Bag — always visible at the top-right of every page */}
+      {/* Bag — always in the top-right corner of every page */}
       <span className="ml-auto shrink-0">
         <HeaderBagLink />
       </span>
@@ -231,11 +199,11 @@ export function PageHeader({ n, label }: { n: string; label: string }) {
 }
 
 // Slim top utility strip for pages that render their own hero instead of a
-// PageHeader (currently the home page) — keeps the bag visible at the top on
-// desktop. Mobile already has the sticky mobile bar with the bag icon.
+// PageHeader (currently the home page) — keeps the bag in the top-right
+// corner on desktop. Mobile already has the sticky mobile bar with the bag.
 export function TopUtilityBar() {
   return (
-    <div className="hidden items-center justify-end border-b border-gold/25 bg-cream px-8 py-2.5 lg:flex">
+    <div className="hidden items-center justify-end border-b border-gold/25 bg-cream px-8 py-2 lg:flex">
       <HeaderBagLink />
     </div>
   )
@@ -313,7 +281,9 @@ const FOOTER_POLICY_LINKS: [string, string][] = [
 function ShopFooter({ settings }: { settings: Record<string, string> }) {
   const phone = settings.phone || "901-800-7182"
   const email = settings.email || "help@aapawz.com"
-  const address = settings.address || "Memphis, TN · Salon & Wellness Center"
+  const address =
+    [settings.addressLine1, settings.addressLine2].filter(Boolean).join(", ") ||
+    "699 Waring Rd, Memphis, TN 38122"
   return (
     <footer id="site-footer" className="bg-ink px-8 pb-8 pt-12 lg:px-12">
       <div className="mx-auto max-w-5xl">

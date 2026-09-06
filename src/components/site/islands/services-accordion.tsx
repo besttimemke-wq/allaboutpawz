@@ -4,7 +4,6 @@ import { useState } from "react"
 import Link from "next/link"
 import { Plus } from "lucide-react"
 import { PawGlyph } from "@/components/site/brand"
-import { useCms, visibleOnly } from "./use-cms"
 
 export type AccordionCategory = {
   id: string
@@ -33,35 +32,18 @@ const SIZE_COLS: [string, keyof AccordionItem][] = [
   ["X-LARGE", "xlargePrice"],
 ]
 
-export function ServicesAccordion() {
-  // CSR: categories + items load after paint; the page shell never waits.
-  const { data: serviceRows, loading: loadingCats } = useCms<AccordionCategory & { visible?: boolean }>("services")
-  const { data: itemRows, loading: loadingItems } = useCms<AccordionItem>("serviceItems")
-  const categories = visibleOnly(serviceRows)
-  const items = visibleOnly(itemRows as (AccordionItem & { visible?: boolean })[])
-  const loading = loadingCats || loadingItems
-
+// Services accordion — client island for the open/close interaction only.
+// The categories and items arrive SERVER-RENDERED (visible rows, from the
+// database) as props; no fetching happens here.
+export function ServicesAccordion({
+  categories,
+  items,
+}: {
+  categories: AccordionCategory[]
+  items: AccordionItem[]
+}) {
   // One accordion open at a time — first starts collapsed.
   const [open, setOpen] = useState(-1)
-
-  if (loading) {
-    return (
-      <div className="border border-gold/30">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className={i > 0 ? "border-t border-gold/25" : ""}>
-            <div className="grid grid-cols-1 items-center gap-5 px-6 py-5 sm:gap-6 lg:grid-cols-3 lg:gap-10 lg:px-10 lg:py-7">
-              <div className="space-y-2">
-                <div className="mx-auto h-3.5 w-28 animate-pulse bg-ink/5 lg:mx-0" />
-                <div className="mx-auto h-2.5 w-40 animate-pulse bg-ink/5 lg:mx-0" />
-              </div>
-              <div className="mx-auto h-20 w-32 animate-pulse bg-ink/5 sm:h-24 lg:h-[130px]" />
-              <div className="mx-auto h-9 w-28 animate-pulse bg-ink/5 lg:mr-0" />
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
 
   return (
     <div className="border border-gold/30">

@@ -1,4 +1,5 @@
 import "server-only"
+import { cache } from "react"
 import { repo, type Row } from "./repo"
 
 // ---------------------------------------------------------------------------
@@ -75,7 +76,9 @@ export type CategoryTree = {
   flat: CategoryNode[]
 }
 
-export async function getCategoryTree(): Promise<CategoryTree> {
+// Request-memoized: every server component on a page (layout, category page,
+// shop landing) shares ONE tree computation per render pass.
+export const getCategoryTree = cache(async (): Promise<CategoryTree> => {
   const [rows, products] = await Promise.all([
     repo.list("pet_product_categories"),
     repo.list("products"),
@@ -103,7 +106,7 @@ export async function getCategoryTree(): Promise<CategoryTree> {
   for (const f of flat) f.productCount = rolled.get(f.id) || 0
 
   return { ready: true, categories: roots, flat }
-}
+})
 
 // ---- node lookup ----
 

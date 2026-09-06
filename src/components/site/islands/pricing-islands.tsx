@@ -1,13 +1,11 @@
-"use client"
-
 import Link from "next/link"
 import { Sparkles } from "lucide-react"
 import { getIcon } from "@/lib/icons"
-import { useCms } from "./use-cms"
 
 // ---------------------------------------------------------------------------
-// Pricing page data islands (CSR — fetch after paint, skeleton meanwhile).
-// The pricing page shell (hero, band headers, CTAs) is fully static.
+// Pricing page content — presentational. The packages and add-ons arrive
+// SERVER-RENDERED (from the database) as props; no fetching happens here.
+// The shell (hero, band headers, CTAs) is code.
 // ---------------------------------------------------------------------------
 
 const SIZES: [string, string][] = [
@@ -37,28 +35,14 @@ const PACKAGE_META: Record<string, { image: string; alt: string; blurb: string; 
   },
 }
 
-export function AddonsGrid() {
-  const { data: addons, loading } = useCms<{
-    id: string
-    title: string
-    price: string
-    icon?: string
-  }>("addons")
+export type Addon = {
+  id: string
+  title: string
+  price: string
+  icon?: string
+}
 
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className={`px-2 text-center sm:px-4 ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-            <div className="mx-auto h-10 w-10 animate-pulse rounded-full bg-white/10" />
-            <div className="mx-auto mt-4 h-2.5 w-24 animate-pulse bg-white/10" />
-            <div className="mx-auto mt-2 h-3 w-12 animate-pulse bg-white/10" />
-          </div>
-        ))}
-      </div>
-    )
-  }
-
+export function AddonsGrid({ addons }: { addons: Addon[] }) {
   return (
     <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-5">
       {addons.map(({ id, title, price, icon }, i: number) => {
@@ -85,9 +69,7 @@ export function AddonsGrid() {
   )
 }
 
-export function PackageCards() {
-  const { data: packages, loading } = useCms<any>("packages")
-
+export function PackageCards({ packages }: { packages: any[] }) {
   // Seed data carries duplicate rows per package name — show each product once.
   const seen = new Set<string>()
   const uniquePackages = packages.filter((p: any) => {
@@ -95,32 +77,6 @@ export function PackageCards() {
     seen.add(p.name)
     return true
   })
-
-  if (loading) {
-    return (
-      <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <article key={i} className="flex flex-col border border-gold/30 bg-card">
-            <div className="aspect-[4/3] animate-pulse bg-ink/5" />
-            <div className="space-y-3 p-7 lg:p-8">
-              <div className="h-2.5 w-28 animate-pulse bg-ink/5" />
-              <div className="h-6 w-36 animate-pulse bg-ink/5" />
-              <div className="h-3 w-full animate-pulse bg-ink/5" />
-              <div className="h-3 w-2/3 animate-pulse bg-ink/5" />
-              <div className="mt-7 grid grid-cols-4 gap-2 pt-6">
-                {SIZES.map(([label]) => (
-                  <div key={label} className="text-center">
-                    <div className="mx-auto h-2 w-8 animate-pulse bg-ink/5" />
-                    <div className="mx-auto mt-1.5 h-3.5 w-10 animate-pulse bg-ink/5" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-    )
-  }
 
   return (
     <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-10">

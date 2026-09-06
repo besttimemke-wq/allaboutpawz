@@ -1,18 +1,25 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
-import { AddonsGrid, PackageCards } from "@/components/site/islands/pricing-islands"
+import { AddonsGrid, PackageCards, type Addon } from "@/components/site/islands/pricing-islands"
+import { getResource } from "@/lib/site-data"
 
 export const metadata = {
   title: "Grooming Packages & Pricing | All About Pawz",
   description: "Transparent pricing by dog size — Bath & Brush, Full Groom, and Deluxe Spa packages plus add-ons. Book your pup's experience today.",
 }
 
-// Note: SIZES and PACKAGE_META moved into the pricing-islands (client)
-// — they render the add-on band and package cards that fetch after paint.
+// Data-driven surface: SERVER-RENDERED from Supabase (packages + add-ons)
+// and revalidated on the standard cadence. The hero and add-on band chrome
+// stay in code. (PACKAGE_META lives in the pricing content components.)
+export const revalidate = 300
 
-export default function PricingPage() {
-  // CSR architecture: static shell; add-ons and packages fetch after paint.
+export default async function PricingPage() {
+  const [packages, addonRows] = await Promise.all([
+    getResource("packages"),
+    getResource("addons"),
+  ])
+  const addons: Addon[] = addonRows
 
   return (
     <>
@@ -41,7 +48,7 @@ export default function PricingPage() {
             </p>
             <Link href="/book" className="btn-gold mt-6">BOOK A GROOM</Link>
           </div>
-          <AddonsGrid />
+          <AddonsGrid addons={addons} />
         </div>
       </section>
 
@@ -54,7 +61,7 @@ export default function PricingPage() {
           <h2 className="mt-3 font-display text-[38px] leading-[1.1] text-ink lg:text-[48px]">Choose Their<br />Experience.</h2>
         </div>
 
-        <PackageCards />
+        <PackageCards packages={packages} />
 
         <p className="mt-16 text-center text-[11px] italic leading-[1.7] text-ink-soft lg:mt-20">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
       </section>

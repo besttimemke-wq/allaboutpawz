@@ -1,29 +1,14 @@
-"use client"
-
 import Link from "next/link"
 import { Plus } from "lucide-react"
-import { useCms } from "./use-cms"
 
 const policySlug = (title: string) =>
   title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 
-// FAQ page policy band — CSR: boxes load after paint.
-export function PolicyBoxes() {
-  const { data: policies, loading } = useCms<{ id: string; title: string }>("policies")
+export type PolicyLink = { id: string; title: string }
 
-  if (loading) {
-    return (
-      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="border border-gold/25 px-6 py-5">
-            <div className="h-2.5 w-28 animate-pulse bg-white/10" />
-            <div className="mt-1.5 h-2 w-20 animate-pulse bg-white/10" />
-          </div>
-        ))}
-      </div>
-    )
-  }
-
+// FAQ page policy band — presentational. The policies arrive
+// SERVER-RENDERED (from the database) as props.
+export function PolicyBoxes({ policies }: { policies: PolicyLink[] }) {
   return (
     <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {policies.map((p) => (

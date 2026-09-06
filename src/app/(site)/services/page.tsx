@@ -1,17 +1,28 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
-import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
-import { ServicesAccordion } from "@/components/site/islands/services-accordion"
+import { FeaturedServicesGrid, type FeaturedService } from "@/components/site/islands/featured-services-grid"
+import { ServicesAccordion, type AccordionCategory, type AccordionItem } from "@/components/site/islands/services-accordion"
+import { getResource } from "@/lib/site-data"
 
 export const metadata = {
   title: "Dog Grooming Services | All About Pawz",
   description: "Grooming packages, baths, spa treatments, and nail & paw care — gentle dog grooming tailored to your pup. Book a package today.",
 }
 
-export default function ServicesPage() {
-  // CSR architecture: static shell; the featured band and the accordion
-  // fetch their content client-side after paint.
+// Data-driven surface: SERVER-RENDERED from Supabase (categories + items)
+// and revalidated on the standard cadence. The hero and band chrome stay in
+// code; the accordion island only owns the open/close interaction.
+export const revalidate = 300
+
+export default async function ServicesPage() {
+  const [serviceRows, itemRows] = await Promise.all([
+    getResource("services"),
+    getResource("serviceItems"),
+  ])
+  const categories: AccordionCategory[] = serviceRows.filter((s: any) => s.visible)
+  const items: AccordionItem[] = itemRows.filter((s: any) => s.visible)
+  const featured: FeaturedService[] = categories.slice(0, 4)
 
   return (
     <>
@@ -39,7 +50,7 @@ export default function ServicesPage() {
             </p>
             <Link href="/book" className="btn-gold mt-6">BOOK APPOINTMENT</Link>
           </div>
-          <FeaturedServicesGrid />
+          <FeaturedServicesGrid services={featured} />
         </div>
       </section>
 
@@ -47,7 +58,7 @@ export default function ServicesPage() {
           (packages by size + à-la-carte items). All content is managed in the
           admin: Services (categories/images) + Service Items (items/prices). */}
       <section className="marble bg-cream px-8 py-10 lg:px-12">
-        <ServicesAccordion />
+        <ServicesAccordion categories={categories} items={items} />
         <p className="mt-4 text-center text-[11px] italic leading-[1.7] text-ink-soft">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
       </section>
     </>

@@ -4,6 +4,7 @@ import { HeroCtas } from "@/components/site/hero-ctas"
 import { ContactForm } from "@/components/site/islands/contact-form"
 import { ContactDetails, SocialLinks } from "@/components/site/islands/contact-details"
 import { Reveal } from "@/components/site/islands/reveal"
+import { getSettings } from "@/lib/site-data"
 
 // Black band under the hero — exact copy of the homepage services band
 // structure: left title column + 4 centered items with numbered gold
@@ -32,10 +33,10 @@ export const metadata = {
   description: "Questions about services, packages, or your pup's coat? Reach All About Pawz by phone, email, or a visit to the salon — we respond personally.",
 }
 
-export default function ContactPage() {
-  // CSR architecture: static shell; the essentials (address, phone, email,
-  // hours) render instantly with fallbacks and swap in the admin-published
-  // values when they arrive.
+export default async function ContactPage() {
+  // The page shell is code; the salon essentials (address, phone, email,
+  // hours) are SERVER-RENDERED from the admin settings.
+  const settings = await getSettings()
   return (
     <>
       <PageHeader n="10" label="CONTACT" />
@@ -91,9 +92,9 @@ export default function ContactPage() {
           <Reveal>
             <p className="eyebrow">THE ESSENTIALS</p>
             <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-ink">Find Us.<br />Call Us.<br />Write Us.</h2>
-            <ContactDetails />
+            <ContactDetails settings={settings} />
             <div className="mt-8 flex items-center gap-4">
-              <SocialLinks />
+              <SocialLinks settings={settings} />
             </div>
           </Reveal>
           <ContactForm />

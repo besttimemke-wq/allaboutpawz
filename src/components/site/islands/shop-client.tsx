@@ -82,10 +82,22 @@ export function ShopClient({
         setVerify("checking")
         fetch(`/api/shop/verify?session_id=${encodeURIComponent(sessionId)}`)
           .then((r) => r.json())
-          .then((d) => setVerify(d.paid ? "paid" : "pending"))
+          .then((d) => {
+            if (d.paid) {
+              // Payment confirmed — the order is complete, so the bag is
+              // emptied. Abandoned checkouts never land here: the bag is
+              // persisted in localStorage and reappears whenever the customer
+              // backs out of Stripe or the wizard.
+              s.clearCart()
+              setVerify("paid")
+            } else {
+              setVerify("pending")
+            }
+          })
           .catch(() => setVerify("pending"))
       } else {
-        setVerify("paid") // legacy single-product flow
+        s.clearCart() // legacy single-product flow — paid by definition
+        setVerify("paid")
       }
       // Clean the URL so a refresh doesn't re-show success
       window.history.replaceState({}, "", "/shop")

@@ -2,17 +2,34 @@ import Link from "next/link"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
-import { FaqAccordion } from "@/components/site/islands/faq-accordion"
-import { PolicyBoxes } from "@/components/site/islands/policy-boxes"
+import { FaqAccordion, type Faq } from "@/components/site/islands/faq-accordion"
+import { PolicyBoxes, type PolicyLink } from "@/components/site/islands/policy-boxes"
+import { getResource } from "@/lib/site-data"
 
 export const metadata = {
   title: "FAQ & Policies | All About Pawz",
   description: "Answers to the questions pet parents ask most — appointments, vaccines, matted coats, and the salon policies that keep every pup safe.",
 }
 
-export default function FaqPage() {
-  // CSR architecture: static shell; policy boxes and the accordion fetch
-  // their content client-side after paint.
+// Data-driven surface: SERVER-RENDERED from Supabase (faqs + policies) and
+// revalidated on the standard cadence. The hero and rail chrome stay in code.
+export const revalidate = 300
+
+export default async function FaqPage() {
+  const [faqRows, policies] = await Promise.all([
+    getResource("faqs"),
+    getResource("policies"),
+  ])
+  // The faqs table carries duplicate seed rows — show each question once
+  // (same dedupe rule as the pricing packages).
+  const faqs: Faq[] = []
+  const seen = new Set<string>()
+  for (const f of faqRows) {
+    if (seen.has(f.question)) continue
+    seen.add(f.question)
+    faqs.push({ id: f.id, question: f.question, answer: f.answer })
+  }
+  const policyLinks: PolicyLink[] = policies.map((p: any) => ({ id: p.id, title: p.title }))
   return (
     <>
       <PageHeader n="11" label="FAQ / POLICIES" />
@@ -46,7 +63,7 @@ export default function FaqPage() {
           <p className="eyebrow-dark">HOUSE RULES</p>
           <p className="text-[11px] text-on-dark-muted">Tap a policy to read the full details</p>
         </div>
-        <PolicyBoxes />
+        <PolicyBoxes policies={policyLinks} />
       </section>
 
       {/* FAQ RAIL — the schnauzer sits LEFT of the accordion, stretched to the
@@ -62,7 +79,7 @@ export default function FaqPage() {
           />
         </div>
         <div className="min-w-0">
-          <FaqAccordion />
+          <FaqAccordion faqs={faqs} />
         </div>
       </section>
     </>

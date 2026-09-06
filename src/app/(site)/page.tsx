@@ -2,9 +2,10 @@ import Link from "next/link"
 import { CalendarDays, Heart, CheckCircle2, Mail } from "lucide-react"
 import { PawGlyph, Divider } from "@/components/site/brand"
 import { TopUtilityBar } from "@/components/site/site-chrome"
-import { HomeHeroCopy, HomeHeroSubtitle, HomeTestimonial } from "@/components/site/islands/home-islands"
-import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
+import { HomeHeroCopy, HomeHeroSubtitle, HomeTestimonial, type Testimonial } from "@/components/site/islands/home-islands"
+import { FeaturedServicesGrid, type FeaturedService } from "@/components/site/islands/featured-services-grid"
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
+import { getResource, getSettings } from "@/lib/site-data"
 
 const STEPS = [
   { Icon: CalendarDays, title: "BOOK ONLINE", body: ["Choose your", "service & time."] },
@@ -18,9 +19,21 @@ export const metadata = {
   description: "All About Pawz delivers spa-level dog grooming — breed-specific haircuts, baths, and nail care in a calm, luxury salon.",
 }
 
-export default function HomePage() {
-  // CSR architecture: this page is a static shell — hero copy, services band,
-  // and the testimonial are client islands that fetch after paint.
+// ISR: the home hero copy, featured services, and testimonial are
+// server-rendered from the database and revalidated on the same cadence as
+// every other data-driven surface. The rest of the page is pure code.
+export const revalidate = 300
+
+export default async function HomePage() {
+  const [settings, serviceRows, testimonialRows] = await Promise.all([
+    getSettings(),
+    getResource("services"),
+    getResource("testimonials"),
+  ])
+  const services: FeaturedService[] = serviceRows
+    .filter((s: any) => s.visible)
+    .slice(0, 4)
+  const testimonials: Testimonial[] = testimonialRows.filter((t: any) => t.visible)
 
   return (
     <>
@@ -36,9 +49,9 @@ export default function HomePage() {
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <p className="eyebrow">LUXURY GROOMING</p>
-          <HomeHeroCopy />
+          <HomeHeroCopy settings={settings} />
           <div className="mt-6"><Divider /></div>
-          <HomeHeroSubtitle />
+          <HomeHeroSubtitle settings={settings} />
           <div className="mt-8 flex flex-wrap gap-4">
             <Link href="/book/appointment" className="btn-gold">BOOK APPOINTMENT</Link>
             <Link href="/book/consultation" className="btn-ghost">SCHEDULE CONSULT</Link>
@@ -60,7 +73,7 @@ export default function HomePage() {
             </p>
             <Link href="/services" className="btn-gold mt-6">VIEW ALL SERVICES</Link>
           </div>
-          <FeaturedServicesGrid />
+          <FeaturedServicesGrid services={services} />
         </div>
       </section>
 
@@ -74,7 +87,7 @@ export default function HomePage() {
           <p className="mt-4 max-w-[400px] text-[12.5px] leading-[1.8] text-ink-soft">
             We treat every pup like our own and every parent like family. That&apos;s why our clients stay with us and refer their friends.
           </p>
-          <HomeTestimonial />
+          <HomeTestimonial testimonials={testimonials} />
         </div>
         <div className="relative min-h-[300px]">
           <img src="/Home/home-3rd-banner.png" alt="All About Pawz dog grooming salon interior with reception desk and boutique pet products" width={1018} height={269} className="absolute inset-0 h-full w-full object-cover" />
