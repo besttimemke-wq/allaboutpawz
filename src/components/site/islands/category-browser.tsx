@@ -2,25 +2,32 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { Plus, Funnel, PawPrint, X } from "@phosphor-icons/react"
+import { Plus, Funnel, PawPrint, X, CaretDown } from "@phosphor-icons/react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
 // ---------------------------------------------------------------------------
 // Category Browser — the /shop/category/[slug] collection view.
 //
-//   Left rail (desktop, sticky) / collapsible panel (mobile):
-//   DEPARTMENTS  — the 10 root categories as LINKS with live product counts;
-//                 the active department auto-expands its intermediate and
-//                 leaf nodes (indented links, exactly like the spec sidebar).
-//   PRICE        — min/max inputs + data-backed quick buckets.
-//   RATING       — star-row checkboxes (5 / 4 / 3 stars, floor semantics).
+//   SUBCATEGORY NAVIGATION lives in the CategoryGrid ("C grid") rendered in
+//   the content column by the page — NEVER in this rail. The rail is the
+//   specific taxonomy filter sidebar from the design library:
+//
+//   Left rail (desktop) / collapsible panel (mobile):
+//   FILTERS header + CLEAR ALL
+//   PRICE        — accordion: min/max inputs + data-backed quick buckets.
+//   RATING       — accordion: star-row checkboxes (floor semantics).
+//   AVAILABILITY — accordion: In stock / Backordered (data-backed).
 //   MAPPED
-//   FILTERS      — every filter the taxonomy maps to this category, rendered
-//                 per type: select → checkbox rows w/ live counts, color →
+//   FILTERS      — accordions, one per taxonomy filter mapped to this
+//                 category: select → checkbox rows w/ live counts, color →
 //                 swatch chips, boolean → toggle buttons. Products are
 //                 matched against their live text (name, description,
 //                 materials, specs, ingredients). Values that match nothing
 //                 render dimmed — never a dead control that pretends to work.
+//
+//   Sections COLLAPSE (accordion) so the rail never needs a scrollbar —
+//   the design spec is explicit: no scroll containers in the sidebar.
+//   Sections with active selections stay open.
 //
 //   Sort: FEATURED (catalog order) / PRICE asc+desc / TOP RATED / NEWEST.
 //   Grid: the same catalog card the /shop collection uses.
@@ -61,14 +68,6 @@ export type BrowserFilter = {
 
 export type BrowserCategory = { id: number; name: string; slug: string }
 
-export type BrowserNavNode = {
-  id: number
-  name: string
-  slug: string
-  productCount: number
-  children: BrowserNavNode[]
-}
-
 type SortKey = "featured" | "price-asc" | "price-desc" | "rating" | "newest"
 
 // Quick price buckets (data-backed — only rendered when products span them).
@@ -87,6 +86,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ]
 
 const railHeadingCls = "text-[9px] font-bold tracking-[0.18em] text-gold-deep uppercase"
+const sectionTitleCls = "text-[9.5px] font-bold tracking-[0.16em] text-ink uppercase"
 const numInputCls =
   "w-full min-w-0 border border-gold/35 bg-cream px-2.5 py-2 text-[11px] text-ink placeholder:text-ink-soft/50 " +
   "focus:outline-none focus:ring-1 focus:ring-gold-deep [appearance:textfield] " +
@@ -119,21 +119,65 @@ function valueMatches(text: string, valueName: string): boolean {
   return text.includes(v)
 }
 
-// Is a node (or any descendant) the active category?
-function subtreeHas(node: BrowserNavNode, id: number): boolean {
-  if (node.id === id) return true
-  return node.children.some((c) => subtreeHas(c, id))
+// ---------------------------------------------------------------------------
+// Accordion section — collapsible so the rail never grows a scrollbar.
+// A section with active selections stays open (its badge shows the count).
+// ---------------------------------------------------------------------------
+function Section({
+  id,
+  title,
+  badge,
+  open,
+  onToggle,
+  children,
+}: {
+  id: string
+  title: string
+  badge: number
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="border-b border-gold/15 pb-3.5 last:border-b-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={`filter-section-${id}`}
+        className="flex w-full cursor-pointer items-center justify-between py-1.5 text-left"
+      >
+        <span className="flex items-center gap-1.5">
+          <span className={sectionTitleCls}>{title}</span>
+          {badge > 0 && (
+            <span className="flex h-3.5 min-w-3.5 items-center justify-center bg-gold-deep px-1 text-[8px] font-bold leading-none text-cream">
+              {badge}
+            </span>
+          )}
+        </span>
+        <CaretDown
+          size={11}
+          weight="bold"
+          aria-hidden="true"
+          className={`shrink-0 text-ink-soft transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div id={`filter-section-${id}`} className="mt-2.5">
+          {children}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function CategoryBrowser({
   node,
-  navTree,
   products,
   ratings,
   filters,
 }: {
   node: BrowserCategory
-  navTree: BrowserNavNode[]
   products: BrowserProduct[]
   ratings: Record<string, BrowserRating>
   filters: BrowserFilter[]
@@ -149,6 +193,8 @@ export function CategoryBrowser({
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [sort, setSort] = useState<SortKey>("featured")
   const [mobileOpen, setMobileOpen] = useState(false)
+  // Accordion open state — undefined falls back to the default map.
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
 
   const texts = useMemo(() => products.map((p) => ({ p, t: searchTextOf(p) })), [products])
 
@@ -200,6 +246,22 @@ export function CategoryBrowser({
     () => filters.filter((f) => ["brand", "material"].includes(f.slug)),
     [filters],
   )
+
+  // Default accordion state per the design spec: the core sections open, the
+  // first mapped filter with values open, the rest collapsed. Sections with
+  // active selections are always open.
+  const defaultOpen = useMemo(() => {
+    const map: Record<string, boolean> = { price: true, rating: true, availability: true }
+    const first = mappedFilters.find((f) => f.filterType === "boolean" || f.values.length > 0)
+    if (first) map[`f${first.id}`] = true
+    return map
+  }, [mappedFilters])
+
+  const sectionOpen = (key: string, hasActive: boolean) =>
+    hasActive || (openSections[key] ?? defaultOpen[key] ?? false)
+
+  const toggleSection = (key: string) =>
+    setOpenSections((prev) => ({ ...prev, [key]: !(sectionOpen(key, false)) }))
 
   const toggleValue = (filterId: number, valueSlug: string) => {
     setSelected((prev) => {
@@ -317,9 +379,6 @@ export function CategoryBrowser({
     return arr
   }, [visible, sort, ratings])
 
-  // ---- departments nav: which root is the active department? ----
-  const activeRoot = navTree.find((r) => subtreeHas(r, node.id))
-
   const checkRowCls = "flex cursor-pointer items-center gap-2 text-[11px] text-ink-soft"
   const checkBoxCls = "h-3.5 w-3.5 shrink-0 accent-gold-deep"
 
@@ -328,8 +387,10 @@ export function CategoryBrowser({
   const countForName = (name: string) => texts.filter(({ t }) => t.includes(name.toLowerCase())).length
 
   // ---- the rail (shared by desktop sidebar + mobile collapsible) ----
+  const priceActive =
+    (minPrice.trim() ? 1 : 0) + (maxPrice.trim() ? 1 : 0) + buckets.length
   const rail = (
-    <div className="space-y-6" aria-label={`Filters for ${node.name}`}>
+    <div className="space-y-3.5" aria-label={`Filters for ${node.name}`}>
       <div className="flex items-center justify-between border-b border-gold/20 pb-3">
         <p className={railHeadingCls}>Filters</p>
         {activeCount > 0 && (
@@ -343,83 +404,15 @@ export function CategoryBrowser({
         )}
       </div>
 
-      {/* DEPARTMENTS — links, counts, active root expands its subcategories */}
-      {navTree.length > 0 && (
-        <div>
-          <p className={railHeadingCls}>Departments</p>
-          <ul className="mt-2.5 space-y-0.5">
-            <li>
-              <Link
-                href="/shop"
-                className="flex items-center justify-between rounded-sm px-1.5 py-1.5 text-[10.5px] font-bold tracking-[0.08em] text-ink transition-colors hover:bg-gold/5 hover:text-gold-deep"
-              >
-                <span>ALL PRODUCTS</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{products.length}</span>
-              </Link>
-            </li>
-            {navTree.map((root) => {
-              const isActive = activeRoot?.id === root.id
-              return (
-                <li key={root.id} className="space-y-0.5">
-                  <Link
-                    href={`/shop/category/${root.slug}`}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`flex items-center justify-between rounded-sm px-1.5 py-1.5 transition-colors ${
-                      isActive
-                        ? "bg-gold/10 text-[10.5px] font-bold tracking-[0.08em] text-gold-deep"
-                        : "text-[10.5px] font-bold tracking-[0.08em] text-ink hover:bg-gold/5 hover:text-gold-deep"
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      {isActive && <span className="h-1.5 w-1.5 shrink-0 bg-gold-deep" aria-hidden="true" />}
-                      <span className="truncate">{root.name.toUpperCase()}</span>
-                    </span>
-                    <span className="shrink-0 text-[9.5px] font-bold text-ink-soft/70">{root.productCount}</span>
-                  </Link>
-                  {/* active department: intermediate + leaf links, indented */}
-                  {isActive &&
-                    root.children.map((child) => (
-                      <div key={child.id} className="pl-3">
-                        <Link
-                          href={`/shop/category/${child.slug}`}
-                          aria-current={node.id === child.id ? "page" : undefined}
-                          className={`flex items-center justify-between rounded-sm px-1.5 py-1 transition-colors ${
-                            node.id === child.id
-                              ? "text-[10.5px] font-bold text-gold-deep"
-                              : "text-[10.5px] text-ink-soft hover:text-gold-deep"
-                          }`}
-                        >
-                          <span className="truncate">{child.name}</span>
-                          <span className="shrink-0 text-[9.5px] font-bold text-ink-soft/60">{child.productCount}</span>
-                        </Link>
-                        {child.children.map((leaf) => (
-                          <Link
-                            key={leaf.id}
-                            href={`/shop/category/${leaf.slug}`}
-                            aria-current={node.id === leaf.id ? "page" : undefined}
-                            className={`flex items-center justify-between rounded-sm py-[5px] pl-4 pr-1.5 transition-colors ${
-                              node.id === leaf.id
-                                ? "text-[10.5px] font-bold text-gold-deep"
-                                : "text-[10.5px] text-ink-soft/90 hover:text-gold-deep"
-                            }`}
-                          >
-                            <span className="truncate">{leaf.name}</span>
-                            <span className="shrink-0 text-[9.5px] font-bold text-ink-soft/60">{leaf.productCount}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    ))}
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-
       {/* PRICE — range + data-backed quick buckets */}
-      <div>
-        <p className={railHeadingCls}>Price</p>
-        <div className="mt-2.5 flex items-center gap-2">
+      <Section
+        id="price"
+        title="Price"
+        badge={priceActive}
+        open={sectionOpen("price", priceActive > 0)}
+        onToggle={() => toggleSection("price")}
+      >
+        <div className="flex items-center gap-2">
           <input
             type="number"
             min={0}
@@ -458,13 +451,18 @@ export function CategoryBrowser({
             ))}
           </div>
         )}
-      </div>
+      </Section>
 
       {/* RATING — star rows, floor semantics (only when rated products exist) */}
       {ratingOptions.length > 0 && (
-        <div>
-          <p className={railHeadingCls}>Rating</p>
-          <div className="mt-2.5 space-y-1.5">
+        <Section
+          id="rating"
+          title="Rating"
+          badge={minRating > 0 ? 1 : 0}
+          open={sectionOpen("rating", minRating > 0)}
+          onToggle={() => toggleSection("rating")}
+        >
+          <div className="space-y-1.5">
             {ratingOptions.map((o) => (
               <label key={o.value} className={checkRowCls}>
                 <input
@@ -481,14 +479,19 @@ export function CategoryBrowser({
               </label>
             ))}
           </div>
-        </div>
+        </Section>
       )}
 
       {/* AVAILABILITY — options that actually match products */}
       {(stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
-        <div>
-          <p className={railHeadingCls}>Availability</p>
-          <div className="mt-2.5 space-y-1.5">
+        <Section
+          id="availability"
+          title="Availability"
+          badge={(stockOnly ? 1 : 0) + (backorderOnly ? 1 : 0)}
+          open={sectionOpen("availability", stockOnly || backorderOnly)}
+          onToggle={() => toggleSection("availability")}
+        >
+          <div className="space-y-1.5">
             {stockCounts.inStock > 0 && (
               <label className={checkRowCls}>
                 <input
@@ -514,12 +517,13 @@ export function CategoryBrowser({
               </label>
             )}
           </div>
-        </div>
+        </Section>
       )}
 
-      {/* MAPPED FILTERS — the taxonomy framework for this category.
-          Select → checkbox rows w/ counts · Color → swatches · Boolean →
-          toggle buttons. Count-0 values render dimmed (honest dead-state). */}
+      {/* MAPPED FILTERS — the taxonomy framework for this category, one
+          accordion per section. Select → checkbox rows w/ counts · Color →
+          swatches · Boolean → toggle buttons. Count-0 values render dimmed
+          (honest dead-state). */}
       {mappedFilters.map((f) => {
         const selectedVals = selected[f.id] || []
         const isColor = f.slug === "color"
@@ -529,9 +533,15 @@ export function CategoryBrowser({
           const on = selectedVals.includes(f.slug)
           const count = countForName(f.name)
           return (
-            <div key={f.id}>
-              <p className={railHeadingCls}>{f.name}</p>
-              <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+            <Section
+              key={f.id}
+              id={`f${f.id}`}
+              title={f.name}
+              badge={selectedVals.length}
+              open={sectionOpen(`f${f.id}`, selectedVals.length > 0)}
+              onToggle={() => toggleSection(`f${f.id}`)}
+            >
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
                   onClick={() => toggleValue(f.id, f.slug)}
@@ -547,16 +557,22 @@ export function CategoryBrowser({
                   {f.name.toUpperCase()}
                 </button>
               </div>
-            </div>
+            </Section>
           )
         }
 
         if (f.values.length === 0) return null
         return (
-          <div key={f.id}>
-            <p className={railHeadingCls}>{f.name}</p>
+          <Section
+            key={f.id}
+            id={`f${f.id}`}
+            title={f.name}
+            badge={selectedVals.length}
+            open={sectionOpen(`f${f.id}`, selectedVals.length > 0)}
+            onToggle={() => toggleSection(`f${f.id}`)}
+          >
             {isColor ? (
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {f.values.map((v) => {
                   const on = selectedVals.includes(v.slug)
                   const count = countFor(v.name)
@@ -586,7 +602,7 @@ export function CategoryBrowser({
                 })}
               </div>
             ) : (
-              <div className="mt-2.5 space-y-1.5">
+              <div className="space-y-1.5">
                 {f.values.map((v) => {
                   const on = selectedVals.includes(v.slug)
                   const count = countFor(v.name)
@@ -608,13 +624,13 @@ export function CategoryBrowser({
                 })}
               </div>
             )}
-          </div>
+          </Section>
         )
       })}
 
       {/* Framework filters with no values yet — names only, never fake controls */}
       {frameworkWithoutValues.length > 0 && (
-        <div className="border-t border-gold/15 pt-4">
+        <div className="border-t border-gold/15 pt-3.5">
           <p className="text-[9px] font-bold tracking-[0.14em] text-ink-soft/70">
             MORE FILTERS COMING TO THIS CATEGORY
           </p>
@@ -628,8 +644,9 @@ export function CategoryBrowser({
 
   return (
     <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-      {/* Desktop filter rail — sticky while the catalog scrolls */}
-      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:sticky lg:top-8 lg:block lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
+      {/* Desktop filter rail — natural height, accordions collapse, NO
+          scrollbar. The design spec forbids scroll containers here. */}
+      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:block">
         {rail}
       </aside>
 
@@ -685,8 +702,8 @@ export function CategoryBrowser({
         )}
 
         {/* Product grid — the same catalog card as the shop collection.
-            Empty categories keep the rail (departments nav + filters); the
-            empty card lives in the content column. */}
+            Empty categories keep the rail (filters); the empty card lives in
+            the content column. */}
         {sorted.length > 0 && (
           <div className="mt-8 grid grid-cols-2 gap-8 lg:grid-cols-3">
             {sorted.map((p) => (

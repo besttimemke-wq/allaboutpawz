@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { ArrowLeft } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
+import { CategoryGrid, type CategoryGridItem, type CategoryGridSection } from "@/components/site/category-grid"
 import {
   CategoryBrowser,
   type BrowserProduct,
@@ -122,9 +123,38 @@ export default async function CategoryPage({ params }: Params) {
 
   const filters = await resolveFilters(node, tree.flat)
   const chain = buildChain(node, tree.flat)
-  // Direct children of this node — the subcategory band under the hero
-  // (intermediates for roots like Grooming, leaves for flat departments).
-  const subcats = node.children.map((c) => ({ name: c.name, slug: c.slug, count: c.productCount }))
+
+  // ---- C grid: the subcategory card grid in the content column ----
+  // Department + intermediate pages list THIS node's children; leaf pages
+  // list their siblings ("More in …"). When a direct child is an
+  // intermediate wrapper (Grooming, Beds & Furniture), it renders as a
+  // group label with its leaves as the cards — the taxonomy spec structure.
+  // The routes live here — never in the filter rail (that sidebar stays
+  // filters-only, no scrollbar).
+  const gridItem = (n: CategoryNode): CategoryGridItem => ({
+    name: n.name,
+    slug: n.slug,
+    count: n.productCount,
+  })
+  const buildSections = (nodes: CategoryNode[]): CategoryGridSection[] => {
+    const directLeaves = nodes.filter((n) => n.children.length === 0).map(gridItem)
+    const wrappers = nodes.filter((n) => n.children.length > 0)
+    const sections: CategoryGridSection[] = []
+    if (directLeaves.length > 0) sections.push({ items: directLeaves })
+    for (const wrapper of wrappers) {
+      sections.push({ label: wrapper.name, items: wrapper.children.map(gridItem) })
+    }
+    return sections
+  }
+  const parentNode =
+    node.parentId != null ? findNode(tree.categories, (n) => n.id === node.parentId) : null
+  const isLeaf = node.children.length === 0
+  const gridSections = isLeaf
+    ? buildSections((parentNode?.children ?? []).filter((c) => c.id !== node.id))
+    : buildSections(node.children)
+  const gridTitle = isLeaf
+    ? `More in ${parentNode?.name ?? "the collection"}`
+    : `Subcategories in ${node.name}`
 
   const countLine =
     products.length === 0
@@ -165,30 +195,20 @@ export default async function CategoryPage({ params }: Params) {
           {node.name}
         </h1>
         <p className="mt-3 text-[12px] text-ink-soft">{countLine}</p>
-        {/* Subcategory band — the category page lists its subcategories */}
-        {subcats.length > 0 && (
-          <ul className="mt-5 flex flex-wrap gap-2">
-            {subcats.map((sc) => (
-              <li key={sc.slug}>
-                <Link
-                  href={`/shop/category/${sc.slug}`}
-                  className="inline-flex items-center gap-2 border border-gold/35 bg-cream-deep/60 px-3.5 py-2 text-[10px] font-bold tracking-[0.1em] text-ink-soft transition-colors hover:border-gold-deep hover:text-gold-deep"
-                >
-                  {sc.name.toUpperCase()}
-                  {sc.count > 0 && (
-                    <span className="text-[9px] font-bold text-gold-deep/70">{sc.count}</span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
         <div className="mt-6">
           <Link href="/shop" className="btn-ghost">
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} /> BROWSE ALL
           </Link>
         </div>
       </section>
+
+      {/* C grid — the category page displays its subcategories as cards
+          (children for departments/intermediates, siblings for leaves). */}
+      {gridSections.length > 0 && (
+        <section className="marble border-t border-gold/25 bg-cream px-8 py-10 lg:px-12">
+          <CategoryGrid title={gridTitle} sections={gridSections} />
+        </section>
+      )}
 
       {/* Collection */}
       <section id="collection" className="marble scroll-mt-24 border-t border-gold/25 bg-cream px-8 pb-14 lg:px-12">
@@ -197,7 +217,6 @@ export default async function CategoryPage({ params }: Params) {
         </h2>
         <CategoryBrowser
           node={{ id: node.id, name: node.name, slug: node.slug }}
-          navTree={tree.categories}
           products={products}
           ratings={ratings}
           filters={filters as BrowserFilter[]}

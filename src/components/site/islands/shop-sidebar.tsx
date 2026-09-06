@@ -53,12 +53,6 @@ const numInputCls =
   "focus:outline-none focus:ring-1 focus:ring-gold-deep [appearance:textfield] " +
   "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 
-const TREE_SCROLL =
-  "max-h-[380px] overflow-y-auto pr-1 " +
-  "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent " +
-  "[&::-webkit-scrollbar-thumb]:bg-gold/40 [&::-webkit-scrollbar-thumb]:rounded-full " +
-  "hover:[&::-webkit-scrollbar-thumb]:bg-gold-deep/60"
-
 export function ShopSidebar({
   categories,
   products,
@@ -131,7 +125,7 @@ export function ShopSidebar({
             ALL
           </Link>
         </div>
-        <ul className={`mt-2.5 space-y-0.5 ${TREE_SCROLL}`}>
+        <ul className="mt-2.5 space-y-0.5">
           {categories.map((root) => (
             <li key={root.id}>
               <Link
