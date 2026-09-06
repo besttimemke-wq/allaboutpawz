@@ -122,6 +122,9 @@ export default async function CategoryPage({ params }: Params) {
 
   const filters = await resolveFilters(node, tree.flat)
   const chain = buildChain(node, tree.flat)
+  // Direct children of this node — the subcategory band under the hero
+  // (intermediates for roots like Grooming, leaves for flat departments).
+  const subcats = node.children.map((c) => ({ name: c.name, slug: c.slug, count: c.productCount }))
 
   const countLine =
     products.length === 0
@@ -162,6 +165,24 @@ export default async function CategoryPage({ params }: Params) {
           {node.name}
         </h1>
         <p className="mt-3 text-[12px] text-ink-soft">{countLine}</p>
+        {/* Subcategory band — the category page lists its subcategories */}
+        {subcats.length > 0 && (
+          <ul className="mt-5 flex flex-wrap gap-2">
+            {subcats.map((sc) => (
+              <li key={sc.slug}>
+                <Link
+                  href={`/shop/category/${sc.slug}`}
+                  className="inline-flex items-center gap-2 border border-gold/35 bg-cream-deep/60 px-3.5 py-2 text-[10px] font-bold tracking-[0.1em] text-ink-soft transition-colors hover:border-gold-deep hover:text-gold-deep"
+                >
+                  {sc.name.toUpperCase()}
+                  {sc.count > 0 && (
+                    <span className="text-[9px] font-bold text-gold-deep/70">{sc.count}</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="mt-6">
           <Link href="/shop" className="btn-ghost">
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} /> BROWSE ALL
@@ -176,6 +197,7 @@ export default async function CategoryPage({ params }: Params) {
         </h2>
         <CategoryBrowser
           node={{ id: node.id, name: node.name, slug: node.slug }}
+          navTree={tree.categories}
           products={products}
           ratings={ratings}
           filters={filters as BrowserFilter[]}

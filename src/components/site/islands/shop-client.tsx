@@ -56,9 +56,8 @@ export function ShopClient({
   const [query, setQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
   const [verify, setVerify] = useState<"checking" | "paid" | "pending" | null>(null)
-  // Sidebar filter state — categories (cascading checkboxes) + price/rating/
-  // availability bucket keys (all strings in one bucket array).
-  const [checkedCats, setCheckedCats] = useState<Set<number>>(new Set())
+  // Sidebar filter state — price/rating/availability bucket keys (all
+  // strings in one bucket array). Categories are links, not checkboxes.
   const [price, setPrice] = useState<{ min: string; max: string; buckets: string[] }>({
     min: "",
     max: "",
@@ -106,29 +105,13 @@ export function ShopClient({
   // ----- Derived cart data -----
   // (The checkout wizard computes its own totals; the persistent bag
   // indicator now lives in the site header — see HeaderBagLink.)
-
-  // Cascade-check a node: checking selects the node + its entire subtree;
-  // unchecking removes the node + its entire subtree.
-  const toggleCategory = (node: SidebarCategory) => {
-    const ids = collectIds(node)
-    const allOn = ids.every((id) => checkedCats.has(id))
-    setCheckedCats((prev) => {
-      const next = new Set(prev)
-      for (const id of ids) {
-        if (allOn) next.delete(id)
-        else next.add(id)
-      }
-      return next
-    })
-  }
-
-  const clearCategories = () => setCheckedCats(new Set())
+  // Categories are navigation now (links to full category pages), so the
+  // sidebar's only stateful facets are price/rating/availability buckets.
 
   const activeFilterCount =
-    checkedCats.size + (price.min.trim() ? 1 : 0) + (price.max.trim() ? 1 : 0) + price.buckets.length
+    (price.min.trim() ? 1 : 0) + (price.max.trim() ? 1 : 0) + price.buckets.length
 
   const clearAll = () => {
-    setCheckedCats(new Set())
     setPrice({ min: "", max: "", buckets: [] })
   }
 
@@ -145,7 +128,6 @@ export function ShopClient({
 
     return products.filter((p) => {
       if (q && !p.name.toLowerCase().includes(q) && !(p.description || "").toLowerCase().includes(q)) return false
-      if (checkedCats.size > 0 && (p.categoryId == null || !checkedCats.has(p.categoryId))) return false
       const c = parsePriceToCents(p.price)
       if (hasMin && (c == null || c < Math.round(min * 100))) return false
       if (hasMax && (c == null || c > Math.round(max * 100))) return false
@@ -166,7 +148,7 @@ export function ShopClient({
       if (backorderOnly && p.stock !== 0) return false
       return true
     })
-  }, [products, query, checkedCats, price, ratings])
+  }, [products, query, price, ratings])
 
   // SSR-safe skeleton before zustand rehydration
   if (!hydrated) {
@@ -229,9 +211,6 @@ export function ShopClient({
             categories={categoryTree}
             products={products}
             ratings={ratings}
-            checked={checkedCats}
-            onToggleCategory={toggleCategory}
-            onClearCategories={clearCategories}
             price={price}
             onPriceChange={setPrice}
           />
@@ -280,9 +259,6 @@ export function ShopClient({
                 categories={categoryTree}
                 products={products}
                 ratings={ratings}
-                checked={checkedCats}
-                onToggleCategory={toggleCategory}
-                onClearCategories={clearCategories}
                 price={price}
                 onPriceChange={setPrice}
               />
@@ -406,11 +382,6 @@ export function ShopClient({
 // ===========================================================================
 // Checkout wizard — 4 steps, same chrome as the booking wizard
 // ===========================================================================
-
-// Flatten a category node + all descendants into a list of ids (cascade).
-function collectIds(node: SidebarCategory): number[] {
-  return [node.id, ...(node.children || []).flatMap(collectIds)]
-}
 
 function CheckoutWizard({ onExit }: { onExit: () => void }) {
   const s = useCart()

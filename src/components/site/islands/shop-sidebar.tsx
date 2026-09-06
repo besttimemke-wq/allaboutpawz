@@ -1,18 +1,17 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import Link from "next/link"
-import { Plus, X } from "@phosphor-icons/react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
 // ---------------------------------------------------------------------------
-// Shop Sidebar — the regular ecommerce category rail.
+// Shop Sidebar — the /shop landing rail.
 //
 //   Left rail (desktop) / collapsible panel (mobile):
-//   CATEGORIES  — the full department tree with CHECKBOXES. Checking a
-//                 category selects its entire subtree (cascading). Every
-//                 row is identical in design: caret (only when the node has
-//                 children) + checkbox + name + product count.
+//   DEPARTMENTS — the 10 root categories as LINKS with live product counts
+//                 (routing to the full category pages, which carry their own
+//                 subcategory nav + filters). Categories are navigation, not
+//                 checkboxes.
 //   PRICE       — min/max inputs + data-backed quick buckets.
 //   RATING      — 4★ & up / 3★ & up (only when rated products exist).
 //   AVAILABILITY— In stock / Backordered (only when products match).
@@ -60,18 +59,10 @@ const TREE_SCROLL =
   "[&::-webkit-scrollbar-thumb]:bg-gold/40 [&::-webkit-scrollbar-thumb]:rounded-full " +
   "hover:[&::-webkit-scrollbar-thumb]:bg-gold-deep/60"
 
-/** Flatten a node + all descendants into a list of ids. */
-function subtreeIds(node: SidebarCategory): number[] {
-  return [node.id, ...node.children.flatMap(subtreeIds)]
-}
-
 export function ShopSidebar({
   categories,
   products,
   ratings,
-  checked,
-  onToggleCategory,
-  onClearCategories,
   price,
   onPriceChange,
   children,
@@ -79,9 +70,6 @@ export function ShopSidebar({
   categories: SidebarCategory[]
   products: SidebarProduct[]
   ratings: Record<string, SidebarRating>
-  checked: Set<number>
-  onToggleCategory: (node: SidebarCategory) => void
-  onClearCategories: () => void
   price: { min: string; max: string; buckets: string[] }
   onPriceChange: (next: { min: string; max: string; buckets: string[] }) => void
   children?: React.ReactNode
@@ -131,31 +119,33 @@ export function ShopSidebar({
 
   const rail = (
     <div className="space-y-6" aria-label="Shop filters">
-      {/* CATEGORIES — the regular checkbox tree */}
+      {/* DEPARTMENTS — links to the full category pages (each carries its
+          own subcategory nav + filters). Navigation, not checkboxes. */}
       <div>
         <div className="flex items-center justify-between border-b border-gold/20 pb-3">
-          <p className={railHeadingCls}>Categories</p>
-          {checked.size > 0 && (
-            <button
-              type="button"
-              onClick={onClearCategories}
-              className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:text-ink"
-            >
-              <X size={10} weight="bold" /> CLEAR
-            </button>
-          )}
+          <p className={railHeadingCls}>Departments</p>
+          <Link
+            href="/shop"
+            className="text-[9px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:text-ink"
+          >
+            ALL
+          </Link>
         </div>
-        <div className={`mt-2.5 space-y-0.5 ${TREE_SCROLL}`}>
+        <ul className={`mt-2.5 space-y-0.5 ${TREE_SCROLL}`}>
           {categories.map((root) => (
-            <CategoryNode
-              key={root.id}
-              node={root}
-              depth={0}
-              checked={checked}
-              onToggle={onToggleCategory}
-            />
+            <li key={root.id}>
+              <Link
+                href={`/shop/category/${root.slug}`}
+                className="flex items-center justify-between rounded-sm px-1.5 py-1.5 text-[10px] font-bold tracking-[0.1em] text-ink transition-colors hover:bg-gold/5 hover:text-gold-deep"
+              >
+                <span className="truncate">{root.name.toUpperCase()}</span>
+                <span className="ml-2 shrink-0 text-[9.5px] font-bold text-gold-deep/70">
+                  {root.productCount}
+                </span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
       {/* PRICE — range + data-backed quick buckets */}
@@ -261,97 +251,4 @@ export function ShopSidebar({
   )
 
   return rail
-}
-
-// ---------------------------------------------------------------------------
-// CategoryNode — one row of the tree: caret (only when children exist) +
-// checkbox + name + count. Children render indented when expanded.
-// ---------------------------------------------------------------------------
-function CategoryNode({
-  node,
-  depth,
-  checked,
-  onToggle,
-}: {
-  node: SidebarCategory
-  depth: number
-  checked: Set<number>
-  onToggle: (node: SidebarCategory) => void
-}) {
-  const [expanded, setExpanded] = useState(depth === 0 && node.productCount > 0)
-  const hasChildren = node.children.length > 0
-  const ids = useMemo(() => subtreeIds(node), [node])
-
-  const checkedCount = ids.filter((id) => checked.has(id)).length
-  const state: "on" | "mixed" | "off" =
-    checkedCount === ids.length ? "on" : checkedCount > 0 ? "mixed" : "off"
-
-  const nameCls =
-    depth === 0
-      ? "flex-1 text-[10px] font-bold tracking-[0.1em] text-ink"
-      : depth === 1
-        ? "flex-1 text-[10.5px] text-ink-soft"
-        : "flex-1 text-[10.5px] text-ink-soft/90"
-
-  return (
-    <div>
-      <div
-        className="flex items-center gap-1.5 rounded-sm py-[5px] pr-1 transition-colors hover:bg-gold/5"
-        style={{ paddingLeft: `${depth * 14 + 2}px` }}
-      >
-        {/* Plus sign — rendered ONLY when the node has children, always in the
-            same position and style (consistent across every department).
-            Rotates to × when expanded (site-wide disclosure pattern). */}
-        {hasChildren ? (
-          <button
-            type="button"
-            onClick={() => setExpanded((e) => !e)}
-            aria-expanded={expanded}
-            aria-label={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
-            className="flex h-4 w-4 shrink-0 items-center justify-center text-ink-soft/70 transition-colors hover:text-gold-deep"
-          >
-            <Plus
-              size={11}
-              weight="bold"
-              className={`transition-transform duration-300 ${expanded ? "rotate-45 text-gold-deep" : ""}`}
-            />
-          </button>
-        ) : (
-          <span className="h-4 w-4 shrink-0" aria-hidden="true" />
-        )}
-
-        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            checked={state === "on"}
-            ref={(el) => {
-              if (el) el.indeterminate = state === "mixed"
-            }}
-            onChange={() => onToggle(node)}
-            aria-label={`Filter by ${node.name}`}
-            className={checkBoxCls}
-          />
-          <span className={`${nameCls} truncate`}>{depth === 0 ? node.name.toUpperCase() : node.name}</span>
-          {node.productCount > 0 && (
-            <span className="shrink-0 text-[9.5px] font-bold text-gold-deep/70">{node.productCount}</span>
-          )}
-        </label>
-
-        {/* Deep levels can jump to the category page */}
-        {depth > 0 && (
-          <Link href={`/shop/category/${node.slug}`} aria-label={`Browse ${node.name}`} className="shrink-0 text-ink-soft/40 transition-colors hover:text-gold-deep">
-            <Plus size={10} weight="bold" />
-          </Link>
-        )}
-      </div>
-
-      {expanded && hasChildren && (
-        <div>
-          {node.children.map((child) => (
-            <CategoryNode key={child.id} node={child} depth={depth + 1} checked={checked} onToggle={onToggle} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
 }

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Phone, Mail, Clock, CalendarDays, Facebook, Instagram, Menu, ShoppingBag,
+  ShieldCheck, Sparkles, Truck, Heart, MapPin,
 } from "lucide-react"
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
@@ -231,32 +232,141 @@ export function TopUtilityBar() {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Site footer — full shop footer (the remote design wins; adapted to the
+// site token system). Carries the 10 departments (SEO internal links), the
+// Stripe-required policy links, and salon contact from live settings.
+// ---------------------------------------------------------------------------
+const FOOTER_DEPARTMENTS: [string, string][] = [
+  ["Pet Supplies", "/shop/category/pet-supplies"],
+  ["Dog Feeding & Watering", "/shop/category/dog-feeding-watering-supplies"],
+  ["Dog Grooming Supplies", "/shop/category/dog-grooming-supplies"],
+  ["Dog Beds & Furniture", "/shop/category/dog-beds-furniture"],
+  ["Dog Treats, Cookies & Snacks", "/shop/category/dog-treat-cookies-biscuits-snacks"],
+  ["Dog Apparel & Accessories", "/shop/category/dog-apparel-accessories"],
+  ["Dog Chew Toys", "/shop/category/dog-chew-toys"],
+  ["Collars, Harnesses & Leashes", "/shop/category/collars-harnesses-leashes"],
+  ["Carriers & Travel Products", "/shop/category/carriers-travel-products"],
+  ["Health Supplies", "/shop/category/health-supplies"],
+]
+
+const FOOTER_VALUE_PROPS: { Icon: typeof Heart; title: string; body: string }[] = [
+  { Icon: ShieldCheck, title: "SALON TESTED", body: "Used daily by professional groomers in our salon." },
+  { Icon: Sparkles, title: "CRUELTY-FREE & PURE", body: "Sulfate-free, paraben-free, ethically formulated." },
+  { Icon: Truck, title: "FREE DELIVERY", body: "Complimentary standard shipping on every order." },
+  { Icon: Heart, title: "PAWS-FIRST GUARANTEE", body: "30-day happiness guarantee on every product." },
+]
+
+const FOOTER_POLICY_LINKS: [string, string][] = [
+  ["Privacy Policy", "/policies/privacy-policy"],
+  ["Terms of Service", "/policies/terms-of-service"],
+  ["Refunds & Returns", "/policies/refunds-returns"],
+  ["Shipping & Delivery", "/policies/shipping-delivery"],
+]
+
 function SiteFooter({ settings }: { settings: Record<string, string> }) {
-  const links: [string, string][] = [
-    ["HOME", "/"], ["ABOUT US", "/about"], ["SERVICES", "/services"],
-    ["PRICING", "/pricing"], ["SHOP", "/shop"], ["GALLERY", "/gallery"],
-    ["BOOK", "/book"], ["CONTACT", "/contact"],
-  ]
+  const phone = settings.phone || "901-800-7182"
+  const email = settings.email || "help@aapawz.com"
+  const address = settings.address || "Memphis, TN · Salon & Wellness Center"
   return (
-    <footer className="bg-ink px-8 py-8 lg:px-12">
-      {/* Logo sits to the LEFT of the nav row — the footer stays one thin
-          band; the legal row runs below it under a hairline. */}
+    <footer id="site-footer" className="bg-ink px-8 pb-8 pt-12 lg:px-12">
       <div className="mx-auto max-w-5xl">
-        <div className="flex flex-col items-center gap-7 lg:flex-row lg:items-center lg:justify-between">
-          <img src="/brand/footer-logo.png" alt="All About Pawz" width={1021} height={729} className="h-12 w-auto lg:h-14" />
-          <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5">
-            {links.map(([label, to]) => (
-              <Link key={to} href={to} className="text-[10px] font-bold tracking-[0.16em] text-on-dark-muted hover:text-gold">
-                {label}
+        {/* Value props band */}
+        <div className="grid grid-cols-1 gap-6 border-b border-gold/15 pb-10 sm:grid-cols-2 lg:grid-cols-4">
+          {FOOTER_VALUE_PROPS.map(({ Icon, title, body }) => (
+            <div key={title} className="flex items-start gap-3">
+              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-gold" strokeWidth={1.4} aria-hidden="true" />
+              <div>
+                <h4 className="text-[10px] font-bold tracking-[0.16em] text-on-dark">{title}</h4>
+                <p className="mt-1 text-[10.5px] leading-[1.6] text-on-dark-muted">{body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Main columns */}
+        <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-5">
+          {/* Brand + contact */}
+          <div className="space-y-4 lg:col-span-2">
+            <img src="/brand/footer-logo.png" alt="All About Pawz" width={1021} height={729} className="h-12 w-auto" />
+            <p className="max-w-sm text-[11px] leading-[1.75] text-on-dark-muted">
+              Dedicated to canine health, comfort, and radiant vitality — a modern pet shop built on salon expertise, clean ingredients, and honest design.
+            </p>
+            <div className="space-y-1.5 text-[10.5px] text-on-dark-muted">
+              <div className="flex items-center gap-2.5">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-gold" aria-hidden="true" />
+                <span>{address}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Phone className="h-3.5 w-3.5 shrink-0 text-gold" aria-hidden="true" />
+                <span>{phone}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Mail className="h-3.5 w-3.5 shrink-0 text-gold" aria-hidden="true" />
+                <span>{email}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Departments 1–5 */}
+          <div className="space-y-3">
+            <h4 className="text-[9px] font-bold tracking-[0.2em] text-gold">DEPARTMENTS · 01–05</h4>
+            <ul className="space-y-2">
+              {FOOTER_DEPARTMENTS.slice(0, 5).map(([name, to]) => (
+                <li key={to}>
+                  <Link href={to} className="text-[11px] leading-[1.6] text-on-dark-muted transition-colors hover:text-gold">
+                    {name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Departments 6–10 */}
+          <div className="space-y-3">
+            <h4 className="text-[9px] font-bold tracking-[0.2em] text-gold">DEPARTMENTS · 06–10</h4>
+            <ul className="space-y-2">
+              {FOOTER_DEPARTMENTS.slice(5, 10).map(([name, to]) => (
+                <li key={to}>
+                  <Link href={to} className="text-[11px] leading-[1.6] text-on-dark-muted transition-colors hover:text-gold">
+                    {name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Shop & salon */}
+          <div className="space-y-3">
+            <h4 className="text-[9px] font-bold tracking-[0.2em] text-gold">SHOP & SALON</h4>
+            <ul className="space-y-2">
+              {([
+                ["Shop the Collection", "/shop"],
+                ["Book an Appointment", "/book"],
+                ["Our Services", "/services"],
+                ["FAQ & Policies", "/faq"],
+                ["Contact Us", "/contact"],
+              ] as [string, string][]).map(([name, to]) => (
+                <li key={to}>
+                  <Link href={to} className="text-[11px] leading-[1.6] text-on-dark-muted transition-colors hover:text-gold">
+                    {name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Legal bar — Stripe-required policy links */}
+        <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-gold/15 pt-6 text-center text-[10px] tracking-[0.08em] text-on-dark-muted sm:flex-row sm:text-left">
+          <p>{settings.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
+          <nav aria-label="Legal" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            {FOOTER_POLICY_LINKS.map(([name, to]) => (
+              <Link key={to} href={to} className="text-gold transition-colors hover:text-on-dark">
+                {name}
               </Link>
             ))}
           </nav>
-        </div>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 border-t border-gold/15 pt-5 text-[10.5px] text-on-dark-muted">
-          <p>{settings.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
-          <a href="#" className="text-gold hover:underline">Privacy Policy</a>
-          <a href="#" className="text-gold hover:underline">Terms of Service</a>
-          <a href="#" className="text-gold hover:underline">Investor Information</a>
         </div>
       </div>
     </footer>
