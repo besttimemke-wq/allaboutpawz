@@ -45,6 +45,7 @@ yarn-error.log*
 /tool-results/
 /skills/
 /db/
-/download/
-/upload/
 /scripts/
+
+# NOTE: /upload/ and /download/ MUST stay tracked (with .gitkeep) — the
+# platform file tree + image-paste gateway only see non-ignored paths.
