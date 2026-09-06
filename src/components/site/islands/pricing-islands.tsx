@@ -146,9 +146,9 @@ export function PackageCards() {
               <h3 className="mt-2.5 font-display text-[26px] leading-[1.12] text-ink">{p.name}</h3>
               <p className="mt-3.5 text-[12px] leading-[1.75] text-ink-soft">{meta.blurb}</p>
 
-              {/* Divider + transparent size pricing */}
+              {/* Divider + transparent size pricing (stacks 2×2 on mobile) */}
               <div className="mt-7 border-t border-gold/25 pt-6">
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-4 sm:gap-2">
                   {SIZES.map(([label, key]) => (
                     <div key={key} className="text-center">
                       <p className="text-[8.5px] font-bold tracking-[0.14em] text-ink-soft/70">{label}</p>
@@ -158,8 +158,9 @@ export function PackageCards() {
                 </div>
               </div>
 
-              {/* Call to action */}
-              <div className="mt-7 pt-0">
+              {/* Call to action — pinned to the card bottom so all Book
+                  buttons align across the row regardless of blurb length */}
+              <div className="mt-auto pt-7">
                 <Link href="/book" className="btn-gold w-full">BOOK THIS PACKAGE</Link>
               </div>
             </div>
