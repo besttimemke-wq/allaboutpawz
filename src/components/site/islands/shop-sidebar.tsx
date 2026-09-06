@@ -7,17 +7,13 @@ import { parsePriceToCents } from "@/lib/wizard/cart-store"
 // ---------------------------------------------------------------------------
 // Shop Sidebar — the /shop landing rail.
 //
-//   Left rail (desktop) / collapsible panel (mobile):
-//   DEPARTMENTS — the 10 root categories as LINKS with live product counts
-//                 (routing to the full category pages, which carry their own
-//                 subcategory nav + filters). Categories are navigation, not
-//                 checkboxes.
-//   PRICE       — min/max inputs + data-backed quick buckets.
-//   RATING      — 4★ & up / 3★ & up (only when rated products exist).
-//   AVAILABILITY— In stock / Backordered (only when products match).
+//   The DEPARTMENTS card is the design library's landing sidebar markup
+//   (ExactShopLandingPageView): canvas-tone card, "Departments" header with
+//   a VIEW ALL link, "All Products" + the departments as links with live
+//   product counts (normal case — categories are navigation, not checkboxes).
 //
-//   Visual language matches the /shop/category/[slug] filter rail exactly
-//   (same card, headings, checkboxes) so the two sidebars are consistent.
+//   Below it, the same filter card the category pages use: Price Range
+//   (slider + $ inputs), Rating, Availability — visible rows, no accordions.
 //
 // Pure client state — no persistence, no hydration gate.
 // ---------------------------------------------------------------------------
@@ -39,19 +35,8 @@ export type SidebarCategory = {
 
 export type SidebarRating = { avg: number; count: number }
 
-const PRICE_BUCKETS: { key: string; label: string; test: (cents: number) => boolean }[] = [
-  { key: "under25", label: "Under $25", test: (c) => c < 2500 },
-  { key: "25to50", label: "$25 – $50", test: (c) => c >= 2500 && c <= 5000 },
-  { key: "over50", label: "Over $50", test: (c) => c > 5000 },
-]
-
-const railHeadingCls = "text-[9px] font-bold tracking-[0.18em] text-gold-deep uppercase"
-const checkRowCls = "flex cursor-pointer items-center gap-2 text-[11px] text-ink-soft"
-const checkBoxCls = "h-3.5 w-3.5 shrink-0 accent-gold-deep"
-const numInputCls =
-  "w-full min-w-0 border border-gold/35 bg-cream px-2.5 py-2 text-[11px] text-ink placeholder:text-ink-soft/50 " +
-  "focus:outline-none focus:ring-1 focus:ring-gold-deep [appearance:textfield] " +
-  "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+const numSpinCls =
+  "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 
 export function ShopSidebar({
   categories,
@@ -74,14 +59,20 @@ export function ShopSidebar({
     [products],
   )
 
-  const bucketOptions = useMemo(
-    () =>
-      PRICE_BUCKETS.map((b) => ({
-        ...b,
-        count: cents.filter(({ c }) => c != null && b.test(c)).length,
-      })).filter((b) => b.count > 0),
-    [cents],
-  )
+  // Price bounds for the range slider (live data).
+  const priceBounds = useMemo(() => {
+    const cs = cents.map(({ c }) => c).filter((c): c is number => c != null)
+    if (cs.length === 0) return { min: 0, max: 100 }
+    const min = Math.floor(Math.min(...cs) / 100)
+    const max = Math.ceil(Math.max(...cs) / 100)
+    return { min, max: Math.max(max, min + 1) }
+  }, [cents])
+
+  const sliderMax = useMemo(() => {
+    const v = parseFloat(price.max)
+    if (price.max.trim() !== "" && isFinite(v)) return Math.max(priceBounds.min, Math.min(priceBounds.max, Math.round(v)))
+    return priceBounds.max
+  }, [price.max, priceBounds])
 
   const ratingOptions = useMemo(() => {
     const rated = products.filter((p) => (ratings[p.id]?.count ?? 0) > 0)
@@ -103,6 +94,8 @@ export function ShopSidebar({
     [products],
   )
 
+  const totalProducts = categories.reduce((n, c) => n + c.productCount, 0)
+
   const toggleBucket = (key: string) =>
     onPriceChange({
       ...price,
@@ -111,138 +104,170 @@ export function ShopSidebar({
         : [...price.buckets, key],
     })
 
-  const rail = (
+  return (
     <div className="space-y-6" aria-label="Shop filters">
-      {/* DEPARTMENTS — links to the full category pages (each carries its
-          own subcategory nav + filters). Navigation, not checkboxes. */}
-      <div>
-        <div className="flex items-center justify-between border-b border-gold/20 pb-3">
-          <p className={railHeadingCls}>Departments</p>
+      {/* DEPARTMENTS — the repo's landing sidebar card: links to the full
+          category pages (each carries its own subcategory nav + filters). */}
+      <nav
+        aria-label="Departments"
+        className="rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-4 shadow-xs"
+      >
+        <div className="mb-1 flex items-center justify-between border-b border-[#d8c2b7]/40 px-2 py-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#53443b]">
+            Departments
+          </span>
           <Link
             href="/shop"
-            className="text-[9px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:text-ink"
+            className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-[#7d441d] hover:underline"
           >
-            ALL
+            View All
           </Link>
         </div>
-        <ul className="mt-2.5 space-y-0.5">
+        <ul className="space-y-1 pt-2 text-sm">
+          <li>
+            <Link
+              href="/shop"
+              aria-current="page"
+              className="flex items-center justify-between rounded-none bg-[#ebdcd4] px-3 py-2 font-bold text-[#7d441d] transition-colors"
+            >
+              <span>All Products</span>
+              <span className="rounded-none bg-[#FAF8F5] px-2 py-0.5 text-xs font-semibold text-[#7d441d]">
+                {totalProducts}
+              </span>
+            </Link>
+          </li>
           {categories.map((root) => (
             <li key={root.id}>
               <Link
                 href={`/shop/category/${root.slug}`}
-                className="flex items-center justify-between rounded-sm px-1.5 py-1.5 text-[10px] font-bold tracking-[0.1em] text-ink transition-colors hover:bg-gold/5 hover:text-gold-deep"
+                className="flex items-center justify-between rounded-none px-3 py-2 text-[#53443b] transition-colors hover:bg-[#ebdcd4]/50 hover:text-[#1F1B18]"
               >
-                <span className="truncate">{root.name.toUpperCase()}</span>
-                <span className="ml-2 shrink-0 text-[9.5px] font-bold text-gold-deep/70">
-                  {root.productCount}
-                </span>
+                <span>{root.name}</span>
+                <span className="text-xs text-[#85736a]">{root.productCount}</span>
               </Link>
             </li>
           ))}
         </ul>
-      </div>
+      </nav>
 
-      {/* PRICE — range + data-backed quick buckets */}
-      <div>
-        <p className={railHeadingCls}>Price</p>
-        <div className="mt-2.5 flex items-center gap-2">
+      {/* PRICE RANGE — the same card the category rail uses */}
+      <div className="rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 shadow-xs">
+        <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[#7A7571]">
+          Price Range
+        </h3>
+        <div className="space-y-3">
           <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={price.min}
-            onChange={(e) => onPriceChange({ ...price, min: e.target.value })}
-            placeholder="MIN $"
-            aria-label="Minimum price"
-            className={numInputCls}
-          />
-          <span className="text-gold/60" aria-hidden="true">—</span>
-          <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={price.max}
+            type="range"
+            min={priceBounds.min}
+            max={priceBounds.max}
+            value={sliderMax}
             onChange={(e) => onPriceChange({ ...price, max: e.target.value })}
-            placeholder="MAX $"
             aria-label="Maximum price"
-            className={numInputCls}
+            className="h-1 w-full cursor-pointer appearance-none rounded-none bg-[#d8c2b7]/50 accent-[#7d441d]"
           />
-        </div>
-        {bucketOptions.length > 0 && (
-          <div className="mt-2.5 space-y-1.5">
-            {bucketOptions.map((b) => (
-              <label key={b.key} className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={price.buckets.includes(b.key)}
-                  onChange={() => toggleBucket(b.key)}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">{b.label}</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{b.count}</span>
-              </label>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 items-center rounded-none border border-[#d8c2b7] bg-[#FAF8F5] px-2.5 py-1.5">
+              <span className="mr-1 text-xs text-[#85736a]">$</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={price.min}
+                onChange={(e) => onPriceChange({ ...price, min: e.target.value })}
+                placeholder={String(priceBounds.min)}
+                aria-label="Minimum price"
+                className={`w-full border-0 bg-transparent p-0 text-xs text-[#1F1B18] outline-none focus:ring-0 ${numSpinCls}`}
+              />
+            </div>
+            <span className="text-xs text-[#85736a]">to</span>
+            <div className="flex flex-1 items-center rounded-none border border-[#d8c2b7] bg-[#FAF8F5] px-2.5 py-1.5">
+              <span className="mr-1 text-xs text-[#85736a]">$</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={price.max}
+                onChange={(e) => onPriceChange({ ...price, max: e.target.value })}
+                placeholder={String(priceBounds.max)}
+                aria-label="Maximum price"
+                className={`w-full border-0 bg-transparent p-0 text-xs text-[#1F1B18] outline-none focus:ring-0 ${numSpinCls}`}
+              />
+            </div>
           </div>
+        </div>
+
+        {/* RATING — only when there are rated products */}
+        {ratingOptions.length > 0 && (
+          <>
+            <div className="my-4 h-px bg-[#d8c2b7]/50" />
+            <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+              Rating
+            </h3>
+            <div className="space-y-2 text-xs">
+              {ratingOptions.map((o) => (
+                <label
+                  key={o.value}
+                  className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={price.buckets.includes(`rating${o.value}`)}
+                      onChange={() => toggleBucket(`rating${o.value}`)}
+                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
+                    />
+                    <span className="flex text-xs text-amber-500">{"★".repeat(o.value)}</span>
+                    <span>{o.label}</span>
+                  </div>
+                  <span className="text-[11px] text-[#85736a]">({o.count})</span>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* AVAILABILITY — options that actually match products */}
+        {(stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
+          <>
+            <div className="my-4 h-px bg-[#d8c2b7]/50" />
+            <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+              Availability
+            </h3>
+            <div className="space-y-2 text-xs">
+              {stockCounts.inStock > 0 && (
+                <label className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={price.buckets.includes("instock")}
+                      onChange={() => toggleBucket("instock")}
+                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
+                    />
+                    <span>In stock</span>
+                  </div>
+                  <span className="text-[11px] text-[#85736a]">({stockCounts.inStock})</span>
+                </label>
+              )}
+              {stockCounts.backordered > 0 && (
+                <label className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={price.buckets.includes("backorder")}
+                      onChange={() => toggleBucket("backorder")}
+                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
+                    />
+                    <span>Backordered</span>
+                  </div>
+                  <span className="text-[11px] text-[#85736a]">({stockCounts.backordered})</span>
+                </label>
+              )}
+            </div>
+          </>
         )}
       </div>
-
-      {/* RATING — only when there are rated products */}
-      {ratingOptions.length > 0 && (
-        <div>
-          <p className={railHeadingCls}>Rating</p>
-          <div className="mt-2.5 space-y-1.5">
-            {ratingOptions.map((o) => (
-              <label key={o.value} className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={price.buckets.includes(`rating${o.value}`)}
-                  onChange={() => toggleBucket(`rating${o.value}`)}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">{o.label}</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{o.count}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* AVAILABILITY — options that actually match products */}
-      {(stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
-        <div>
-          <p className={railHeadingCls}>Availability</p>
-          <div className="mt-2.5 space-y-1.5">
-            {stockCounts.inStock > 0 && (
-              <label className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={price.buckets.includes("instock")}
-                  onChange={() => toggleBucket("instock")}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">In stock</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{stockCounts.inStock}</span>
-              </label>
-            )}
-            {stockCounts.backordered > 0 && (
-              <label className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={price.buckets.includes("backorder")}
-                  onChange={() => toggleBucket("backorder")}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">Backordered</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{stockCounts.backordered}</span>
-              </label>
-            )}
-          </div>
-        </div>
-      )}
 
       {children}
     </div>
   )
-
-  return rail
 }

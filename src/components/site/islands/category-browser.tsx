@@ -1,37 +1,35 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, Fragment } from "react"
 import Link from "next/link"
-import { Plus, Funnel, PawPrint, X, CaretDown } from "@phosphor-icons/react"
+import { Plus, Funnel, PawPrint } from "@phosphor-icons/react"
+import { SlidersHorizontal } from "lucide-react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
 // ---------------------------------------------------------------------------
 // Category Browser — the /shop/category/[slug] collection view.
 //
-//   The sidebar is the design library's specific category-page sidebar:
+//   The sidebar is the design library's category-page sidebar, imported
+//   literally (ExactCategoryPageView / ExactSubcategoryPageView markup):
 //
 //   Left rail (desktop, STICKY — the page expands, never a scrollbar) /
 //   collapsible panel (mobile):
-//   FILTERS header + CLEAR ALL
-//   CATEGORIES      — the departments as links with counts. The current
-//                     route's department is active; on department pages it
-//                     expands INLINE to present this route's subcategories
-//                     only (wrapper label + leaves). Never the whole tree.
-//   SUBCATEGORY     — non-department pages: the parent's name + the
-//                     subcategory links relevant to this route (current
-//                     one active).
-//   PRICE           — accordion: min/max inputs + data-backed quick buckets.
-//   RATING          — accordion: star-row checkboxes (floor semantics).
-//   AVAILABILITY    — accordion: In stock / Backordered (data-backed).
-//   MAPPED FILTERS  — accordions, one per taxonomy filter mapped to this
-//                     category: select → checkbox rows w/ live counts, color →
-//                     swatch chips, boolean → toggle buttons.
+//   FILTERS header (serif + sliders icon) + Clear all
+//   CATEGORIES      — the departments as links with counts (normal case).
+//                     The current route's department is active; on department
+//                     pages it expands INLINE to present this route's
+//                     subcategories only (wrapper label + leaves).
+//   [parent name]   — non-department pages: the parent's name + the
+//                     subcategory links relevant to this route (current one
+//                     active), as its own section.
+//   PRICE RANGE     — the range SLIDER + "$ min to $ max" inputs.
+//   RATING          — star checkbox rows (department pages, per the repo).
+//   FILTER SECTIONS — one per taxonomy filter mapped to this category:
+//                     checkbox rows w/ live counts in parens, color → swatch
+//                     squares, boolean → button tiles. ALL sections are open —
+//                     no accordions, no chevrons, no dropdowns.
 //
-//   Sections COLLAPSE (accordion) so the rail never grows a scrollbar —
-//   the design spec is explicit: no scroll containers in the sidebar.
-//   Sections with active selections stay open.
-//
-//   Sort: FEATURED (catalog order) / PRICE asc+desc / TOP RATED / NEWEST.
+//   Sort: Best selling / Price asc+desc / Customer Rating / Newest Arrivals.
 //   Grid: the same catalog card the /shop collection uses.
 // ---------------------------------------------------------------------------
 
@@ -88,27 +86,14 @@ export type BrowserNav = {
 
 type SortKey = "featured" | "price-asc" | "price-desc" | "rating" | "newest"
 
-// Quick price buckets (data-backed — only rendered when products span them).
-const PRICE_BUCKETS: { key: string; label: string; test: (cents: number) => boolean }[] = [
-  { key: "under25", label: "Under $25", test: (c) => c < 2500 },
-  { key: "25to50", label: "$25 – $50", test: (c) => c >= 2500 && c <= 5000 },
-  { key: "over50", label: "Over $50", test: (c) => c > 5000 },
-]
-
+// Sort labels per the design library's toolbar.
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "featured", label: "FEATURED" },
-  { value: "price-asc", label: "PRICE: LOW TO HIGH" },
-  { value: "price-desc", label: "PRICE: HIGH TO LOW" },
-  { value: "rating", label: "TOP RATED" },
-  { value: "newest", label: "NEWEST" },
+  { value: "featured", label: "Best selling" },
+  { value: "price-asc", label: "Price: Low to High" },
+  { value: "price-desc", label: "Price: High to Low" },
+  { value: "rating", label: "Customer Rating" },
+  { value: "newest", label: "Newest Arrivals" },
 ]
-
-const railHeadingCls = "text-[9px] font-bold tracking-[0.18em] text-gold-deep uppercase"
-const sectionTitleCls = "text-[9.5px] font-bold tracking-[0.16em] text-ink uppercase"
-const numInputCls =
-  "w-full min-w-0 border border-gold/35 bg-cream px-2.5 py-2 text-[11px] text-ink placeholder:text-ink-soft/50 " +
-  "focus:outline-none focus:ring-1 focus:ring-gold-deep [appearance:textfield] " +
-  "[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 
 // Swatch hexes for the Color filter (fallback = soft gold).
 const SWATCH: Record<string, string> = {
@@ -118,7 +103,6 @@ const SWATCH: Record<string, string> = {
 }
 
 const centsOf = (p: BrowserProduct) => parsePriceToCents(p.price)
-const inStock = (p: BrowserProduct) => (p.stock == null ? true : p.stock > 0)
 
 // Full text of a product, lowercased — the live data the filters match on.
 function searchTextOf(p: BrowserProduct): string {
@@ -137,57 +121,8 @@ function valueMatches(text: string, valueName: string): boolean {
   return text.includes(v)
 }
 
-// ---------------------------------------------------------------------------
-// Accordion section — collapsible so the rail never grows a scrollbar.
-// A section with active selections stays open (its badge shows the count).
-// ---------------------------------------------------------------------------
-function Section({
-  id,
-  title,
-  badge,
-  open,
-  onToggle,
-  children,
-}: {
-  id: string
-  title: string
-  badge: number
-  open: boolean
-  onToggle: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <div className="border-b border-gold/15 pb-2 last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls={`filter-section-${id}`}
-        className="flex w-full cursor-pointer items-center justify-between py-1.5 text-left"
-      >
-        <span className="flex items-center gap-1.5">
-          <span className={sectionTitleCls}>{title}</span>
-          {badge > 0 && (
-            <span className="flex h-3.5 min-w-3.5 items-center justify-center bg-gold-deep px-1 text-[8px] font-bold leading-none text-cream">
-              {badge}
-            </span>
-          )}
-        </span>
-        <CaretDown
-          size={11}
-          weight="bold"
-          aria-hidden="true"
-          className={`shrink-0 text-ink-soft transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      {open && (
-        <div id={`filter-section-${id}`} className="mt-2.5">
-          {children}
-        </div>
-      )}
-    </div>
-  )
-}
+const numSpinCls =
+  "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 
 export function CategoryBrowser({
   node,
@@ -204,51 +139,14 @@ export function CategoryBrowser({
 }) {
   const [minPrice, setMinPrice] = useState("")
   const [maxPrice, setMaxPrice] = useState("")
-  const [buckets, setBuckets] = useState<string[]>([])
   const [minRating, setMinRating] = useState(0)
-  const [stockOnly, setStockOnly] = useState(false)
-  const [backorderOnly, setBackorderOnly] = useState(false)
   // Selected mapped-filter values: { [filterId]: Set<valueSlug> } — booleans
   // store the filter's own slug under its id.
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [sort, setSort] = useState<SortKey>("featured")
   const [mobileOpen, setMobileOpen] = useState(false)
-  // Accordion open state — undefined falls back to the default map.
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
 
   const texts = useMemo(() => products.map((p) => ({ p, t: searchTextOf(p) })), [products])
-
-  // ---- price bucket availability ----
-  const bucketOptions = useMemo(
-    () =>
-      PRICE_BUCKETS.map((b) => ({
-        ...b,
-        count: products.filter((p) => {
-          const c = centsOf(p)
-          return c != null && b.test(c)
-        }).length,
-      })).filter((b) => b.count > 0),
-    [products],
-  )
-
-  const ratingOptions = useMemo(() => {
-    const rated = products.filter((p) => (ratings[p.id]?.count ?? 0) > 0)
-    if (rated.length === 0) return []
-    return [5, 4, 3]
-      .map((v) => ({
-        value: v,
-        count: rated.filter((p) => (ratings[p.id]?.avg ?? 0) >= v).length,
-      }))
-      .filter((o) => o.count > 0)
-  }, [products, ratings])
-
-  const stockCounts = useMemo(
-    () => ({
-      inStock: products.filter(inStock).length,
-      backordered: products.filter((p) => p.stock === 0).length,
-    }),
-    [products],
-  )
 
   // ---- mapped filters (everything except the special-cased ones) ----
   const mappedFilters = useMemo(
@@ -259,28 +157,43 @@ export function CategoryBrowser({
     [filters],
   )
 
-  // Brand + Material have no values in the live framework yet — their section
-  // names ride along under the mapped list when present but empty, exactly
-  // like the old "coming" line.
-  const frameworkWithoutValues = useMemo(
-    () => filters.filter((f) => ["brand", "material"].includes(f.slug)),
-    [filters],
-  )
+  // ---- rating rows (repo markup: 5 / 4+ / 3+ Stars) ----
+  const ratingRows = useMemo(() => {
+    const rated = products.filter((p) => (ratings[p.id]?.count ?? 0) > 0)
+    if (rated.length === 0) return []
+    return [5, 4, 3].map((v) => ({
+      stars: v,
+      count: rated.filter((p) => (ratings[p.id]?.avg ?? 0) >= v).length,
+    }))
+  }, [products, ratings])
 
-  // Default accordion state per the design library's compact sidebar: ALL
-  // sections closed by default (the rail stays as short as its nav content,
-  // so the products column drives the row height — the rail never outgrows
-  // the page). Sections with active selections are always open.
-  const defaultOpen = useMemo(() => {
-    const map: Record<string, boolean> = {}
-    return map
-  }, [])
+  // ---- price bounds for the range slider (live data) ----
+  const priceBounds = useMemo(() => {
+    const cs = products.map(centsOf).filter((c): c is number => c != null)
+    if (cs.length === 0) return { min: 0, max: 100 }
+    const min = Math.floor(Math.min(...cs) / 100)
+    const max = Math.ceil(Math.max(...cs) / 100)
+    return { min, max: Math.max(max, min + 1) }
+  }, [products])
 
-  const sectionOpen = (key: string, hasActive: boolean) =>
-    hasActive || (openSections[key] ?? defaultOpen[key] ?? false)
+  const sliderMax = useMemo(() => {
+    const v = parseFloat(maxPrice)
+    if (maxPrice.trim() !== "" && isFinite(v)) return Math.max(priceBounds.min, Math.min(priceBounds.max, Math.round(v)))
+    return priceBounds.max
+  }, [maxPrice, priceBounds])
 
-  const toggleSection = (key: string) =>
-    setOpenSections((prev) => ({ ...prev, [key]: !(sectionOpen(key, false)) }))
+  const activeCount =
+    (minPrice.trim() ? 1 : 0) +
+    (maxPrice.trim() ? 1 : 0) +
+    (minRating > 0 ? 1 : 0) +
+    Object.keys(selected).length
+
+  const clearAll = () => {
+    setMinPrice("")
+    setMaxPrice("")
+    setMinRating(0)
+    setSelected({})
+  }
 
   const toggleValue = (filterId: number, valueSlug: string) => {
     setSelected((prev) => {
@@ -293,35 +206,12 @@ export function CategoryBrowser({
     })
   }
 
-  const activeCount =
-    (minPrice.trim() ? 1 : 0) +
-    (maxPrice.trim() ? 1 : 0) +
-    buckets.length +
-    (minRating > 0 ? 1 : 0) +
-    (stockOnly ? 1 : 0) +
-    (backorderOnly ? 1 : 0) +
-    Object.keys(selected).length
-
-  const clearAll = () => {
-    setMinPrice("")
-    setMaxPrice("")
-    setBuckets([])
-    setMinRating(0)
-    setStockOnly(false)
-    setBackorderOnly(false)
-    setSelected({})
-  }
-
-  const toggleBucket = (key: string) =>
-    setBuckets((b) => (b.includes(key) ? b.filter((k) => k !== key) : [...b, key]))
-
   // ---- filtering ----
   const visible = useMemo(() => {
     const min = parseFloat(minPrice)
     const max = parseFloat(maxPrice)
     const hasMin = minPrice.trim() !== "" && isFinite(min)
     const hasMax = maxPrice.trim() !== "" && isFinite(max)
-    const activeTests = PRICE_BUCKETS.filter((b) => buckets.includes(b.key))
     const valueNameBySlug = new Map<string, string>()
     for (const f of mappedFilters) for (const v of f.values) valueNameBySlug.set(v.slug, v.name)
     const filterById = new Map(mappedFilters.map((f) => [f.id, f]))
@@ -330,16 +220,10 @@ export function CategoryBrowser({
       const c = centsOf(p)
       if (hasMin && (c == null || c < Math.round(min * 100))) return false
       if (hasMax && (c == null || c > Math.round(max * 100))) return false
-      if (activeTests.length > 0) {
-        const ok = activeTests.some((b) => c != null && b.test(c))
-        if (!ok) return false
-      }
       if (minRating > 0) {
         const r = ratings[p.id]
         if (!r || r.count === 0 || r.avg < minRating) return false
       }
-      if (stockOnly && !inStock(p)) return false
-      if (backorderOnly && p.stock !== 0) return false
 
       // Mapped filters: AND across sections, OR within a section.
       const t = texts[idx].t
@@ -364,7 +248,7 @@ export function CategoryBrowser({
       }
       return true
     })
-  }, [products, texts, ratings, minPrice, maxPrice, buckets, minRating, stockOnly, backorderOnly, selected, mappedFilters])
+  }, [products, texts, ratings, minPrice, maxPrice, minRating, selected, mappedFilters])
 
   // ---- sorting ----
   const sorted = useMemo(() => {
@@ -375,7 +259,7 @@ export function CategoryBrowser({
         arr.sort((a, b) => (centsOf(a) ?? Infinity) - (centsOf(b) ?? Infinity) || nameOf(a).localeCompare(nameOf(b)))
         break
       case "price-desc":
-        arr.sort((a, b) => (centsOf(b) ?? 0) - (centsOf(a) ?? 0) || nameOf(a).localeCompare(nameOf(b)))
+        arr.sort((a, b) => (centsOf(b) ?? -Infinity) - (centsOf(a) ?? -Infinity) || nameOf(a).localeCompare(nameOf(b)))
         break
       case "rating":
         arr.sort(
@@ -398,38 +282,37 @@ export function CategoryBrowser({
     return arr
   }, [visible, sort, ratings])
 
-  const checkRowCls = "flex cursor-pointer items-center gap-2 text-[11px] text-ink-soft"
-  const checkBoxCls = "h-3.5 w-3.5 shrink-0 accent-gold-deep"
-
   // Count of products matching a value (for facet counts).
   const countFor = (valueName: string) => texts.filter(({ t }) => valueMatches(t, valueName)).length
   const countForName = (name: string) => texts.filter(({ t }) => t.includes(name.toLowerCase())).length
 
-  // ---- the rail (shared by desktop sidebar + mobile collapsible) ----
-  const priceActive =
-    (minPrice.trim() ? 1 : 0) + (maxPrice.trim() ? 1 : 0) + buckets.length
+  // ---- the rail (shared by desktop sidebar + mobile collapsible) — the
+  // design library's exact sidebar markup ----
   const rail = (
-    <div className="space-y-2.5" aria-label={`Filters for ${node.name}`}>
-      <div className="flex items-center justify-between border-b border-gold/20 pb-3">
-        <p className={railHeadingCls}>Filters</p>
-        {activeCount > 0 && (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:text-ink"
-          >
-            <X size={10} weight="bold" /> CLEAR ALL
-          </button>
-        )}
+    <div className="space-y-6" aria-label={`Filters for ${node.name}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-[#d8c2b7]/50 pb-3.5">
+        <h2 className="flex items-center gap-1.5 font-display text-base font-bold text-[#1F1B18]">
+          <SlidersHorizontal className="h-4 w-4 text-[#7d441d]" aria-hidden="true" />
+          Filters
+        </h2>
+        <button
+          type="button"
+          onClick={clearAll}
+          className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-[#7d441d] hover:underline"
+        >
+          Clear all
+        </button>
       </div>
 
-      {/* CATEGORIES — the departments as links with counts. The current
+      {/* CATEGORIES LIST — departments as links (normal case). The current
           route's department is active and, on department pages, expands
-          inline to present THIS route's subcategories only (wrapper label +
-          leaves). Never the full taxonomy tree, never a scrollbar. */}
+          inline to present THIS route's subcategories only. */}
       <div>
-        <p className={sectionTitleCls}>Categories</p>
-        <ul className="mt-2.5 space-y-0.5">
+        <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[#7A7571]">
+          Categories
+        </h3>
+        <ul className="space-y-1.5 text-xs text-[#2B2623]">
           {nav.departments.map((d) => {
             const isActive = d.slug === nav.activeSlug
             return (
@@ -437,50 +320,39 @@ export function CategoryBrowser({
                 <Link
                   href={`/shop/category/${d.slug}`}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center justify-between rounded-sm px-1.5 py-1 text-[10px] font-bold tracking-[0.08em] transition-colors ${
+                  className={`flex cursor-pointer items-center justify-between rounded-none p-1.5 transition ${
                     isActive
-                      ? "bg-cream-deep/70 text-gold-deep"
-                      : "text-ink-soft hover:bg-gold/5 hover:text-gold-deep"
+                      ? "bg-[#ebdcd4]/40 font-bold text-[#7d441d]"
+                      : "text-[#53443b] hover:bg-[#ebdcd4]/20 hover:text-[#7d441d]"
                   }`}
                 >
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    {isActive && (
-                      <span className="h-1.5 w-1.5 shrink-0 bg-gold-deep" aria-hidden="true" />
-                    )}
-                    <span className="truncate">{d.name.toUpperCase()}</span>
+                  <span className="flex items-center gap-1.5">
+                    {isActive && <span className="h-1.5 w-1.5 bg-[#7d441d]" aria-hidden="true" />}
+                    <span>{d.name}</span>
                   </span>
-                  <span
-                    className={`ml-2 shrink-0 text-[9.5px] font-bold ${
-                      isActive ? "text-gold-deep" : "text-ink-soft/60"
-                    }`}
-                  >
-                    {d.count}
-                  </span>
+                  <span className={isActive ? "font-bold text-[#7d441d]" : "text-[#85736a]"}>{d.count}</span>
                 </Link>
 
                 {/* Department pages: the ACTIVE department presents its own
-                    subcategory group inline — wrapper label + leaves (or
-                    direct leaves). This is the repo's sidebar pattern. */}
+                    subcategory group inline — wrapper label + leaves. */}
                 {isActive && nav.expandedGroups && (
-                  <div className="mt-1 space-y-1 border-l border-gold/25 pl-2">
+                  <div className="space-y-1 pt-0.5 pl-4">
                     {nav.expandedGroups.map((g, gi) => (
-                      <div key={gi} className="space-y-0.5">
+                      <div key={gi}>
                         {g.label && (
-                          <p className="px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.14em] text-ink-soft/60 uppercase">
+                          <div className="py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#85736a]">
                             {g.label}
-                          </p>
+                          </div>
                         )}
-                        <ul className="space-y-0">
+                        <ul className="space-y-1 pl-2">
                           {g.items.map((s) => (
                             <li key={s.id}>
                               <Link
                                 href={`/shop/category/${s.slug}`}
-                                className="flex items-center justify-between rounded-sm px-1.5 py-[3px] text-[9.5px] text-ink-soft transition-colors hover:bg-gold/5 hover:text-gold-deep"
+                                className="flex items-center justify-between rounded-none px-1.5 py-1 text-[#53443b] transition-colors hover:bg-[#ebdcd4]/30 hover:text-[#7d441d]"
                               >
-                                <span className="truncate">{s.name}</span>
-                                <span className="ml-2 shrink-0 text-[9px] text-ink-soft/50">
-                                  {s.count}
-                                </span>
+                                <span>{s.name}</span>
+                                <span className="text-[11px] text-[#85736a]">{s.count}</span>
                               </Link>
                             </li>
                           ))}
@@ -499,18 +371,20 @@ export function CategoryBrowser({
           subcategory links relevant to this route, the current one active. */}
       {nav.subSection && (
         <>
-          <div className="h-px bg-gold/15" />
+          <div className="h-px bg-[#d8c2b7]/50" />
           <div>
-            <p className={sectionTitleCls}>{nav.subSection.heading}</p>
-            <ul className="mt-2.5 space-y-0.5">
+            <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+              {nav.subSection.heading}
+            </h3>
+            <ul className="space-y-1 text-xs">
               {nav.subSection.groups.map((g, gi) => (
-                <div key={gi} className="space-y-0.5">
+                <div key={gi}>
                   {g.label && (
-                    <p className="px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.14em] text-ink-soft/60 uppercase">
+                    <div className="py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#85736a]">
                       {g.label}
-                    </p>
+                    </div>
                   )}
-                  <ul className="space-y-0">
+                  <ul className="space-y-1">
                     {g.items.map((s) => {
                       const isCurrent = s.slug === nav.subSection!.currentSlug
                       return (
@@ -518,24 +392,14 @@ export function CategoryBrowser({
                           <Link
                             href={`/shop/category/${s.slug}`}
                             aria-current={isCurrent ? "page" : undefined}
-                            className={`flex items-center justify-between rounded-sm px-1.5 py-[3px] text-[9.5px] transition-colors ${
+                            className={`flex items-center justify-between rounded-none px-2 py-1.5 transition ${
                               isCurrent
-                                ? "bg-cream-deep/70 font-bold text-gold-deep"
-                                : "text-ink-soft hover:bg-gold/5 hover:text-gold-deep"
+                                ? "bg-[#ebdcd4] font-bold text-[#7d441d]"
+                                : "text-[#53443b] hover:bg-[#ebdcd4]/40 hover:text-[#1F1B18]"
                             }`}
                           >
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              {isCurrent && (
-                                <span
-                                  className="h-1.5 w-1.5 shrink-0 bg-gold-deep"
-                                  aria-hidden="true"
-                                />
-                              )}
-                              <span className="truncate">{s.name}</span>
-                            </span>
-                            <span className="ml-2 shrink-0 text-[9px] text-ink-soft/50">
-                              {s.count}
-                            </span>
+                            <span>{s.name}</span>
+                            <span className="text-[#85736a]">{s.count}</span>
                           </Link>
                         </li>
                       )
@@ -548,128 +412,89 @@ export function CategoryBrowser({
         </>
       )}
 
-      <div className="h-px bg-gold/15" />
+      <div className="h-px bg-[#d8c2b7]/50" />
 
-      {/* PRICE — range + data-backed quick buckets */}
-      <Section
-        id="price"
-        title="Price"
-        badge={priceActive}
-        open={sectionOpen("price", priceActive > 0)}
-        onToggle={() => toggleSection("price")}
-      >
-        <div className="flex items-center gap-2">
+      {/* PRICE RANGE — the repo's slider + $ min/max inputs */}
+      <div>
+        <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[#7A7571]">
+          Price Range
+        </h3>
+        <div className="space-y-3">
           <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            placeholder="MIN $"
-            aria-label="Minimum price"
-            className={numInputCls}
-          />
-          <span className="text-gold/60" aria-hidden="true">—</span>
-          <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            value={maxPrice}
+            type="range"
+            min={priceBounds.min}
+            max={priceBounds.max}
+            value={sliderMax}
             onChange={(e) => setMaxPrice(e.target.value)}
-            placeholder="MAX $"
             aria-label="Maximum price"
-            className={numInputCls}
+            className="h-1 w-full cursor-pointer appearance-none rounded-none bg-[#d8c2b7]/50 accent-[#7d441d]"
           />
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 items-center rounded-none border border-[#d8c2b7] bg-[#FAF8F5] px-2.5 py-1.5">
+              <span className="mr-1 text-xs text-[#85736a]">$</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                placeholder={String(priceBounds.min)}
+                aria-label="Minimum price"
+                className={`w-full border-0 bg-transparent p-0 text-xs text-[#1F1B18] outline-none focus:ring-0 ${numSpinCls}`}
+              />
+            </div>
+            <span className="text-xs text-[#85736a]">to</span>
+            <div className="flex flex-1 items-center rounded-none border border-[#d8c2b7] bg-[#FAF8F5] px-2.5 py-1.5">
+              <span className="mr-1 text-xs text-[#85736a]">$</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                placeholder={String(priceBounds.max)}
+                aria-label="Maximum price"
+                className={`w-full border-0 bg-transparent p-0 text-xs text-[#1F1B18] outline-none focus:ring-0 ${numSpinCls}`}
+              />
+            </div>
+          </div>
         </div>
-        {bucketOptions.length > 0 && (
-          <div className="mt-2.5 space-y-1.5">
-            {bucketOptions.map((b) => (
-              <label key={b.key} className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={buckets.includes(b.key)}
-                  onChange={() => toggleBucket(b.key)}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">{b.label}</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{b.count}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </Section>
+      </div>
 
-      {/* RATING — star rows, floor semantics (only when rated products exist) */}
-      {ratingOptions.length > 0 && (
-        <Section
-          id="rating"
-          title="Rating"
-          badge={minRating > 0 ? 1 : 0}
-          open={sectionOpen("rating", minRating > 0)}
-          onToggle={() => toggleSection("rating")}
-        >
-          <div className="space-y-1.5">
-            {ratingOptions.map((o) => (
-              <label key={o.value} className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={minRating === o.value}
-                  onChange={() => setMinRating(minRating === o.value ? 0 : o.value)}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">
-                  <span className="tracking-[0.1em] text-gold-deep">{"★".repeat(o.value)}</span>
-                  <span className="ml-1.5 text-ink-soft">{o.value === 5 ? "5 Stars" : `${o.value}+ Stars`}</span>
-                </span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{o.count}</span>
-              </label>
-            ))}
+      {/* RATING — star checkbox rows (department pages, per the repo's
+          category-page sidebar) */}
+      {nav.expandedGroups && ratingRows.length > 0 && (
+        <>
+          <div className="h-px bg-[#d8c2b7]/40" />
+          <div>
+            <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+              Rating
+            </h3>
+            <div className="space-y-2 text-xs">
+              {[5, 4, 3].map((stars) => (
+                <label key={stars} className="flex cursor-pointer items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={minRating === stars}
+                      onChange={() => setMinRating(minRating === stars ? 0 : stars)}
+                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-[#7d441d]"
+                    />
+                    <span className="flex text-xs text-amber-500">
+                      {"★".repeat(stars)}
+                      {"☆".repeat(5 - stars)}
+                    </span>
+                  </div>
+                  <span className="text-[#85736a]">{stars === 5 ? "5 Stars" : `${stars}+ Stars`}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        </Section>
+        </>
       )}
 
-      {/* AVAILABILITY — options that actually match products */}
-      {(stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
-        <Section
-          id="availability"
-          title="Availability"
-          badge={(stockOnly ? 1 : 0) + (backorderOnly ? 1 : 0)}
-          open={sectionOpen("availability", stockOnly || backorderOnly)}
-          onToggle={() => toggleSection("availability")}
-        >
-          <div className="space-y-1.5">
-            {stockCounts.inStock > 0 && (
-              <label className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={stockOnly}
-                  onChange={() => setStockOnly((v) => !v)}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">In stock</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{stockCounts.inStock}</span>
-              </label>
-            )}
-            {stockCounts.backordered > 0 && (
-              <label className={checkRowCls}>
-                <input
-                  type="checkbox"
-                  checked={backorderOnly}
-                  onChange={() => setBackorderOnly((v) => !v)}
-                  className={checkBoxCls}
-                />
-                <span className="flex-1">Backordered</span>
-                <span className="text-[9.5px] font-bold text-ink-soft/70">{stockCounts.backordered}</span>
-              </label>
-            )}
-          </div>
-        </Section>
-      )}
-
-      {/* MAPPED FILTERS — the taxonomy framework for this category, one
-          accordion per section. Select → checkbox rows w/ counts · Color →
-          swatches · Boolean → toggle buttons. Count-0 values render dimmed
-          (honest dead-state). */}
+      {/* MAPPED FILTER SECTIONS — checkbox rows w/ live counts · color →
+          swatch squares · boolean → button tiles. All open, no accordions. */}
       {mappedFilters.map((f) => {
         const selectedVals = selected[f.id] || []
         const isColor = f.slug === "color"
@@ -679,144 +504,133 @@ export function CategoryBrowser({
           const on = selectedVals.includes(f.slug)
           const count = countForName(f.name)
           return (
-            <Section
-              key={f.id}
-              id={`f${f.id}`}
-              title={f.name}
-              badge={selectedVals.length}
-              open={sectionOpen(`f${f.id}`, selectedVals.length > 0)}
-              onToggle={() => toggleSection(`f${f.id}`)}
-            >
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => toggleValue(f.id, f.slug)}
-                  aria-pressed={on}
-                  className={`py-1.5 text-[10px] font-bold tracking-[0.08em] transition-colors ${
-                    on
-                      ? "border border-gold-deep bg-gold-deep text-cream"
-                      : count > 0
-                        ? "border border-gold/35 bg-cream text-ink-soft hover:border-gold-deep hover:text-gold-deep"
-                        : "cursor-default border border-gold/20 bg-cream/50 text-ink-soft/40"
-                  }`}
-                >
-                  {f.name.toUpperCase()}
-                </button>
+            <Fragment key={f.id}>
+              <div className="h-px bg-[#d8c2b7]/40" />
+              <div>
+                <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+                  {f.name}
+                </h3>
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => toggleValue(f.id, f.slug)}
+                    aria-pressed={on}
+                    className={`cursor-pointer rounded-none py-1.5 text-xs font-medium transition-colors ${
+                      on
+                        ? "border border-[#7d441d] bg-[#7d441d] text-white"
+                        : count > 0
+                          ? "border border-[#d8c2b7] bg-[#FAF8F5] text-[#53443b] hover:border-[#7d441d]"
+                          : "cursor-default border border-[#d8c2b7] bg-[#FAF8F5] text-[#53443b]/40"
+                    }`}
+                  >
+                    {f.name}
+                  </button>
+                </div>
               </div>
-            </Section>
+            </Fragment>
           )
         }
 
         if (f.values.length === 0) return null
         return (
-          <Section
-            key={f.id}
-            id={`f${f.id}`}
-            title={f.name}
-            badge={selectedVals.length}
-            open={sectionOpen(`f${f.id}`, selectedVals.length > 0)}
-            onToggle={() => toggleSection(`f${f.id}`)}
-          >
-            {isColor ? (
-              <div className="flex flex-wrap gap-1.5">
-                {f.values.map((v) => {
-                  const on = selectedVals.includes(v.slug)
-                  const count = countFor(v.name)
-                  return (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => count > 0 && toggleValue(f.id, v.slug)}
-                      aria-pressed={on}
-                      aria-label={`${f.name}: ${v.name}${count === 0 ? " (no matches)" : ""}`}
-                      className={`flex items-center gap-1.5 border px-2 py-1 text-[10px] transition-colors ${
-                        on
-                          ? "border-gold-deep bg-gold/15 text-ink"
-                          : count > 0
-                            ? "border-gold/30 bg-cream text-ink-soft hover:border-gold-deep"
-                            : "cursor-default border-gold/15 bg-cream/50 text-ink-soft/40"
-                      }`}
-                    >
-                      <span
-                        className="h-3 w-3 border border-ink/15"
-                        style={{ background: SWATCH[v.slug] || "rgba(157,124,64,0.35)" }}
-                        aria-hidden="true"
+          <Fragment key={f.id}>
+            <div className="h-px bg-[#d8c2b7]/40" />
+            <div>
+              <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+                {f.name}
+              </h3>
+              {isColor ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {f.values.map((v) => {
+                    const on = selectedVals.includes(v.slug)
+                    const count = countFor(v.name)
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        title={`${v.name}${count === 0 ? " (0)" : ""}`}
+                        aria-label={`${f.name}: ${v.name}`}
+                        aria-pressed={on}
+                        onClick={() => count > 0 && toggleValue(f.id, v.slug)}
+                        style={{ backgroundColor: SWATCH[v.slug] || "rgba(157,124,64,0.35)" }}
+                        className={`h-6 w-6 cursor-pointer rounded-none shadow-xs transition-transform hover:scale-105 ${
+                          on ? "border-2 border-[#7d441d]" : "border border-[#d8c2b7]"
+                        } ${count === 0 ? "cursor-default opacity-40" : ""}`}
                       />
-                      {v.name}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {f.values.map((v) => {
-                  const on = selectedVals.includes(v.slug)
-                  const count = countFor(v.name)
-                  return (
-                    <label
-                      key={v.id}
-                      className={count > 0 ? checkRowCls : `${checkRowCls} cursor-default opacity-40`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => count > 0 && toggleValue(f.id, v.slug)}
-                        className={checkBoxCls}
-                      />
-                      <span className="flex-1">{v.name}</span>
-                      <span className="text-[9.5px] font-bold text-ink-soft/70">{count}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            )}
-          </Section>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {f.values.map((v) => {
+                    const on = selectedVals.includes(v.slug)
+                    const count = countFor(v.name)
+                    return (
+                      <label
+                        key={v.id}
+                        className={`flex items-center justify-between text-xs text-[#53443b] ${
+                          count > 0 ? "cursor-pointer hover:text-[#1F1B18]" : "cursor-default opacity-40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={() => count > 0 && toggleValue(f.id, v.slug)}
+                            className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
+                          />
+                          <span>{v.name}</span>
+                        </div>
+                        <span className="text-[11px] text-[#85736a]">({count})</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </Fragment>
         )
       })}
-
-      {/* Framework filters with no values yet — names only, never fake controls */}
-      {frameworkWithoutValues.length > 0 && (
-        <div className="border-t border-gold/15 pt-3.5">
-          <p className="text-[9px] font-bold tracking-[0.14em] text-ink-soft/70">
-            MORE FILTERS COMING TO THIS CATEGORY
-          </p>
-          <p className="mt-1 line-clamp-2 text-[9.5px] leading-[1.6] text-ink-soft">
-            {frameworkWithoutValues.map((f) => f.name).join(", ")}
-          </p>
-        </div>
-      )}
     </div>
   )
 
   return (
     <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-      {/* Desktop filter rail — STICKY while the page expands. Natural height,
-          accordions collapse, NO scrollbar ever (the spec forbids scroll
-          containers in the sidebar). */}
-      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-4 lg:sticky lg:top-8 lg:block">
+      {/* Desktop filter rail — the repo's sidebar card. STICKY while the page
+          expands; natural height, no scroll container. */}
+      <aside
+        className="hidden w-[220px] shrink-0 self-start space-y-6 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 shadow-xs lg:sticky lg:top-8 lg:block"
+        data-purpose="product-filters"
+      >
         {rail}
       </aside>
 
       <div className="min-w-0">
-        {/* Toolbar: product count + mobile FILTERS toggle + sort */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gold/25 pb-4">
-          <p className="text-[10px] font-bold tracking-[0.14em] text-ink-soft">
-            {sorted.length === products.length
-              ? `${products.length} ${products.length === 1 ? "PRODUCT" : "PRODUCTS"}`
-              : `${sorted.length} OF ${products.length} PRODUCTS`}
-          </p>
+        {/* Toolbar — repo pattern: collection name + "Showing all N products"
+            + mobile FILTERS toggle + Sort by select */}
+        <div className="flex flex-col justify-between gap-4 border-b border-[#d8c2b7]/60 pb-4 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-display text-xl font-bold text-[#1F1B18]">{node.name}</h2>
+            <p className="mt-0.5 text-xs text-[#85736a]">
+              {sorted.length === products.length
+                ? products.length === 1
+                  ? "Showing 1 product"
+                  : `Showing all ${products.length} products`
+                : `Showing ${sorted.length} of ${products.length} products`}
+            </p>
+          </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 self-end sm:self-auto">
             <button
               type="button"
               onClick={() => setMobileOpen((o) => !o)}
               aria-expanded={mobileOpen}
-              className="inline-flex min-h-[40px] items-center gap-2 border border-gold/35 bg-cream px-4 py-2 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-gold-deep hover:text-gold-deep lg:hidden"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-none border border-[#d8c2b7] bg-[#FAF8F5] px-4 py-2 text-[9.5px] font-bold tracking-[0.14em] text-[#53443b] transition-colors hover:border-[#7d441d] hover:text-[#7d441d] lg:hidden"
             >
               <Funnel size={12} weight="bold" />
               FILTERS
               {activeCount > 0 && (
-                <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-gold-deep px-1 text-[8.5px] font-bold leading-none text-cream">
+                <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-[#7d441d] px-1 text-[8.5px] font-bold leading-none text-white">
                   {activeCount}
                 </span>
               )}
@@ -824,12 +638,12 @@ export function CategoryBrowser({
             </button>
 
             <label className="ml-auto flex items-center gap-2.5">
-              <span className="hidden text-[9px] font-bold tracking-[0.16em] text-ink-soft sm:inline">SORT BY</span>
+              <span className="hidden text-xs font-medium text-[#53443b] sm:inline">Sort by:</span>
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKey)}
                 aria-label="Sort products"
-                className="border border-gold/35 bg-cream px-3 py-2 text-[9.5px] font-bold tracking-[0.1em] text-ink focus:outline-none focus:ring-1 focus:ring-gold-deep"
+                className="cursor-pointer rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] px-3 py-1.5 text-xs text-[#1F1B18] focus:border-[#7d441d] focus:outline-none"
               >
                 {SORT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -843,7 +657,7 @@ export function CategoryBrowser({
 
         {/* Mobile collapsible filter panel (same rail content) */}
         {mobileOpen && (
-          <div className="mt-4 border border-gold/25 bg-card p-5 lg:hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="mt-4 animate-in fade-in slide-in-from-top-1 duration-150 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 lg:hidden">
             {rail}
           </div>
         )}
@@ -860,12 +674,12 @@ export function CategoryBrowser({
         )}
 
         {sorted.length === 0 && (
-          <div className="mt-8 border border-gold/30 bg-cream-deep/50 px-6 py-12 text-center">
+          <div className="mt-8 rounded-none border border-[#d8c2b7]/60 bg-[#FAF8F5] px-6 py-12 text-center">
             {products.length === 0 ? (
               <>
-                <PawPrint size={36} className="mx-auto text-gold/40" />
-                <h2 className="mt-4 font-display text-[22px] text-ink">No products here yet</h2>
-                <p className="mx-auto mt-2 max-w-sm text-[12px] leading-[1.8] text-ink-soft">
+                <PawPrint size={36} className="mx-auto text-[#d8c2b7]" />
+                <h2 className="mt-4 font-display text-[22px] text-[#1F1B18]">No products here yet</h2>
+                <p className="mx-auto mt-2 max-w-sm text-[12px] leading-[1.8] text-[#53443b]">
                   This category is part of our expanding collection — check back soon.
                 </p>
                 <div className="mt-6">
@@ -874,7 +688,7 @@ export function CategoryBrowser({
               </>
             ) : (
               <>
-                <p className="text-[12.5px] text-ink-soft">No products match your filters.</p>
+                <p className="text-[12.5px] text-[#53443b]">No products match your filters.</p>
                 <button type="button" onClick={clearAll} className="btn-ghost mt-5">
                   CLEAR FILTERS
                 </button>

@@ -75,6 +75,7 @@ function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
 
 export function SiteChrome({ children, settings: initialSettings }: { children: ReactNode; settings?: Record<string, string> }) {
   const pathname = usePathname()
+  const isShopRoute = pathname.startsWith("/shop")
   const [open, setOpen] = useState(false)
   // CSR data layer: the chrome shell renders instantly with built-in
   // fallbacks, then fills in salon settings (address, phone, hours) from the
@@ -128,8 +129,9 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
         </nav>
       )}
       <main className="lg:pl-[232px]">{children}</main>
-      {/* Every page — including home — gets the same centered footer */}
-      <SiteFooter settings={s} />
+      {/* The full shop footer lives ONLY on shop routes. Every other page
+          keeps the original thin strip footer. */}
+      {isShopRoute ? <ShopFooter settings={s} /> : <ThinFooter settings={s} />}
     </div>
   )
 }
@@ -233,9 +235,46 @@ export function TopUtilityBar() {
 }
 
 // ---------------------------------------------------------------------------
-// Site footer — full shop footer (the remote design wins; adapted to the
-// site token system). Carries the 10 departments (SEO internal links), the
-// Stripe-required policy links, and salon contact from live settings.
+// Thin strip footer — the original site footer, restored for every page that
+// is NOT part of the shop (home, about, services, pricing, gallery, book,
+// contact, faq, policies…). One thin band: logo + nav row + legal hairline.
+// ---------------------------------------------------------------------------
+function ThinFooter({ settings }: { settings: Record<string, string> }) {
+  const links: [string, string][] = [
+    ["HOME", "/"], ["ABOUT US", "/about"], ["SERVICES", "/services"],
+    ["PRICING", "/pricing"], ["SHOP", "/shop"], ["GALLERY", "/gallery"],
+    ["BOOK", "/book"], ["CONTACT", "/contact"],
+  ]
+  return (
+    <footer className="bg-ink px-8 py-8 lg:px-12">
+      {/* Logo sits to the LEFT of the nav row — the footer stays one thin
+          band; the legal row runs below it under a hairline. */}
+      <div className="mx-auto max-w-5xl">
+        <div className="flex flex-col items-center gap-7 lg:flex-row lg:items-center lg:justify-between">
+          <img src="/brand/footer-logo.png" alt="All About Pawz" width={1021} height={729} className="h-12 w-auto lg:h-14" />
+          <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5">
+            {links.map(([label, to]) => (
+              <Link key={to} href={to} className="text-[10px] font-bold tracking-[0.16em] text-on-dark-muted hover:text-gold">
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 border-t border-gold/15 pt-5 text-[10.5px] text-on-dark-muted">
+          <p>{settings.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
+          <Link href="/policies/privacy-policy" className="text-gold hover:underline">Privacy Policy</Link>
+          <Link href="/policies/terms-of-service" className="text-gold hover:underline">Terms of Service</Link>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Shop footer — the full e-commerce footer (the remote design wins; adapted
+// to the site token system). Contained to /shop routes ONLY. Carries the 10
+// departments (SEO internal links), the Stripe-required policy links, and
+// salon contact from live settings.
 // ---------------------------------------------------------------------------
 const FOOTER_DEPARTMENTS: [string, string][] = [
   ["Pet Supplies", "/shop/category/pet-supplies"],
@@ -264,7 +303,7 @@ const FOOTER_POLICY_LINKS: [string, string][] = [
   ["Shipping & Delivery", "/policies/shipping-delivery"],
 ]
 
-function SiteFooter({ settings }: { settings: Record<string, string> }) {
+function ShopFooter({ settings }: { settings: Record<string, string> }) {
   const phone = settings.phone || "901-800-7182"
   const email = settings.email || "help@aapawz.com"
   const address = settings.address || "Memphis, TN · Salon & Wellness Center"
