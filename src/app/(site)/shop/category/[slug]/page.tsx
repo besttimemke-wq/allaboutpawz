@@ -146,14 +146,11 @@ const groupsOf = (nodes: CategoryNode[]): BrowserNavGroup[] => {
   return groups
 }
 
-// Keep the PageHeader label on one line even for the longest department names.
-function headerLabel(name: string) {
-  const full = `SHOP — ${name.toUpperCase()}`
+// Keep the breadcrumb current-crumb on one line for the longest names.
+const crumbName = (name: string) => {
+  const full = name.toUpperCase()
   return full.length > 34 ? `${full.slice(0, 33).trimEnd()}…` : full
 }
-
-const crumbLinkCls =
-  "text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
 
 export default async function CategoryPage({ params }: Params) {
   const { slug } = await params
@@ -230,28 +227,19 @@ export default async function CategoryPage({ params }: Params) {
 
   return (
     <>
-      <PageHeader n="06" label={headerLabel(node.name)} />
-
-      {/* Breadcrumb — real chain from the root department down */}
-      <nav
-        aria-label="Breadcrumb"
-        className="flex flex-wrap items-center gap-2.5 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12"
-      >
-        <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">06</span>
-        <Link href="/shop" className={crumbLinkCls}>
-          SHOP
-        </Link>
-        {chain.slice(0, -1).map((n) => (
-          <span key={n.id} className="flex items-center gap-2.5">
-            <span className="text-[10px] text-gold/50">/</span>
-            <Link href={`/shop/category/${n.slug}`} className={crumbLinkCls}>
-              {n.name.toUpperCase()}
-            </Link>
-          </span>
-        ))}
-        <span className="text-[10px] text-gold/50">/</span>
-        <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{node.name}</span>
-      </nav>
+      {/* ONE header bar — breadcrumb + departments mega menu + bag. Never a
+          second breadcrumb row beneath it (that was the double header). */}
+      <PageHeader
+        n="06"
+        crumbs={[
+          { name: "SHOP", href: "/shop" },
+          ...chain.slice(0, -1).map((c) => ({
+            name: crumbName(c.name),
+            href: `/shop/category/${c.slug}`,
+          })),
+          { name: crumbName(node.name), href: null },
+        ]}
+      />
 
       {/* HERO — the remote category header pattern: editorial copy left,
           category art right (in CODE, from the remote project's imagery). */}

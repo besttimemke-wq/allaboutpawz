@@ -1,4 +1,3 @@
-import { Fragment } from "react"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
@@ -135,48 +134,20 @@ export default async function ProductPage({ params }: Params) {
 
   return (
     <>
-      {/* Header row — carries the departments mega menu + the bag in the
-          top-right corner, exactly like every other shop page */}
-      <PageHeader n="06" label="SHOP" />
-
-      {/* Breadcrumb */}
-      <nav
-        aria-label="Breadcrumb"
-        className="flex flex-wrap items-center gap-2.5 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12"
-      >
-        <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">06</span>
-        <Link
-          href="/shop"
-          className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
-        >
-          SHOP
-        </Link>
-        {visibleCrumbs.length > 0 ? (
-          visibleCrumbs.map((c) => (
-            <Fragment key={c.slug}>
-              <span className="text-[10px] text-gold/50">/</span>
-              <Link
-                href={`/shop/category/${c.slug}`}
-                className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
-              >
-                {c.name.toUpperCase()}
-              </Link>
-            </Fragment>
-          ))
-        ) : (
-          <>
-            <span className="text-[10px] text-gold/50">/</span>
-            <Link
-              href="/shop"
-              className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
-            >
-              {String(category).toUpperCase()}
-            </Link>
-          </>
-        )}
-        <span className="text-[10px] text-gold/50">/</span>
-        <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{product.name}</span>
-      </nav>
+      {/* ONE header bar — breadcrumb + departments mega menu + bag in the
+          corner, exactly like every other shop page. Never a second
+          breadcrumb row beneath it (that was the double header). */}
+      <PageHeader
+        n="06"
+        crumbs={[
+          { name: "SHOP", href: "/shop" },
+          ...visibleCrumbs.map((c) => ({
+            name: String(c.name).toUpperCase(),
+            href: `/shop/category/${c.slug}`,
+          })),
+          { name: String(product.name), href: null },
+        ]}
+      />
 
       {/* Two-column hero */}
       <section className="marble grid grid-cols-1 gap-10 bg-cream px-8 py-12 lg:grid-cols-[0.85fr_1fr] lg:gap-14 lg:px-12 lg:py-16">

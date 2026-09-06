@@ -29,10 +29,10 @@ function Pinterest({ className = "" }: { className?: string }) {
 
 // ---------------------------------------------------------------------------
 // Bag button — the customer's bag, always in the top corner of EVERY page.
-// A prominent boxed button (the remote header pattern in site tokens): bag
-// icon + live count badge. Rendered client-side only (count lives in the
-// persisted Zustand store); the hydration gate keeps SSR markup stable so
-// the count never flashes or mismatches.
+// No box: the bag glyph sits directly against the canvas (transparent, no
+// border, no fill) with its live count badge. Rendered client-side only
+// (count lives in the persisted Zustand store); the hydration gate keeps SSR
+// markup stable so the count never flashes or mismatches.
 // ---------------------------------------------------------------------------
 function HeaderBagLink() {
   const items = useCart((s) => s.items)
@@ -44,11 +44,11 @@ function HeaderBagLink() {
     <Link
       href="/shop/bag"
       aria-label={count != null ? `View bag (${count} ${count === 1 ? "item" : "items"})` : "View bag"}
-      className="relative flex h-10 w-10 shrink-0 items-center justify-center border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:bg-gold/10 hover:text-gold-deep"
+      className="relative flex shrink-0 items-center justify-center p-1.5 transition-transform hover:scale-[1.06]"
     >
-      <ShoppingBag className="h-5 w-5 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+      <ShoppingBag className="h-6 w-6 text-gold-deep" strokeWidth={1.6} aria-hidden="true" />
       {count != null && count > 0 && (
-        <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center bg-gold-deep px-1 text-[10px] font-bold leading-none text-cream">
+        <span className="absolute -right-0.5 -top-0.5 flex h-[17px] min-w-[17px] items-center justify-center bg-gold-deep px-1 text-[9.5px] font-bold leading-none text-cream">
           {count}
         </span>
       )}
@@ -179,19 +179,81 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
   )
 }
 
-export function PageHeader({ n, label }: { n: string; label: string }) {
+// One header row — never two. Interior pages pass `crumbs` (the real
+// breadcrumb chain: SHOP / …ancestors / current) so the departments row and
+// the breadcrumb are a SINGLE bar: number + breadcrumb + mega menu + bag.
+// Pages without a chain (landing, bag, about…) pass a plain `label`.
+export const crumbLinkCls =
+  "text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
+
+export function PageHeader({
+  n,
+  label,
+  crumbs,
+}: {
+  n: string
+  label?: string
+  crumbs?: { name: string; href: string | null }[]
+}) {
   const pathname = usePathname()
   // Shop routes carry the departments mega menu in the header bar, so the
   // collection sidebar stays clean (subcategories + price; facets on demand).
   const isShop = pathname.startsWith("/shop")
+  // Mobile shows the current page name only (the full chain wraps a narrow
+  // bar into stacked lines); desktop shows the collapsed crumb chain.
+  const mobileLabel = crumbs && crumbs.length > 0 ? crumbs[crumbs.length - 1].name : label
   return (
     // `relative` anchors the mega menu's full-width panel to this header row.
-    <div className="relative flex items-center gap-3 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
+    <div className="relative flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">{n}</span>
-      <span className="min-w-0 truncate text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
-      {isShop && <ShopMegaMenu />}
-      {/* Bag — always in the top-right corner of every page */}
-      <span className="ml-auto shrink-0">
+      {crumbs ? (
+        <>
+          <nav aria-label="Breadcrumb" className="hidden min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1.5 lg:flex">
+          {(() => {
+            // The remote repo's breadcrumb shape: SHOP / … / immediate
+            // parent / current — never the full ancestor chain (a long chain
+            // wraps the bar into a second line, which reads as a double
+            // header). Middle levels collapse into a single ellipsis.
+            const rest = crumbs.slice(1)
+            const middleDropped = rest.length > 2
+            const items: ({ name: string; href: string | null } | "…")[] = [
+              crumbs[0],
+              ...(middleDropped ? (["…"] as const) : []),
+              ...rest.slice(-2),
+            ]
+            return items.map((c, i) => {
+              const isCurrent = c !== "…" && (i === items.length - 1 || c.href == null)
+              return (
+                <span key={i} className="flex min-w-0 items-center gap-2.5">
+                  {i > 0 && <span className="text-[10px] text-gold/50">/</span>}
+                  {c === "…" ? (
+                    <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold/50">…</span>
+                  ) : isCurrent ? (
+                    <span className="max-w-[280px] truncate text-[10.5px] font-bold tracking-[0.2em] text-ink">
+                      {c.name}
+                    </span>
+                  ) : (
+                    <Link href={c.href as string} className={`${crumbLinkCls} max-w-[220px] truncate`}>
+                      {c.name}
+                    </Link>
+                  )}
+                </span>
+              )
+            })
+          })()}
+          </nav>
+          <span className="min-w-0 truncate text-[10.5px] font-bold tracking-[0.2em] text-ink-soft lg:hidden">
+            {mobileLabel}
+          </span>
+        </>
+      ) : (
+        <span className="min-w-0 truncate text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
+      )}
+      <span className="ml-auto shrink-0 lg:ml-0">{isShop && <ShopMegaMenu />}</span>
+      {/* Bag — top-right corner on desktop. Mobile keeps its own sticky top
+          bar (logo + bag + menu) on every page, so the bag never renders
+          twice in the mobile header. */}
+      <span className="ml-auto hidden shrink-0 lg:block">
         <HeaderBagLink />
       </span>
     </div>
