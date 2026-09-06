@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { ShopClient, type ShopProduct } from "./shop-client"
-import type { CategoryLinkNode } from "./category-nav"
+import type { SidebarCategory } from "./shop-sidebar"
 import { visibleOnly } from "./use-cms"
 
 // ---------------------------------------------------------------------------
@@ -16,7 +16,7 @@ type Rating = { avg: number; count: number }
 
 export function ShopLoader() {
   const [products, setProducts] = useState<ShopProduct[] | null>(null)
-  const [tree, setTree] = useState<CategoryLinkNode[] | null>(null)
+  const [tree, setTree] = useState<SidebarCategory[] | null>(null)
   const [ratings, setRatings] = useState<Record<string, Rating>>({})
 
   useEffect(() => {

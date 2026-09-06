@@ -1,14 +1,13 @@
 "use client"
 
-import { useState, useMemo, useEffect, useSyncExternalStore } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import {
   Check, ArrowLeft, ArrowRight, ShoppingBag, Plus, Minus, X, Trash,
   Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle, Funnel,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
-import { ShopSidebar } from "./shop-sidebar"
-import { CategoryCards, type CategoryLinkNode } from "./category-nav"
+import { ShopSidebar, type SidebarCategory } from "./shop-sidebar"
 
 // ---------------------------------------------------------------------------
 // Shop Client — catalog + bag + booking-style checkout flow.
@@ -42,28 +41,24 @@ type View = "catalog" | "checkout" | "success"
 
 type Rating = { avg: number; count: number }
 
-// Client-hydration gate without a setState-in-effect: false on the server
-// snapshot, true once read on the client (same pattern as bag-client).
-const emptySubscribe = () => () => {}
-const useHydrated = () => useSyncExternalStore(emptySubscribe, () => true, () => false)
-
 export function ShopClient({
   products,
   categoryTree,
   ratings = {},
 }: {
   products: ShopProduct[]
-  categoryTree: CategoryLinkNode[]
+  categoryTree: SidebarCategory[]
   ratings?: Record<string, Rating>
 }) {
   const s = useCart()
+  const [hydrated, setHydrated] = useState(false)
   const [view, setView] = useState<View>("catalog")
   const [query, setQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
   const [verify, setVerify] = useState<"checking" | "paid" | "pending" | null>(null)
-  const [sort, setSort] = useState<SortKey>("featured")
-  // Filter rail state — price/rating/availability bucket keys (FILTERS ONLY:
-  // categories are navigation links, never checkboxes).
+  // Sidebar filter state — categories (cascading checkboxes) + price/rating/
+  // availability bucket keys (all strings in one bucket array).
+  const [checkedCats, setCheckedCats] = useState<Set<number>>(new Set())
   const [price, setPrice] = useState<{ min: string; max: string; buckets: string[] }>({
     min: "",
     max: "",
@@ -71,13 +66,11 @@ export function ShopClient({
   })
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const hydrated = useHydrated()
+  // Hydrate from localStorage (avoid SSR mismatch)
+  useEffect(() => setHydrated(true), [])
 
   // Check URL for Stripe return params (success / cancel) and for the
   // bag page's PROCEED TO CHECKOUT hand-off (?checkout=1 → step 1).
-  // One-time external-system sync (window.location) on mount — the setState
-  // calls translate the external URL state into React state exactly once.
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (typeof window === "undefined") return
     const params = new URLSearchParams(window.location.search)
@@ -107,17 +100,35 @@ export function ShopClient({
       setView("checkout")
       window.history.replaceState({}, "", "/shop")
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ----- Derived cart data -----
   // (The checkout wizard computes its own totals; the persistent bag
   // indicator now lives in the site header — see HeaderBagLink.)
 
+  // Cascade-check a node: checking selects the node + its entire subtree;
+  // unchecking removes the node + its entire subtree.
+  const toggleCategory = (node: SidebarCategory) => {
+    const ids = collectIds(node)
+    const allOn = ids.every((id) => checkedCats.has(id))
+    setCheckedCats((prev) => {
+      const next = new Set(prev)
+      for (const id of ids) {
+        if (allOn) next.delete(id)
+        else next.add(id)
+      }
+      return next
+    })
+  }
+
+  const clearCategories = () => setCheckedCats(new Set())
+
   const activeFilterCount =
-    (price.min.trim() ? 1 : 0) + (price.max.trim() ? 1 : 0) + price.buckets.length
+    checkedCats.size + (price.min.trim() ? 1 : 0) + (price.max.trim() ? 1 : 0) + price.buckets.length
 
   const clearAll = () => {
+    setCheckedCats(new Set())
     setPrice({ min: "", max: "", buckets: [] })
   }
 
@@ -134,6 +145,7 @@ export function ShopClient({
 
     return products.filter((p) => {
       if (q && !p.name.toLowerCase().includes(q) && !(p.description || "").toLowerCase().includes(q)) return false
+      if (checkedCats.size > 0 && (p.categoryId == null || !checkedCats.has(p.categoryId))) return false
       const c = parsePriceToCents(p.price)
       if (hasMin && (c == null || c < Math.round(min * 100))) return false
       if (hasMax && (c == null || c > Math.round(max * 100))) return false
@@ -154,34 +166,7 @@ export function ShopClient({
       if (backorderOnly && p.stock !== 0) return false
       return true
     })
-  }, [products, query, price, ratings])
-
-  // ----- sorting -----
-  const sorted = useMemo(() => {
-    const arr = [...filtered]
-    switch (sort) {
-      case "price-asc":
-        arr.sort((a, b) => (parsePriceToCents(a.price) ?? Infinity) - (parsePriceToCents(b.price) ?? Infinity) || a.name.localeCompare(b.name))
-        break
-      case "price-desc":
-        arr.sort((a, b) => (parsePriceToCents(b.price) ?? 0) - (parsePriceToCents(a.price) ?? 0) || a.name.localeCompare(b.name))
-        break
-      case "rating":
-        arr.sort(
-          (a, b) =>
-            (ratings[b.id]?.count ? ratings[b.id].avg : -1) - (ratings[a.id]?.count ? ratings[a.id].avg : -1) ||
-            (ratings[b.id]?.count ?? 0) - (ratings[a.id]?.count ?? 0) ||
-            a.name.localeCompare(b.name),
-        )
-        break
-      case "newest":
-        arr.sort((a, b) => a.name.localeCompare(b.name))
-        break
-      default:
-        arr.sort((a, b) => a.name.localeCompare(b.name))
-    }
-    return arr
-  }, [filtered, sort, ratings])
+  }, [products, query, checkedCats, price, ratings])
 
   // SSR-safe skeleton before zustand rehydration
   if (!hydrated) {
@@ -235,25 +220,25 @@ export function ShopClient({
         <p className="mt-4 border border-gold/30 bg-cream-deep px-4 py-2 text-[12px] text-gold-deep">{notice}</p>
       )}
 
-      {/* THE 10 DEPARTMENTS — category cards at the top, routing to the full
-          category pages (subcategories + own sidebar + filters live there).
-          Categories are links, never checkboxes. */}
-      <CategoryCards roots={categoryTree} />
-
-      {/* Collection grid — filters-only rail (checkboxes belong to filters) */}
-      <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-        {/* Desktop filter rail */}
-        <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:sticky lg:top-8">
+      {/* Regular ecommerce layout: category/filter sidebar + catalog grid.
+          The rail design matches the /shop/category/[slug] pages exactly. */}
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
+        {/* Desktop sidebar rail */}
+        <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:block">
           <ShopSidebar
+            categories={categoryTree}
             products={products}
             ratings={ratings}
+            checked={checkedCats}
+            onToggleCategory={toggleCategory}
+            onClearCategories={clearCategories}
             price={price}
             onPriceChange={setPrice}
           />
         </aside>
 
         <div className="min-w-0">
-          {/* Toolbar: mobile FILTERS toggle + search + sort + result count */}
+          {/* Toolbar: mobile FILTERS toggle + search + result count */}
           <div className="flex flex-wrap items-center gap-3 border-b border-gold/25 pb-4">
             <button
               type="button"
@@ -281,22 +266,6 @@ export function ShopClient({
               />
             </div>
 
-            <label className="flex items-center gap-2.5">
-              <span className="hidden text-[9px] font-bold tracking-[0.16em] text-ink-soft sm:inline">SORT BY</span>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-                aria-label="Sort products"
-                className="border border-gold/35 bg-cream px-3 py-2 text-[9.5px] font-bold tracking-[0.1em] text-ink focus:outline-none focus:ring-1 focus:ring-gold-deep"
-              >
-                {SORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
             <p className="ml-auto text-[10px] font-bold tracking-[0.14em] text-ink-soft/70" aria-live="polite">
               {filtered.length === products.length
                 ? `${products.length} PRODUCTS`
@@ -304,12 +273,16 @@ export function ShopClient({
             </p>
           </div>
 
-          {/* Mobile collapsible filter rail (filters only) */}
+          {/* Mobile collapsible sidebar (same rail) */}
           {mobileOpen && (
             <div className="mt-4 border border-gold/25 bg-card p-5 lg:hidden animate-in fade-in slide-in-from-top-1 duration-150">
               <ShopSidebar
+                categories={categoryTree}
                 products={products}
                 ratings={ratings}
+                checked={checkedCats}
+                onToggleCategory={toggleCategory}
+                onClearCategories={clearCategories}
                 price={price}
                 onPriceChange={setPrice}
               />
@@ -318,7 +291,7 @@ export function ShopClient({
 
       {/* product grid */}
       <div className="mt-8 grid grid-cols-2 gap-8 lg:grid-cols-3">
-        {sorted.map((p) => {
+        {filtered.map((p) => {
           const href = p.slug ? `/shop/${p.slug}` : null
           const subtitle = p.shortDescription || p.description
           return (
@@ -434,14 +407,10 @@ export function ShopClient({
 // Checkout wizard — 4 steps, same chrome as the booking wizard
 // ===========================================================================
 
-type SortKey = "featured" | "price-asc" | "price-desc" | "rating" | "newest"
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "featured", label: "FEATURED" },
-  { value: "price-asc", label: "PRICE: LOW TO HIGH" },
-  { value: "price-desc", label: "PRICE: HIGH TO LOW" },
-  { value: "rating", label: "TOP RATED" },
-  { value: "newest", label: "A–Z" },
-]
+// Flatten a category node + all descendants into a list of ids (cascade).
+function collectIds(node: SidebarCategory): number[] {
+  return [node.id, ...(node.children || []).flatMap(collectIds)]
+}
 
 function CheckoutWizard({ onExit }: { onExit: () => void }) {
   const s = useCart()

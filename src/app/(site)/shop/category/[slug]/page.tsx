@@ -176,7 +176,6 @@ export default async function CategoryPage({ params }: Params) {
         </h2>
         <CategoryBrowser
           node={{ id: node.id, name: node.name, slug: node.slug }}
-          roots={tree.categories}
           products={products}
           ratings={ratings}
           filters={filters as BrowserFilter[]}

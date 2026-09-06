@@ -4,17 +4,15 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Plus, Funnel, PawPrint, X } from "@phosphor-icons/react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
-import { CategoryNavRail, type CategoryLinkNode } from "./category-nav"
 
 // ---------------------------------------------------------------------------
 // Category Browser — the /shop/category/[slug] collection view.
 //
-//   Left rail (desktop) / collapsible panel (mobile):
-//     CATEGORIES — the 10 root departments with icons, rendered as LINKS
-//                 (never checkboxes). The active department expands to its
-//                 subcategory links — this page's own sidebar.
-//     FILTERS    — price range + quick buckets, rating floor, availability.
-//                 CHECKBOXES live here and ONLY here.
+//   Left rail (desktop) / collapsible panel (mobile): ONLY data-backed,
+//   functional facets — price range + quick buckets, rating floor,
+//   availability. Enterprise honesty: the taxonomy's mapped filters we
+//   can't apply to live product rows (Brand, Material, Scent…) are listed
+//   as "coming" names, never rendered as dead controls.
 //
 //   Sort: FEATURED (catalog order) / PRICE asc+desc / TOP RATED / NEWEST.
 //   Grid: the same catalog card the /shop collection uses.
@@ -54,8 +52,6 @@ export type BrowserFilter = {
 
 export type BrowserCategory = { id: number; name: string; slug: string }
 
-export type BrowserCategoryNode = CategoryLinkNode
-
 type SortKey = "featured" | "price-asc" | "price-desc" | "rating" | "newest"
 
 // Quick price buckets (data-backed — only rendered when products span them).
@@ -85,13 +81,11 @@ const inStock = (p: BrowserProduct) => (p.stock == null ? true : p.stock > 0)
 
 export function CategoryBrowser({
   node,
-  roots,
   products,
   ratings,
   filters,
 }: {
   node: BrowserCategory
-  roots?: BrowserCategoryNode[]
   products: BrowserProduct[]
   ratings: Record<string, BrowserRating>
   filters: BrowserFilter[]
@@ -240,13 +234,7 @@ export function CategoryBrowser({
 
   // ---- the rail (shared by desktop sidebar + mobile collapsible) ----
   const rail = (
-    <div className="space-y-6" aria-label={`Shop by category and filters`}>
-      {/* CATEGORIES — the 10 departments with icons, LINKS (no checkboxes).
-          The active department expands to show its subcategory links. */}
-      {roots && roots.length > 0 && (
-        <CategoryNavRail roots={roots} activeSlug={node.slug} maxH="max-h-none" />
-      )}
-
+    <div className="space-y-6" aria-label={`Filters for ${node.name}`}>
       <div className="flex items-center justify-between border-b border-gold/20 pb-3">
         <p className={railHeadingCls}>Filters</p>
         {activeCount > 0 && (
@@ -375,8 +363,8 @@ export function CategoryBrowser({
 
   return (
     <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-      {/* Desktop sidebar rail — sticky while the collection scrolls */}
-      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:sticky lg:top-8 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto scrollbar-thin">
+      {/* Desktop filter rail */}
+      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:block">
         {rail}
       </aside>
 
