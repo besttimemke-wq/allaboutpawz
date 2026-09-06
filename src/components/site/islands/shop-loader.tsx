@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ShopClient, type ShopProduct } from "./shop-client"
 import type { SidebarCategory } from "./shop-sidebar"
 import { visibleOnly } from "./use-cms"
+import { loadShopDepartments } from "@/lib/shop-departments"
 
 // ---------------------------------------------------------------------------
 // Shop loader — CSR shell for the shop page. The page (hero, badges,
@@ -37,18 +38,11 @@ export function ShopLoader() {
         if (alive) setProducts([])
       })
 
-    fetch("/api/shop/categories")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        // Departments only — the generic "pet-supplies" umbrella root (no
-        // products, no children) is never a department link.
-        if (alive && d && Array.isArray(d.categories))
-          setTree(d.categories.filter((c: { slug: string }) => c.slug !== "pet-supplies"))
-        else if (alive) setTree([])
-      })
-      .catch(() => {
-        if (alive) setTree([])
-      })
+    // Shared department tree — the same single fetch the header mega menu
+    // uses (pet-supplies umbrella already filtered inside the helper).
+    loadShopDepartments().then((d) => {
+      if (alive) setTree(d)
+    })
 
     fetch("/api/cms/product_reviews")
       .then((r) => (r.ok ? r.json() : []))

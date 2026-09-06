@@ -10,6 +10,7 @@ import {
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
 import { useCart } from "@/lib/wizard/cart-store"
+import { ShopMegaMenu } from "./islands/shop-mega-menu"
 
 function TikTok({ className = "" }: { className?: string }) {
   return (
@@ -211,12 +212,18 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
 }
 
 export function PageHeader({ n, label }: { n: string; label: string }) {
+  const pathname = usePathname()
+  // Shop routes carry the departments mega menu in the header bar, so the
+  // collection sidebar stays clean (subcategories + price; facets on demand).
+  const isShop = pathname.startsWith("/shop")
   return (
-    <div className="flex items-center gap-3 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
+    // `relative` anchors the mega menu's full-width panel to this header row.
+    <div className="relative flex items-center gap-3 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">{n}</span>
-      <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
+      <span className="min-w-0 truncate text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
+      {isShop && <ShopMegaMenu />}
       {/* Bag — always visible at the top-right of every page */}
-      <span className="ml-auto">
+      <span className="ml-auto shrink-0">
         <HeaderBagLink />
       </span>
     </div>

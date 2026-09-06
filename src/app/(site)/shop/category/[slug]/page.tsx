@@ -29,18 +29,22 @@ import { repo } from "@/lib/repo"
 // The layout is the design library's category-page family:
 //   breadcrumb → header → hero → catalog (SIDEBAR + products grid)
 //
-// SIDEBAR (the design repo's specific sidebar):
+// The DEPARTMENTS nav lives in the header MEGA MENU (every shop route), so
+// the SIDEBAR stays clean:
 //   FILTERS + CLEAR ALL
-//   CATEGORIES  — the departments as links with counts. The current route's
-//                 department is active; on department pages it expands inline
-//                 to present THIS route's subcategories only (wrapper label +
-//                 leaves). Never the whole taxonomy tree, never a scrollbar.
-//   SUBCATEGORY SECTION (non-department pages) — the parent's name + the
-//                 subcategory links relevant to this route, current one active.
-//   PRICE / RATING / AVAILABILITY / mapped filter accordions.
+//   SUBCATEGORIES — only THIS route's subcategory group (department pages:
+//                 wrapper label + leaves; sub pages: the parent's group with
+//                 the current one active). Never the whole taxonomy tree.
+//   PRICE RANGE — slider + $ min/max inputs.
+//   FACETS (on demand) — rating + the mapped filter sections, surfaced below
+//                 price when the FILTERS icon in the toolbar is clicked.
 //
 // The sidebar is sticky while the page expands — no scroll containers.
 // Subcategory routes live in the SIDEBAR (not above the products).
+//
+// Product cards render from live categoryId assignment (the admin publish
+// pipe: set a product's Category page in the CMS → its card appears on that
+// category page and every ancestor page within the revalidate window).
 //
 // All category routes (departments, wrappers, leaves) are pre-rendered via
 // generateStaticParams — real pages with real metadata for search engines.
@@ -179,10 +183,8 @@ export default async function CategoryPage({ params }: Params) {
   const filters = await resolveFilters(node, tree.flat)
   const chain = buildChain(node, tree.flat)
 
-  // ---- the sidebar nav for this exact route ----
-  const departments = tree.categories
-    .filter((n) => n.slug !== "pet-supplies")
-    .map(navItem)
+  // ---- the sidebar nav for this exact route (subcategories only — the
+  // departments live in the header mega menu) ----
   const department = chain.length > 0 ? chain[0] : null
   const isDepartmentPage = department != null && department.id === node.id
   const isLeaf = node.children.length === 0
@@ -190,8 +192,8 @@ export default async function CategoryPage({ params }: Params) {
   let expandedGroups: BrowserNavGroup[] | null = null
   let subSection: BrowserNav["subSection"] = null
   if (isDepartmentPage) {
-    // Department page: the active department expands inline with its own
-    // subcategory group — wrapper labels + leaves (or direct leaves).
+    // Department page: its own subcategory group — wrapper labels + leaves
+    // (or direct leaves).
     expandedGroups = groupsOf(node.children)
   } else if (!isLeaf) {
     // Wrapper page: separate section under its own name with its leaves.
@@ -205,12 +207,7 @@ export default async function CategoryPage({ params }: Params) {
       : null
   }
 
-  const nav: BrowserNav = {
-    departments,
-    activeSlug: department ? department.slug : node.slug,
-    expandedGroups,
-    subSection,
-  }
+  const nav: BrowserNav = { expandedGroups, subSection }
 
   const countLine =
     products.length === 0

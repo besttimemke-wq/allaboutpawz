@@ -2,32 +2,29 @@
 
 import { useMemo, useState, Fragment } from "react"
 import Link from "next/link"
-import { Plus, Funnel, PawPrint } from "@phosphor-icons/react"
+import { Plus, Funnel, PawPrint, CaretDown } from "@phosphor-icons/react"
 import { SlidersHorizontal } from "lucide-react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
 // ---------------------------------------------------------------------------
 // Category Browser — the /shop/category/[slug] collection view.
 //
-//   The sidebar is the design library's category-page sidebar, imported
-//   literally (ExactCategoryPageView / ExactSubcategoryPageView markup):
+//   The departments live in the header MEGA MENU (every shop route), so the
+//   sidebar stays CLEAN with just the subcategories:
 //
 //   Left rail (desktop, STICKY — the page expands, never a scrollbar) /
 //   collapsible panel (mobile):
 //   FILTERS header (serif + sliders icon) + Clear all
-//   CATEGORIES      — the departments as links with counts (normal case).
-//                     The current route's department is active; on department
-//                     pages it expands INLINE to present this route's
-//                     subcategories only (wrapper label + leaves).
-//   [parent name]   — non-department pages: the parent's name + the
-//                     subcategory links relevant to this route (current one
-//                     active), as its own section.
+//   SUBCATEGORIES  — the only nav: THIS route's subcategory links (department
+//                    pages: wrapper label + leaves; sub pages: the parent's
+//                    group with the current one active).
 //   PRICE RANGE     — the range SLIDER + "$ min to $ max" inputs.
-//   RATING          — star checkbox rows (department pages, per the repo).
-//   FILTER SECTIONS — one per taxonomy filter mapped to this category:
-//                     checkbox rows w/ live counts in parens, color → swatch
-//                     squares, boolean → button tiles. ALL sections are open —
-//                     no accordions, no chevrons, no dropdowns.
+//   FACETS (on demand) — rating + the mapped filter sections (checkbox rows
+//                    w/ live counts, color → swatch squares, boolean → button
+//                    tiles). Hidden by default: the FILTERS icon in the
+//                    toolbar surfaces them below price when clicked — the
+//                    rail doubles as the filter sidebar only on request, so
+//                    it never scroll-loads an endless facet list.
 //
 //   Sort: Best selling / Price asc+desc / Customer Rating / Newest Arrivals.
 //   Grid: the same catalog card the /shop collection uses.
@@ -68,16 +65,13 @@ export type BrowserFilter = {
 
 export type BrowserCategory = { id: number; name: string; slug: string }
 
-// ---- sidebar navigation (the design library's category sidebar) ----
+// ---- sidebar navigation (the route's subcategories — the departments live
+// in the header mega menu, not here) ----
 export type BrowserNavItem = { id: number; name: string; slug: string; count: number }
 export type BrowserNavGroup = { label: string | null; items: BrowserNavItem[] }
 export type BrowserNav = {
-  /** The departments — links with live counts (never a tree). */
-  departments: BrowserNavItem[]
-  /** This route's department slug (rendered active). */
-  activeSlug: string | null
-  /** Department pages: the active department expands inline with its own
-   *  subcategory group (wrapper label + leaves). Null otherwise. */
+  /** Department pages: THIS route's subcategory group (wrapper label +
+   *  leaves). Null otherwise. */
   expandedGroups: BrowserNavGroup[] | null
   /** Non-department pages: parent name + the subcategory links relevant to
    *  this route (the current one active). Null on department pages. */
@@ -145,6 +139,9 @@ export function CategoryBrowser({
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [sort, setSort] = useState<SortKey>("featured")
   const [mobileOpen, setMobileOpen] = useState(false)
+  // The FILTERS icon state: when true (or when facet selections exist) the
+  // rating + mapped facet sections surface below price in the rail.
+  const [facetsOpen, setFacetsOpen] = useState(false)
 
   const texts = useMemo(() => products.map((p) => ({ p, t: searchTextOf(p) })), [products])
 
@@ -187,6 +184,13 @@ export function CategoryBrowser({
     (maxPrice.trim() ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
     Object.keys(selected).length
+
+  // Facets stay surfaced while any facet selection is live (the user must
+  // always be able to see and clear what they checked).
+  const hasFacetSelections = minRating > 0 || Object.keys(selected).length > 0
+  const showFacets = facetsOpen || hasFacetSelections
+  // The desktop FILTERS toggle only renders when there is something to show.
+  const hasAnyFacets = mappedFilters.length > 0 || ratingRows.length > 0
 
   const clearAll = () => {
     setMinPrice("")
@@ -305,111 +309,48 @@ export function CategoryBrowser({
         </button>
       </div>
 
-      {/* CATEGORIES LIST — departments as links (normal case). The current
-          route's department is active and, on department pages, expands
-          inline to present THIS route's subcategories only. */}
-      <div>
-        <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-[#7A7571]">
-          Categories
-        </h3>
-        <ul className="space-y-1.5 text-xs text-[#2B2623]">
-          {nav.departments.map((d) => {
-            const isActive = d.slug === nav.activeSlug
-            return (
-              <li key={d.id} className="space-y-1">
-                <Link
-                  href={`/shop/category/${d.slug}`}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`flex cursor-pointer items-center justify-between rounded-none p-1.5 transition ${
-                    isActive
-                      ? "bg-[#ebdcd4]/40 font-bold text-[#7d441d]"
-                      : "text-[#53443b] hover:bg-[#ebdcd4]/20 hover:text-[#7d441d]"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    {isActive && <span className="h-1.5 w-1.5 bg-[#7d441d]" aria-hidden="true" />}
-                    <span>{d.name}</span>
-                  </span>
-                  <span className={isActive ? "font-bold text-[#7d441d]" : "text-[#85736a]"}>{d.count}</span>
-                </Link>
-
-                {/* Department pages: the ACTIVE department presents its own
-                    subcategory group inline — wrapper label + leaves. */}
-                {isActive && nav.expandedGroups && (
-                  <div className="space-y-1 pt-0.5 pl-4">
-                    {nav.expandedGroups.map((g, gi) => (
-                      <div key={gi}>
-                        {g.label && (
-                          <div className="py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#85736a]">
-                            {g.label}
-                          </div>
-                        )}
-                        <ul className="space-y-1 pl-2">
-                          {g.items.map((s) => (
-                            <li key={s.id}>
-                              <Link
-                                href={`/shop/category/${s.slug}`}
-                                className="flex items-center justify-between rounded-none px-1.5 py-1 text-[#53443b] transition-colors hover:bg-[#ebdcd4]/30 hover:text-[#7d441d]"
-                              >
-                                <span>{s.name}</span>
-                                <span className="text-[11px] text-[#85736a]">{s.count}</span>
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+      {/* SUBCATEGORIES — the only nav in the rail (the departments live in
+          the header mega menu, not here). Department pages present THIS
+          route's subcategory group; sub pages present the parent's group
+          with the current one active. */}
+      {(nav.expandedGroups || nav.subSection) && (
+        <div>
+          <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+            {nav.subSection ? nav.subSection.heading : "Subcategories"}
+          </h3>
+          <ul className="space-y-1 text-xs">
+            {(nav.subSection ? nav.subSection.groups : nav.expandedGroups!).map((g, gi) => (
+              <div key={gi}>
+                {g.label && (
+                  <div className="py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#85736a]">
+                    {g.label}
                   </div>
                 )}
-              </li>
-            )
-          })}
-        </ul>
-      </div>
-
-      {/* SUBCATEGORY SECTION — non-department pages: the parent's name + the
-          subcategory links relevant to this route, the current one active. */}
-      {nav.subSection && (
-        <>
-          <div className="h-px bg-[#d8c2b7]/50" />
-          <div>
-            <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
-              {nav.subSection.heading}
-            </h3>
-            <ul className="space-y-1 text-xs">
-              {nav.subSection.groups.map((g, gi) => (
-                <div key={gi}>
-                  {g.label && (
-                    <div className="py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#85736a]">
-                      {g.label}
-                    </div>
-                  )}
-                  <ul className="space-y-1">
-                    {g.items.map((s) => {
-                      const isCurrent = s.slug === nav.subSection!.currentSlug
-                      return (
-                        <li key={s.id}>
-                          <Link
-                            href={`/shop/category/${s.slug}`}
-                            aria-current={isCurrent ? "page" : undefined}
-                            className={`flex items-center justify-between rounded-none px-2 py-1.5 transition ${
-                              isCurrent
-                                ? "bg-[#ebdcd4] font-bold text-[#7d441d]"
-                                : "text-[#53443b] hover:bg-[#ebdcd4]/40 hover:text-[#1F1B18]"
-                            }`}
-                          >
-                            <span>{s.name}</span>
-                            <span className="text-[#85736a]">{s.count}</span>
-                          </Link>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </ul>
-          </div>
-        </>
+                <ul className="space-y-1">
+                  {g.items.map((s) => {
+                    const isCurrent = s.slug === nav.subSection?.currentSlug
+                    return (
+                      <li key={s.id}>
+                        <Link
+                          href={`/shop/category/${s.slug}`}
+                          aria-current={isCurrent ? "page" : undefined}
+                          className={`flex items-center justify-between rounded-none px-2 py-1.5 transition ${
+                            isCurrent
+                              ? "bg-[#ebdcd4] font-bold text-[#7d441d]"
+                              : "text-[#53443b] hover:bg-[#ebdcd4]/40 hover:text-[#1F1B18]"
+                          }`}
+                        >
+                          <span>{s.name}</span>
+                          <span className="text-[11px] text-[#85736a]">{s.count}</span>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="h-px bg-[#d8c2b7]/50" />
@@ -462,8 +403,9 @@ export function CategoryBrowser({
       </div>
 
       {/* RATING — star checkbox rows (department pages, per the repo's
-          category-page sidebar) */}
-      {nav.expandedGroups && ratingRows.length > 0 && (
+          category-page sidebar). Surfaced with the facet sections when the
+          FILTERS icon is clicked. */}
+      {showFacets && nav.expandedGroups && ratingRows.length > 0 && (
         <>
           <div className="h-px bg-[#d8c2b7]/40" />
           <div>
@@ -494,8 +436,9 @@ export function CategoryBrowser({
       )}
 
       {/* MAPPED FILTER SECTIONS — checkbox rows w/ live counts · color →
-          swatch squares · boolean → button tiles. All open, no accordions. */}
-      {mappedFilters.map((f) => {
+          swatch squares · boolean → button tiles. Hidden by default; the
+          FILTERS icon surfaces them below price (all open, no accordions). */}
+      {showFacets && mappedFilters.map((f) => {
         const selectedVals = selected[f.id] || []
         const isColor = f.slug === "color"
         const isBool = f.filterType === "boolean"
@@ -597,8 +540,11 @@ export function CategoryBrowser({
   return (
     <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
       {/* Desktop filter rail — the repo's sidebar card. STICKY while the page
-          expands; natural height, no scroll container. */}
+          expands; natural height, no scroll container. CLEAN by default
+          (subcategories + price); the facet sections surface below price
+          when the FILTERS icon is toggled. */}
       <aside
+        id="collection-filters"
         className="hidden w-[220px] shrink-0 self-start space-y-6 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 shadow-xs lg:sticky lg:top-8 lg:block"
         data-purpose="product-filters"
       >
@@ -607,7 +553,7 @@ export function CategoryBrowser({
 
       <div className="min-w-0">
         {/* Toolbar — repo pattern: collection name + "Showing all N products"
-            + mobile FILTERS toggle + Sort by select */}
+            + the FILTERS icon (real: surfaces the facets) + Sort by select */}
         <div className="flex flex-col justify-between gap-4 border-b border-[#d8c2b7]/60 pb-4 sm:flex-row sm:items-center">
           <div>
             <h2 className="font-display text-xl font-bold text-[#1F1B18]">{node.name}</h2>
@@ -621,10 +567,46 @@ export function CategoryBrowser({
           </div>
 
           <div className="flex items-center gap-3 self-end sm:self-auto">
+            {/* The REAL filter icon (desktop): surfaces the facet sections
+                below price in the rail on click — the rail doubles as the
+                filter sidebar only on request. */}
+            {hasAnyFacets && (
+              <button
+                type="button"
+                onClick={() => setFacetsOpen((o) => !o)}
+                aria-expanded={showFacets}
+                aria-controls="collection-filters"
+                className={`hidden min-h-[40px] cursor-pointer items-center gap-2 rounded-none border px-4 py-2 text-[9.5px] font-bold tracking-[0.14em] transition-colors lg:inline-flex ${
+                  facetsOpen
+                    ? "border-[#7d441d] bg-[#ebdcd4] text-[#7d441d]"
+                    : "border-[#d8c2b7] bg-[#FAF8F5] text-[#53443b] hover:border-[#7d441d] hover:text-[#7d441d]"
+                }`}
+              >
+                <Funnel size={12} weight="bold" />
+                FILTERS
+                {activeCount > 0 && (
+                  <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-[#7d441d] px-1 text-[8.5px] font-bold leading-none text-white">
+                    {activeCount}
+                  </span>
+                )}
+                <CaretDown
+                  size={10}
+                  weight="bold"
+                  className={`text-[#7d441d] transition-transform duration-200 ${showFacets ? "rotate-180" : ""}`}
+                />
+              </button>
+            )}
+
+            {/* Mobile: the FILTERS icon opens the full rail panel (and
+                surfaces the facets). */}
             <button
               type="button"
-              onClick={() => setMobileOpen((o) => !o)}
+              onClick={() => {
+                setFacetsOpen(true)
+                setMobileOpen((o) => !o)
+              }}
               aria-expanded={mobileOpen}
+              aria-controls="collection-filters"
               className="inline-flex min-h-[40px] items-center gap-2 rounded-none border border-[#d8c2b7] bg-[#FAF8F5] px-4 py-2 text-[9.5px] font-bold tracking-[0.14em] text-[#53443b] transition-colors hover:border-[#7d441d] hover:text-[#7d441d] lg:hidden"
             >
               <Funnel size={12} weight="bold" />
@@ -657,7 +639,7 @@ export function CategoryBrowser({
 
         {/* Mobile collapsible filter panel (same rail content) */}
         {mobileOpen && (
-          <div className="mt-4 animate-in fade-in slide-in-from-top-1 duration-150 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 lg:hidden">
+          <div id="collection-filters-mobile" className="mt-4 animate-in fade-in slide-in-from-top-1 duration-150 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 lg:hidden">
             {rail}
           </div>
         )}
