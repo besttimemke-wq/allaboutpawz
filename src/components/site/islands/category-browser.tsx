@@ -8,24 +8,26 @@ import { parsePriceToCents } from "@/lib/wizard/cart-store"
 // ---------------------------------------------------------------------------
 // Category Browser — the /shop/category/[slug] collection view.
 //
-//   SUBCATEGORY NAVIGATION lives in the CategoryGrid ("C grid") rendered in
-//   the content column by the page — NEVER in this rail. The rail is the
-//   specific taxonomy filter sidebar from the design library:
+//   The sidebar is the design library's specific category-page sidebar:
 //
-//   Left rail (desktop) / collapsible panel (mobile):
+//   Left rail (desktop, STICKY — the page expands, never a scrollbar) /
+//   collapsible panel (mobile):
 //   FILTERS header + CLEAR ALL
-//   PRICE        — accordion: min/max inputs + data-backed quick buckets.
-//   RATING       — accordion: star-row checkboxes (floor semantics).
-//   AVAILABILITY — accordion: In stock / Backordered (data-backed).
-//   MAPPED
-//   FILTERS      — accordions, one per taxonomy filter mapped to this
-//                 category: select → checkbox rows w/ live counts, color →
-//                 swatch chips, boolean → toggle buttons. Products are
-//                 matched against their live text (name, description,
-//                 materials, specs, ingredients). Values that match nothing
-//                 render dimmed — never a dead control that pretends to work.
+//   CATEGORIES      — the departments as links with counts. The current
+//                     route's department is active; on department pages it
+//                     expands INLINE to present this route's subcategories
+//                     only (wrapper label + leaves). Never the whole tree.
+//   SUBCATEGORY     — non-department pages: the parent's name + the
+//                     subcategory links relevant to this route (current
+//                     one active).
+//   PRICE           — accordion: min/max inputs + data-backed quick buckets.
+//   RATING          — accordion: star-row checkboxes (floor semantics).
+//   AVAILABILITY    — accordion: In stock / Backordered (data-backed).
+//   MAPPED FILTERS  — accordions, one per taxonomy filter mapped to this
+//                     category: select → checkbox rows w/ live counts, color →
+//                     swatch chips, boolean → toggle buttons.
 //
-//   Sections COLLAPSE (accordion) so the rail never needs a scrollbar —
+//   Sections COLLAPSE (accordion) so the rail never grows a scrollbar —
 //   the design spec is explicit: no scroll containers in the sidebar.
 //   Sections with active selections stay open.
 //
@@ -67,6 +69,22 @@ export type BrowserFilter = {
 }
 
 export type BrowserCategory = { id: number; name: string; slug: string }
+
+// ---- sidebar navigation (the design library's category sidebar) ----
+export type BrowserNavItem = { id: number; name: string; slug: string; count: number }
+export type BrowserNavGroup = { label: string | null; items: BrowserNavItem[] }
+export type BrowserNav = {
+  /** The departments — links with live counts (never a tree). */
+  departments: BrowserNavItem[]
+  /** This route's department slug (rendered active). */
+  activeSlug: string | null
+  /** Department pages: the active department expands inline with its own
+   *  subcategory group (wrapper label + leaves). Null otherwise. */
+  expandedGroups: BrowserNavGroup[] | null
+  /** Non-department pages: parent name + the subcategory links relevant to
+   *  this route (the current one active). Null on department pages. */
+  subSection: { heading: string; groups: BrowserNavGroup[]; currentSlug: string | null } | null
+}
 
 type SortKey = "featured" | "price-asc" | "price-desc" | "rating" | "newest"
 
@@ -176,11 +194,13 @@ export function CategoryBrowser({
   products,
   ratings,
   filters,
+  nav,
 }: {
   node: BrowserCategory
   products: BrowserProduct[]
   ratings: Record<string, BrowserRating>
   filters: BrowserFilter[]
+  nav: BrowserNav
 }) {
   const [minPrice, setMinPrice] = useState("")
   const [maxPrice, setMaxPrice] = useState("")
@@ -247,15 +267,13 @@ export function CategoryBrowser({
     [filters],
   )
 
-  // Default accordion state per the design spec: the core sections open, the
-  // first mapped filter with values open, the rest collapsed. Sections with
-  // active selections are always open.
+  // Default accordion state per the design library's sidebar (rating closed,
+  // sections stay compact so the sticky rail fits the viewport). Only PRICE
+  // opens by default; sections with active selections are always open.
   const defaultOpen = useMemo(() => {
-    const map: Record<string, boolean> = { price: true, rating: true, availability: true }
-    const first = mappedFilters.find((f) => f.filterType === "boolean" || f.values.length > 0)
-    if (first) map[`f${first.id}`] = true
+    const map: Record<string, boolean> = { price: true }
     return map
-  }, [mappedFilters])
+  }, [])
 
   const sectionOpen = (key: string, hasActive: boolean) =>
     hasActive || (openSections[key] ?? defaultOpen[key] ?? false)
@@ -403,6 +421,133 @@ export function CategoryBrowser({
           </button>
         )}
       </div>
+
+      {/* CATEGORIES — the departments as links with counts. The current
+          route's department is active and, on department pages, expands
+          inline to present THIS route's subcategories only (wrapper label +
+          leaves). Never the full taxonomy tree, never a scrollbar. */}
+      <div>
+        <p className={sectionTitleCls}>Categories</p>
+        <ul className="mt-2.5 space-y-0.5">
+          {nav.departments.map((d) => {
+            const isActive = d.slug === nav.activeSlug
+            return (
+              <li key={d.id} className="space-y-1">
+                <Link
+                  href={`/shop/category/${d.slug}`}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex items-center justify-between rounded-sm px-1.5 py-1.5 text-[10px] font-bold tracking-[0.08em] transition-colors ${
+                    isActive
+                      ? "bg-cream-deep/70 text-gold-deep"
+                      : "text-ink-soft hover:bg-gold/5 hover:text-gold-deep"
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    {isActive && (
+                      <span className="h-1.5 w-1.5 shrink-0 bg-gold-deep" aria-hidden="true" />
+                    )}
+                    <span className="truncate">{d.name.toUpperCase()}</span>
+                  </span>
+                  <span
+                    className={`ml-2 shrink-0 text-[9.5px] font-bold ${
+                      isActive ? "text-gold-deep" : "text-ink-soft/60"
+                    }`}
+                  >
+                    {d.count}
+                  </span>
+                </Link>
+
+                {/* Department pages: the ACTIVE department presents its own
+                    subcategory group inline — wrapper label + leaves (or
+                    direct leaves). This is the repo's sidebar pattern. */}
+                {isActive && nav.expandedGroups && (
+                  <div className="mt-1 space-y-1 border-l border-gold/25 pl-2">
+                    {nav.expandedGroups.map((g, gi) => (
+                      <div key={gi} className="space-y-0.5">
+                        {g.label && (
+                          <p className="px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.14em] text-ink-soft/60 uppercase">
+                            {g.label}
+                          </p>
+                        )}
+                        <ul className="space-y-0">
+                          {g.items.map((s) => (
+                            <li key={s.id}>
+                              <Link
+                                href={`/shop/category/${s.slug}`}
+                                className="flex items-center justify-between rounded-sm px-1.5 py-[3px] text-[9.5px] text-ink-soft transition-colors hover:bg-gold/5 hover:text-gold-deep"
+                              >
+                                <span className="truncate">{s.name}</span>
+                                <span className="ml-2 shrink-0 text-[9px] text-ink-soft/50">
+                                  {s.count}
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+
+      {/* SUBCATEGORY SECTION — non-department pages: the parent's name + the
+          subcategory links relevant to this route, the current one active. */}
+      {nav.subSection && (
+        <>
+          <div className="h-px bg-gold/15" />
+          <div>
+            <p className={sectionTitleCls}>{nav.subSection.heading}</p>
+            <ul className="mt-2.5 space-y-0.5">
+              {nav.subSection.groups.map((g, gi) => (
+                <div key={gi} className="space-y-0.5">
+                  {g.label && (
+                    <p className="px-1.5 py-0.5 text-[8.5px] font-bold tracking-[0.14em] text-ink-soft/60 uppercase">
+                      {g.label}
+                    </p>
+                  )}
+                  <ul className="space-y-0">
+                    {g.items.map((s) => {
+                      const isCurrent = s.slug === nav.subSection!.currentSlug
+                      return (
+                        <li key={s.id}>
+                          <Link
+                            href={`/shop/category/${s.slug}`}
+                            aria-current={isCurrent ? "page" : undefined}
+                            className={`flex items-center justify-between rounded-sm px-1.5 py-[3px] text-[9.5px] transition-colors ${
+                              isCurrent
+                                ? "bg-cream-deep/70 font-bold text-gold-deep"
+                                : "text-ink-soft hover:bg-gold/5 hover:text-gold-deep"
+                            }`}
+                          >
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              {isCurrent && (
+                                <span
+                                  className="h-1.5 w-1.5 shrink-0 bg-gold-deep"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              <span className="truncate">{s.name}</span>
+                            </span>
+                            <span className="ml-2 shrink-0 text-[9px] text-ink-soft/50">
+                              {s.count}
+                            </span>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+
+      <div className="h-px bg-gold/15" />
 
       {/* PRICE — range + data-backed quick buckets */}
       <Section
@@ -644,9 +789,10 @@ export function CategoryBrowser({
 
   return (
     <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-      {/* Desktop filter rail — natural height, accordions collapse, NO
-          scrollbar. The design spec forbids scroll containers here. */}
-      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:block">
+      {/* Desktop filter rail — STICKY while the page expands. Natural height,
+          accordions collapse, NO scrollbar ever (the spec forbids scroll
+          containers in the sidebar). */}
+      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:sticky lg:top-8 lg:block">
         {rail}
       </aside>
 

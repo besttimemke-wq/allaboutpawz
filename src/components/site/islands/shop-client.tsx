@@ -205,8 +205,8 @@ export function ShopClient({
       {/* Regular ecommerce layout: category/filter sidebar + catalog grid.
           The rail design matches the /shop/category/[slug] pages exactly. */}
       <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-        {/* Desktop sidebar rail */}
-        <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:block">
+        {/* Desktop sidebar rail — sticky while the page expands (no scrollbar) */}
+        <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:sticky lg:top-8 lg:block">
           <ShopSidebar
             categories={categoryTree}
             products={products}

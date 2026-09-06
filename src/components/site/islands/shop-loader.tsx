@@ -40,7 +40,10 @@ export function ShopLoader() {
     fetch("/api/shop/categories")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (alive && d && Array.isArray(d.categories)) setTree(d.categories)
+        // Departments only — the generic "pet-supplies" umbrella root (no
+        // products, no children) is never a department link.
+        if (alive && d && Array.isArray(d.categories))
+          setTree(d.categories.filter((c: { slug: string }) => c.slug !== "pet-supplies"))
         else if (alive) setTree([])
       })
       .catch(() => {

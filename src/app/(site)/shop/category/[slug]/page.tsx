@@ -3,31 +3,47 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { ArrowLeft } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
-import { CategoryGrid, type CategoryGridItem, type CategoryGridSection } from "@/components/site/category-grid"
 import {
   CategoryBrowser,
   type BrowserProduct,
   type BrowserRating,
   type BrowserFilter,
+  type BrowserNav,
+  type BrowserNavItem,
+  type BrowserNavGroup,
 } from "@/components/site/islands/category-browser"
 import {
   getCategoryTree,
   findNode,
   collectSubtreeIds,
   getFiltersForCategory,
-  type CategoryNode,
   type CategoryFilter,
+  type CategoryNode,
 } from "@/lib/categories"
 import { getSiteContent } from "@/lib/site-data"
 import { repo } from "@/lib/repo"
 
 // ---------------------------------------------------------------------------
 // Category page — /shop/category/[slug]
-//   Root, mid and leaf nodes are all resolvable here; roots and mids show
-//   their whole subtree (visible products matched via products."categoryId"
-//   rolled-up subtree ids). Filters come from the category filter framework
-//   (mapped to the node, inherited from the nearest mapped ancestor — the
-//   department root in the live taxonomy).
+//
+// The layout is the design library's category-page family:
+//   breadcrumb → header → hero → catalog (SIDEBAR + products grid)
+//
+// SIDEBAR (the design repo's specific sidebar):
+//   FILTERS + CLEAR ALL
+//   CATEGORIES  — the departments as links with counts. The current route's
+//                 department is active; on department pages it expands inline
+//                 to present THIS route's subcategories only (wrapper label +
+//                 leaves). Never the whole taxonomy tree, never a scrollbar.
+//   SUBCATEGORY SECTION (non-department pages) — the parent's name + the
+//                 subcategory links relevant to this route, current one active.
+//   PRICE / RATING / AVAILABILITY / mapped filter accordions.
+//
+// The sidebar is sticky while the page expands — no scroll containers.
+// Subcategory routes live in the SIDEBAR (not above the products).
+//
+// All category routes (departments, wrappers, leaves) are pre-rendered via
+// generateStaticParams — real pages with real metadata for search engines.
 // ---------------------------------------------------------------------------
 
 type Params = { params: Promise<{ slug: string }> }
@@ -37,6 +53,21 @@ async function loadCategory(slug: string) {
   if (!tree.ready) return null
   return findNode(tree.categories, (n) => n.slug === slug)
 }
+
+// Every category node is a real pre-rendered route (the 10 department pages
+// and all their subcategory routes). Unknown/new slugs still render on demand.
+export async function generateStaticParams() {
+  try {
+    const tree = await getCategoryTree()
+    if (!tree.ready) return []
+    return tree.flat.map((n) => ({ slug: n.slug }))
+  } catch {
+    return []
+  }
+}
+
+// Keep the pre-rendered pages honest with a CMS that changes.
+export const revalidate = 300
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
@@ -50,7 +81,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 // Visible chain root → … → node. The generic umbrella root ("Pet Supplies",
 // which carries no products and no children of its own) is skipped when it
-// is merely an ancestor, so breadcrumbs read like real departments.
+// is merely the node itself, so departments read like departments.
 function buildChain(node: CategoryNode, flat: CategoryNode[]): CategoryNode[] {
   const byId = new Map(flat.map((f) => [f.id, f]))
   const chain: CategoryNode[] = []
@@ -78,6 +109,30 @@ async function resolveFilters(node: CategoryNode, flat: CategoryNode[]): Promise
     parentId = parent.parentId
   }
   return []
+}
+
+// ---- sidebar navigation (the design repo's sidebar pattern) ----
+// Departments as links; ONLY this route's subcategory group is presented.
+//   department page  → the active department expands inline (wrapper label +
+//                      its leaves — repo's ExactCategoryPageView pattern)
+//   wrapper page     → separate section: its own name + its leaf children
+//   leaf page        → separate section: parent's name + sibling leaves,
+//                      current leaf active (repo's subcategory sidebar)
+const navItem = (n: CategoryNode): BrowserNavItem => ({
+  id: n.id,
+  name: n.name,
+  slug: n.slug,
+  count: n.productCount,
+})
+
+const groupsOf = (nodes: CategoryNode[]): BrowserNavGroup[] => {
+  const groups: BrowserNavGroup[] = []
+  const directLeaves = nodes.filter((n) => n.children.length === 0).map(navItem)
+  if (directLeaves.length > 0) groups.push({ label: null, items: directLeaves })
+  for (const w of nodes.filter((n) => n.children.length > 0)) {
+    groups.push({ label: w.name, items: w.children.map(navItem) })
+  }
+  return groups
 }
 
 // Keep the PageHeader label on one line even for the longest department names.
@@ -124,37 +179,38 @@ export default async function CategoryPage({ params }: Params) {
   const filters = await resolveFilters(node, tree.flat)
   const chain = buildChain(node, tree.flat)
 
-  // ---- C grid: the subcategory card grid in the content column ----
-  // Department + intermediate pages list THIS node's children; leaf pages
-  // list their siblings ("More in …"). When a direct child is an
-  // intermediate wrapper (Grooming, Beds & Furniture), it renders as a
-  // group label with its leaves as the cards — the taxonomy spec structure.
-  // The routes live here — never in the filter rail (that sidebar stays
-  // filters-only, no scrollbar).
-  const gridItem = (n: CategoryNode): CategoryGridItem => ({
-    name: n.name,
-    slug: n.slug,
-    count: n.productCount,
-  })
-  const buildSections = (nodes: CategoryNode[]): CategoryGridSection[] => {
-    const directLeaves = nodes.filter((n) => n.children.length === 0).map(gridItem)
-    const wrappers = nodes.filter((n) => n.children.length > 0)
-    const sections: CategoryGridSection[] = []
-    if (directLeaves.length > 0) sections.push({ items: directLeaves })
-    for (const wrapper of wrappers) {
-      sections.push({ label: wrapper.name, items: wrapper.children.map(gridItem) })
-    }
-    return sections
-  }
-  const parentNode =
-    node.parentId != null ? findNode(tree.categories, (n) => n.id === node.parentId) : null
+  // ---- the sidebar nav for this exact route ----
+  const departments = tree.categories
+    .filter((n) => n.slug !== "pet-supplies")
+    .map(navItem)
+  const department = chain.length > 0 ? chain[0] : null
+  const isDepartmentPage = department != null && department.id === node.id
   const isLeaf = node.children.length === 0
-  const gridSections = isLeaf
-    ? buildSections((parentNode?.children ?? []).filter((c) => c.id !== node.id))
-    : buildSections(node.children)
-  const gridTitle = isLeaf
-    ? `More in ${parentNode?.name ?? "the collection"}`
-    : `Subcategories in ${node.name}`
+
+  let expandedGroups: BrowserNavGroup[] | null = null
+  let subSection: BrowserNav["subSection"] = null
+  if (isDepartmentPage) {
+    // Department page: the active department expands inline with its own
+    // subcategory group — wrapper labels + leaves (or direct leaves).
+    expandedGroups = groupsOf(node.children)
+  } else if (!isLeaf) {
+    // Wrapper page: separate section under its own name with its leaves.
+    subSection = { heading: node.name, groups: groupsOf(node.children), currentSlug: null }
+  } else {
+    // Leaf page: the parent's subcategory group (siblings), current active.
+    const parent =
+      node.parentId != null ? findNode(tree.categories, (n) => n.id === node.parentId) : null
+    subSection = parent
+      ? { heading: parent.name, groups: groupsOf(parent.children), currentSlug: node.slug }
+      : null
+  }
+
+  const nav: BrowserNav = {
+    departments,
+    activeSlug: department ? department.slug : node.slug,
+    expandedGroups,
+    subSection,
+  }
 
   const countLine =
     products.length === 0
@@ -202,15 +258,8 @@ export default async function CategoryPage({ params }: Params) {
         </div>
       </section>
 
-      {/* C grid — the category page displays its subcategories as cards
-          (children for departments/intermediates, siblings for leaves). */}
-      {gridSections.length > 0 && (
-        <section className="marble border-t border-gold/25 bg-cream px-8 py-10 lg:px-12">
-          <CategoryGrid title={gridTitle} sections={gridSections} />
-        </section>
-      )}
-
-      {/* Collection */}
+      {/* Collection — sticky filter sidebar + products grid. The page expands;
+          subcategory routes live in the sidebar, never above the products. */}
       <section id="collection" className="marble scroll-mt-24 border-t border-gold/25 bg-cream px-8 pb-14 lg:px-12">
         <h2 className="border-t border-gold/25 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
           {node.name.toUpperCase()}
@@ -220,6 +269,7 @@ export default async function CategoryPage({ params }: Params) {
           products={products}
           ratings={ratings}
           filters={filters as BrowserFilter[]}
+          nav={nav}
         />
       </section>
     </>
