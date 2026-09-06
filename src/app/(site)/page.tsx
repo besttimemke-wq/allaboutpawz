@@ -45,7 +45,7 @@ export default function HomePage() {
           </div>
         </div>
         <div className="relative min-h-[300px]">
-          <img src="/Home/home-hero-poodle.png" alt="White poodle standing in the All About Pawz luxury dog grooming salon" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
+          <img src="/Home/home-hero-boutique.jpeg" alt="Groomed apricot poodle in the warmly lit All About Pawz luxury grooming boutique" width={1448} height={1086} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       </section>
 
