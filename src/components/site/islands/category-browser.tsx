@@ -157,7 +157,7 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <div className="border-b border-gold/15 pb-3.5 last:border-b-0">
+    <div className="border-b border-gold/15 pb-2 last:border-b-0">
       <button
         type="button"
         onClick={onToggle}
@@ -267,11 +267,12 @@ export function CategoryBrowser({
     [filters],
   )
 
-  // Default accordion state per the design library's sidebar (rating closed,
-  // sections stay compact so the sticky rail fits the viewport). Only PRICE
-  // opens by default; sections with active selections are always open.
+  // Default accordion state per the design library's compact sidebar: ALL
+  // sections closed by default (the rail stays as short as its nav content,
+  // so the products column drives the row height — the rail never outgrows
+  // the page). Sections with active selections are always open.
   const defaultOpen = useMemo(() => {
-    const map: Record<string, boolean> = { price: true }
+    const map: Record<string, boolean> = {}
     return map
   }, [])
 
@@ -408,7 +409,7 @@ export function CategoryBrowser({
   const priceActive =
     (minPrice.trim() ? 1 : 0) + (maxPrice.trim() ? 1 : 0) + buckets.length
   const rail = (
-    <div className="space-y-3.5" aria-label={`Filters for ${node.name}`}>
+    <div className="space-y-2.5" aria-label={`Filters for ${node.name}`}>
       <div className="flex items-center justify-between border-b border-gold/20 pb-3">
         <p className={railHeadingCls}>Filters</p>
         {activeCount > 0 && (
@@ -436,7 +437,7 @@ export function CategoryBrowser({
                 <Link
                   href={`/shop/category/${d.slug}`}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center justify-between rounded-sm px-1.5 py-1.5 text-[10px] font-bold tracking-[0.08em] transition-colors ${
+                  className={`flex items-center justify-between rounded-sm px-1.5 py-1 text-[10px] font-bold tracking-[0.08em] transition-colors ${
                     isActive
                       ? "bg-cream-deep/70 text-gold-deep"
                       : "text-ink-soft hover:bg-gold/5 hover:text-gold-deep"
@@ -779,7 +780,7 @@ export function CategoryBrowser({
           <p className="text-[9px] font-bold tracking-[0.14em] text-ink-soft/70">
             MORE FILTERS COMING TO THIS CATEGORY
           </p>
-          <p className="mt-1.5 line-clamp-3 text-[10.5px] leading-[1.7] text-ink-soft">
+          <p className="mt-1 line-clamp-2 text-[9.5px] leading-[1.6] text-ink-soft">
             {frameworkWithoutValues.map((f) => f.name).join(", ")}
           </p>
         </div>
@@ -792,7 +793,7 @@ export function CategoryBrowser({
       {/* Desktop filter rail — STICKY while the page expands. Natural height,
           accordions collapse, NO scrollbar ever (the spec forbids scroll
           containers in the sidebar). */}
-      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-5 lg:sticky lg:top-8 lg:block">
+      <aside className="hidden w-[220px] shrink-0 self-start border border-gold/25 bg-card p-4 lg:sticky lg:top-8 lg:block">
         {rail}
       </aside>
 
