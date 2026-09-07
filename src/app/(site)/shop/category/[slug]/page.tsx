@@ -189,16 +189,18 @@ export default async function CategoryPage({ params }: Params) {
 
   // ---- the route's mapped filters ----
   // The reference layer first: when the imported shop repo defined the exact
-  // facet sections for this subcategory (git c00e59d data files), those
+  // facet sections for this route (the safety refs' data files), those
   // sections ARE this route's filters — the DB-derived mappings step aside.
   // Synthetic negative ids keep them from colliding with DB filter ids.
+  // The reference's counts + checked presentation states ride along on the
+  // values (count: null renders no count label).
   const reference = REFERENCE_FILTER_SECTIONS[node.slug]
   const filters: CategoryFilter[] = reference
     ? reference.map((section, si) => ({
         id: -(si + 1),
         name: section.title,
         slug: section.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        filterType: "select",
+        filterType: section.type === "swatches" ? "swatches" : "select",
         isGlobal: false,
         isMultiselect: true,
         displayOrder: (si + 1) * 10,
@@ -206,6 +208,9 @@ export default async function CategoryPage({ params }: Params) {
           id: -(si + 1) * 1000 - oi,
           name: o.label,
           slug: o.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          count: o.count,
+          checked: o.checked,
+          colorHex: o.colorHex,
         })),
       }))
     : await resolveFilters(node, tree.flat)

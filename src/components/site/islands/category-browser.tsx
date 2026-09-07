@@ -20,10 +20,12 @@ import { parsePriceToCents } from "@/lib/wizard/cart-store"
 //                    group with the current one active).
 //   PRICE RANGE     — the range SLIDER + "$ min to $ max" inputs.
 //   RATING          — 5 / 4+ / 3+ star checkbox rows.
-//   MAPPED SECTIONS — the reference data's per-subcategory facet sections
-//                    (checkbox rows w/ counts, color → swatches, boolean →
-//                    tiles). Everything visible; counts are labels, never
-//                    disabled states.
+//   MAPPED SECTIONS — the reference data's per-route facet sections, VERBATIM:
+//                    titles, labels, counts and checked presentation states
+//                    (imported from the safety refs' data files). Checkbox
+//                    rows — label left, count right, no parentheses; swatches
+//                    for color sections; DB booleans render as checkbox rows
+//                    (the reference's Key Features pattern), never tiles.
 //
 //   Sort: Best selling / Price asc+desc / Customer Rating / Newest Arrivals.
 //   Grid: the same catalog card the /shop collection uses.
@@ -59,7 +61,7 @@ export type BrowserFilter = {
   isGlobal: boolean
   isMultiselect: boolean
   displayOrder: number
-  values: { id: number; name: string; slug: string }[]
+  values: { id: number; name: string; slug: string; count?: number | null; checked?: boolean; colorHex?: string }[]
 }
 
 export type BrowserCategory = { id: number; name: string; slug: string }
@@ -136,7 +138,17 @@ export function CategoryBrowser({
   // Selected mapped-filter values: { [filterId]: Set<valueSlug> } — booleans
   // store the filter's own slug under its id.
   const [selected, setSelected] = useState<Record<string, string[]>>({})
+  // Reference values that render checked on first paint (the reference's
+  // presentation state — NOT a live filter). The first click dismisses the
+  // presentation check; further clicks use the value as a real facet.
+  const [dismissed, setDismissed] = useState<number[]>([])
   const [sort, setSort] = useState<SortKey>("featured")
+
+  // All reference value ids that render checked on first paint.
+  const defaultCheckedIds = useMemo(
+    () => filters.flatMap((f) => f.values.filter((v) => v.checked === true).map((v) => v.id)),
+    [filters],
+  )
 
   const texts = useMemo(() => products.map((p) => ({ p, t: searchTextOf(p) })), [products])
 
@@ -171,9 +183,27 @@ export function CategoryBrowser({
     setMaxPrice("")
     setMinRating(0)
     setSelected({})
+    // Everything unchecks — including the reference's presentation checks
+    // (the reference's Clear all resets every active checkbox).
+    setDismissed(defaultCheckedIds)
   }
 
-  const toggleValue = (filterId: number, valueSlug: string) => {
+  const toggleValue = (
+    filterId: number,
+    valueSlug: string,
+    value?: { id: number; checked?: boolean },
+  ) => {
+    // A presentation-checked value's first click dismisses the check (the
+    // grid was never filtered by it); it becomes a normal facet afterwards.
+    if (
+      value &&
+      value.checked === true &&
+      !(selected[filterId] || []).includes(valueSlug) &&
+      !dismissed.includes(value.id)
+    ) {
+      setDismissed((d) => [...d, value.id])
+      return
+    }
     setSelected((prev) => {
       const cur = prev[filterId] || []
       const next = cur.includes(valueSlug) ? cur.filter((v) => v !== valueSlug) : [...cur, valueSlug]
@@ -387,7 +417,7 @@ export function CategoryBrowser({
                   type="checkbox"
                   checked={minRating === stars}
                   onChange={() => setMinRating(minRating === stars ? 0 : stars)}
-                  className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-[#7d441d]"
+                  className="cursor-pointer rounded-none border-[#d8c2b7] text-[#7d441d] focus:ring-[#7d441d]"
                 />
                 <span className="flex text-xs text-amber-500">
                   {"★".repeat(stars)}
@@ -400,16 +430,21 @@ export function CategoryBrowser({
         </div>
       </div>
 
-      {/* MAPPED FILTER SECTIONS — checkbox rows w/ live counts · color →
-          swatch squares · boolean → button tiles (reference markup; counts
-          are labels, never disabled states). */}
+      {/* MAPPED FILTER SECTIONS — the reference repo's sidebar sections,
+          verbatim markup: checkbox rows (label left, count right, NO
+          parentheses), swatches, booleans as checkbox rows (never single
+          tiles). The reference layer's counts ride along on the values;
+          DB-derived sections compute live counts. */}
       {mappedFilters.map((f) => {
         const selectedVals = selected[f.id] || []
-        const isColor = f.slug === "color"
+        const isColor = f.slug === "color" || f.filterType === "swatches"
         const isBool = f.filterType === "boolean"
 
         if (isBool) {
+          // Boolean DB filters render as the reference's Key Features row:
+          // a checkbox + the filter name — never a bordered square tile.
           const on = selectedVals.includes(f.slug)
+          const count = countFor(f.name)
           return (
             <Fragment key={f.id}>
               <div className="h-px bg-[#d8c2b7]/40" />
@@ -417,19 +452,19 @@ export function CategoryBrowser({
                 <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
                   {f.name}
                 </h3>
-                <div className="grid grid-cols-4 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => toggleValue(f.id, f.slug)}
-                    aria-pressed={on}
-                    className={`cursor-pointer rounded-none py-1.5 text-xs font-medium transition-colors ${
-                      on
-                        ? "border border-[#7d441d] bg-[#7d441d] text-white"
-                        : "border border-[#d8c2b7] bg-[#FAF8F5] text-[#53443b] hover:border-[#7d441d]"
-                    }`}
-                  >
-                    {f.name}
-                  </button>
+                <div className="space-y-2 text-xs">
+                  <label className="flex cursor-pointer items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => toggleValue(f.id, f.slug)}
+                        className="cursor-pointer rounded-none border-[#d8c2b7] text-[#7d441d] focus:ring-[#7d441d]"
+                      />
+                      <span className="text-[#1F1B18]">{f.name}</span>
+                    </div>
+                    <span className="text-[#85736a]">{count}</span>
+                  </label>
                 </div>
               </div>
             </Fragment>
@@ -455,8 +490,8 @@ export function CategoryBrowser({
                         title={v.name}
                         aria-label={`${f.name}: ${v.name}`}
                         aria-pressed={on}
-                        onClick={() => toggleValue(f.id, v.slug)}
-                        style={{ backgroundColor: SWATCH[v.slug] || "rgba(157,124,64,0.35)" }}
+                        onClick={() => toggleValue(f.id, v.slug, v)}
+                        style={{ backgroundColor: v.colorHex || SWATCH[v.slug] || "rgba(157,124,64,0.35)" }}
                         className={`h-6 w-6 cursor-pointer rounded-none shadow-xs transition-transform hover:scale-105 ${
                           on ? "border-2 border-[#7d441d]" : "border border-[#d8c2b7]"
                         }`}
@@ -468,22 +503,26 @@ export function CategoryBrowser({
                 <div className="space-y-2 text-xs">
                   {f.values.map((v) => {
                     const on = selectedVals.includes(v.slug)
-                    const count = countFor(v.name)
+                    const presentation = v.checked === true && !dismissed.includes(v.id)
+                    const checked = on || presentation
+                    // Reference count rides along verbatim; DB sections
+                    // compute live; count: null renders no label.
+                    const count = v.count !== undefined ? v.count : countFor(v.name)
                     return (
                       <label
                         key={v.id}
-                        className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]"
+                        className="flex cursor-pointer items-center justify-between"
                       >
                         <div className="flex items-center gap-2">
                           <input
                             type="checkbox"
-                            checked={on}
-                            onChange={() => toggleValue(f.id, v.slug)}
-                            className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
+                            checked={checked}
+                            onChange={() => toggleValue(f.id, v.slug, v)}
+                            className="cursor-pointer rounded-none border-[#d8c2b7] text-[#7d441d] focus:ring-[#7d441d]"
                           />
-                          <span>{v.name}</span>
+                          <span className="text-[#1F1B18]">{v.name}</span>
                         </div>
-                        <span className="text-[11px] text-[#85736a]">({count})</span>
+                        {count != null && <span className="text-[#85736a]">{count}</span>}
                       </label>
                     )
                   })}

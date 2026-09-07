@@ -27,13 +27,19 @@ export type FilterValue = {
   id: number
   name: string
   slug: string
+  /** Reference facet count rendered verbatim; null = no count label. */
+  count?: number | null
+  /** Reference presentation state — renders checked on first paint. */
+  checked?: boolean
+  /** Reference swatch hex (swatches sections). */
+  colorHex?: string
 }
 
 export type CategoryFilter = {
   id: number
   name: string
   slug: string
-  filterType: "select" | "range" | "boolean"
+  filterType: "select" | "range" | "boolean" | "swatches"
   isGlobal: boolean
   isMultiselect: boolean
   displayOrder: number
