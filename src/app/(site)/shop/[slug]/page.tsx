@@ -4,6 +4,7 @@ import type { Metadata } from "next"
 import { PawPrint } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
 import { TrustServiceBand } from "@/components/site/trust-band"
+import { ShopClosingBands } from "@/components/site/home-bands"
 import { repo } from "@/lib/repo"
 import { getCategoryTree, findNode, type CategoryNode } from "@/lib/categories"
 import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
@@ -385,6 +386,10 @@ export default async function ProductPage({ params }: Params) {
           </div>
         </section>
       )}
+
+      {/* Closing bands — the home page's band treatments, directly above
+          the shop footer. */}
+      <ShopClosingBands />
     </>
   )
 }

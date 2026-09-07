@@ -334,14 +334,13 @@ export function CategoryBrowser({
                         <Link
                           href={`/shop/category/${s.slug}`}
                           aria-current={isCurrent ? "page" : undefined}
-                          className={`flex items-center justify-between rounded-none px-2 py-1.5 transition ${
+                          className={`flex items-center rounded-none px-2 py-1.5 transition ${
                             isCurrent
                               ? "bg-[#ebdcd4] font-bold text-[#7d441d]"
                               : "text-[#53443b] hover:bg-[#ebdcd4]/40 hover:text-[#1F1B18]"
                           }`}
                         >
                           <span>{s.name}</span>
-                          <span className="text-[11px] text-[#85736a]">{s.count}</span>
                         </Link>
                       </li>
                     )

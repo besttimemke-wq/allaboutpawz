@@ -4,6 +4,8 @@ import type { Metadata } from "next"
 import { ArrowLeft, PawPrint } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
 import { TrustServiceBand } from "@/components/site/trust-band"
+import { ShopClosingBands } from "@/components/site/home-bands"
+import { SHOP_NAV_CATEGORIES } from "@/lib/shop-nav"
 import { resolveCategoryArt } from "@/lib/category-art"
 import {
   CategoryBrowser,
@@ -225,6 +227,11 @@ export default async function CategoryPage({ params }: Params) {
   const art = resolveCategoryArt(chain.map((n) => n.slug))
   const heroDescription = art?.description || countLine
 
+  // Hero CTA label — the flattened department name when this node IS a
+  // department ("SHOP GROOMING"), else the node's own name.
+  const shopCtaName =
+    SHOP_NAV_CATEGORIES.find((c) => c.slug === node.slug)?.name || node.name
+
   return (
     <>
       {/* ONE header bar — breadcrumb + departments mega menu + bag. Never a
@@ -253,7 +260,11 @@ export default async function CategoryPage({ params }: Params) {
             <p className="mt-4 max-w-xl text-[12.5px] leading-[1.85] text-ink-soft">
               {heroDescription}
             </p>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-wrap gap-3">
+              {/* Primary hero CTA — scroll to this category's collection. */}
+              <Link href="#collection" className="btn-gold">
+                SHOP {shopCtaName.toUpperCase()}
+              </Link>
               <Link href="/shop" className="btn-ghost">
                 <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} /> BROWSE ALL
               </Link>
@@ -297,6 +308,10 @@ export default async function CategoryPage({ params }: Params) {
           nav={nav}
         />
       </section>
+
+      {/* Closing bands — the home page's band treatments, directly above
+          the shop footer. */}
+      <ShopClosingBands />
     </>
   )
 }

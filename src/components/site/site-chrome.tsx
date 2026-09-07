@@ -10,7 +10,7 @@ import {
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
 import { useCart } from "@/lib/wizard/cart-store"
-import { ShopMegaMenu } from "./islands/shop-mega-menu"
+import { ShopNavBar } from "./islands/shop-nav-bar"
 
 function TikTok({ className = "" }: { className?: string }) {
   return (
@@ -196,14 +196,15 @@ export function PageHeader({
   crumbs?: { name: string; href: string | null }[]
 }) {
   const pathname = usePathname()
-  // Shop routes carry the departments mega menu in the header bar, so the
-  // collection sidebar stays clean (subcategories + price; facets on demand).
+  // Shop routes carry the nine-category shop navigation (hover mega menus)
+  // directly below this bar, so the collection sidebar stays clean
+  // (subcategories + price; facets on demand from the FILTERS icon).
   const isShop = pathname.startsWith("/shop")
   // Mobile shows the current page name only (the full chain wraps a narrow
   // bar into stacked lines); desktop shows the collapsed crumb chain.
   const mobileLabel = crumbs && crumbs.length > 0 ? crumbs[crumbs.length - 1].name : label
   return (
-    // `relative` anchors the mega menu's full-width panel to this header row.
+    <>
     <div className="relative flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">{n}</span>
       {crumbs ? (
@@ -249,7 +250,6 @@ export function PageHeader({
       ) : (
         <span className="min-w-0 truncate text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
       )}
-      <span className="ml-auto shrink-0 lg:ml-0">{isShop && <ShopMegaMenu />}</span>
       {/* Bag — top-right corner on desktop. Mobile keeps its own sticky top
           bar (logo + bag + menu) on every page, so the bag never renders
           twice in the mobile header. */}
@@ -257,6 +257,11 @@ export function PageHeader({
         <HeaderBagLink />
       </span>
     </div>
+    {/* The nine-category shop navigation — shared global component on every
+        shop route, directly below the breadcrumb bar. Its mega menus open on
+        hover (desktop) and the row becomes a tap rail on mobile. */}
+    {isShop && <ShopNavBar />}
+    </>
   )
 }
 

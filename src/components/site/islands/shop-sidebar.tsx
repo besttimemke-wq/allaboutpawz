@@ -94,8 +94,6 @@ export function ShopSidebar({
     [products],
   )
 
-  const totalProducts = categories.reduce((n, c) => n + c.productCount, 0)
-
   const toggleBucket = (key: string) =>
     onPriceChange({
       ...price,
@@ -107,7 +105,8 @@ export function ShopSidebar({
   return (
     <div className="space-y-6" aria-label="Shop filters">
       {/* DEPARTMENTS — the repo's landing sidebar card: links to the full
-          category pages (each carries its own subcategory nav + filters). */}
+          category pages (each carries its own subcategory nav + filters).
+          Navigation links never carry product counts. */}
       <nav
         aria-label="Departments"
         className="rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-4 shadow-xs"
@@ -128,22 +127,18 @@ export function ShopSidebar({
             <Link
               href="/shop"
               aria-current="page"
-              className="flex items-center justify-between rounded-none bg-[#ebdcd4] px-3 py-2 font-bold text-[#7d441d] transition-colors"
+              className="flex items-center rounded-none bg-[#ebdcd4] px-3 py-2 font-bold text-[#7d441d] transition-colors"
             >
               <span>All Products</span>
-              <span className="rounded-none bg-[#FAF8F5] px-2 py-0.5 text-xs font-semibold text-[#7d441d]">
-                {totalProducts}
-              </span>
             </Link>
           </li>
           {categories.map((root) => (
             <li key={root.id}>
               <Link
                 href={`/shop/category/${root.slug}`}
-                className="flex items-center justify-between rounded-none px-3 py-2 text-[#53443b] transition-colors hover:bg-[#ebdcd4]/50 hover:text-[#1F1B18]"
+                className="flex items-center rounded-none px-3 py-2 text-[#53443b] transition-colors hover:bg-[#ebdcd4]/50 hover:text-[#1F1B18]"
               >
                 <span>{root.name}</span>
-                <span className="text-xs text-[#85736a]">{root.productCount}</span>
               </Link>
             </li>
           ))}

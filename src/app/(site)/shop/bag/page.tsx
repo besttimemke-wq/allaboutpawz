@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/site/site-chrome"
+import { ShopClosingBands } from "@/components/site/home-bands"
 import { BagClient, type BagProduct, type BagRating } from "@/components/site/islands/bag-client"
 import { repo } from "@/lib/repo"
 
@@ -42,6 +43,10 @@ export default async function BagPage() {
       <section className="marble bg-cream px-8 pb-14 pt-12 lg:px-12">
         <BagClient products={visible} ratings={ratings} />
       </section>
+
+      {/* Closing bands — the home page's band treatments, directly above
+          the shop footer. */}
+      <ShopClosingBands />
     </>
   )
 }
