@@ -26,6 +26,7 @@ import {
 } from "@/lib/categories"
 import { getSiteContent } from "@/lib/site-data"
 import { repo } from "@/lib/repo"
+import { REFERENCE_FILTER_SECTIONS } from "@/lib/reference-filters"
 
 // ---------------------------------------------------------------------------
 // Category page — /shop/category/[slug]
@@ -186,7 +187,28 @@ export default async function CategoryPage({ params }: Params) {
     }
   }
 
-  const filters = await resolveFilters(node, tree.flat)
+  // ---- the route's mapped filters ----
+  // The reference layer first: when the imported shop repo defined the exact
+  // facet sections for this subcategory (git c00e59d data files), those
+  // sections ARE this route's filters — the DB-derived mappings step aside.
+  // Synthetic negative ids keep them from colliding with DB filter ids.
+  const reference = REFERENCE_FILTER_SECTIONS[node.slug]
+  const filters: CategoryFilter[] = reference
+    ? reference.map((section, si) => ({
+        id: -(si + 1),
+        name: section.title,
+        slug: section.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        filterType: "select",
+        isGlobal: false,
+        isMultiselect: true,
+        displayOrder: (si + 1) * 10,
+        values: section.options.map((o, oi) => ({
+          id: -(si + 1) * 1000 - oi,
+          name: o.label,
+          slug: o.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        })),
+      }))
+    : await resolveFilters(node, tree.flat)
   const chain = buildChain(node, tree.flat)
 
   // ---- the sidebar nav for this exact route (subcategories only — the

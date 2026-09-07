@@ -139,21 +139,24 @@ export function CategoryBrowser({
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [sort, setSort] = useState<SortKey>("featured")
   const [mobileOpen, setMobileOpen] = useState(false)
-  // The FILTERS icon state: facets render below price BY DEFAULT (the
-  // /shop landing treatment); the toolbar icon collapses/expands them, and
-  // any facet selection keeps them surfaced.
-  const [facetsOpen, setFacetsOpen] = useState(true)
+  // The FILTERS icon state: the rail renders subcategories + price by default;
+  // the FILTERS icon in the toolbar surfaces the facet sections (rating /
+  // availability / mapped rows) below price ON CLICK. Selections keep them
+  // surfaced. (Reference behavior — the imported repo's category pages.)
+  const [facetsOpen, setFacetsOpen] = useState(false)
   // Availability buckets ("instock" / "backorder") — same rule as the
   // /shop landing sidebar: stock == null → in stock; stock === 0 → backorder.
   const [stockBuckets, setStockBuckets] = useState<string[]>([])
 
   const texts = useMemo(() => products.map((p) => ({ p, t: searchTextOf(p) })), [products])
 
-  // ---- mapped filters (everything except the special-cased ones) ----
+  // ---- mapped filters (everything except the special-cased ones: price,
+  // rating and availability carry dedicated sections; brand and material
+  // render as regular checkbox rows like the reference) ----
   const mappedFilters = useMemo(
     () =>
       filters
-        .filter((f) => !["price", "rating", "availability", "brand", "material"].includes(f.slug))
+        .filter((f) => !["price", "rating", "availability"].includes(f.slug))
         .sort((a, b) => a.displayOrder - b.displayOrder),
     [filters],
   )
