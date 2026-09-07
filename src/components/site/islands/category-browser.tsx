@@ -2,7 +2,7 @@
 
 import { useMemo, useState, Fragment } from "react"
 import Link from "next/link"
-import { Plus, Funnel, PawPrint, CaretDown } from "@phosphor-icons/react"
+import { Plus, PawPrint } from "@phosphor-icons/react"
 import { SlidersHorizontal } from "lucide-react"
 import { parsePriceToCents } from "@/lib/wizard/cart-store"
 
@@ -12,19 +12,18 @@ import { parsePriceToCents } from "@/lib/wizard/cart-store"
 //   The departments live in the header MEGA MENU (every shop route), so the
 //   sidebar stays CLEAN with just the subcategories:
 //
-//   Left rail (desktop, STICKY — the page expands, never a scrollbar) /
-//   collapsible panel (mobile):
+//   Left rail (stacks above the grid on mobile, sidebar on desktop —
+//   the reference repo's aside structure):
 //   FILTERS header (serif + sliders icon) + Clear all
 //   SUBCATEGORIES  — the only nav: THIS route's subcategory links (department
 //                    pages: wrapper label + leaves; sub pages: the parent's
 //                    group with the current one active).
 //   PRICE RANGE     — the range SLIDER + "$ min to $ max" inputs.
-//   RATING / AVAILABILITY / FACETS — visible by default below price (the
-//                    /shop landing's filter card treatment: star rows, In
-//                    stock / Backordered, checkbox rows w/ live counts,
-//                    color → swatch squares, boolean → button tiles). The
-//                    toolbar FILTERS icon toggles them; selections keep them
-//                    surfaced.
+//   RATING          — 5 / 4+ / 3+ star checkbox rows.
+//   MAPPED SECTIONS — the reference data's per-subcategory facet sections
+//                    (checkbox rows w/ counts, color → swatches, boolean →
+//                    tiles). Everything visible; counts are labels, never
+//                    disabled states.
 //
 //   Sort: Best selling / Price asc+desc / Customer Rating / Newest Arrivals.
 //   Grid: the same catalog card the /shop collection uses.
@@ -138,21 +137,11 @@ export function CategoryBrowser({
   // store the filter's own slug under its id.
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [sort, setSort] = useState<SortKey>("featured")
-  const [mobileOpen, setMobileOpen] = useState(false)
-  // The FILTERS icon state: the rail renders subcategories + price by default;
-  // the FILTERS icon in the toolbar surfaces the facet sections (rating /
-  // availability / mapped rows) below price ON CLICK. Selections keep them
-  // surfaced. (Reference behavior — the imported repo's category pages.)
-  const [facetsOpen, setFacetsOpen] = useState(false)
-  // Availability buckets ("instock" / "backorder") — same rule as the
-  // /shop landing sidebar: stock == null → in stock; stock === 0 → backorder.
-  const [stockBuckets, setStockBuckets] = useState<string[]>([])
 
   const texts = useMemo(() => products.map((p) => ({ p, t: searchTextOf(p) })), [products])
 
-  // ---- mapped filters (everything except the special-cased ones: price,
-  // rating and availability carry dedicated sections; brand and material
-  // render as regular checkbox rows like the reference) ----
+  // ---- mapped filters (everything except the special-cased ones: price
+  // and rating carry dedicated sections) ----
   const mappedFilters = useMemo(
     () =>
       filters
@@ -161,15 +150,6 @@ export function CategoryBrowser({
     [filters],
   )
 
-  // ---- rating rows (repo markup: 5 / 4+ / 3+ Stars) ----
-  const ratingRows = useMemo(() => {
-    const rated = products.filter((p) => (ratings[p.id]?.count ?? 0) > 0)
-    if (rated.length === 0) return []
-    return [5, 4, 3].map((v) => ({
-      stars: v,
-      count: rated.filter((p) => (ratings[p.id]?.avg ?? 0) >= v).length,
-    }))
-  }, [products, ratings])
 
   // ---- price bounds for the range slider (live data) ----
   const priceBounds = useMemo(() => {
@@ -186,40 +166,10 @@ export function CategoryBrowser({
     return priceBounds.max
   }, [maxPrice, priceBounds])
 
-  const activeCount =
-    (minPrice.trim() ? 1 : 0) +
-    (maxPrice.trim() ? 1 : 0) +
-    (minRating > 0 ? 1 : 0) +
-    (stockBuckets.length > 0 ? 1 : 0) +
-    Object.keys(selected).length
-
-  // Facets stay surfaced while any facet selection is live (the user must
-  // always be able to see and clear what they checked).
-  const hasFacetSelections =
-    minRating > 0 || stockBuckets.length > 0 || Object.keys(selected).length > 0
-  const showFacets = facetsOpen || hasFacetSelections
-
-  // ---- availability counts (In stock / Backordered — live data) ----
-  const stockCounts = useMemo(
-    () => ({
-      inStock: products.filter((p) => (p.stock == null ? true : p.stock > 0)).length,
-      backordered: products.filter((p) => p.stock === 0).length,
-    }),
-    [products],
-  )
-
-  // The desktop FILTERS toggle only renders when there is something to show.
-  const hasAnyFacets =
-    mappedFilters.length > 0 ||
-    ratingRows.length > 0 ||
-    stockCounts.inStock > 0 ||
-    stockCounts.backordered > 0
-
   const clearAll = () => {
     setMinPrice("")
     setMaxPrice("")
     setMinRating(0)
-    setStockBuckets([])
     setSelected({})
   }
 
@@ -253,13 +203,6 @@ export function CategoryBrowser({
         if (!r || r.count === 0 || r.avg < minRating) return false
       }
 
-      // Availability: OR across the checked buckets.
-      if (stockBuckets.length > 0) {
-        const inStock = p.stock == null ? true : p.stock > 0
-        const ok = stockBuckets.some((k) => (k === "instock" ? inStock : p.stock === 0))
-        if (!ok) return false
-      }
-
       // Mapped filters: AND across sections, OR within a section.
       const t = texts[idx].t
       for (const [fidStr, slugs] of Object.entries(selected)) {
@@ -283,7 +226,7 @@ export function CategoryBrowser({
       }
       return true
     })
-  }, [products, texts, ratings, minPrice, maxPrice, minRating, stockBuckets, selected, mappedFilters])
+  }, [products, texts, ratings, minPrice, maxPrice, minRating, selected, mappedFilters])
 
   // ---- sorting ----
   const sorted = useMemo(() => {
@@ -319,10 +262,8 @@ export function CategoryBrowser({
 
   // Count of products matching a value (for facet counts).
   const countFor = (valueName: string) => texts.filter(({ t }) => valueMatches(t, valueName)).length
-  const countForName = (name: string) => texts.filter(({ t }) => t.includes(name.toLowerCase())).length
 
-  // ---- the rail (shared by desktop sidebar + mobile collapsible) — the
-  // design library's exact sidebar markup ----
+  // ---- the rail — the reference repo's sidebar markup, verbatim structure ----
   const rail = (
     <div className="space-y-6" aria-label={`Filters for ${node.name}`}>
       {/* Header */}
@@ -432,101 +373,43 @@ export function CategoryBrowser({
         </div>
       </div>
 
-      {/* RATING — star checkbox rows, visible by default below price (same
-          as the /shop landing filter card). */}
-      {showFacets && ratingRows.length > 0 && (
-        <>
-          <div className="h-px bg-[#d8c2b7]/40" />
-          <div>
-            <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
-              Rating
-            </h3>
-            <div className="space-y-2 text-xs">
-              {[5, 4, 3].map((stars) => (
-                <label key={stars} className="flex cursor-pointer items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={minRating === stars}
-                      onChange={() => setMinRating(minRating === stars ? 0 : stars)}
-                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-[#7d441d]"
-                    />
-                    <span className="flex text-xs text-amber-500">
-                      {"★".repeat(stars)}
-                      {"☆".repeat(5 - stars)}
-                    </span>
-                  </div>
-                  <span className="text-[#85736a]">{stars === 5 ? "5 Stars" : `${stars}+ Stars`}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* AVAILABILITY — In stock / Backordered (same rule + markup as the
-          /shop landing sidebar: stock == null → in stock, stock === 0 →
-          backordered; only rows that match products render). */}
-      {showFacets && (stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
-        <>
-          <div className="h-px bg-[#d8c2b7]/40" />
-          <div>
-            <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
-              Availability
-            </h3>
-            <div className="space-y-2 text-xs">
-              {stockCounts.inStock > 0 && (
-                <label className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={stockBuckets.includes("instock")}
-                      onChange={() =>
-                        setStockBuckets((b) =>
-                          b.includes("instock") ? b.filter((k) => k !== "instock") : [...b, "instock"],
-                        )
-                      }
-                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
-                    />
-                    <span>In stock</span>
-                  </div>
-                  <span className="text-[11px] text-[#85736a]">({stockCounts.inStock})</span>
-                </label>
-              )}
-              {stockCounts.backordered > 0 && (
-                <label className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={stockBuckets.includes("backorder")}
-                      onChange={() =>
-                        setStockBuckets((b) =>
-                          b.includes("backorder") ? b.filter((k) => k !== "backorder") : [...b, "backorder"],
-                        )
-                      }
-                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
-                    />
-                    <span>Backordered</span>
-                  </div>
-                  <span className="text-[11px] text-[#85736a]">({stockCounts.backordered})</span>
-                </label>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      {/* RATING — 5 / 4+ / 3+ star checkbox rows (reference markup). */}
+      <div className="h-px bg-[#d8c2b7]/40" />
+      <div>
+        <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+          Rating
+        </h3>
+        <div className="space-y-2 text-xs">
+          {[5, 4, 3].map((stars) => (
+            <label key={stars} className="flex cursor-pointer items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={minRating === stars}
+                  onChange={() => setMinRating(minRating === stars ? 0 : stars)}
+                  className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-[#7d441d]"
+                />
+                <span className="flex text-xs text-amber-500">
+                  {"★".repeat(stars)}
+                  {"☆".repeat(5 - stars)}
+                </span>
+              </div>
+              <span className="text-[#85736a]">{stars === 5 ? "5 Stars" : `${stars}+ Stars`}</span>
+            </label>
+          ))}
+        </div>
+      </div>
 
       {/* MAPPED FILTER SECTIONS — checkbox rows w/ live counts · color →
-          swatch squares · boolean → button tiles. Visible by default below
-          price (all open, no accordions). */}
-      {showFacets && mappedFilters.map((f) => {
+          swatch squares · boolean → button tiles (reference markup; counts
+          are labels, never disabled states). */}
+      {mappedFilters.map((f) => {
         const selectedVals = selected[f.id] || []
         const isColor = f.slug === "color"
         const isBool = f.filterType === "boolean"
 
         if (isBool) {
           const on = selectedVals.includes(f.slug)
-          const count = countForName(f.name)
           return (
             <Fragment key={f.id}>
               <div className="h-px bg-[#d8c2b7]/40" />
@@ -542,9 +425,7 @@ export function CategoryBrowser({
                     className={`cursor-pointer rounded-none py-1.5 text-xs font-medium transition-colors ${
                       on
                         ? "border border-[#7d441d] bg-[#7d441d] text-white"
-                        : count > 0
-                          ? "border border-[#d8c2b7] bg-[#FAF8F5] text-[#53443b] hover:border-[#7d441d]"
-                          : "cursor-default border border-[#d8c2b7] bg-[#FAF8F5] text-[#53443b]/40"
+                        : "border border-[#d8c2b7] bg-[#FAF8F5] text-[#53443b] hover:border-[#7d441d]"
                     }`}
                   >
                     {f.name}
@@ -567,19 +448,18 @@ export function CategoryBrowser({
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {f.values.map((v) => {
                     const on = selectedVals.includes(v.slug)
-                    const count = countFor(v.name)
                     return (
                       <button
                         key={v.id}
                         type="button"
-                        title={`${v.name}${count === 0 ? " (0)" : ""}`}
+                        title={v.name}
                         aria-label={`${f.name}: ${v.name}`}
                         aria-pressed={on}
-                        onClick={() => count > 0 && toggleValue(f.id, v.slug)}
+                        onClick={() => toggleValue(f.id, v.slug)}
                         style={{ backgroundColor: SWATCH[v.slug] || "rgba(157,124,64,0.35)" }}
                         className={`h-6 w-6 cursor-pointer rounded-none shadow-xs transition-transform hover:scale-105 ${
                           on ? "border-2 border-[#7d441d]" : "border border-[#d8c2b7]"
-                        } ${count === 0 ? "cursor-default opacity-40" : ""}`}
+                        }`}
                       />
                     )
                   })}
@@ -592,15 +472,13 @@ export function CategoryBrowser({
                     return (
                       <label
                         key={v.id}
-                        className={`flex items-center justify-between text-xs text-[#53443b] ${
-                          count > 0 ? "cursor-pointer hover:text-[#1F1B18]" : "cursor-default opacity-40"
-                        }`}
+                        className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]"
                       >
                         <div className="flex items-center gap-2">
                           <input
                             type="checkbox"
                             checked={on}
-                            onChange={() => count > 0 && toggleValue(f.id, v.slug)}
+                            onChange={() => toggleValue(f.id, v.slug)}
                             className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
                           />
                           <span>{v.name}</span>
@@ -620,21 +498,20 @@ export function CategoryBrowser({
 
   return (
     <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
-      {/* Desktop filter rail — the repo's sidebar card. STICKY while the page
-          expands; natural height, no scroll container. Subcategories +
-          price + the facet sections (rating / availability / mapped rows),
-          all visible by default — the FILTERS icon toggles them. */}
+      {/* Filter rail — the reference repo's sidebar card, verbatim structure:
+          stacks above the grid on mobile, sticky sidebar on desktop. All
+          sections visible. */}
       <aside
         id="collection-filters"
-        className="hidden w-[220px] shrink-0 self-start space-y-6 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 shadow-xs lg:sticky lg:top-8 lg:block"
+        className="w-full shrink-0 self-start space-y-6 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 shadow-xs lg:sticky lg:top-8 lg:w-[220px]"
         data-purpose="product-filters"
       >
         {rail}
       </aside>
 
       <div className="min-w-0">
-        {/* Toolbar — repo pattern: collection name + "Showing all N products"
-            + the FILTERS icon (real: surfaces the facets) + Sort by select */}
+        {/* Toolbar — reference pattern: collection name + "Showing all N
+            products" + Sort by select */}
         <div className="flex flex-col justify-between gap-4 border-b border-[#d8c2b7]/60 pb-4 sm:flex-row sm:items-center">
           <div>
             <h2 className="font-display text-xl font-bold text-[#1F1B18]">{node.name}</h2>
@@ -648,58 +525,6 @@ export function CategoryBrowser({
           </div>
 
           <div className="flex items-center gap-3 self-end sm:self-auto">
-            {/* The FILTERS icon (desktop): collapses/expands the facet
-                sections below price in the rail (they render open by
-                default now). */}
-            {hasAnyFacets && (
-              <button
-                type="button"
-                onClick={() => setFacetsOpen((o) => !o)}
-                aria-expanded={showFacets}
-                aria-controls="collection-filters"
-                className={`hidden min-h-[40px] cursor-pointer items-center gap-2 rounded-none border px-4 py-2 text-[9.5px] font-bold tracking-[0.14em] transition-colors lg:inline-flex ${
-                  facetsOpen
-                    ? "border-[#7d441d] bg-[#ebdcd4] text-[#7d441d]"
-                    : "border-[#d8c2b7] bg-[#FAF8F5] text-[#53443b] hover:border-[#7d441d] hover:text-[#7d441d]"
-                }`}
-              >
-                <Funnel size={12} weight="bold" />
-                FILTERS
-                {activeCount > 0 && (
-                  <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-[#7d441d] px-1 text-[8.5px] font-bold leading-none text-white">
-                    {activeCount}
-                  </span>
-                )}
-                <CaretDown
-                  size={10}
-                  weight="bold"
-                  className={`text-[#7d441d] transition-transform duration-200 ${showFacets ? "rotate-180" : ""}`}
-                />
-              </button>
-            )}
-
-            {/* Mobile: the FILTERS icon opens the full rail panel (and
-                surfaces the facets). */}
-            <button
-              type="button"
-              onClick={() => {
-                setFacetsOpen(true)
-                setMobileOpen((o) => !o)
-              }}
-              aria-expanded={mobileOpen}
-              aria-controls="collection-filters"
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-none border border-[#d8c2b7] bg-[#FAF8F5] px-4 py-2 text-[9.5px] font-bold tracking-[0.14em] text-[#53443b] transition-colors hover:border-[#7d441d] hover:text-[#7d441d] lg:hidden"
-            >
-              <Funnel size={12} weight="bold" />
-              FILTERS
-              {activeCount > 0 && (
-                <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-[#7d441d] px-1 text-[8.5px] font-bold leading-none text-white">
-                  {activeCount}
-                </span>
-              )}
-              <Plus size={10} weight="bold" className={`transition-transform duration-300 ${mobileOpen ? "rotate-45" : ""}`} />
-            </button>
-
             <label className="ml-auto flex items-center gap-2.5">
               <span className="hidden text-xs font-medium text-[#53443b] sm:inline">Sort by:</span>
               <select
@@ -717,13 +542,6 @@ export function CategoryBrowser({
             </label>
           </div>
         </div>
-
-        {/* Mobile collapsible filter panel (same rail content) */}
-        {mobileOpen && (
-          <div id="collection-filters-mobile" className="mt-4 animate-in fade-in slide-in-from-top-1 duration-150 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 lg:hidden">
-            {rail}
-          </div>
-        )}
 
         {/* Product grid — the same catalog card as the shop collection.
             Empty categories keep the rail (filters); the empty card lives in
