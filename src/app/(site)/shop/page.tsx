@@ -1,17 +1,12 @@
 import Link from "next/link"
-import { Award, Lightbulb, Heart, Store, Sparkle, ArrowDown, Scissors } from "lucide-react"
+import { Store, Sparkle, ArrowDown, Scissors } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
 import { TrustServiceBand } from "@/components/site/trust-band"
+import { ShopTrustBand } from "@/components/site/home-bands"
 import { ShopClient, type ShopProduct } from "@/components/site/islands/shop-client"
 import type { SidebarCategory } from "@/components/site/islands/shop-sidebar"
 import { getCategoryTree, type CategoryNode } from "@/lib/categories"
 import { getResource } from "@/lib/site-data"
-
-const BADGES = [
-  { Icon: Award, title: "Premium Quality", body: ["Only the best for", "your best friend."] },
-  { Icon: Lightbulb, title: "Expert Guidance", body: ["We help you choose", "what's right."] },
-  { Icon: Heart, title: "Loved by Pups", body: ["Tried, tested, and", "tail-wag approved."] },
-]
 
 // Data-driven surface: SERVER-RENDERED from Supabase (catalog, category
 // tree, review rollups) and revalidated on the same cadence as the category
@@ -117,16 +112,8 @@ export default async function ShopPage() {
         <ShopClient products={products} categoryTree={categoryTree} ratings={ratings} />
       </section>
 
-      {/* Trust badges */}
-      <section className="grid grid-cols-1 gap-6 bg-ink px-8 py-10 lg:grid-cols-3 lg:px-12">
-        {BADGES.map(({ Icon, title, body }, i) => (
-          <div key={title} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-            <Icon className="mx-auto h-6 w-6 text-gold" strokeWidth={1.2} />
-            <h3 className="mt-3 text-[11px] font-bold tracking-[0.1em] text-gold">{title}</h3>
-            <p className="mt-2 text-[11.5px] leading-[1.7] text-on-dark-muted">{body.map((l) => <span key={l} className="block">{l}</span>)}</p>
-          </div>
-        ))}
-      </section>
+      {/* Trust badges — shared ShopTrustBand (Loved by Pups) */}
+      <ShopTrustBand />
 
       {/* Cross-sell */}
       <section className="marble grid grid-cols-1 items-center gap-8 bg-cream-deep px-8 py-12 lg:grid-cols-[1fr_auto] lg:px-12">
