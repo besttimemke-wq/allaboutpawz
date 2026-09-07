@@ -19,12 +19,12 @@ import { parsePriceToCents } from "@/lib/wizard/cart-store"
 //                    pages: wrapper label + leaves; sub pages: the parent's
 //                    group with the current one active).
 //   PRICE RANGE     — the range SLIDER + "$ min to $ max" inputs.
-//   FACETS (on demand) — rating + the mapped filter sections (checkbox rows
-//                    w/ live counts, color → swatch squares, boolean → button
-//                    tiles). Hidden by default: the FILTERS icon in the
-//                    toolbar surfaces them below price when clicked — the
-//                    rail doubles as the filter sidebar only on request, so
-//                    it never scroll-loads an endless facet list.
+//   RATING / AVAILABILITY / FACETS — visible by default below price (the
+//                    /shop landing's filter card treatment: star rows, In
+//                    stock / Backordered, checkbox rows w/ live counts,
+//                    color → swatch squares, boolean → button tiles). The
+//                    toolbar FILTERS icon toggles them; selections keep them
+//                    surfaced.
 //
 //   Sort: Best selling / Price asc+desc / Customer Rating / Newest Arrivals.
 //   Grid: the same catalog card the /shop collection uses.
@@ -139,9 +139,13 @@ export function CategoryBrowser({
   const [selected, setSelected] = useState<Record<string, string[]>>({})
   const [sort, setSort] = useState<SortKey>("featured")
   const [mobileOpen, setMobileOpen] = useState(false)
-  // The FILTERS icon state: when true (or when facet selections exist) the
-  // rating + mapped facet sections surface below price in the rail.
-  const [facetsOpen, setFacetsOpen] = useState(false)
+  // The FILTERS icon state: facets render below price BY DEFAULT (the
+  // /shop landing treatment); the toolbar icon collapses/expands them, and
+  // any facet selection keeps them surfaced.
+  const [facetsOpen, setFacetsOpen] = useState(true)
+  // Availability buckets ("instock" / "backorder") — same rule as the
+  // /shop landing sidebar: stock == null → in stock; stock === 0 → backorder.
+  const [stockBuckets, setStockBuckets] = useState<string[]>([])
 
   const texts = useMemo(() => products.map((p) => ({ p, t: searchTextOf(p) })), [products])
 
@@ -183,19 +187,36 @@ export function CategoryBrowser({
     (minPrice.trim() ? 1 : 0) +
     (maxPrice.trim() ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
+    (stockBuckets.length > 0 ? 1 : 0) +
     Object.keys(selected).length
 
   // Facets stay surfaced while any facet selection is live (the user must
   // always be able to see and clear what they checked).
-  const hasFacetSelections = minRating > 0 || Object.keys(selected).length > 0
+  const hasFacetSelections =
+    minRating > 0 || stockBuckets.length > 0 || Object.keys(selected).length > 0
   const showFacets = facetsOpen || hasFacetSelections
+
+  // ---- availability counts (In stock / Backordered — live data) ----
+  const stockCounts = useMemo(
+    () => ({
+      inStock: products.filter((p) => (p.stock == null ? true : p.stock > 0)).length,
+      backordered: products.filter((p) => p.stock === 0).length,
+    }),
+    [products],
+  )
+
   // The desktop FILTERS toggle only renders when there is something to show.
-  const hasAnyFacets = mappedFilters.length > 0 || ratingRows.length > 0
+  const hasAnyFacets =
+    mappedFilters.length > 0 ||
+    ratingRows.length > 0 ||
+    stockCounts.inStock > 0 ||
+    stockCounts.backordered > 0
 
   const clearAll = () => {
     setMinPrice("")
     setMaxPrice("")
     setMinRating(0)
+    setStockBuckets([])
     setSelected({})
   }
 
@@ -229,6 +250,13 @@ export function CategoryBrowser({
         if (!r || r.count === 0 || r.avg < minRating) return false
       }
 
+      // Availability: OR across the checked buckets.
+      if (stockBuckets.length > 0) {
+        const inStock = p.stock == null ? true : p.stock > 0
+        const ok = stockBuckets.some((k) => (k === "instock" ? inStock : p.stock === 0))
+        if (!ok) return false
+      }
+
       // Mapped filters: AND across sections, OR within a section.
       const t = texts[idx].t
       for (const [fidStr, slugs] of Object.entries(selected)) {
@@ -252,7 +280,7 @@ export function CategoryBrowser({
       }
       return true
     })
-  }, [products, texts, ratings, minPrice, maxPrice, minRating, selected, mappedFilters])
+  }, [products, texts, ratings, minPrice, maxPrice, minRating, stockBuckets, selected, mappedFilters])
 
   // ---- sorting ----
   const sorted = useMemo(() => {
@@ -401,10 +429,9 @@ export function CategoryBrowser({
         </div>
       </div>
 
-      {/* RATING — star checkbox rows (department pages, per the repo's
-          category-page sidebar). Surfaced with the facet sections when the
-          FILTERS icon is clicked. */}
-      {showFacets && nav.expandedGroups && ratingRows.length > 0 && (
+      {/* RATING — star checkbox rows, visible by default below price (same
+          as the /shop landing filter card). */}
+      {showFacets && ratingRows.length > 0 && (
         <>
           <div className="h-px bg-[#d8c2b7]/40" />
           <div>
@@ -434,9 +461,61 @@ export function CategoryBrowser({
         </>
       )}
 
+      {/* AVAILABILITY — In stock / Backordered (same rule + markup as the
+          /shop landing sidebar: stock == null → in stock, stock === 0 →
+          backordered; only rows that match products render). */}
+      {showFacets && (stockCounts.inStock > 0 || stockCounts.backordered > 0) && (
+        <>
+          <div className="h-px bg-[#d8c2b7]/40" />
+          <div>
+            <h3 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[#53443b]">
+              Availability
+            </h3>
+            <div className="space-y-2 text-xs">
+              {stockCounts.inStock > 0 && (
+                <label className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={stockBuckets.includes("instock")}
+                      onChange={() =>
+                        setStockBuckets((b) =>
+                          b.includes("instock") ? b.filter((k) => k !== "instock") : [...b, "instock"],
+                        )
+                      }
+                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
+                    />
+                    <span>In stock</span>
+                  </div>
+                  <span className="text-[11px] text-[#85736a]">({stockCounts.inStock})</span>
+                </label>
+              )}
+              {stockCounts.backordered > 0 && (
+                <label className="flex cursor-pointer items-center justify-between text-xs text-[#53443b] hover:text-[#1F1B18]">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={stockBuckets.includes("backorder")}
+                      onChange={() =>
+                        setStockBuckets((b) =>
+                          b.includes("backorder") ? b.filter((k) => k !== "backorder") : [...b, "backorder"],
+                        )
+                      }
+                      className="cursor-pointer rounded-none border-[#d8c2b7] accent-[#7d441d] focus:ring-0"
+                    />
+                    <span>Backordered</span>
+                  </div>
+                  <span className="text-[11px] text-[#85736a]">({stockCounts.backordered})</span>
+                </label>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* MAPPED FILTER SECTIONS — checkbox rows w/ live counts · color →
-          swatch squares · boolean → button tiles. Hidden by default; the
-          FILTERS icon surfaces them below price (all open, no accordions). */}
+          swatch squares · boolean → button tiles. Visible by default below
+          price (all open, no accordions). */}
       {showFacets && mappedFilters.map((f) => {
         const selectedVals = selected[f.id] || []
         const isColor = f.slug === "color"
@@ -539,9 +618,9 @@ export function CategoryBrowser({
   return (
     <div className="mt-2 grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr]">
       {/* Desktop filter rail — the repo's sidebar card. STICKY while the page
-          expands; natural height, no scroll container. CLEAN by default
-          (subcategories + price); the facet sections surface below price
-          when the FILTERS icon is toggled. */}
+          expands; natural height, no scroll container. Subcategories +
+          price + the facet sections (rating / availability / mapped rows),
+          all visible by default — the FILTERS icon toggles them. */}
       <aside
         id="collection-filters"
         className="hidden w-[220px] shrink-0 self-start space-y-6 rounded-none border border-[#d8c2b7]/70 bg-[#FAF8F5] p-5 shadow-xs lg:sticky lg:top-8 lg:block"
@@ -566,9 +645,9 @@ export function CategoryBrowser({
           </div>
 
           <div className="flex items-center gap-3 self-end sm:self-auto">
-            {/* The REAL filter icon (desktop): surfaces the facet sections
-                below price in the rail on click — the rail doubles as the
-                filter sidebar only on request. */}
+            {/* The FILTERS icon (desktop): collapses/expands the facet
+                sections below price in the rail (they render open by
+                default now). */}
             {hasAnyFacets && (
               <button
                 type="button"
