@@ -820,3 +820,35 @@ Task: Stop building a marketing page. Rebuild as a real LMS with the navy sideba
 - No marketing hero, no "world's first" copy.
 - Catalog shows "Pathways" + 10 courses.
 - 0 console errors.
+
+---
+
+Task ID: 17
+Agent: main (Z.ai Code) — convert to the mockup's views
+Task: Stop patching. Rebuild the actual views the user needs: portal, pathway detail, module entry.
+
+## What I built
+
+### 1. Portal view (already done in T16)
+Navy sidebar + welcome dashboard + metrics + start learning cards.
+
+### 2. Pathway detail view (rebuilt)
+When a learner clicks a pathway from the catalog, they see:
+- **Pathway header**: code badge, title, subtitle, hours/CEU/levels stats, Syllabus download button
+- **Overview card**: description, who this is for, time commitment, credential badges (4 levels)
+- **Curriculum accordion**: all 4 levels expandable, each showing 5 modules with code/title/description/classes/quiz%/artifact
+- **Enroll card**: name input + "Enroll & start learning" button (blue #0284c7)
+
+Colors match the mockup: slate text on white cards, blue (#0284c7) accents, navy sidebar.
+
+### 3. Catalog view (updated)
+- Renamed to "Pathways"
+- "10 pathways · each 120 hours · 4 levels · 20 modules"
+- Slate/border colors matching the mockup
+
+## Verified
+- Home: sidebar + welcome + metrics + start learning cards
+- Catalog: "10 pathways", all courses visible
+- Pathway detail: "Life Skills & Personal Readiness" + Curriculum accordion + Enroll + Syllabus download
+- 0 console errors, all endpoints 200
+- Lint: 0 errors
