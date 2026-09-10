@@ -108,18 +108,17 @@ export function CatalogView() {
   const bookmarkedCourses = courses ? courses.filter((c) => bookmarks.has(c.code)) : [];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-7xl p-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Course catalog</h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Every pathway runs on the same uniform framework — pick one and you get the full credential ladder, live AI
-            tutoring, and a SCORM-packaged syllabus.
+          <h1 className="text-xl font-bold text-slate-900">Pathways</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {courses?.length ?? 0} pathways · each 120 hours · 4 levels · 20 modules
           </p>
         </div>
         <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search courses…" className="pl-9" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search pathways…" className="pl-9 border-slate-300" />
         </div>
       </div>
 

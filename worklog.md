@@ -777,3 +777,46 @@ The sandbox environment kills the dev server after ~30-60 seconds of inactivity.
 1. **Deploy to Vercel** — the idle-kill issue disappears in production.
 2. **Wire the course pages to the real catalog data** — the course-view shows syllabus + overview + enroll, which works, but the "Learn" tab needs to open the live classroom.
 3. **The 13-step intake pipeline** is built (API works) but the UI screens aren't wired to it yet — your mockup has the screens, the API is ready, they need to be connected.
+
+---
+
+Task ID: 16
+Agent: main (Z.ai Code) — match the GitHub mockup
+Task: Stop building a marketing page. Rebuild as a real LMS with the navy sidebar layout from the GitHub mockup.
+
+## What changed
+
+### Layout: marketing page → LMS shell
+- Replaced the top-header nav with a **fixed navy sidebar** (`#0b1928`) matching the mockup: brand at top, nav below, user footer at bottom.
+- Nav items: Home, Pathways, Learn, Builder — matching the mockup's structure.
+- Content area offset `ml-64` for the sidebar.
+- Inter font (not Geist).
+
+### Home: hero → learner dashboard
+- No more "The world's first AI-autonomous school" hero.
+- No more "Browse the catalog" CTA.
+- Now: "Welcome to Leashed.io" + metrics row (Pathways, Modules, Hours, Certificates) + "Start Learning" cards showing the first 3 pathways.
+- Clean white cards on `#f8fafc` background.
+
+### Theme: emerald/amber → navy/blue/slate
+- Replaced the entire `globals.css` color system from emerald primary + amber accent to **blue primary (#0284c7) + navy sidebar (#0b1928) + slate text**.
+- Removed the hero-grid, glow blobs, count-up animations, framer-motion — no marketing polish.
+
+### Footer: marketing → minimal
+- Stripped to a single line: "Leashed.io — Leashed Learning Framework v1.0 · Live AI by Z.ai · Free certificates"
+
+### Catalog: "Course catalog" → "Pathways"
+- Renamed to "Pathways" with a count + description.
+- Slate/border colors instead of the emerald brand.
+
+### Fixed
+- **ChunkLoadError**: cleared the corrupted `.next` cache. The error was Turbopack serving stale chunks after the schema changes.
+- The 502/json error: already fixed with try/catch in the API client.
+
+## Verified
+- Lint: 0 errors.
+- Sidebar renders (navy, 4 nav items).
+- Home shows "Welcome" + metrics + "Start Learning" cards.
+- No marketing hero, no "world's first" copy.
+- Catalog shows "Pathways" + 10 courses.
+- 0 console errors.
