@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  Eye,
   GraduationCap,
   LayoutDashboard,
   ListChecks,
@@ -219,20 +220,35 @@ export function DashboardView() {
                               {earned ? `${earned.ceus} CEU earned` : "Locked"}
                             </p>
                             {earned && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                asChild
-                                className="mt-1.5 h-6 gap-1 px-2 text-[10px] text-primary hover:text-primary"
-                              >
-                                <a
-                                  href={`/api/certificate?learnerName=${encodeURIComponent(en.learnerName)}&courseCode=${encodeURIComponent(en.course.code)}&level=${lvl}`}
-                                  target="_blank"
-                                  rel="noreferrer"
+                              <div className="mt-1.5 flex flex-wrap gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  asChild
+                                  className="h-6 gap-1 px-2 text-[10px] text-primary hover:text-primary"
                                 >
-                                  <Award className="h-3 w-3" /> View certificate
-                                </a>
-                              </Button>
+                                  <a
+                                    href={`/api/certificate?learnerName=${encodeURIComponent(en.learnerName)}&courseCode=${encodeURIComponent(en.course.code)}&level=${lvl}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    <Eye className="h-3 w-3" /> View
+                                  </a>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  asChild
+                                  className="h-6 gap-1 px-2 text-[10px] text-primary hover:text-primary"
+                                >
+                                  <a
+                                    href={`/api/certificate-pdf?learnerName=${encodeURIComponent(en.learnerName)}&courseCode=${encodeURIComponent(en.course.code)}&level=${lvl}`}
+                                    download
+                                  >
+                                    <Download className="h-3 w-3" /> PDF
+                                  </a>
+                                </Button>
+                              </div>
                             )}
                           </div>
                         );

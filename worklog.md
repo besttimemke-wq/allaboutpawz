@@ -201,3 +201,64 @@ Task: QA the app, then add the top-priority roadmap features: certificate genera
 - **Real auth**: identity is still name-only. NextAuth integration remains the biggest roadmap item.
 - **Knowledge-check items feed the quiz**: the learner module quiz pulls from per-class knowledge checks; now that those are editable, admins can author real quiz banks. A future round could add a "quiz preview" in the admin.
 - Recommend next cron round focus on: (a) SCORM zip packaging (manifest + per-module HTML), (b) server-rendered certificate PDF via Playwright, or (c) NextAuth real authentication.
+
+---
+
+Task ID: 5
+Agent: webDevReview (cron round 3)
+Task: QA the app, then add server-rendered certificate PDF, catalog search/filter/bookmarks, and course comparison.
+
+## Current project status (assessment)
+- App is stable after round 2: all views render, live LeashGuide AI tutor works, LSH seeded, certificate HTML + SCORM XML + knowledge-check editor all functional, 0 lint errors, dev server healthy.
+- Quick QA confirmed no regressions (home + certificate both render with 0 console errors).
+- This round tackled the remaining top roadmap items: server-rendered certificate PDF, plus new catalog features (filter, bookmarks, comparison).
+
+## New features added
+
+### 1. Server-rendered certificate PDF download
+- New `/api/certificate-pdf?learnerName=...&courseCode=...&level=100` route (GET): generates the certificate HTML, writes it to a temp file, renders it to a vector PDF via the PDF skill's `html2poster.js` (Playwright), and streams the PDF back as a download (`Content-Type: application/pdf`, `Content-Disposition: attachment`).
+- Same entitlement check as the HTML certificate (enrolled + all level modules passed + all classes complete → 200; otherwise 403).
+- Verified: `curl /api/certificate-pdf?learnerName=QA%20Tester&courseCode=LSH&level=100` → HTTP 200, 143KB, valid PDF document (1 page). Before completion it correctly returns 403.
+- **Dashboard integration**: each earned credential now has TWO buttons — "View" (opens the HTML certificate in a new tab) and "PDF" (downloads the server-rendered PDF).
+
+### 2. Catalog search & filter enhancements
+- **Accreditation filter chips**: 5 toggle chips (COE/ACCSC/IACET/ICG/SCORM) above the course grid — clicking filters to courses with that accreditation body. Multiple can be active (AND logic). Active chips show a check icon and use the primary color.
+- **Result count**: shows "N courses" live as filters/search change.
+- **Clear filters**: one-click clear button appears when any filter or search is active.
+- **Empty state**: dedicated card with "No courses match your filters" + a Clear filters button.
+- Verified: accreditation chips render, course count updates, clear button works.
+
+### 3. Course bookmarks / wishlist
+- Each catalog card now has a bookmark toggle button (top-right overlay). Bookmarks persist to `localStorage` (`leashed-bookmarks`).
+- A "Bookmarked" section appears at the top of the catalog when the learner has saved courses, showing compact chips with code/title/hours/CEU + a remove button.
+- Verified: clicked bookmark on LSH → bookmarked section appeared with LSH chip; persists across reloads.
+
+### 4. Course comparison (side-by-side)
+- Each catalog card has a "compare" toggle button (top-right overlay, next to bookmark). Up to 3 courses can be added to comparison.
+- A **sticky comparison bar** appears at the bottom of the screen when courses are selected, showing the selected course codes as badges (removable) + a "Compare (N)" button that opens a side sheet.
+- The **comparison sheet** renders a full side-by-side table: Code, Title, Hours, CEUs, Levels, Modules, Accreditation, Who it's for, First credential, Time commitment, Prerequisites, AI-built — each course as a column. Clicking a course title in the table opens its detail page.
+- Verified: added LSH to comparison → sticky bar appeared → opened sheet → full table rendered with all attributes.
+
+### 5. Styling polish
+- Catalog cards now show accreditation badges inline + have overlay action buttons (bookmark + compare) with backdrop blur.
+- Comparison bar uses a floating card with shadow + backdrop blur for a modern feel.
+- Filter chips use the primary color when active with check icons.
+- Bookmarked section uses a subtle primary-tinted background.
+- All new UI uses the existing emerald/amber brand tokens for consistency.
+
+## Verification (agent-browser end-to-end)
+- Certificate PDF: `curl` → HTTP 200, 143KB, valid PDF (1 page). Entitlement check returns 403 when not earned.
+- Dashboard: earned credential shows both "View" and "PDF" buttons; "CEU earned" + "Pathways enrolled" present.
+- Catalog: accreditation filter chips render, "1 course" count, bookmark + compare overlay buttons present.
+- Bookmarks: clicked bookmark → bookmarked section appears with LSH chip.
+- Comparison: added to comparison → sticky bar appears → opened sheet → full comparison table with Hours, Accreditation, etc.
+- Console: 0 errors / 0 warnings across all flows.
+- Lint: 0 errors (758 warnings, all from uploaded perplexity HTML assets).
+
+## Unresolved issues / risks + next-phase priorities
+- **Comparison needs 2+ courses to be meaningful**: with only LSH published, comparison is a single-column demo. Once more courses are AI-generated/published, comparison becomes genuinely useful.
+- **SCORM is still XML-only**: the manifest downloads but referenced `modules/*.html` SCO files aren't packaged into a zip. A future round could generate per-module HTML stubs + zip everything.
+- **Real auth**: identity is still name-only. NextAuth integration remains the biggest roadmap item.
+- **Bookmarks are local-only**: bookmarks persist to localStorage per-browser; a future round could persist them server-side per learner account (requires auth).
+- **Quiz preview in admin**: now that knowledge-check items are editable, a "quiz preview" in the admin would let authors test their quiz banks.
+- Recommend next cron round focus on: (a) SCORM zip packaging (manifest + per-module HTML), (b) NextAuth real authentication, or (c) quiz preview in admin + more seed courses to make comparison meaningful.
