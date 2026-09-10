@@ -153,7 +153,32 @@ export const api = {
     json<{ roster: RosterRow[]; summary: RosterSummary }>(
       `${base}/admin/roster${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ""}`,
     ),
+
+  getReviews: (courseId: string) =>
+    json<{ reviews: ReviewRow[]; summary: ReviewSummary }>(`${base}/reviews?courseId=${encodeURIComponent(courseId)}`),
+
+  postReview: (body: { courseId: string; learnerName: string; rating: number; title: string; body: string }) =>
+    json<{ review: ReviewRow }>(`${base}/reviews`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
 };
+
+export interface ReviewRow {
+  id: string;
+  learnerName: string;
+  rating: number;
+  title: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ReviewSummary {
+  count: number;
+  average: number;
+  distribution: Record<number, number>;
+}
 
 export interface RosterRow {
   id: string;

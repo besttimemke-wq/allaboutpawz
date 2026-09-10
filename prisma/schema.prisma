@@ -32,6 +32,7 @@ model Course {
   enrollments  Enrollment[]
   chatSessions ChatSession[]
   quizAttempts QuizAttempt[]
+  reviews      Review[]
 }
 
 model Enrollment {
@@ -80,6 +81,19 @@ model QuizAttempt {
   passed     Boolean
   answers    String // JSON: [{ question, selected, correct }]
   createdAt  DateTime @default(now())
+
+  @@index([courseId])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  learnerName String
+  rating      Int // 1-5 stars
+  title       String
+  body        String
+  createdAt   DateTime @default(now())
 
   @@index([courseId])
 }

@@ -127,6 +127,7 @@ export function CourseView() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
           <TabsTrigger value="enroll">Enroll</TabsTrigger>
+          <TabsTrigger value="reviews">Reviews</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -287,7 +288,15 @@ export function CourseView() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Reviews */}
+        <TabsContent value="reviews" className="pt-5">
+          <ReviewsSection courseId={course.id} courseCode={course.code} />
+        </TabsContent>
       </Tabs>
+
+      {/* Related courses */}
+      <RelatedCourses currentCode={course.code} />
     </div>
   );
 }
