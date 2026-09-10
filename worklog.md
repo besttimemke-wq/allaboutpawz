@@ -146,3 +146,58 @@ Task: QA the existing app with agent-browser, fix bugs, and add new features + s
 - **Real auth**: identity is still name-only. NextAuth integration remains a roadmap item.
 - **Roster per-learner drill-down**: clicking a roster row could deep-link to that learner's dashboard.
 - Recommend next cron round focus on: (a) certificate PDF generation on level completion, (b) SCORM package export, or (c) knowledge-check item editor in the lesson editor.
+
+---
+
+Task ID: 4
+Agent: webDevReview (cron round 2)
+Task: QA the app, then add the top-priority roadmap features: certificate generation, SCORM export, knowledge-check editor, and roster deep-link + styling polish.
+
+## Current project status (assessment)
+- App is stable after round 1: home/catalog/course/learner/admin/dashboard all render, live LeashGuide AI tutor works, LSH seeded, 0 lint errors, dev server healthy.
+- Quick QA confirmed no regressions (home, dashboard, admin roster all render with 0 console errors).
+- This round tackled 3 of the top 4 roadmap items from the round-1 worklog: certificate PDF, SCORM export, and knowledge-check editor.
+
+## New features added
+
+### 1. Certificate generation (PDF-ready HTML)
+- New `/api/certificate?learnerName=...&courseCode=...&level=100` route (GET): returns a fully-styled, print-ready certificate as standalone HTML (297×210mm landscape, Cormorant Garamond + Inter fonts, emerald/amber brand palette, decorative double border + amber corners, gradient seal, signatures, credential ID strip, accreditation banner).
+- **Entitlement check**: the route verifies the learner is enrolled AND has passed all the level's module quizzes AND completed all lesson blocks before issuing — returns 403 otherwise.
+- The certificate opens in a new tab (print-to-PDF via browser), so the user gets a vector PDF with selectable text.
+- **Dashboard integration**: each earned credential card in the learner dashboard now has a "View certificate" link that opens the certificate.
+- Verified: simulated Level 100 completion for "QA Tester" (5 modules × 9 classes + quiz passed) → certificate returns 200 with correct content ("Life Skills Foundation Badge", "QA Tester", "30 contact hours", "IACET CEUs"); before completion it correctly returns 403.
+
+### 2. SCORM package export
+- New `/api/scorm?courseCode=...` route (GET): returns a valid SCORM 1.2 `imsmanifest.xml` for the course with the full hierarchy: organization → 4 levels → 20 modules → 180 class items, each module as a `scormtype="sco"` resource and each class as a `scormtype="asset"` resource, plus a syllabus asset. Proper `xmlns` namespaces (imscp_rootv1p1p2 + adlcp_rootv1p2) and `Content-Disposition: attachment` so it downloads.
+- **Dashboard integration**: each enrollment card now has a "SCORM package export" row with a download button.
+- Verified: `curl /api/scorm?courseCode=LSH` → 200 with valid XML manifest.
+
+### 3. Knowledge-check editor in the LessonEditor
+- New `KnowledgeCheckEditor` component in admin-view: each class's `knowledgeCheck` items are now fully editable — add/remove items, change question type (multiple-choice / true-false / scenario / short-answer) via a Select, edit question text, edit/add/remove options (click the radio dot to mark the correct answer), and edit the rationale.
+- Empty state handled ("No knowledge check items. Click Add item to create one.").
+- Verified: expanded LSH-101 → M1C1 → saw Q1/Q2/Q3, the "Multiple choice" type selector, "Add item" button, and "Rationale" fields.
+
+### 4. Roster → Dashboard deep-link
+- Each roster row now has a "Dashboard" action button that sets the learner name + switches to the dashboard view, showing that learner's progress + credentials. Completes the "click a roster row → deep-link to that learner's dashboard" roadmap item.
+- Verified: clicked the first roster row's Dashboard action → landed on the Learner dashboard with QA Tester's data loaded.
+
+### 5. Styling polish
+- Credential ladder cards in the dashboard now show a "View certificate" button on earned credentials with hover shadow.
+- Added a dedicated "SCORM package export" row in each enrollment card with an icon + description + download button.
+- Roster table gained an "Actions" column with a ghost "Dashboard" button per row.
+- All new UI uses the existing emerald/amber brand tokens for consistency.
+
+## Verification (agent-browser end-to-end)
+- Certificate: opened `/api/certificate?learnerName=QA%20Tester&courseCode=LSH&level=100` → renders full certificate (title "Life Skills Foundation Badge — QA Tester", body with "QA Tester", "30 contact hours", "IACET CEUs", signatures, credential ID). Screenshot confirmed.
+- Dashboard with earned credential: summary stats present, "View certificate" link present, "SCORM package export" present, credential ladder shows "Foundation" with "CEU earned".
+- Roster deep-link: clicked roster row "Dashboard" action → navigated to Learner dashboard with QA Tester's data.
+- Knowledge-check editor: expanded LSH-101 module card → M1C1 lesson → saw "Knowledge check" section with Q1/Q2/Q3, type selectors, "Add item" button, and "Rationale" inputs.
+- Console: 0 errors / 0 warnings across all flows.
+- Lint: 0 errors (758 warnings, all from uploaded perplexity HTML assets).
+
+## Unresolved issues / risks + next-phase priorities
+- **SCORM is XML-only**: the manifest downloads but the referenced `modules/*.html` SCO files are not yet generated/packaged into a zip. A future round could generate the per-module HTML stubs and zip everything for a turnkey LMS import.
+- **Certificate is print-to-PDF, not server-rendered**: works reliably but a future round could use the PDF skill's Playwright pipeline to server-render a downloadable PDF directly.
+- **Real auth**: identity is still name-only. NextAuth integration remains the biggest roadmap item.
+- **Knowledge-check items feed the quiz**: the learner module quiz pulls from per-class knowledge checks; now that those are editable, admins can author real quiz banks. A future round could add a "quiz preview" in the admin.
+- Recommend next cron round focus on: (a) SCORM zip packaging (manifest + per-module HTML), (b) server-rendered certificate PDF via Playwright, or (c) NextAuth real authentication.

@@ -14,6 +14,7 @@ import {
   BookOpen,
   CheckCircle2,
   Clock,
+  Download,
   GraduationCap,
   LayoutDashboard,
   ListChecks,
@@ -200,9 +201,9 @@ export function DashboardView() {
                         return (
                           <div
                             key={lvl}
-                            className={`rounded-lg border p-2.5 transition ${
+                            className={`group rounded-lg border p-2.5 transition ${
                               earned
-                                ? "border-primary/40 bg-primary/5"
+                                ? "border-primary/40 bg-primary/5 hover:shadow-sm"
                                 : "border-border/60 bg-muted/20 opacity-70"
                             }`}
                           >
@@ -217,9 +218,41 @@ export function DashboardView() {
                             <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
                               {earned ? `${earned.ceus} CEU earned` : "Locked"}
                             </p>
+                            {earned && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                asChild
+                                className="mt-1.5 h-6 gap-1 px-2 text-[10px] text-primary hover:text-primary"
+                              >
+                                <a
+                                  href={`/api/certificate?learnerName=${encodeURIComponent(en.learnerName)}&courseCode=${encodeURIComponent(en.course.code)}&level=${lvl}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <Award className="h-3 w-3" /> View certificate
+                                </a>
+                              </Button>
+                            )}
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* SCORM export */}
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 p-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <BookOpen className="h-3.5 w-3.5 text-primary" />
+                        <div>
+                          <p className="text-[11px] font-medium">SCORM package export</p>
+                          <p className="text-[10px] text-muted-foreground">Download the imsmanifest.xml for your LMS</p>
+                        </div>
+                      </div>
+                      <Button size="sm" variant="outline" asChild className="h-7 gap-1 text-[11px]">
+                        <a href={`/api/scorm?courseCode=${encodeURIComponent(en.course.code)}`} download={`imsmanifest-${en.course.code}.xml`}>
+                          <Download className="h-3 w-3" /> Export
+                        </a>
+                      </Button>
                     </div>
                   </div>
 

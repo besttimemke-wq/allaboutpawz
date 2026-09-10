@@ -52,6 +52,8 @@ export function AdminView() {
   const [tab, setTab] = useState("courses");
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const { toast } = useToast();
+  const setLearnerName = useAppStore((s) => s.setLearnerName);
+  const setView = useAppStore((s) => s.setView);
 
   const refresh = useCallback(async () => {
     const cs = await api.listCourses(true);
@@ -256,7 +258,7 @@ export function AdminView() {
         )}
 
         <TabsContent value="roster" className="pt-5">
-          <RosterPanel courses={courses} />
+          <RosterPanel courses={courses} setLearnerName={setLearnerName} setView={setView} />
         </TabsContent>
       </Tabs>
     </div>
@@ -601,7 +603,15 @@ function ChevronRotate({ open }: { open: boolean }) {
 // Roster panel — learner analytics across courses
 // ---------------------------------------------------------------------------
 
-function RosterPanel({ courses }: { courses: CourseRow[] | null }) {
+function RosterPanel({
+  courses,
+  setLearnerName,
+  setView,
+}: {
+  courses: CourseRow[] | null;
+  setLearnerName: (n: string) => void;
+  setView: (v: "home" | "catalog" | "course" | "learner" | "admin" | "dashboard") => void;
+}) {
   const [filterCourse, setFilterCourse] = useState<string>("__all__");
   const [data, setData] = useState<{ roster: RosterRow[]; summary: RosterSummary } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -684,6 +694,7 @@ function RosterPanel({ courses }: { courses: CourseRow[] | null }) {
                   <th className="hidden px-4 py-3 font-medium md:table-cell">Lessons</th>
                   <th className="hidden px-4 py-3 font-medium md:table-cell">Quizzes</th>
                   <th className="hidden px-4 py-3 font-medium lg:table-cell">Enrolled</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -717,6 +728,19 @@ function RosterPanel({ courses }: { courses: CourseRow[] | null }) {
                     </td>
                     <td className="hidden px-4 py-3 lg:table-cell text-xs text-muted-foreground">
                       {new Date(r.enrolledAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 gap-1 text-[11px]"
+                        onClick={() => {
+                          setLearnerName(r.learnerName);
+                          setView("dashboard");
+                        }}
+                      >
+                        <Eye className="h-3 w-3" /> Dashboard
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -1010,8 +1034,185 @@ function LessonEditor({ cls, li, mi, si, ci, update }: LessonEditorProps) {
               className="mt-0.5 text-xs"
             />
           </div>
+
+          {/* Knowledge check items */}
+          <KnowledgeCheckEditor cls={cls} li={li} mi={mi} si={si} ci={ci} update={update} />
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge check editor — repeatable items per class
+// ---------------------------------------------------------------------------
+
+const QTYPES: { value: "multiple-choice" | "true-false" | "short-answer" | "scenario"; label: string }[] = [
+  { value: "multiple-choice", label: "Multiple choice" },
+  { value: "true-false", label: "True / False" },
+  { value: "scenario", label: "Scenario" },
+  { value: "short-answer", label: "Short answer" },
+];
+
+function KnowledgeCheckEditor({
+  cls,
+  li,
+  mi,
+  si,
+  ci,
+  update,
+}: {
+  cls: Pathway["levels"][number]["modules"][number]["subModules"][number]["classes"][number];
+  li: number;
+  mi: number;
+  si: number;
+  ci: number;
+  update: (mut: (draft: Pathway) => void) => void;
+}) {
+  const items = cls.knowledgeCheck;
+  const path = (d: Pathway) => d.levels[li].modules[mi].subModules[si].classes[ci].knowledgeCheck;
+
+  const updateItem = (idx: number, patch: Partial<Pathway["levels"][number]["modules"][number]["subModules"][number]["classes"][number]["knowledgeCheck"][number]>) =>
+    update((d) => {
+      const arr = path(d);
+      arr[idx] = { ...arr[idx], ...patch };
+    });
+
+  const updateOption = (idx: number, optIdx: number, value: string) =>
+    update((d) => {
+      const arr = path(d);
+      const opts = [...(arr[idx].options ?? [])];
+      opts[optIdx] = value;
+      arr[idx].options = opts;
+    });
+
+  const addOption = (idx: number) =>
+    update((d) => {
+      const arr = path(d);
+      arr[idx].options = [...(arr[idx].options ?? []), `New option ${(arr[idx].options?.length ?? 0) + 1}`];
+    });
+
+  const removeOption = (idx: number, optIdx: number) =>
+    update((d) => {
+      const arr = path(d);
+      const opts = [...(arr[idx].options ?? [])];
+      opts.splice(optIdx, 1);
+      arr[idx].options = opts;
+    });
+
+  const addItem = () =>
+    update((d) => {
+      const arr = path(d);
+      arr.push({ type: "multiple-choice", question: "New question?", options: ["Option A", "Option B", "Option C", "Option D"], answer: "Option A", rationale: "Explain why." });
+    });
+
+  const removeItem = (idx: number) =>
+    update((d) => {
+      const arr = path(d);
+      arr.splice(idx, 1);
+    });
+
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/20 p-2">
+      <div className="flex items-center justify-between px-1 pb-1.5">
+        <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <ListChecks className="h-3 w-3 text-primary" /> Knowledge check ({items.length})
+        </p>
+        <Button type="button" variant="ghost" size="sm" className="h-5 gap-1 text-[10px]" onClick={addItem}>
+          <Plus className="h-3 w-3" /> Add item
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {items.map((item, idx) => (
+          <div key={idx} className="rounded border border-border/40 bg-background/70 p-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-bold text-muted-foreground">Q{idx + 1}</span>
+              <Select
+                value={item.type}
+                onValueChange={(v) => updateItem(idx, { type: v as typeof item.type })}
+              >
+                <SelectTrigger className="h-6 w-32 text-[10px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {QTYPES.map((q) => (
+                    <SelectItem key={q.value} value={q.value} className="text-xs">{q.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                value={item.question}
+                onChange={(e) => updateItem(idx, { question: e.target.value })}
+                className="h-6 flex-1 text-[11px]"
+                placeholder="Question"
+              />
+              <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(idx)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+
+            {/* Options (for MC / scenario / true-false) */}
+            {item.type !== "short-answer" && (
+              <div className="mt-1.5 space-y-1 pl-5">
+                {(item.options ?? []).map((opt, oi) => (
+                  <div key={oi} className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => updateItem(idx, { answer: opt })}
+                      className={cn(
+                        "grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border",
+                        item.answer === opt ? "border-primary bg-primary text-primary-foreground" : "border-border",
+                      )}
+                      title="Mark as correct answer"
+                    >
+                      {item.answer === opt && <CheckCircle2 className="h-2.5 w-2.5" />}
+                    </button>
+                    <Input
+                      value={opt}
+                      onChange={(e) => updateOption(idx, oi, e.target.value)}
+                      className="h-6 flex-1 text-[10px]"
+                      placeholder={`Option ${oi + 1}`}
+                    />
+                    {(item.options?.length ?? 0) > 2 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => removeOption(idx, oi)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button type="button" variant="ghost" size="sm" className="h-5 gap-1 text-[10px] text-muted-foreground" onClick={() => addOption(idx)}>
+                  <Plus className="h-2.5 w-2.5" /> Add option
+                </Button>
+                <p className="text-[9px] text-muted-foreground">
+                  Correct answer: <span className="font-medium text-primary">{item.answer || "(set one)"}</span>
+                </p>
+              </div>
+            )}
+            {item.type === "short-answer" && (
+              <div className="mt-1.5 pl-5">
+                <Label className="text-[9px] text-muted-foreground">Correct answer</Label>
+                <Input
+                  value={item.answer}
+                  onChange={(e) => updateItem(idx, { answer: e.target.value })}
+                  className="h-6 text-[10px]"
+                />
+              </div>
+            )}
+
+            <div className="mt-1 pl-5">
+              <Label className="text-[9px] text-muted-foreground">Rationale</Label>
+              <Input
+                value={item.rationale}
+                onChange={(e) => updateItem(idx, { rationale: e.target.value })}
+                className="h-6 text-[10px]"
+              />
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && (
+          <p className="py-2 text-center text-[10px] text-muted-foreground">No knowledge check items. Click &ldquo;Add item&rdquo; to create one.</p>
+        )}
+      </div>
     </div>
   );
 }
