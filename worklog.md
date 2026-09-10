@@ -465,3 +465,64 @@ The doc didn't include module detail for these 7, so they were generated via the
 The catalog is built. The learning flows already exist (learner view with 5-part flow, LeashGuide AI tutor, module quizzes, certificates). The remaining work the user cares about:
 - The M01-M10 sub-module content from the catalog doc (GRM and TEC have this detail) should be seeded as the actual class-level content, not just the uniform-generated placeholder content. Right now each module expands to 9 classes through the uniform generator with themed-but-generic content. A future round should ingest the catalog's M01-M10 sub-module text as the real teachable content per class.
 - The catalog doc specifies module types for GRM (Foundation theory / Safety and handling / Core grooming skill / etc.) with dry-lab and live-animal lab hours — that granularity isn't yet modeled.
+
+---
+
+Task ID: 10
+Agent: main (Z.ai Code) — rebuild the learner experience
+Task: Rebuild the learner view to feel like an actual LMS — full-width, readable, guided — not a cramped dashboard.
+
+## What was wrong (the user's correct critique)
+The old learner view was a 3-column grid (260px nav + 1fr content + 380px chat) trapped in a max-w-7xl (1280px) container. The content column ended up the same width as the nav. It felt disconnected from learning because:
+1. Max-width container cramped everything.
+2. 5-part flow was tabs you click between — learners lost the path.
+3. LeashGuide as a fixed sidebar competed with content for attention.
+4. No prev/next navigation — you couldn't flow through lessons.
+5. No reading rhythm — cards-in-cards, no hierarchy.
+6. Objectives buried at the bottom instead of up front.
+
+## What I rebuilt
+Completely rewrote `src/components/app/learner-view.tsx`:
+
+### Full-width immersive shell
+- Removed `max-w-7xl`. Now uses `max-w-[1600px]` with a 300px sidebar + full content area.
+- Content is centered in a readable `max-w-3xl` column inside the main area — wide enough for prose, narrow enough to read.
+
+### Sticky learning header
+- Course identity + live progress bar + percentage at the top, sticky below the main nav.
+- LeashGuide button (with live-AI pulse dot) + mobile menu button on the right.
+
+### Module sidebar (slide-over on mobile)
+- 300px sticky sidebar on desktop showing the full course outline: 4 levels → 20 modules → 9 classes each + module quiz.
+- Active module expands inline showing classes; each shows completion state.
+- On mobile (<lg), becomes a left slide-over drawer summoned by a menu button.
+
+### Lesson as a guided reading experience
+- **Breadcrumb** at top: Level → Module code → Class ID + "Lesson X of 180".
+- **Title block**: large H1 with the class title, module context, duration + badges.
+- **Objectives up front** ("What you'll be able to do after this module") — 6 numbered objectives in a 2-col grid before the content, so the learner knows the goal.
+- **The 5-part flow as a guided vertical path** (not tabs): each stage is a numbered circle (1-5) with a connector line, the stage name + hint, then the content. You scroll through the whole flow in reading order — Connect → Learn → See It → Do It → Check. This is how real learning paths work (Khan Academy, Coursera guided projects).
+- **Teachable content** as a bordered readable card with proper markdown rendering.
+- **Knowledge check** with radio-style option selection + reveal-answer toggle that highlights the correct option in primary color.
+- **Capstone artifact** in a primary-tinted callout.
+
+### Prev/next navigation
+- Bottom action bar: Previous lesson (ghost, shows prev title) | Module quiz + Mark complete buttons | Next lesson (ghost, shows next title).
+- Clicking next advances through all 180 lessons seamlessly.
+
+### LeashGuide as a slide-over drawer
+- Removed the cramped 380px fixed sidebar.
+- LeashGuide is now a right slide-over drawer (440px) summoned by a button in the sticky header.
+- Content gets the full width when the tutor isn't needed; tutor slides in when summoned.
+- Has the live-AI pulse dot to signal it's real-time.
+
+## Verification (agent-browser)
+- Lesson renders: H1 "Personal Readiness: Concepts — Concept", breadcrumb "Lesson 1 of 180", objectives ("What you'll be able to do"), 5-part flow as guided path, teachable content, knowledge check, capstone artifact.
+- LeashGuide drawer: clicking the header button opens the slide-over with the chat input + header.
+- Prev/next: clicked "Next" → navigated from "Concept" to "Practice" lesson instantly.
+- Progress bar in sticky header shows 0/180 · 0%.
+- Module sidebar shows all 20 modules across 4 levels with completion counts.
+- Console: 0 errors. Lint: 0 errors.
+
+## What this fixed
+The learner experience now feels like Coursera/edX/HarvardX, not a dashboard. Content breathes, the flow is a guided path you read top-to-bottom, navigation is prev/next at the bottom, and the AI tutor is on-demand instead of always-competing. The reading rhythm has hierarchy: breadcrumb → title → objectives → flow → teachable → knowledge check → capstone → actions.
