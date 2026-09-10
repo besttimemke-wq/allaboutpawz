@@ -565,3 +565,49 @@ Task: Build the pipeline that generates real domain-specific lesson content (200
 - REAL: catalog (10 pathways, 200 modules), learner shell, LeashGuide live AI, quizzes, certificates, progress tracking, syllabus export, SCORM, reviews, comparison, bookmarks, dashboard, admin builder.
 - REAL + IN PROGRESS: lesson content. 23/1800 classes have full 1500-2000 word domain-specific lessons. The rest are being generated in the background.
 - PENDING: the generation run completing for all 1800 classes (will happen automatically — it's resumable).
+
+---
+
+Task ID: 12
+Agent: main (Z.ai Code) — the loophole: AI IS the teacher
+Task: Stop generating static content. Rebuild the learner experience around LeashGuide as a live instructor who presents, challenges, waits, evaluates, and advances — like a real classroom.
+
+## The pivot (what the user correctly pushed for)
+I was generating static markdown into a database. That's backwards. The whole point of "the world's first AI-autonomous school" is that the AI IS the teacher — present in the classroom, running the lesson live, not pre-baked content the learner reads alone. The loophole isn't "fill the DB with content," it's "let the AI teach autonomously."
+
+## What I built
+
+### Live-teaching API (`/api/ai/teach`)
+- LeashGuide receives the class context (module objectives, the 5-part flow structure, reference material) as a LESSON PLAN — not a script to recite.
+- The AI teaches ONE stage at a time: presents the material, poses a specific challenge, then STOPS and waits for the learner.
+- When the learner responds, the AI evaluates it (confirms what's right, corrects what's wrong), then advances to the next stage or re-explains if they're stuck.
+- The conversation IS the lesson. No static markdown dump.
+- System prompt enforces: max 150 words per turn, always end with a challenge or "class complete," track which stage you're on from history.
+- Returns `{ reply, stage, classComplete }` so the UI knows when the lesson is done.
+
+### Live Classroom UI (`learner-view.tsx` rebuilt)
+- The main area is now a conversation — LeashGuide's messages on the left (primary avatar), learner's on the right.
+- Lesson auto-starts: when a class opens, it sends "(begin lesson)" and LeashGuide starts teaching the Connect stage.
+- Bottom bar is a response input (like a chat) — the learner types their answer to LeashGuide's challenge.
+- When LeashGuide signals "class complete," the input is replaced with "Class complete" + Complete & continue / Module quiz buttons.
+- Prev/next navigation at the very bottom.
+- Module sidebar stays (for jumping around) but the lesson itself is the conversation.
+
+### What I killed
+- The static teachable-content markdown dump is gone from the learner view. The AI teaches it live.
+- The background content-generation runner is killed. We don't need to pre-generate 1800 classes — the AI teaches each one live from the lesson plan (objectives + flow structure + any existing reference content).
+- The 3-column cramped layout is gone. It's now a focused classroom: sidebar + conversation.
+
+## Verification
+- `POST /api/ai/teach` with "(begin lesson)" → LeashGuide opens the Connect stage: "Test, think about a time when life threw you a curveball... What's one recent situation where you wished you'd been more prepared?"
+- Learner responds with a specific situation (car broke down, no savings) → LeashGuide evaluates it ("That's a perfect example"), connects it to the lesson (resource management pillar), and advances to the Learn stage with a new challenge.
+- Browser: live classroom renders with the conversation, AI opening message appears, learner can type and submit, AI responds and advances. 0 console errors.
+- The lesson genuinely adapts to what the learner says — not a script, a real classroom.
+
+## What this means
+This IS the loophole. The school doesn't need 1800 pre-written lessons. It needs ONE good AI teacher + a lesson plan per class (which the framework already provides: objectives, 5-part flow, capstone). The AI teaches each class live, differently every time, adapted to the specific learner. That's autonomous teaching. That's the thing Harvard can't do.
+
+## Status
+- Live classroom: working end-to-end.
+- Static content generation: killed (no longer needed for the core experience).
+- The 31 LSH classes that already have rich generated content still serve as reference material the AI teacher draws from — so the generation work wasn't wasted, it just has a different purpose now (enriching the AI's lesson plan, not replacing it).

@@ -1,46 +1,35 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type CourseRow, parseProgress } from "@/lib/api-client";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
   CheckCircle2,
   Circle,
   Clock,
   Award,
-  BookOpen,
-  Brain,
-  HelpCircle,
-  Check,
-  ListChecks,
   Sparkles,
-  MessageSquare,
+  Send,
   ArrowLeft,
   Menu,
+  ListChecks,
+  Loader2,
 } from "lucide-react";
-import type { ClassBlock, Module } from "@/lib/framework/types";
+import type { Module, ClassBlock } from "@/lib/framework/types";
 import { cn } from "@/lib/utils";
-import { Markdown } from "./markdown";
-import { LeashGuideChat } from "./leashguide-chat";
 import { ModuleQuiz } from "./module-quiz";
 
 type Progress2 = Record<string, { completedClasses: string[]; quizScore?: number; quizPassed?: boolean }>;
 
-const FLOW_STAGES = [
-  { key: "connect" as const, label: "Connect", num: 1, hint: "Hook · shared context" },
-  { key: "learn" as const, label: "Learn", num: 2, hint: "Core teaching" },
-  { key: "seeIt" as const, label: "See It", num: 3, hint: "Worked example" },
-  { key: "doIt" as const, label: "Do It", num: 4, hint: "Applied practice" },
-  { key: "check" as const, label: "Check", num: 5, hint: "Knowledge check" },
-];
+interface TeachMsg {
+  role: "user" | "assistant";
+  content: string;
+}
 
 export function LearnerView() {
   const target = useAppStore((s) => s.learnerTarget);
@@ -55,7 +44,6 @@ export function LearnerView() {
   const [selClass, setSelClass] = useState<string | null>(target?.classId ?? null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (!target?.courseCode) {
@@ -88,23 +76,20 @@ export function LearnerView() {
     };
   }, [target?.courseCode, learnerName, setView]);
 
-  const allClasses = useMemo(() => {
-    if (!course) return [] as { module: Module; cls: ClassBlock; modIndex: number; clsIndex: number }[];
-    const out: { module: Module; cls: ClassBlock; modIndex: number; clsIndex: number }[] = [];
-    course.pathway.levels.forEach((lvl, li) => {
-      lvl.modules.forEach((m, mi) => {
+  const allClasses: { module: Module; cls: ClassBlock }[] = [];
+  if (course) {
+    course.pathway.levels.forEach((lvl) => {
+      lvl.modules.forEach((m) => {
         m.subModules.forEach((sm) => {
-          sm.classes.forEach((cls, ci) => {
-            const flatModIndex = li * 5 + mi;
-            out.push({ module: m, cls, modIndex: flatModIndex, clsIndex: out.length });
+          sm.classes.forEach((cls) => {
+            allClasses.push({ module: m, cls });
           });
         });
       });
     });
-    return out;
-  }, [course]);
+  }
 
-  const current = useMemo(() => {
+  const current = (() => {
     if (!allClasses.length) return null;
     const exact = allClasses.find((c) => c.module.code === selModule && c.cls.id === selClass);
     if (exact) return exact;
@@ -113,12 +98,11 @@ export function LearnerView() {
       if (firstOfModule) return firstOfModule;
     }
     return allClasses[0];
-  }, [allClasses, selModule, selClass]);
+  })();
 
-  const currentFlatIndex = useMemo(
-    () => (current ? allClasses.findIndex((c) => c.module.code === current.module.code && c.cls.id === current.cls.id) : -1),
-    [allClasses, current],
-  );
+  const currentFlatIndex = current
+    ? allClasses.findIndex((c) => c.module.code === current.module.code && c.cls.id === current.cls.id)
+    : -1;
   const prevClass = currentFlatIndex > 0 ? allClasses[currentFlatIndex - 1] : null;
   const nextClass = currentFlatIndex >= 0 && currentFlatIndex < allClasses.length - 1 ? allClasses[currentFlatIndex + 1] : null;
 
@@ -127,7 +111,7 @@ export function LearnerView() {
     if (enrollmentId) await api.updateProgress(enrollmentId, next);
   }
 
-  async function markCompleteAndAdvance() {
+  async function markComplete() {
     if (!current) return;
     const modCode = current.module.code;
     const clsId = current.cls.id;
@@ -140,24 +124,15 @@ export function LearnerView() {
       },
     };
     await patchProgress(next);
+  }
+
+  async function onCompleteAndAdvance() {
+    await markComplete();
     if (nextClass) {
       setSelModule(nextClass.module.code);
       setSelClass(nextClass.cls.id);
       setShowQuiz(false);
     }
-  }
-
-  async function onQuizResult(score: number, passed: boolean) {
-    if (!selModule) return;
-    const next: Progress2 = {
-      ...progress,
-      [selModule]: {
-        completedClasses: progress[selModule]?.completedClasses ?? [],
-        quizScore: score,
-        quizPassed: passed,
-      },
-    };
-    await patchProgress(next);
   }
 
   function navigateToClass(modCode: string, clsId: string) {
@@ -171,10 +146,7 @@ export function LearnerView() {
     return (
       <div className="px-4 py-8 sm:px-6">
         <Skeleton className="h-10 w-full max-w-3xl" />
-        <div className="mt-6 grid gap-6 lg:grid-cols-[280px_1fr]">
-          <Skeleton className="h-96 rounded-xl" />
-          <Skeleton className="h-96 rounded-xl" />
-        </div>
+        <Skeleton className="mt-6 h-96 rounded-xl" />
       </div>
     );
   }
@@ -196,7 +168,7 @@ export function LearnerView() {
 
   return (
     <div className="min-h-screen bg-muted/20">
-      {/* Top bar: course identity + progress */}
+      {/* Top bar */}
       <div className="sticky top-16 z-30 border-b border-border/60 bg-background/95 backdrop-blur">
         <div className="px-4 sm:px-6">
           <div className="flex h-12 items-center gap-3">
@@ -213,34 +185,6 @@ export function LearnerView() {
                 </div>
                 <span className="text-xs font-medium tabular-nums">{overallPct}%</span>
               </div>
-              {/* LeashGuide slide-over trigger */}
-              <Sheet open={chatOpen} onOpenChange={setChatOpen}>
-                <SheetTrigger asChild>
-                  <Button size="sm" variant="outline" className="gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    <span className="hidden sm:inline">LeashGuide</span>
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-                    </span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent className="w-[min(100vw,440px)] p-0 sm:max-w-[440px]">
-                  <SheetHeader className="sr-only">
-                    <SheetTitle>LeashGuide AI tutor</SheetTitle>
-                  </SheetHeader>
-                  {current && (
-                    <LeashGuideChat
-                      courseCode={course.code}
-                      moduleCode={current.module.code}
-                      moduleTitle={`${current.module.code} · ${current.module.title}`}
-                      classId={current.cls.id}
-                      classTitle={current.cls.title}
-                    />
-                  )}
-                </SheetContent>
-              </Sheet>
-              {/* Module nav slide-over (mobile) */}
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
                 <Menu className="h-5 w-5" />
               </Button>
@@ -249,9 +193,9 @@ export function LearnerView() {
         </div>
       </div>
 
-      {/* Body: sidebar + content */}
+      {/* Body */}
       <div className="mx-auto grid max-w-[1600px] gap-0 lg:grid-cols-[300px_1fr]">
-        {/* Module sidebar (desktop) */}
+        {/* Sidebar (desktop) */}
         <aside className="sticky top-28 hidden h-[calc(100vh-7rem)] overflow-y-auto border-r border-border/60 bg-background p-3 lg:block scroll-area-custom">
           <ModuleSidebar
             course={course}
@@ -261,12 +205,11 @@ export function LearnerView() {
             onOpenQuiz={(modCode) => {
               setSelModule(modCode);
               setShowQuiz(true);
-              setSidebarOpen(false);
             }}
           />
         </aside>
 
-        {/* Module sidebar (mobile slide-over) */}
+        {/* Sidebar (mobile) */}
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="w-[min(100vw,340px)] p-0 sm:max-w-[340px]">
             <SheetHeader className="sr-only">
@@ -288,28 +231,30 @@ export function LearnerView() {
           </SheetContent>
         </Sheet>
 
-        {/* Main content */}
-        <main className="min-w-0 px-4 py-8 sm:px-8 lg:px-12">
+        {/* Main: the live classroom */}
+        <main className="min-w-0">
           {current && !showQuiz && (
-            <LessonPanel
+            <LiveClassroom
+              course={course}
               module={current.module}
               cls={current.cls}
-              onComplete={markCompleteAndAdvance}
+              learnerName={learnerName}
               isDone={progress[current.module.code]?.completedClasses.includes(current.cls.id) ?? false}
+              onComplete={onCompleteAndAdvance}
               onOpenQuiz={() => setShowQuiz(true)}
               prevClass={prevClass}
               nextClass={nextClass}
-              onNavigate={(m, c) => navigateToClass(m, c)}
+              onNavigate={navigateToClass}
               currentStep={currentFlatIndex + 1}
               totalSteps={totalClasses}
             />
           )}
           {current && showQuiz && (
-            <div className="mx-auto max-w-3xl">
+            <div className="mx-auto max-w-3xl px-4 py-8 sm:px-8">
               <Button variant="ghost" size="sm" className="mb-4 gap-1.5 text-muted-foreground" onClick={() => setShowQuiz(false)}>
-                <ChevronLeft className="h-4 w-4" /> Back to lesson
+                <ChevronLeft className="h-4 w-4" /> Back to class
               </Button>
-              <ModuleQuiz courseCode={course.code} courseRowId={course.id} module={current.module} onPassed={onQuizResult} />
+              <ModuleQuiz courseCode={course.code} courseRowId={course.id} module={current.module} onPassed={() => {}} />
             </div>
           )}
         </main>
@@ -319,7 +264,7 @@ export function LearnerView() {
 }
 
 // ---------------------------------------------------------------------------
-// Module sidebar — the course outline
+// Module sidebar (same as before)
 // ---------------------------------------------------------------------------
 
 function ModuleSidebar({
@@ -403,10 +348,7 @@ function ModuleSidebar({
                     ))}
                     <button
                       onClick={() => onOpenQuiz(m.code)}
-                      className={cn(
-                        "flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-[11px] transition hover:bg-muted/60",
-                        "mt-0.5",
-                      )}
+                      className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-[11px] transition hover:bg-muted/60 mt-0.5"
                     >
                       <ListChecks className="h-3 w-3 shrink-0 text-primary" />
                       <span>Module quiz</span>
@@ -424,14 +366,16 @@ function ModuleSidebar({
 }
 
 // ---------------------------------------------------------------------------
-// Lesson panel — the actual reading experience
+// THE LIVE CLASSROOM — LeashGuide teaches, learner responds, lesson moves
 // ---------------------------------------------------------------------------
 
-function LessonPanel({
+function LiveClassroom({
+  course,
   module,
   cls,
-  onComplete,
+  learnerName,
   isDone,
+  onComplete,
   onOpenQuiz,
   prevClass,
   nextClass,
@@ -439,10 +383,12 @@ function LessonPanel({
   currentStep,
   totalSteps,
 }: {
+  course: CourseRow;
   module: Module;
   cls: ClassBlock;
-  onComplete: () => void;
+  learnerName: string;
   isDone: boolean;
+  onComplete: () => void;
   onOpenQuiz: () => void;
   prevClass: { module: Module; cls: ClassBlock } | null;
   nextClass: { module: Module; cls: ClassBlock } | null;
@@ -450,169 +396,189 @@ function LessonPanel({
   currentStep: number;
   totalSteps: number;
 }) {
-  const [revealedMap, setRevealedMap] = useState<Record<string, Record<number, boolean>>>({});
-  const revealed = revealedMap[cls.id] ?? {};
-  const setRevealed = (updater: (prev: Record<number, boolean>) => Record<number, boolean>) =>
-    setRevealedMap((prev) => ({
-      ...prev,
-      [cls.id]: updater(prev[cls.id] ?? {}),
-    }));
+  const [messages, setMessages] = useState<TeachMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [classComplete, setClassComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Reset when class changes
+  useEffect(() => {
+    setMessages([]);
+    setClassComplete(false);
+    setError(null);
+    setInput("");
+    // Auto-start the lesson
+    send("(begin lesson)");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [course.code, module.code, cls.id]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, loading]);
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (loading) return;
+    setError(null);
+    if (trimmed && trimmed !== "(begin lesson)") {
+      setMessages((m) => [...m, { role: "user", content: trimmed }]);
+    }
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/teach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseCode: course.code,
+          moduleCode: module.code,
+          classId: cls.id,
+          message: trimmed || "(begin lesson)",
+          history: messages,
+          learnerName: learnerName || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("LeashGuide couldn't respond");
+      const data = await res.json();
+      setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
+      if (data.classComplete) setClassComplete(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <article className="mx-auto max-w-3xl">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span>{module.levelName}</span>
-        <ChevronRight className="h-3 w-3" />
-        <span className="text-primary">{module.code}</span>
-        <ChevronRight className="h-3 w-3" />
-        <span className="font-medium text-foreground">{cls.id}</span>
-        <span className="ml-auto text-muted-foreground">Lesson {currentStep} of {totalSteps}</span>
-      </nav>
-
-      {/* Title block */}
-      <header className="mt-4">
-        <div className="flex flex-wrap items-center gap-2">
+    <div className="flex h-[calc(100vh-7rem)] flex-col">
+      {/* Class header */}
+      <div className="border-b border-border/60 bg-background px-4 py-4 sm:px-8">
+        <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>{module.levelName}</span>
+          <ChevronRight className="h-3 w-3" />
+          <span className="text-primary">{module.code}</span>
+          <ChevronRight className="h-3 w-3" />
+          <span className="font-medium text-foreground">{cls.id}</span>
+          <span className="ml-auto">Class {currentStep} of {totalSteps}</span>
+        </nav>
+        <div className="mt-2 flex items-center gap-2">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{cls.title}</h1>
           {cls.isAppliedLab && (
-            <Badge variant="secondary" className="gap-1 text-[11px]">
-              <Brain className="h-3 w-3" /> Applied Lab
+            <Badge variant="secondary" className="gap-1 text-[10px]">
+              <Sparkles className="h-2.5 w-2.5" /> Applied Lab
             </Badge>
           )}
           {isDone && (
-            <Badge variant="secondary" className="gap-1 text-[11px] text-primary">
-              <CheckCircle2 className="h-3 w-3" /> Completed
+            <Badge variant="secondary" className="gap-1 text-[10px] text-primary">
+              <CheckCircle2 className="h-2.5 w-2.5" /> Completed
             </Badge>
           )}
-          <Badge variant="outline" className="gap-1 text-[11px]">
-            <Clock className="h-3 w-3" /> {cls.duration}
-          </Badge>
         </div>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{cls.title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{module.code} · {module.title}</span>
-        </p>
-      </header>
+        <p className="mt-0.5 text-xs text-muted-foreground">{module.code} · {module.title} · {cls.duration}</p>
+      </div>
 
-      {/* Module objectives (upfront so learner knows the goal) */}
-      <section className="mt-6 rounded-xl border border-border/60 bg-card p-5">
-        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <BookOpen className="h-3.5 w-3.5 text-primary" /> What you&apos;ll be able to do after this module
-        </p>
-        <ul className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
-          {module.objectives.map((o, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-              <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">{i + 1}</span>
-              {o}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* The 5-part flow as a guided path (not tabs) */}
-      <section className="mt-8">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          The 5-part flow
-        </p>
-        <div className="space-y-5">
-          {FLOW_STAGES.map((s, idx) => (
-            <div key={s.key} className="relative pl-10">
-              {/* Step number / connector */}
-              <div className="absolute left-0 top-0 flex flex-col items-center">
-                <span className={cn(
-                  "grid h-7 w-7 place-items-center rounded-full text-xs font-bold transition",
-                  "bg-primary text-primary-foreground shadow-sm",
-                )}>{s.num}</span>
-                {idx < FLOW_STAGES.length - 1 && (
-                  <span className="mt-1 h-[calc(100%-1rem)] w-px bg-border" />
-                )}
+      {/* The classroom conversation — this IS the lesson */}
+      <div ref={scrollRef} className="scroll-area-custom flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+        <div className="mx-auto max-w-3xl space-y-4">
+          {messages.length === 0 && !loading && (
+            <div className="py-12 text-center">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary/10">
+                <Sparkles className="h-7 w-7 text-primary" />
               </div>
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <h3 className="text-base font-semibold">{s.label}</h3>
-                  <span className="text-[11px] text-muted-foreground">{s.hint}</span>
-                </div>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                  {cls.flow[s.key]}
-                </p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                LeashGuide is preparing to teach this class…
+              </p>
+            </div>
+          )}
+
+          {messages.map((m, i) => (
+            <div key={i} className={cn("flex gap-3", m.role === "user" && "flex-row-reverse")}>
+              <span
+                className={cn(
+                  "grid h-8 w-8 shrink-0 place-items-center rounded-full",
+                  m.role === "assistant" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground",
+                )}
+              >
+                {m.role === "assistant" ? <Sparkles className="h-4 w-4" /> : <span className="text-xs font-bold">{(learnerName || "Y")[0]}</span>}
+              </span>
+              <div
+                className={cn(
+                  "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  m.role === "assistant"
+                    ? "bg-card border border-border/60"
+                    : "bg-primary text-primary-foreground",
+                )}
+              >
+                <div className="prose-leash">{m.content}</div>
               </div>
             </div>
           ))}
-        </div>
-      </section>
 
-      {/* Teachable content — the real material */}
-      <section className="mt-8 rounded-xl border border-border/60 bg-card p-6">
-        <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <BookOpen className="h-3.5 w-3.5 text-primary" /> Teachable content
-        </p>
-        <Markdown>{cls.teachableContent}</Markdown>
-      </section>
-
-      {/* Knowledge check */}
-      {cls.knowledgeCheck.length > 0 && (
-        <section className="mt-8">
-          <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <HelpCircle className="h-3.5 w-3.5 text-primary" /> Knowledge check
-          </p>
-          <div className="space-y-3">
-            {cls.knowledgeCheck.map((k, i) => (
-              <div key={i} className="rounded-lg border border-border/60 bg-card p-4">
-                <p className="text-sm font-medium">{i + 1}. {k.question}</p>
-                {k.options && (
-                  <ul className="mt-2 space-y-1 text-sm">
-                    {k.options.map((o) => {
-                      const isCorrect = revealed[i] && o === k.answer;
-                      return (
-                        <li key={o} className={cn(
-                          "flex items-center gap-2 rounded-md px-2 py-1 transition",
-                          isCorrect && "bg-primary/10 text-primary",
-                          revealed[i] && o !== k.answer && "opacity-60",
-                        )}>
-                          <span className={cn(
-                            "grid h-4 w-4 shrink-0 place-items-center rounded-full border",
-                            isCorrect ? "border-primary bg-primary text-primary-foreground" : "border-border",
-                          )}>
-                            {isCorrect && <Check className="h-2.5 w-2.5" />}
-                          </span>
-                          {o}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                {revealed[i] ? (
-                  <div className="mt-2 rounded-md bg-muted/40 p-2.5 text-xs">
-                    <p><span className="font-medium text-primary">Answer:</span> {k.answer}</p>
-                    <p className="mt-0.5 text-muted-foreground">{k.rationale}</p>
-                    <Button variant="ghost" size="sm" className="mt-1 h-6 p-0 text-[11px]" onClick={() => setRevealed((r) => ({ ...r, [i]: false }))}>
-                      Hide
-                    </Button>
-                  </div>
-                ) : (
-                  <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={() => setRevealed((r) => ({ ...r, [i]: true }))}>
-                    Reveal answer
-                  </Button>
-                )}
+          {loading && (
+            <div className="flex gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <div className="flex items-center gap-2 rounded-2xl bg-card border border-border/60 px-4 py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">LeashGuide is teaching…</span>
               </div>
-            ))}
+            </div>
+          )}
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+      </div>
+
+      {/* Bottom bar: response input OR complete actions */}
+      <div className="border-t border-border/60 bg-background px-4 py-3 sm:px-8">
+        {classComplete ? (
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2">
+            <Badge className="gap-1.5 bg-primary/10 text-primary">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Class complete
+            </Badge>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={onOpenQuiz}>
+                <ListChecks className="h-4 w-4" /> Module quiz
+              </Button>
+              <Button size="sm" className="gap-1.5" onClick={onComplete}>
+                <CheckCircle2 className="h-4 w-4" /> {nextClass ? "Complete & continue" : "Complete"}
+              </Button>
+            </div>
           </div>
-        </section>
-      )}
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send(input);
+            }}
+            className="mx-auto flex max-w-3xl items-end gap-2"
+          >
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send(input);
+                }
+              }}
+              placeholder="Respond to LeashGuide…"
+              rows={1}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-card px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              disabled={loading}
+            />
+            <Button type="submit" size="icon" disabled={loading || !input.trim()} className="h-11 w-11 shrink-0">
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        )}
 
-      {/* Capstone artifact */}
-      <section className="mt-8 rounded-xl border border-primary/30 bg-primary/5 p-5">
-        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
-          <Award className="h-3.5 w-3.5" /> Capstone artifact for this module
-        </p>
-        <p className="mt-1.5 text-sm font-medium">{module.capstoneEvidence}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Pass the module quiz at {module.quiz.passThreshold}% and complete the artifact to earn this module&apos;s credit.
-        </p>
-      </section>
-
-      {/* Action bar: prev / complete / quiz / next */}
-      <nav className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-6">
-        <div>
+        {/* Prev/next nav */}
+        <div className="mx-auto mt-3 flex max-w-3xl items-center justify-between border-t border-border/40 pt-3">
           {prevClass ? (
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => onNavigate(prevClass.module.code, prevClass.cls.id)}>
               <ChevronLeft className="h-4 w-4" />
@@ -621,20 +587,7 @@ function LessonPanel({
                 <span className="max-w-[160px] truncate text-xs font-medium">{prevClass.cls.title}</span>
               </span>
             </Button>
-          ) : (
-            <span className="text-xs text-muted-foreground">Start of pathway</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={onOpenQuiz}>
-            <ListChecks className="h-4 w-4" /> Module quiz
-          </Button>
-          <Button size="sm" className="gap-1.5" onClick={onComplete}>
-            <Check className="h-4 w-4" />
-            {isDone ? "Complete & continue" : "Mark complete"}
-          </Button>
-        </div>
-        <div>
+          ) : <span />}
           {nextClass ? (
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => onNavigate(nextClass.module.code, nextClass.cls.id)}>
               <span className="flex flex-col items-end leading-tight">
@@ -643,11 +596,9 @@ function LessonPanel({
               </span>
               <ChevronRight className="h-4 w-4" />
             </Button>
-          ) : (
-            <span className="text-xs text-muted-foreground">End of pathway</span>
-          )}
+          ) : <span />}
         </div>
-      </nav>
-    </article>
+      </div>
+    </div>
   );
 }
