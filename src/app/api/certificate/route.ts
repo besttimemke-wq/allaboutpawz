@@ -175,8 +175,6 @@ function certificateHTML(opts: {
       Credential ID ${esc(certId)}
       <span class="pipe">|</span>
       Leashed Learning Framework v1.0
-      <span class="pipe">|</span>
-      Certificate of Completion — not an accredited credential
     </div>
   </div>
 </body>

@@ -31,16 +31,15 @@ import {
   Check,
   BookOpen,
 } from "lucide-react";
-import type { AccreditationBody } from "@/lib/framework/types";
 import { cn } from "@/lib/utils";
 
-const ACCREDITATION_BODIES: AccreditationBody[] = ["COE", "ACCSC", "IACET", "ICG", "SCORM"];
+const LEVEL_FILTERS = ["100", "200", "300", "400"] as const;
 
 export function CatalogView() {
   const openCourse = useAppStore((s) => s.openCourse);
   const [courses, setCourses] = useState<CourseRow[] | null>(null);
   const [q, setQ] = useState("");
-  const [accFilters, setAccFilters] = useState<Set<AccreditationBody>>(new Set());
+  const [levelFilter, setLevelFilter] = useState<string>("");
   const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
@@ -70,22 +69,13 @@ export function CatalogView() {
         const hay = `${c.code} ${c.title} ${c.subtitle} ${c.description}`.toLowerCase();
         if (!hay.includes(q.toLowerCase())) return false;
       }
-      if (accFilters.size > 0) {
-        const hasAll = [...accFilters].every((a) => c.accreditation.includes(a));
-        if (!hasAll) return false;
+      if (levelFilter) {
+        const hasLevel = c.pathway.levels.some((l) => l.level === Number(levelFilter));
+        if (!hasLevel) return false;
       }
       return true;
     });
-  }, [courses, q, accFilters]);
-
-  function toggleAcc(a: AccreditationBody) {
-    setAccFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(a)) next.delete(a);
-      else next.add(a);
-      return next;
-    });
-  }
+  }, [courses, q, levelFilter]);
 
   function toggleBookmark(code: string) {
     setBookmarks((prev) => {
@@ -111,7 +101,7 @@ export function CatalogView() {
 
   function clearFilters() {
     setQ("");
-    setAccFilters(new Set());
+    setLevelFilter("");
   }
 
   const compareCourses = courses ? courses.filter((c) => compareSet.has(c.code)) : [];
@@ -133,15 +123,15 @@ export function CatalogView() {
         </div>
       </div>
 
-      {/* Filter chips + bookmarked toggle */}
+      {/* Filter chips */}
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-muted-foreground">Accreditation:</span>
-        {ACCREDITATION_BODIES.map((a) => {
-          const active = accFilters.has(a);
+        <span className="text-xs font-medium text-muted-foreground">Level:</span>
+        {LEVEL_FILTERS.map((lvl) => {
+          const active = levelFilter === lvl;
           return (
             <button
-              key={a}
-              onClick={() => toggleAcc(a)}
+              key={lvl}
+              onClick={() => setLevelFilter(active ? "" : lvl)}
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-medium transition",
                 active
@@ -150,11 +140,11 @@ export function CatalogView() {
               )}
             >
               {active && <Check className="mr-1 inline h-3 w-3" />}
-              {a}
+              {lvl}
             </button>
           );
         })}
-        {(accFilters.size > 0 || q.trim()) && (
+        {(levelFilter || q.trim()) && (
           <button onClick={clearFilters} className="ml-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
             <X className="h-3 w-3" /> Clear
           </button>
@@ -250,10 +240,8 @@ export function CatalogView() {
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1">
-                    {c.accreditation.slice(0, 5).map((a) => (
-                      <span key={a} className="rounded border border-border/60 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">{a}</span>
-                    ))}
+                  <div className="flex items-center gap-1.5 rounded-md bg-primary/5 px-2 py-1 text-[10px] font-medium text-primary">
+                    <Sparkles className="h-3 w-3" /> AI-taught · Free certificate
                   </div>
 
                   <div className="mt-1 space-y-1.5 border-t border-border/60 pt-3 text-xs">
@@ -348,7 +336,6 @@ function ComparisonTable({ courses, onOpen }: { courses: CourseRow[]; onOpen: (c
     { label: "CEUs", get: (c) => `${c.ceus}` },
     { label: "Levels", get: (c) => c.pathway.levels.length },
     { label: "Modules", get: (c) => c.pathway.levels.reduce((n, l) => n + l.modules.length, 0) },
-    { label: "Accreditation", get: (c) => <div className="flex flex-wrap gap-1">{c.accreditation.map((a) => <span key={a} className="rounded border border-border/60 px-1 py-0.5 text-[9px]">{a}</span>)}</div> },
     { label: "Who it's for", get: (c) => <span className="text-xs">{c.pathway.enrollmentCopy.whoIsThisFor}</span> },
     { label: "First credential", get: (c) => <span className="text-xs">{c.pathway.levels[0]?.credential.name}</span> },
     { label: "Time commitment", get: (c) => <span className="text-xs">{c.pathway.enrollmentCopy.timeCommitment}</span> },

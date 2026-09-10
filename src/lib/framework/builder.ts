@@ -182,7 +182,7 @@ export function expandLevel(level: number, seed: LevelSeed): Level {
     name: seed.credentialName,
     description: seed.credentialDescription,
     ceus: ceuFromHours(hours),
-    issuedBy: ["IACET", "ICG"],
+    issuedBy: ["IACET", "ICMG"],
     evidence: seed.modules.map((m) => m.capstoneEvidence),
   };
   return {

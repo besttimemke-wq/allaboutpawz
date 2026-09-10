@@ -96,9 +96,14 @@ export function CourseView() {
         <Badge className="gap-1">
           <Sparkles className="h-3 w-3" /> {course.code}
         </Badge>
-        {course.accreditation.map((a) => (
-          <Badge key={a} variant="outline" className="text-[11px]">{a}</Badge>
-        ))}
+        {course.aiGenerated && (
+          <Badge variant="secondary" className="gap-1 text-[11px]">
+            <Sparkles className="h-3 w-3" /> AI-built
+          </Badge>
+        )}
+        <Badge variant="outline" className="gap-1 text-[11px] text-primary">
+          <Sparkles className="h-3 w-3" /> AI-taught · Free certificate
+        </Badge>
       </div>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{course.title}</h1>
       <p className="mt-2 text-base text-muted-foreground">{course.subtitle}</p>

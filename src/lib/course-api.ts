@@ -95,7 +95,7 @@ export function blankPathway(code: string, title: string): Pathway {
     subtitle: "New pathway — edit details in the builder.",
     description: "Edit this course overview to describe the pathway.",
     missionAlignment: "Describe how this pathway advances the University mission.",
-    accreditation: ["COE", "ACCSC", "IACET", "ICG", "SCORM"],
+    accreditation: ["COE", "ACCSC", "IACET", "ICMG", "SCORM"],
     enrollment: {
       headline: "Write an enrollment headline.",
       whoIsThisFor: "Describe who this pathway is for.",

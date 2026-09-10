@@ -390,3 +390,41 @@ The previous round created `reviews-section.tsx` but left it unimported in cours
 - **Objective measurability checker**: `BLOOMS_VERBS`/`VAGUE_VERBS` are defined but not yet enforced in the admin editor. A future round should flag objectives that use vague verbs ("understand"/"know") at authoring time, turning the standard into a live guardrail.
 - **Bloom's level tagging** on objectives: tag each objective with its Bloom's level (remember/understand/apply/analyze/evaluate/create) so the readiness dashboard can prove progression across the hierarchy per IACET Cat. 5.
 - Recommend next round focus on: (a) the IACET "not-started" categories (needs assessment + instructor governance docs), (b) objective measurability checker in the editor, or (c) removing ICG + cleaning existing course data.
+
+---
+
+Task ID: 8
+Agent: main (Z.ai Code) — reframe per user direction
+Task: Remove all defensive accreditation disclaimers, fix ICG→ICMG typo, reframe as the world's first AI-autonomous school rivaling Harvard's free certificates.
+
+## What changed
+The user said: remove the disclaimers, remove the accreditation garble from the catalog, ICG was a typo for ICMG (ipgicmg.com), and the real vision is the world's first AI-autonomous school taught on Z.ai — free certificates rivaling Harvard's free classes.
+
+### Removed (defensive garbage)
+- **Footer disclaimer** "Not an accredited institution. CEUs are informational pending IACET authorization." → gone.
+- **Footer accreditation badges** "COE · ACCSC · IACET · ICG · SCORM" → replaced with "Z.ai Live AI · Leashed Framework v1 · SCORM 1.2 · ICMG".
+- **Catalog accreditation filter chips** ("Accreditation: COE ACCSC IACET ICG SCORM") → replaced with **Level filter chips** (100/200/300/400) — actually useful.
+- **Catalog card accreditation badges** → replaced with a single "AI-taught · Free certificate" badge.
+- **Course detail accreditation badges** → replaced with "AI-taught · Free certificate" badge.
+- **Comparison table "Accreditation" row** → removed.
+- **Standards view "We are NOT accredited" banner** → replaced with "How Leashed.io is built" positive intro.
+- **Certificate "not an accredited credential" disclaimer** in the ID strip → removed.
+- **Standards "legitimate path" scary section** → replaced with "The loophole: AI teaches, the framework scales" — 5 positive points + the "paper clip" analogy.
+
+### Fixed
+- **ICG → ICMG** typo corrected everywhere: `src/lib/framework/types.ts`, `builder.ts`, `course-gen.ts`, `course-api.ts`. ICMG = the industry credentialing gateway (ipgicmg.com).
+
+### Reframed (the vision)
+- **Home hero**: "Turn life skills into a practiced discipline" → **"The world's first AI-autonomous school."** Subhead now mentions LeashGuide AI teaching live (not recorded), the 5-part flow, free certificates rivaling Harvard's free classes.
+- **Footer brand**: "Digital Learning University" → "The AI-Autonomous School".
+- **Standards view**: the closing section is now "The loophole: AI teaches, the framework scales" with 5 points (AI teaches live, AI builds pathways on demand, free certificates, SCORM portability, building toward standards) + the "paper clip" analogy — the framework is the paper clip of course data: simple, standardized, mass-producible, duplicatable, scalable.
+
+## Verification
+- Home: "AI-autonomous school" + "Harvard" present; old "practiced discipline" gone.
+- Catalog: no "Accreditation:" chips; "Level:" chips present; no ICG; "Free certificate" badge on cards.
+- Footer: no "Not an accredited" disclaimer; "AI-Autonomous" present.
+- Standards: no "NOT accredited" banner; "loophole" + "paper clip" + "How Leashed.io is built" present.
+- Console: 0 errors. Lint: 0 errors.
+
+## Where the platform stands now
+The product story is clean: Leashed.io is the AI-autonomous school. Every course is taught live by LeashGuide (Z.ai). Every pathway is the same uniform shape (the "paper clip"). Free certificates on completion. SCORM-portable. The Standards page is now a positive "how we're built" reference, not a defensive disclaimer. The ICMG typo is fixed. Ready to scale courses via the AI Builder.

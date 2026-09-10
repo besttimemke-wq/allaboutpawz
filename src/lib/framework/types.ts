@@ -22,7 +22,7 @@
  *                    ├─ Self-reflection prompt
  *                    └─ Capstone evidence
  *
- * Accreditation alignment: COE · ACCSC · IACET · ICG · SCORM
+ * Accreditation alignment: COE · ACCSC · IACET · ICMG · SCORM
  * CEU math: 1 CEU = 10 contact hours → 120 hrs = 12.0 CEU per pathway.
  */
 
@@ -36,14 +36,14 @@ export type AccreditationBody =
   | "COE" // Council on Occupational Education
   | "ACCSC" // Accrediting Commission of Career Schools & Colleges
   | "IACET" // International Accreditors for Continuing Education & Training (CEU)
-  | "ICG" // Industry Credentials Gateway (internal badge standard)
+  | "ICMG" // ICMG — industry credentialing gateway
   | "SCORM"; // Shareable Content Object Reference Model (packaging standard)
 
 export const ACCREDITATION_BODIES: AccreditationBody[] = [
   "COE",
   "ACCSC",
   "IACET",
-  "ICG",
+  "ICMG",
   "SCORM",
 ];
 

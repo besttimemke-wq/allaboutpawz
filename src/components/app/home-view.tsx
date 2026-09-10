@@ -111,7 +111,7 @@ export function HomeView() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
             <Badge variant="secondary" className="mb-5 gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Leashed Learning Framework · v1.0
+              The AI-Autonomous School · Leashed Learning Framework v1.0
             </Badge>
           </motion.div>
           <motion.h1
@@ -120,8 +120,8 @@ export function HomeView() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="max-w-3xl text-4xl font-bold tracking-tight text-balance sm:text-5xl md:text-6xl"
           >
-            Turn life skills into a{" "}
-            <span className="bg-gradient-to-r from-primary to-amber-500 bg-clip-text text-transparent">practiced discipline</span>.
+            The world&apos;s first{" "}
+            <span className="bg-gradient-to-r from-primary to-amber-500 bg-clip-text text-transparent">AI-autonomous school</span>.
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -129,8 +129,9 @@ export function HomeView() {
             transition={{ duration: 0.5, delay: 0.12 }}
             className="mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg"
           >
-            Digital Learning University builds every course on one uniform framework — 4 levels, 20 modules, 180 lesson
-            blocks, 120 hours, and a four-rung credential ladder. Live AI tutoring by LeashGuide on every lesson.
+            Every course is taught live by LeashGuide AI — not recorded lectures, not static text. Pick a pathway,
+            learn through the 5-part flow (Connect → Learn → See It → Do It → Check), and earn a free certificate
+            that rivals Harvard&apos;s free classes. 4 levels, 20 modules, 120 hours, one uniform framework.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 16 }}

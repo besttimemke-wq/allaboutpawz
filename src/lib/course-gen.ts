@@ -232,7 +232,7 @@ export function buildPathwayFromCatalog(catalog: Catalog, opts?: { aiGenerated?:
 }
 
 /** Default accreditation set for new pathways. */
-export const DEFAULT_ACCREDITATION: AccreditationBody[] = ["COE", "ACCSC", "IACET", "ICG", "SCORM"];
+export const DEFAULT_ACCREDITATION: AccreditationBody[] = ["COE", "ACCSC", "IACET", "ICMG", "SCORM"];
 
 /** Build module codes from a course code following the LSH-101 convention. */
 export function moduleCodeFor(courseCode: string, levelIndex: number, moduleIndex: number): string {
