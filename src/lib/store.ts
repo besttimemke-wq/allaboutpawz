@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type View = "home" | "catalog" | "course" | "learner" | "admin" | "dashboard";
+export type View = "home" | "catalog" | "course" | "learner" | "admin" | "dashboard" | "accreditation";
 
 export interface LearnerTarget {
   courseCode: string;

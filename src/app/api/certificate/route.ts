@@ -31,7 +31,7 @@ function certificateHTML(opts: {
   const credName = level.credential.name;
   const ceus = level.credential.ceus;
   const totalHours = level.modules.length * 6;
-  const accreditation = pathway.accreditation.join(" · ");
+  const standardsNote = "Aligned to ANSI/IACET 1-2018 · SCORM 1.2";
 
   return `<!doctype html>
 <html lang="en">
@@ -136,10 +136,10 @@ function certificateHTML(opts: {
     <div class="corner bl"></div>
     <div class="corner br"></div>
 
-    <div class="accred">${esc(accreditation)}</div>
+    <div class="accred">${esc(standardsNote)}</div>
 
     <div class="content">
-      <div class="uni">Leashed<span class="dot"></span>io Digital Learning University</div>
+      <div class="uni">Leashed<span class="dot"></span>io Career-to-Ownership Academy</div>
       <div class="seal-wrap">
         <div class="seal">
           <svg viewBox="0 0 24 24"><path d="M12 2l2.4 5.4 5.9.5-4.5 3.9 1.4 5.8L12 19.6 6.8 18.6l1.4-5.8L3.7 8.9l5.9-.5L12 2z"/></svg>
@@ -153,7 +153,7 @@ function certificateHTML(opts: {
         for successfully completing all <strong>${level.modules.length} modules</strong> of the
         <strong>${esc(pathway.title)}</strong> pathway at <strong>Level ${level.level} — ${esc(level.name)}</strong>,
         including all lesson blocks, module quizzes (80% pass standard), and capstone artifacts —
-        totalling <strong>${totalHours} contact hours</strong> and <strong>${ceus.toFixed(1)} IACET CEUs</strong>.
+        totalling <strong>${totalHours} contact hours</strong> (equivalent to <strong>${ceus.toFixed(1)} CEUs</strong>).
       </div>
       <div class="sign-row">
         <div class="sign">
@@ -175,6 +175,8 @@ function certificateHTML(opts: {
       Credential ID ${esc(certId)}
       <span class="pipe">|</span>
       Leashed Learning Framework v1.0
+      <span class="pipe">|</span>
+      Certificate of Completion — not an accredited credential
     </div>
   </div>
 </body>

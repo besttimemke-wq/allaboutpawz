@@ -48,7 +48,7 @@ const HOW_IT_WORKS = [
   {
     icon: ShieldCheck,
     title: "Accreditation-ready",
-    desc: "Aligned to COE, ACCSC, IACET (CEU math), ICG, and SCORM packaging — every course ships with the same evidence.",
+    desc: "Building toward ANSI/IACET 1-2018, COE, ACCSC, and SCORM packaging — the accreditation readiness dashboard maps every requirement to real evidence.",
   },
 ];
 
@@ -209,7 +209,7 @@ export function HomeView() {
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">The 6-month pathway</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              One credential per level. Each level is 5 modules × 6 hours = 30 hours (3.0 IACET CEU).
+              One credential per level. Each level is 5 modules × 6 hours = 30 hours (3.0 CEU, IACET authorization pending).
             </p>
           </div>
           <Badge variant="outline" className="hidden sm:inline-flex gap-1">

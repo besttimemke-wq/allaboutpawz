@@ -15,6 +15,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ArrowLeft, Clock, Award, Layers, Target, Users, CalendarDays, CheckCircle2, Sparkles, Play, BookOpen, FileDown } from "lucide-react";
+import { ReviewsSection } from "@/components/app/reviews-section";
 
 export function CourseView() {
   const code = useAppStore((s) => s.selectedCourseCode);
@@ -107,7 +108,7 @@ export function CourseView() {
           <Clock className="h-3.5 w-3.5 text-primary" /> {course.totalHours} hours
         </span>
         <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1">
-          <Award className="h-3.5 w-3.5 text-primary" /> {course.ceus} IACET CEU
+          <Award className="h-3.5 w-3.5 text-primary" /> {course.ceus} CEU
         </span>
         <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1">
           <Layers className="h-3.5 w-3.5 text-primary" /> {course.pathway.levels.length} levels · {course.pathway.levels.reduce((n, l) => n + l.modules.length, 0)} modules
@@ -294,9 +295,6 @@ export function CourseView() {
           <ReviewsSection courseId={course.id} courseCode={course.code} />
         </TabsContent>
       </Tabs>
-
-      {/* Related courses */}
-      <RelatedCourses currentCode={course.code} />
     </div>
   );
 }

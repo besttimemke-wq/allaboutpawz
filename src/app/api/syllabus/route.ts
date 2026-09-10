@@ -26,10 +26,12 @@ export async function GET(req: NextRequest) {
   lines.push("");
   lines.push(`**Course code:** ${p.code}  `);
   lines.push(`**Total hours:** ${p.totalHours}h  `);
-  lines.push(`**IACET CEUs:** ${p.ceus}  `);
+  lines.push(`**CEUs:** ${p.ceus} (1 CEU = 10 contact hours · IACET authorization pending)  `);
   lines.push(`**SCORM package ID:** ${p.scormPackageId}  `);
-  lines.push(`**Accreditation alignment:** ${p.accreditation.join(" · ")}  `);
+  lines.push(`**Standards alignment:** Building toward ANSI/IACET 1-2018, COE, ACCSC, SCORM 1.2  `);
   lines.push(`**Framework:** Leashed Learning Framework v1.0  `);
+  lines.push("");
+  lines.push("> NOTE: This is a Certificate-of-Completion pathway, not an accredited credential. IACET CEUs may only be legally issued once Leashed.io is an IACET Authorized Provider. See the Accreditation Readiness dashboard for current status.");
   lines.push("");
   lines.push("## Overview");
   lines.push("");
