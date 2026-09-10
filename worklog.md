@@ -526,3 +526,42 @@ Completely rewrote `src/components/app/learner-view.tsx`:
 
 ## What this fixed
 The learner experience now feels like Coursera/edX/HarvardX, not a dashboard. Content breathes, the flow is a guided path you read top-to-bottom, navigation is prev/next at the bottom, and the AI tutor is on-demand instead of always-competing. The reading rhythm has hierarchy: breadcrumb → title → objectives → flow → teachable → knowledge check → capstone → actions.
+
+---
+
+Task ID: 11
+Agent: main (Z.ai Code) — deep content generation
+Task: Build the pipeline that generates real domain-specific lesson content (2000-word lessons + exercises + quizzes) for every class via Z.ai, replacing the generic template.
+
+## What was built
+
+### Deep content generation API (`/api/ai/generate-class`)
+- Takes a courseCode + moduleCode + classId.
+- Builds a prompt that gives Z.ai the module context (title, description, objectives, capstone, class type) and asks for STRICT JSON: real 5-part flow (with a specific exercise in doIt, not "reflect for 5 minutes"), 1200-1600 words of actual teachable content in Markdown (with H2/H3 headings, worked examples with real names/numbers, common mistakes, key takeaways), 3 domain-specific knowledge checks (MC/true-false/scenario), and a class-specific AI tutor prompt.
+- Overwrites the class in the pathway JSON and persists to the DB.
+- Verified: LSH-101 M1C1 generated 2035 words teaching the five pillars of personal readiness (self-awareness, resource management, adaptability, decision-making, relationship navigation) with a real Personal Readiness Audit exercise. LSH-101 M2C1 generated 1762 words teaching the PRAF framework (Assessment/Planning/Execution/Review) with financial-readiness examples. This is real coursework, not a template.
+
+### Batch generation runner (`scripts/generate-all-content.ts`)
+- Worker-pool with staggered dispatch (3 workers, 3s stagger) to avoid rate-limit collisions.
+- Skips classes that already have >500 words (resumable — re-running picks up where it left off).
+- Single retry on 429 with 20s backoff; fails fast otherwise.
+- Logs every completion with word count + elapsed time.
+- Usage: `bun run scripts/generate-all-content.ts ALL 3` (all 10 pathways) or `bun run scripts/generate-all-content.ts LSH 3` (one pathway).
+
+### Current generation status
+- Launched `setsid bun run scripts/generate-all-content.ts ALL 3` in the background (PID 20828, alive).
+- As of this worklog entry: LSH 23/180 classes (13%) have real content, averaging ~1500 words each.
+- Rate: ~5 classes/min (limited by Z.ai rate limit — parallelism >3 causes 429 cascades).
+- Projected: LSH completes in ~30 min; all 10 pathways (1800 classes) complete in ~5.5 hours.
+- The runner is resumable — if it dies, re-running skips already-rich classes and continues.
+
+## Honest status
+- The generation pipeline IS shipping real content. 23 classes already have 1500-2000 word lessons with real exercises and domain-specific knowledge checks.
+- The bottleneck is the Z.ai API rate limit, not the code. At parallelism 3, we get ~5 classes/min. Higher parallelism causes 429 errors.
+- All 1800 classes will have real content once the background run completes (~5.5 hours).
+- The learner view already surfaces this content — when a learner opens a class that's been generated, they see the real 1500-word lesson, the real exercise, and the real knowledge checks. Classes that haven't been generated yet still show the template (but will be replaced as the run progresses).
+
+## What's real now vs. what's still pending
+- REAL: catalog (10 pathways, 200 modules), learner shell, LeashGuide live AI, quizzes, certificates, progress tracking, syllabus export, SCORM, reviews, comparison, bookmarks, dashboard, admin builder.
+- REAL + IN PROGRESS: lesson content. 23/1800 classes have full 1500-2000 word domain-specific lessons. The rest are being generated in the background.
+- PENDING: the generation run completing for all 1800 classes (will happen automatically — it's resumable).
