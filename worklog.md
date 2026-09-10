@@ -88,3 +88,61 @@ Stage Summary:
 - Admin builder: create blank / duplicate / AI-generate / edit with framework validation -- all work.
 - AI-generated courses are structurally identical to hand-authored LSH (the "uniform way" goal is met).
 - Next-phase opportunities (for the recurring review agent): per-lesson editability in the builder (lesson flow/teachable content/AI prompt editing), SCORM package export, learner roster + progress analytics dashboard, real auth (NextAuth) replacing name-only identity, deeper quiz bank (scenario authoring per module), certificate generation on level completion.
+
+---
+
+Task ID: 3
+Agent: webDevReview (cron round 1)
+Task: QA the existing app with agent-browser, fix bugs, and add new features + styling polish.
+
+## Current project status (assessment)
+- The MVP from Task 2 is stable and functional: home/catalog/course/learner/admin views all render, live LeashGuide AI tutor works, AI course builder works, LSH is seeded, 0 lint errors.
+- Dev server healthy; all APIs returning 200.
+- Two real UX bugs found during QA (see below); otherwise the app is solid.
+
+## Bugs found & fixed
+1. **Overview "Enroll & start learning" button failed silently** when learnerName was empty — the Overview tab has no name input, so clicking enroll just set an error state that was never shown on that tab. FIX: made the course Tabs controlled (`value={tab}`/`onValueChange={setTab}`), and the enroll() function now switches to the "enroll" tab + sets the error when name is empty, so the learner sees the name field + the error message. Verified end-to-end with agent-browser.
+2. **RosterPanel crashed on render** (client-side "Application error") because Radix `Select` does not accept an empty-string value — the "All courses" option had `value=""`. FIX: changed the sentinel to `"__all__"` and updated the load logic to translate it back to `undefined`. Verified the panel renders with the 2 existing enrollments.
+
+## New features added
+
+### 1. Per-lesson editor in the Admin Builder
+- New `ModuleEditorCard` component: each module is an expandable card with editors for title, capstone artifact, description, objectives (6), rubric criteria (8), critical items (3–4), self-reflection prompt, and the module quiz sample item (question/answer/rationale).
+- New `LessonEditor` component: each of the 9 classes per module is an expandable row with editors for the 5-part flow (Connect/Learn/See It/Do It/Check), teachable content (Markdown), and the LeashGuide AI tutor prompt.
+- Module cards are collapsible (`expandedModule` state) so the admin can drill Level → Module → Lesson without leaving the page. This completes the "no-code builder" promise — every field a course author would need is now editable.
+- Verified: expanded LSH-101 → saw "Capstone artifact", "Rubric criteria", and expanding class M1C1 revealed "Teachable content", "LeashGuide AI tutor prompt", and the 5-part flow editors.
+
+### 2. Learner Dashboard (new view + API)
+- New `/api/learner?name=...` route: returns all of a learner's enrollments with computed progress (total/completed classes, passed quizzes, overall %), next-up module+class, and credentials earned (a level credential is earned when ALL its modules' quizzes are passed AND all classes complete).
+- New `DashboardView` component: name lookup → summary stats (pathways enrolled, lessons completed, quizzes passed, CEUs earned) → per-enrollment cards with progress bar, mini-stats, the 4-level credential ladder (earned vs locked), and a "Next up" callout that jumps straight into the learner view at the right module+class.
+- Added "Dashboard" to the header nav and the store's View union. Verified: looked up "QA Tester" → saw their LSH enrollment, the credential ladder (all locked since no progress), and the "Next up" → LSH-101 / M1C1 callout.
+
+### 3. Admin Learner Roster + analytics (new tab + API)
+- New `/api/admin/roster?courseId=...` route: returns all enrollments (optionally filtered by course) with per-learner progress + a summary (total enrollments, unique learners, avg progress, quizzes passed).
+- New `RosterPanel` component in the Admin view ("Learners" tab): summary stat cards + a course filter (`Select`) + a roster table with learner name, course, progress bar, lessons done, quizzes passed, and enrollment date. Empty state handled.
+- Verified: shows the 2 real enrollments (Jordan Avery, QA Tester) with the summary "2 enrollments · 2 unique learners · 0% avg · 0 quizzes passed".
+
+### 4. Styling polish (Home)
+- Rebuilt the hero with framer-motion: staggered fade-up animations on badge, headline, subhead, CTAs, and stat cards.
+- Added two blurred glow blobs (emerald + amber) behind the hero for depth.
+- Stat cards now count up from 0 to their value (900ms easeOut cubic) with `tabular-nums` for stable layout.
+- Added a new "How it works" section (4 cards: Uniform framework, Live AI tutoring, Builder + learner, Accreditation-ready) with hover lift + icon scaling.
+- Level cards and how-it-works cards now have `hover:shadow-md hover:-translate-y-0.5` transitions.
+- Verified: home renders with all new sections, count-up animation, and glow — 0 console errors.
+
+## Verification (agent-browser end-to-end)
+- Home: "How it works" section present, 4 count-up stats, 2 hero glow blobs. 0 errors.
+- Course Overview enroll bug: clicking "Enroll & start learning" with empty name → switches to Enroll tab, shows "Enter your name to enroll." error, name input visible. FIXED.
+- Dashboard: looked up "QA Tester" → LSH enrollment renders with progress bar, mini-stats, credential ladder (Foundation/Core/Advanced/Capstone, all locked), "Next up: LSH-101 · class M1C1".
+- Admin Learners tab: summary cards (2 enrollments, 2 unique, 0% avg, 0 quizzes) + roster table with both learners. FIXED the Select crash.
+- Admin Editor: expanded Level 100 → LSH-101 module card → saw Capstone artifact, Rubric criteria, Critical items editors; expanded lesson M1C1 → saw 5-part flow, Teachable content (Markdown), LeashGuide AI tutor prompt editors.
+- Lint: 0 errors (758 warnings, all from uploaded perplexity HTML assets).
+
+## Unresolved issues / risks + next-phase priorities
+- **Quiz radio selection via automation**: Radix radios need real pointer events; agent-browser couldn't select answers programmatically (the quiz UI itself is fine — verified last session via curl). Not a real bug, just a tooling limitation.
+- **Knowledge check editing in LessonEditor**: the per-class `knowledgeCheck` items aren't yet editable in the admin UI (only the flow/teachable/AI prompt). A future round could add a repeatable-field editor for the 3 knowledge-check items per class.
+- **Certificate generation**: credentials are computed/displayed but there's no downloadable certificate PDF yet. Next-phase candidate.
+- **SCORM export**: no SCORM package download yet — the data model is SCORM-ready but export is not implemented.
+- **Real auth**: identity is still name-only. NextAuth integration remains a roadmap item.
+- **Roster per-learner drill-down**: clicking a roster row could deep-link to that learner's dashboard.
+- Recommend next cron round focus on: (a) certificate PDF generation on level completion, (b) SCORM package export, or (c) knowledge-check item editor in the lesson editor.

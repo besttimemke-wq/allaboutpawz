@@ -8,6 +8,7 @@ import { CatalogView } from "@/components/app/catalog-view";
 import { CourseView } from "@/components/app/course-view";
 import { LearnerView } from "@/components/app/learner-view";
 import { AdminView } from "@/components/app/admin-view";
+import { DashboardView } from "@/components/app/dashboard-view";
 
 export default function Home() {
   const view = useAppStore((s) => s.view);
@@ -22,6 +23,7 @@ export default function Home() {
         {view === "course" && <CourseView />}
         {view === "learner" && <LearnerView key={learnerCourse ?? "none"} />}
         {view === "admin" && <AdminView />}
+        {view === "dashboard" && <DashboardView />}
       </main>
       <Footer />
     </div>

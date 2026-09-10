@@ -143,7 +143,68 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }),
+
+  getLearnerDashboard: (name: string) =>
+    json<{ learnerName: string; enrollments: DashboardEnrollment[] }>(`${base}/learner?name=${encodeURIComponent(name)}`).then(
+      (r) => r.enrollments,
+    ),
+
+  getRoster: (courseId?: string) =>
+    json<{ roster: RosterRow[]; summary: RosterSummary }>(
+      `${base}/admin/roster${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ""}`,
+    ),
 };
+
+export interface RosterRow {
+  id: string;
+  learnerName: string;
+  learnerEmail: string | null;
+  courseCode: string;
+  courseTitle: string;
+  enrolledAt: string;
+  updatedAt: string;
+  totalClasses: number;
+  completedClasses: number;
+  passedQuizzes: number;
+  totalModules: number;
+  overallPct: number;
+  lastActive: string;
+}
+
+export interface RosterSummary {
+  totalEnrollments: number;
+  uniqueLearners: number;
+  avgProgress: number;
+  completedPathways: number;
+  quizzesPassed: number;
+}
+
+export interface DashboardEnrollment {
+  id: string;
+  courseId: string;
+  learnerName: string;
+  createdAt: string;
+  updatedAt: string;
+  course: {
+    code: string;
+    title: string;
+    subtitle: string;
+    totalHours: number;
+    ceus: number;
+    status: string;
+  };
+  progress: Record<string, { completedClasses: string[]; quizScore?: number; quizPassed?: boolean }>;
+  stats: {
+    totalModules: number;
+    completedClasses: number;
+    totalClasses: number;
+    passedQuizzes: number;
+    overallPct: number;
+    nextModuleCode: string | null;
+    nextClassId: string | null;
+  };
+  credentialsEarned: { name: string; ceus: number; level: number }[];
+}
 
 /** Parse the JSON progress blob stored on an enrollment. */
 export function parseProgress(progress: string): Record<string, { completedClasses: string[]; quizScore?: number; quizPassed?: boolean }> {

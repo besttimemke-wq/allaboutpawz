@@ -3,12 +3,13 @@ import Link from "next/link";
 import { useAppStore, type View } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, Home, LayoutGrid, BookOpen, Sparkles, ShieldCheck } from "lucide-react";
+import { GraduationCap, Home, LayoutGrid, BookOpen, Sparkles, ShieldCheck, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV: { view: View; label: string; icon: typeof Home }[] = [
   { view: "home", label: "Pathway", icon: Home },
   { view: "catalog", label: "Catalog", icon: LayoutGrid },
+  { view: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { view: "learner", label: "Learn", icon: BookOpen },
   { view: "admin", label: "Builder", icon: ShieldCheck },
 ];

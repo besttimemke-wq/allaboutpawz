@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { api, type CourseRow } from "@/lib/api-client";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { api, type CourseRow, type RosterRow, type RosterSummary } from "@/lib/api-client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +41,7 @@ import {
   Layers,
   Loader2,
   ChevronRight,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -138,6 +140,9 @@ export function AdminView() {
               <Pencil className="h-4 w-4" /> Editor · {editing.code}
             </TabsTrigger>
           )}
+          <TabsTrigger value="roster" className="gap-1.5">
+            <Users className="h-4 w-4" /> Learners
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="courses" className="pt-5">
@@ -249,6 +254,10 @@ export function AdminView() {
             <CourseEditor key={editing.code} course={editing} onSaved={refresh} />
           </TabsContent>
         )}
+
+        <TabsContent value="roster" className="pt-5">
+          <RosterPanel courses={courses} />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -382,6 +391,7 @@ function CourseEditor({ course, onSaved }: { course: CourseRow; onSaved: () => v
   const [p, setP] = useState<Pathway>(() => JSON.parse(JSON.stringify(course.pathway)) as Pathway);
   const [saving, setSaving] = useState(false);
   const [expandedLevel, setExpandedLevel] = useState<string>(course.pathway.levels[0]?.level.toString() ?? "100");
+  const [expandedModule, setExpandedModule] = useState<string>("");
 
   const errs = validatePathwayShape(p);
   const compliant = errs.length === 0;
@@ -554,28 +564,15 @@ function CourseEditor({ course, onSaved }: { course: CourseRow; onSaved: () => v
                     </div>
                     <div className="space-y-2">
                       {lvl.modules.map((m, mi) => (
-                        <div key={m.code} className="rounded-lg border border-border/50 p-3">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-[10px]">{m.code}</Badge>
-                            <Input value={m.title} onChange={(e) => update((d) => { d.levels[li].modules[mi].title = e.target.value; })} className="h-8 text-sm" />
-                          </div>
-                          <Textarea
-                            value={m.description}
-                            onChange={(e) => update((d) => { d.levels[li].modules[mi].description = e.target.value; })}
-                            rows={2}
-                            className="mt-2 text-xs"
-                          />
-                          <Label className="mt-2 text-[11px] text-muted-foreground">Objectives (one per line)</Label>
-                          <Textarea
-                            value={m.objectives.join("\n")}
-                            onChange={(e) => update((d) => { d.levels[li].modules[mi].objectives = e.target.value.split("\n").filter(Boolean); })}
-                            rows={6}
-                            className="mt-1 text-xs"
-                          />
-                          <p className="mt-2 text-[11px] text-muted-foreground">
-                            Artifact: <span className="font-medium text-foreground">{m.capstoneEvidence}</span> · {m.subModules.reduce((n, s) => n + s.classes.length, 0)} classes · quiz {m.quiz.passThreshold}%
-                          </p>
-                        </div>
+                        <ModuleEditorCard
+                          key={m.code}
+                          module={m}
+                          li={li}
+                          mi={mi}
+                          expandedModule={expandedModule}
+                          setExpandedModule={setExpandedModule}
+                          update={update}
+                        />
                       ))}
                     </div>
                   </div>
@@ -598,4 +595,423 @@ function CourseEditor({ course, onSaved }: { course: CourseRow; onSaved: () => v
 
 function ChevronRotate({ open }: { open: boolean }) {
   return <ChevronRight className={cn("ml-auto h-4 w-4 text-muted-foreground transition", open && "rotate-90")} />;
+}
+
+// ---------------------------------------------------------------------------
+// Roster panel — learner analytics across courses
+// ---------------------------------------------------------------------------
+
+function RosterPanel({ courses }: { courses: CourseRow[] | null }) {
+  const [filterCourse, setFilterCourse] = useState<string>("__all__");
+  const [data, setData] = useState<{ roster: RosterRow[]; summary: RosterSummary } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async (courseId?: string) => {
+    setLoading(true);
+    try {
+      const res = await api.getRoster(courseId);
+      setData(res);
+    } catch {
+      setData({ roster: [], summary: { totalEnrollments: 0, uniqueLearners: 0, avgProgress: 0, completedPathways: 0, quizzesPassed: 0 } });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load(filterCourse === "__all__" ? undefined : filterCourse);
+  }, [filterCourse]);
+
+  const s = data?.summary;
+  const rows = data?.roster ?? [];
+
+  return (
+    <div className="space-y-4">
+      {/* summary cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <RosterStat label="Total enrollments" value={s?.totalEnrollments ?? 0} />
+        <RosterStat label="Unique learners" value={s?.uniqueLearners ?? 0} />
+        <RosterStat label="Avg progress" value={`${s?.avgProgress ?? 0}%`} />
+        <RosterStat label="Quizzes passed" value={s?.quizzesPassed ?? 0} highlight />
+      </div>
+
+      {/* filter */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Filter by course:</span>
+        <Select value={filterCourse} onValueChange={setFilterCourse}>
+          <SelectTrigger className="w-64 h-8 text-xs">
+            <SelectValue placeholder="All courses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All courses</SelectItem>
+            {courses?.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.code} · {c.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="ghost" size="sm" onClick={() => load(filterCourse === "__all__" ? undefined : filterCourse)} className="ml-auto h-8 gap-1.5 text-xs">
+          <Loader2 className={cn("h-3 w-3", !loading && "hidden")} /> Refresh
+        </Button>
+      </div>
+
+      {/* table */}
+      {!data || loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-16 w-full rounded-lg" />
+          <Skeleton className="h-16 w-full rounded-lg" />
+          <Skeleton className="h-16 w-full rounded-lg" />
+        </div>
+      ) : rows.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center gap-2 p-10 text-center">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-muted">
+              <Users className="h-5 w-5 text-muted-foreground" />
+            </span>
+            <p className="text-sm text-muted-foreground">No enrollments yet. Learners appear here once they enroll from the catalog.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border/60">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Learner</th>
+                  <th className="hidden px-4 py-3 font-medium sm:table-cell">Course</th>
+                  <th className="px-4 py-3 font-medium">Progress</th>
+                  <th className="hidden px-4 py-3 font-medium md:table-cell">Lessons</th>
+                  <th className="hidden px-4 py-3 font-medium md:table-cell">Quizzes</th>
+                  <th className="hidden px-4 py-3 font-medium lg:table-cell">Enrolled</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {rows.map((r) => (
+                  <tr key={r.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{r.learnerName}</p>
+                      {r.learnerEmail && <p className="text-xs text-muted-foreground">{r.learnerEmail}</p>}
+                    </td>
+                    <td className="hidden px-4 py-3 sm:table-cell">
+                      <Badge variant="outline" className="text-[10px]">{r.courseCode}</Badge>
+                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{r.courseTitle}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={cn("h-full rounded-full", r.overallPct >= 100 ? "bg-primary" : "bg-primary/70")}
+                            style={{ width: `${r.overallPct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{r.overallPct}%</span>
+                      </div>
+                    </td>
+                    <td className="hidden px-4 py-3 md:table-cell text-xs text-muted-foreground">
+                      {r.completedClasses}/{r.totalClasses}
+                    </td>
+                    <td className="hidden px-4 py-3 md:table-cell text-xs text-muted-foreground">
+                      {r.passedQuizzes}/{r.totalModules}
+                      {r.overallPct >= 100 && <Badge variant="secondary" className="ml-1.5 text-[9px]">Complete</Badge>}
+                    </td>
+                    <td className="hidden px-4 py-3 lg:table-cell text-xs text-muted-foreground">
+                      {new Date(r.enrolledAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RosterStat({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+  return (
+    <Card className={highlight ? "border-primary/40 bg-primary/5" : ""}>
+      <CardContent className="p-4">
+        <p className={cn("text-2xl font-semibold tracking-tight", highlight && "text-primary")}>{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Module editor card — drills into objectives, capstone, and per-lesson editing
+// ---------------------------------------------------------------------------
+
+interface ModuleEditorCardProps {
+  module: Pathway["levels"][number]["modules"][number];
+  li: number;
+  mi: number;
+  expandedModule: string;
+  setExpandedModule: (s: string) => void;
+  update: (mut: (draft: Pathway) => void) => void;
+}
+
+function ModuleEditorCard({ module: m, li, mi, expandedModule, setExpandedModule, update }: ModuleEditorCardProps) {
+  const open = expandedModule === m.code;
+  const classCount = m.subModules.reduce((n, s) => n + s.classes.length, 0);
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-card/40">
+      <button
+        type="button"
+        onClick={() => setExpandedModule(open ? "" : m.code)}
+        className="flex w-full items-center gap-2 p-3 text-left"
+      >
+        <Badge variant="outline" className="text-[10px]">{m.code}</Badge>
+        <span className="flex-1 truncate text-sm font-medium">{m.title}</span>
+        <span className="text-[10px] text-muted-foreground">{classCount} classes · {m.hours}h</span>
+        <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition", open && "rotate-90")} />
+      </button>
+
+      {!open && (
+        <div className="px-3 pb-3">
+          <Input
+            value={m.title}
+            onChange={(e) => update((d) => { d.levels[li].modules[mi].title = e.target.value; })}
+            className="h-8 text-sm"
+            placeholder="Module title"
+          />
+        </div>
+      )}
+
+      {open && (
+        <div className="space-y-3 border-t border-border/60 p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Module title</Label>
+              <Input
+                value={m.title}
+                onChange={(e) => update((d) => { d.levels[li].modules[mi].title = e.target.value; })}
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Capstone artifact</Label>
+              <Input
+                value={m.capstoneEvidence}
+                onChange={(e) => update((d) => { d.levels[li].modules[mi].capstoneEvidence = e.target.value; })}
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Description</Label>
+            <Textarea
+              value={m.description}
+              onChange={(e) => update((d) => { d.levels[li].modules[mi].description = e.target.value; })}
+              rows={2}
+              className="mt-1 text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-[11px] text-muted-foreground">Learning objectives (one per line · target 6)</Label>
+            <Textarea
+              value={m.objectives.join("\n")}
+              onChange={(e) => update((d) => { d.levels[li].modules[mi].objectives = e.target.value.split("\n").filter(Boolean); })}
+              rows={6}
+              className="mt-1 text-xs"
+            />
+          </div>
+
+          {/* Rubric + critical items */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Rubric criteria (one per line · target 8)</Label>
+              <Textarea
+                value={m.rubric.rubricCriteria.join("\n")}
+                onChange={(e) => update((d) => { d.levels[li].modules[mi].rubric.rubricCriteria = e.target.value.split("\n").filter(Boolean); })}
+                rows={8}
+                className="mt-1 text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Critical items (one per line · 3–4)</Label>
+              <Textarea
+                value={m.rubric.criticalItems.join("\n")}
+                onChange={(e) => update((d) => { d.levels[li].modules[mi].rubric.criticalItems = e.target.value.split("\n").filter(Boolean); })}
+                rows={4}
+                className="mt-1 text-xs"
+              />
+              <Label className="mt-3 block text-[11px] text-muted-foreground">Self-reflection prompt</Label>
+              <Textarea
+                value={m.rubric.selfReflection}
+                onChange={(e) => update((d) => { d.levels[li].modules[mi].rubric.selfReflection = e.target.value; })}
+                rows={3}
+                className="mt-1 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Quiz sample */}
+          <div className="rounded-md border border-border/50 bg-muted/20 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <ListChecks className="h-3 w-3 text-primary" /> Module quiz sample item (pass {m.quiz.passThreshold}%)
+            </p>
+            <Input
+              value={m.quiz.sampleItem.question}
+              onChange={(e) => update((d) => { d.levels[li].modules[mi].quiz.sampleItem.question = e.target.value; })}
+              className="h-8 text-xs"
+              placeholder="Sample quiz question"
+            />
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Correct answer</Label>
+                <Input
+                  value={m.quiz.sampleItem.answer}
+                  onChange={(e) => update((d) => { d.levels[li].modules[mi].quiz.sampleItem.answer = e.target.value; })}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Rationale</Label>
+                <Input
+                  value={m.quiz.sampleItem.rationale}
+                  onChange={(e) => update((d) => { d.levels[li].modules[mi].quiz.sampleItem.rationale = e.target.value; })}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Per-lesson editors */}
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Lessons · {classCount} classes across {m.subModules.length} sub-modules
+            </p>
+            {m.subModules.map((sm, si) => (
+              <div key={sm.id} className="rounded-md border border-border/40 p-2">
+                <p className="px-1 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {sm.id} · {sm.title}
+                </p>
+                <div className="space-y-1.5">
+                  {sm.classes.map((cls, ci) => (
+                    <LessonEditor
+                      key={cls.id}
+                      cls={cls}
+                      li={li}
+                      mi={mi}
+                      si={si}
+                      ci={ci}
+                      update={update}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Lesson editor — edits a single class's flow, teachable content, AI prompt
+// ---------------------------------------------------------------------------
+
+interface LessonEditorProps {
+  cls: Pathway["levels"][number]["modules"][number]["subModules"][number]["classes"][number];
+  li: number;
+  mi: number;
+  si: number;
+  ci: number;
+  update: (mut: (draft: Pathway) => void) => void;
+}
+
+const FLOW_FIELDS = [
+  { key: "connect" as const, label: "Connect", hint: "Hook · shared context" },
+  { key: "learn" as const, label: "Learn", hint: "Core teaching" },
+  { key: "seeIt" as const, label: "See It", hint: "Worked example / model" },
+  { key: "doIt" as const, label: "Do It", hint: "Applied practice" },
+  { key: "check" as const, label: "Check", hint: "3-question knowledge check" },
+];
+
+function LessonEditor({ cls, li, mi, si, ci, update }: LessonEditorProps) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded border border-border/40 bg-background/60">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-2 py-1.5 text-left"
+      >
+        <Badge variant="secondary" className="text-[9px]">{cls.id}</Badge>
+        <span className="flex-1 truncate text-[11px] font-medium">{cls.title}</span>
+        {cls.isAppliedLab && (
+          <Badge variant="outline" className="text-[9px] text-primary">Lab</Badge>
+        )}
+        <ChevronRight className={cn("h-3 w-3 text-muted-foreground transition", open && "rotate-90")} />
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-border/40 p-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div>
+              <Label className="text-[10px] text-muted-foreground">Class title</Label>
+              <Input
+                value={cls.title}
+                onChange={(e) => update((d) => { d.levels[li].modules[mi].subModules[si].classes[ci].title = e.target.value; })}
+                className="h-7 text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-[10px] text-muted-foreground">Duration</Label>
+              <Input
+                value={cls.duration}
+                onChange={(e) => update((d) => { d.levels[li].modules[mi].subModules[si].classes[ci].duration = e.target.value; })}
+                className="h-7 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* 5-part flow */}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {FLOW_FIELDS.map((f) => (
+              <div key={f.key}>
+                <Label className="text-[10px] text-muted-foreground">
+                  {f.label} <span className="font-normal opacity-70">· {f.hint}</span>
+                </Label>
+                <Textarea
+                  value={cls.flow[f.key]}
+                  onChange={(e) => update((d) => { d.levels[li].modules[mi].subModules[si].classes[ci].flow[f.key] = e.target.value; })}
+                  rows={3}
+                  className="mt-0.5 text-xs"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Teachable content */}
+          <div>
+            <Label className="text-[10px] text-muted-foreground">Teachable content (Markdown)</Label>
+            <Textarea
+              value={cls.teachableContent}
+              onChange={(e) => update((d) => { d.levels[li].modules[mi].subModules[si].classes[ci].teachableContent = e.target.value; })}
+              rows={6}
+              className="mt-0.5 font-mono text-xs"
+            />
+          </div>
+
+          {/* AI tutor prompt */}
+          <div>
+            <Label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Sparkles className="h-2.5 w-2.5 text-primary" /> LeashGuide AI tutor prompt
+            </Label>
+            <Textarea
+              value={cls.aiTutorPrompt}
+              onChange={(e) => update((d) => { d.levels[li].modules[mi].subModules[si].classes[ci].aiTutorPrompt = e.target.value; })}
+              rows={4}
+              className="mt-0.5 text-xs"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

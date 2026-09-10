@@ -28,6 +28,7 @@ export function CourseView() {
   const [name, setName] = useState(learnerName);
   const [enrolling, setEnrolling] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<string>("overview");
 
   useEffect(() => {
     if (!code) {
@@ -42,6 +43,8 @@ export function CourseView() {
     if (!course) return;
     const finalName = name.trim();
     if (!finalName) {
+      // No name yet — jump to the Enroll tab so the learner sees the name field + error.
+      setTab("enroll");
       setErr("Enter your name to enroll.");
       return;
     }
@@ -114,7 +117,7 @@ export function CourseView() {
         </span>
       </div>
 
-      <Tabs defaultValue="overview" className="mt-8">
+      <Tabs value={tab} onValueChange={setTab} className="mt-8">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
