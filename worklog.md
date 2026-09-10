@@ -428,3 +428,40 @@ The user said: remove the disclaimers, remove the accreditation garble from the 
 
 ## Where the platform stands now
 The product story is clean: Leashed.io is the AI-autonomous school. Every course is taught live by LeashGuide (Z.ai). Every pathway is the same uniform shape (the "paper clip"). Free certificates on completion. SCORM-portable. The Standards page is now a positive "how we're built" reference, not a defensive disclaimer. The ICMG typo is fixed. Ready to scale courses via the AI Builder.
+
+---
+
+Task ID: 9
+Agent: main (Z.ai Code) — build the actual catalog
+Task: Seed all 10 pathways from the Learning Catalog doc (200 modules, 1,200 hours total).
+
+## What was built
+The user wanted the actual course catalog built — not more UI polish. Extracted the real module data from Learning Catalog.docx and seeded all 10 pathways.
+
+### Real catalog data (extracted from the doc)
+- **LSH** (Life Skills & Personal Readiness): 20 real modules with correct titles + capstones (LSH-101 Personal Readiness → LSH-405 Life Skills Portfolio Capstone). Re-seeded to replace the old placeholder modules.
+- **GRM** (Pet Grooming & Animal Care): 20 real modules (GRM-101 Introduction to Pet Grooming Careers → GRM-405 Pet Grooming Career Capstone).
+- **TEC** (AI & Technology Systems): 20 real modules (TEC-101 Technology Foundations → TEC-405 Technology Systems Portfolio Capstone).
+- Wrote `scripts/parse-catalog.py` to extract module tables from the pandoc markdown output.
+- Wrote `scripts/seed-all-catalog.ts` to build all 3 real pathways through the uniform `buildPathwayFromCatalog` generator.
+
+### AI-generated pathways (7)
+The doc didn't include module detail for these 7, so they were generated via the AI Course Builder API (Z.ai), then published:
+- **BUS** (Business & Leadership), **PAR** (Partner Programs & Workforce Transition), **PER** (Personal Mastery & Lifelong Growth), **MKT** (Marketing, Branding & SEO Mastery), **FIN** (Financial Mastery, Bookkeeping & Tax Strategy), **LDR** (Business Leadership, Operations & Expansion), **LEG** (Legal, Risk, Compliance & Ethical Governance).
+
+### Final catalog state
+- **10 published pathways**, each 120 hours / 12 CEU / 4 levels / 20 modules / 180 lesson blocks.
+- Total: 200 modules, 1,800 lesson blocks, 1,200 contact hours across the catalog.
+- Matches the "Career-to-Ownership Academy" directory from the catalog doc exactly.
+- Cleaned up old test courses (WDC, old FIN).
+
+## Verification
+- `GET /api/courses` returns all 10 published pathways.
+- GRM Level 100 shows real catalog modules: GRM-101 "Introduction to Pet Grooming Careers" with capstone "Grooming career readiness plan" — straight from the doc.
+- LSH Level 100 now shows real catalog modules (LSH-101 "Personal Readiness") instead of the old placeholder ("Self-Awareness & Identity").
+- Browser: catalog page shows "10 courses" with all 10 pathway titles visible.
+
+## What's next (the actual learning flows)
+The catalog is built. The learning flows already exist (learner view with 5-part flow, LeashGuide AI tutor, module quizzes, certificates). The remaining work the user cares about:
+- The M01-M10 sub-module content from the catalog doc (GRM and TEC have this detail) should be seeded as the actual class-level content, not just the uniform-generated placeholder content. Right now each module expands to 9 classes through the uniform generator with themed-but-generic content. A future round should ingest the catalog's M01-M10 sub-module text as the real teachable content per class.
+- The catalog doc specifies module types for GRM (Foundation theory / Safety and handling / Core grooming skill / etc.) with dry-lab and live-animal lab hours — that granularity isn't yet modeled.
