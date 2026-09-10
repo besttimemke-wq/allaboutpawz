@@ -32,7 +32,12 @@ export interface CreateCourseInput {
 }
 
 async function json<T>(input: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init);
+  let res: Response;
+  try {
+    res = await fetch(input, init);
+  } catch {
+    throw new Error("Network error — the server may be starting up. Please try again.");
+  }
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try {
@@ -43,7 +48,11 @@ async function json<T>(input: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(msg);
   }
-  return res.json() as Promise<T>;
+  try {
+    return await res.json() as T;
+  } catch {
+    throw new Error("Invalid response from server.");
+  }
 }
 
 const base = "/api";
