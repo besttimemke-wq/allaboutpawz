@@ -1,0 +1,85 @@
+// Prisma schema — Digital Learning University (Leashed Learning Framework)
+// Course data model: the canonical Pathway JSON is persisted on Course.data
+// so duplication is a deep-clone + new code. Structured tables handle the
+// runtime concerns (enrollments, progress, live AI tutor sessions, quiz attempts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Course {
+  id              String   @id @default(cuid())
+  code            String   @unique // e.g. "LSH"
+  title           String
+  subtitle        String
+  description     String
+  missionAlignment String
+  totalHours      Int // 120
+  ceus            Float // 12.0
+  scormPackageId  String
+  accreditation   String // JSON string array e.g. ["COE","ACCSC","IACET","ICG","SCORM"]
+  status          String   @default("published") // draft | published
+  aiGenerated     Boolean  @default(false)
+  data            String // JSON-serialized full Pathway object (levels/modules/lessons/quizzes/rubrics)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  enrollments  Enrollment[]
+  chatSessions ChatSession[]
+  quizAttempts QuizAttempt[]
+}
+
+model Enrollment {
+  id          String   @id @default(cuid())
+  learnerName String // lightweight learner identity (MVP — no auth)
+  learnerEmail String?
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress    String   @default("{}") // JSON: { [moduleCode]: { completedClasses: string[], quizScore?: number, quizPassed?: boolean } }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+model ChatSession {
+  id         String   @id @default(cuid())
+  courseId    String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleCode String?
+  learnerName String?
+  createdAt  DateTime @default(now())
+  messages   ChatMessage[]
+
+  @@index([courseId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String // user | assistant | system
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  courseId    String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleCode String
+  learnerName String?
+  score      Int // percentage 0-100
+  passed     Boolean
+  answers    String // JSON: [{ question, selected, correct }]
+  createdAt  DateTime @default(now())
+
+  @@index([courseId])
+}
