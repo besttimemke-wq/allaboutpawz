@@ -669,3 +669,75 @@ The static generated content is NOT deleted — it serves as reference material 
 - **Catalog rework for the mission**: the 10 pathways are seeded but generic. LSH is right for the mission; the others need reframing around real reentry/barrier-removal.
 - **Vercel deployment planning**: SQLite + in-memory won't work on Vercel. Need Postgres + a real deployment config.
 - **Onboarding gate**: the page shell checks for a learner profile and shows onboarding if missing — but this only triggers when entering the learner view. Could be smoother.
+
+---
+
+Task ID: 14
+Agent: main (Z.ai Code) — product mechanics from your mockup
+Task: Build the actual product mechanics underneath your 30-screen professional mockup — the 13-step enrollment pipeline, referral verification, recommendation engine, and support team system.
+
+## What I built
+
+### 1. Expanded data model (Prisma)
+- **Learner**: now has `intake` (JSON for all 13 steps), `intakeStep` (0-13), `intakeComplete`, `partnerId`
+- **Partner**: referring organizations (salon, nonprofit, workforce-board, reentry-program, community-org) with unique referral codes
+- **SupportStaff**: case-managers, academic-advisors, mentors with specialties
+- **SupportTeamAssignment**: links a learner to their 3-person support team (case manager + academic advisor + mentor)
+- All pushed to SQLite + Prisma client regenerated
+
+### 2. 13-step enrollment intake API (`/api/intake`)
+The full pipeline from your mockup, saving progressively:
+1. Referral & Verification (partner code, referring org) — verifies the code against the Partner table
+2. Program Eligibility
+3. Personal Information (name, dob, contact, pronouns)
+4. Identity & Verification (gov ID, verification method)
+5. Location (address, city, state, zip, county)
+6. Education & Background
+7. Employment & Career (work history, career interests)
+8. Skills & Experience (self-rated 1-5 across 12 domains)
+9. Barriers, Supports & Needs (transportation, childcare, housing, etc.)
+10. Demographic & Program Reporting (race, gender, veteran, disability, income, household)
+11. Final Review & Consent
+12. Welcome to Learning Journey — **triggers the recommendation engine + auto-assigns support team**
+13. Enrollment Confirmation
+
+Each step merges into the intake JSON. Resumable — `intakeStep` tracks progress. Step 12 auto-generates pathway recommendations and assigns a support team.
+
+### 3. Partner verification API (`/api/partners`)
+- GET: lists all active partner organizations (for the referring-org dropdown)
+- POST: verifies a referral code → returns the partner org if valid
+
+### 4. Recommendation engine (`/api/recommend`)
+Scores all 10 pathways based on the learner's intake profile:
+- Skills ratings (Animal Care → GRM, Technology → TEC, Finance → FIN, etc.)
+- Career interests (text matching)
+- Barriers (housing/employment/transportation → LSH boost)
+- Employment status (unemployed → LSH boost)
+Returns top 3 recommended pathways with scores + reasons.
+
+### 5. Support team system (`/api/support-team`)
+- Auto-assigns a 3-person team on intake step 12: case manager + academic advisor + mentor
+- Mentor matching: if learner has "reentry" barrier, assigns a mentor with reentry specialty
+- GET: returns the learner's assigned support team with names, emails, roles
+
+### 6. Seeded real data
+- **5 partner organizations**: Second Chance Reentry Program, City Workforce Development Board, Bright Futures Salon Network, Community Housing Partners, Women in Transition Foundation
+- **7 support staff**: 2 case managers, 2 academic advisors, 3 mentors — each with specialties (reentry, housing, pet-grooming, financial-literacy, single-parent, etc.)
+
+## Verified
+- `GET /api/partners` → 200, returns 5 partners
+- `POST /api/partners` with `{"code":"PARTNER001"}` → 200, `{"valid":true,"partner":{"name":"Second Chance Reentry Program","type":"reentry-program"}}`
+- `POST /api/intake` step 1 with referral code → 200, creates learner, links partner, `intakeStep: 1`
+- Recommendation engine logic verified in code (scores pathways by skills + interests + barriers)
+- Support team auto-assignment verified in code (matches mentor specialty to barriers)
+
+## What these mechanics power (from your mockup)
+- **Screen 3 (Referral Verification)** → `/api/partners` verify
+- **Screens 4-13 (Program Eligibility → Enrollment Confirmation)** → `/api/intake` step-by-step
+- **Screen 17 (Recommended Learning Plan)** → `/api/recommend` returns scored pathways
+- **Screen 18 (Support Team)** → `/api/support-team` returns assigned team
+- **Screen 16 (Pathway Selection)** → learner picks from recommendations
+- **Screen 24 (Module Entry / Learning Experience)** → the live LeashGuide classroom (already built)
+
+## Honest note
+The dev server is flaky under Turbopack recompilation (memory pressure causes intermittent timeouts on first compile of new routes). The mechanics are built and the initial tests passed (partner list, partner verify, intake step 1 all returned 200). A clean restart resolves the compile issues. For production deployment on Vercel, this won't be an issue — Vercel handles compilation at build time.

@@ -1,0 +1,2002 @@
+     1→<!-- Leashed.io - 1. Learner Dashboard (Home) -->
+     2→<!DOCTYPE html>
+     3→
+     4→<html lang="en"><head>
+     5→<meta charset="utf-8"/>
+     6→<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+     7→<title>Leashed.io - Learner Dashboard</title>
+     8→<!-- Tailwind CSS v3 with Plugins -->
+     9→<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    10→<!-- Font Awesome Icons -->
+    11→<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+    12→<style data-purpose="custom-layout">
+    13→    body {
+    14→      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    15→    }
+    16→  </style>
+    17→</head>
+    18→<body class="bg-slate-50 text-slate-800 antialiased h-screen flex overflow-hidden">
+    19→<!-- BEGIN: LeftSidebar -->
+    20→<aside class="w-64 bg-[#0a192f] text-slate-300 flex flex-col justify-between shrink-0 select-none">
+    21→<div>
+    22→<!-- Brand / Logo -->
+    23→<div class="h-16 flex items-center px-6 gap-3 text-white font-semibold text-xl tracking-tight border-b border-slate-800/60">
+    24→<div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-base shadow-sm">
+    25→<i class="fa-solid fa-paw"></i>
+    26→</div>
+    27→<span>Leashed.io</span>
+    28→</div>
+    29→<!-- Navigation Menu -->
+    30→<nav class="mt-4 px-3 space-y-1">
+    31→<!-- Home (Active) -->
+    32→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm transition-colors shadow-sm" href="#">
+    33→<i class="fa-solid fa-house w-4 text-center"></i>
+    34→<span>Home</span>
+    35→</a>
+    36→<!-- Pathways -->
+    37→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800/80 hover:text-white font-medium text-sm transition-colors" href="#">
+    38→<i class="fa-solid fa-route w-4 text-center text-slate-400"></i>
+    39→<span>Pathways</span>
+    40→</a>
+    41→<!-- Courses -->
+    42→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800/80 hover:text-white font-medium text-sm transition-colors" href="#">
+    43→<i class="fa-solid fa-book-open w-4 text-center text-slate-400"></i>
+    44→<span>Courses</span>
+    45→</a>
+    46→<!-- Syllabus -->
+    47→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800/80 hover:text-white font-medium text-sm transition-colors" href="#">
+    48→<i class="fa-regular fa-file-lines w-4 text-center text-slate-400"></i>
+    49→<span>Syllabus</span>
+    50→</a>
+    51→<!-- Resources -->
+    52→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800/80 hover:text-white font-medium text-sm transition-colors" href="#">
+    53→<i class="fa-solid fa-folder-open w-4 text-center text-slate-400"></i>
+    54→<span>Resources</span>
+    55→</a>
+    56→<!-- My Progress -->
+    57→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800/80 hover:text-white font-medium text-sm transition-colors" href="#">
+    58→<i class="fa-solid fa-chart-line w-4 text-center text-slate-400"></i>
+    59→<span>My Progress</span>
+    60→</a>
+    61→<!-- Support -->
+    62→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800/80 hover:text-white font-medium text-sm transition-colors" href="#">
+    63→<i class="fa-regular fa-circle-question w-4 text-center text-slate-400"></i>
+    64→<span>Support</span>
+    65→</a>
+    66→</nav>
+    67→</div>
+    68→<!-- User Profile & Overall Progress Section -->
+    69→<div class="p-4 border-t border-slate-800/80">
+    70→<!-- Progress Bar Mini Widget -->
+    71→<div class="mb-4 px-1">
+    72→<div class="flex justify-between text-xs text-slate-300 font-medium mb-1.5">
+    73→<span>Your Progress</span>
+    74→<span class="text-white font-semibold">0%</span>
+    75→</div>
+    76→<div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+    77→<div class="bg-blue-500 h-full w-0 rounded-full"></div>
+    78→</div>
+    79→</div>
+    80→<!-- User Card -->
+    81→<div class="flex items-center gap-3 pt-2">
+    82→<div class="w-9 h-9 rounded-full bg-blue-700/80 border border-blue-400/30 flex items-center justify-center font-medium text-xs text-white">
+    83→          JS
+    84→        </div>
+    85→<div class="overflow-hidden">
+    86→<div class="text-sm font-medium text-white truncate">Jamie Smith</div>
+    87→</div>
+    88→</div>
+    89→</div>
+    90→</aside>
+    91→<!-- END: LeftSidebar -->
+    92→<!-- BEGIN: MainContentArea -->
+    93→<div class="flex-1 flex flex-col overflow-hidden bg-[#f8fafc]">
+    94→<!-- Top Header Bar -->
+    95→<header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10 shrink-0">
+    96→<div class="text-lg font-semibold text-slate-800 tracking-tight flex items-center gap-2">
+    97→<span>Dashboard (Home)</span>
+    98→</div>
+    99→<!-- Search and Header Controls -->
+   100→<div class="flex items-center gap-4">
+   101→<div class="relative w-72">
+   102→<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+   103→<i class="fa-solid fa-magnifying-glass text-sm"></i>
+   104→</span>
+   105→<input class="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 placeholder-slate-400 transition-all" placeholder="Search pathways, courses..." type="text"/>
+   106→</div>
+   107→<!-- Notifications -->
+   108→<button aria-label="Notifications" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors relative" type="button">
+   109→<i class="fa-regular fa-bell text-base"></i>
+   110→</button>
+   111→<!-- User Avatar Circle -->
+   112→<div class="w-8 h-8 rounded-full bg-blue-600 text-white font-semibold text-xs flex items-center justify-center cursor-pointer shadow-sm">
+   113→          JS
+   114→        </div>
+   115→</div>
+   116→</header>
+   117→<!-- Scrollable Workspace -->
+   118→<main class="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+   119→<!-- Hero Welcome Banner -->
+   120→<!-- BEGIN: WelcomeBanner -->
+   121→<section class="bg-gradient-to-r from-blue-50 via-sky-50 to-amber-50/40 rounded-2xl p-7 border border-blue-100/80 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)] relative overflow-hidden">
+   122→<div class="max-w-xl pr-6 z-10">
+   123→<h1 class="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight mb-2">
+   124→            Welcome back, Jamie!
+   125→          </h1>
+   126→<p class="text-slate-600 text-sm leading-relaxed mb-6">
+   127→            Your journey to a rewarding career in pet care starts here. Explore the pathways, choose your courses, and build the skills you need.
+   128→          </p>
+   129→<a class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-sm hover:shadow" href="#">
+   130→<span>Explore Pathways</span>
+   131→<i class="fa-solid fa-arrow-right text-xs"></i>
+   132→</a>
+   133→</div>
+   134→<!-- Banner Right Image (Pet Care Professional / Dog Groomer) -->
+   135→<div class="shrink-0 relative w-60 h-44 rounded-xl overflow-hidden shadow-sm border border-slate-200/60 hidden sm:block">
+   136→<img alt="Female pet groomer with smiling golden retriever" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIca5yEDxYSryl0zfJLcW4HEApiJ4Rb1bUE3YuEKCd7-4RqvMuAHJrOo1W6ooRsYsQW4XzEHkVvxfkaTxfnIqvRzvXj8Ao3EJ89oa4cAG6k9Y12dlIoy-Ibpf5BdSpHWhIkfFehqdS51PynbUnJ2zb_x1QI1kKsF2XqrXNjVcU-gqRF7AtLAXwOTyy-esTMz65o1P9XvgxpLxbOyTdmIlWnYTNkpY08mE5ySnHiE8K8vGJDnrgdAA_"/>
+   137→</div>
+   138→</section>
+   139→<!-- END: WelcomeBanner -->
+   140→<!-- Stats Metrics Cards (4 Columns) -->
+   141→<!-- BEGIN: StatsGrid -->
+   142→<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   143→<!-- 1: Pathways -->
+   144→<div class="bg-white p-5 rounded-xl border border-slate-200 flex items-center gap-4 shadow-sm hover:border-slate-300 transition">
+   145→<div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
+   146→<i class="fa-solid fa-graduation-cap"></i>
+   147→</div>
+   148→<div>
+   149→<div class="text-2xl font-bold text-slate-900 leading-tight">10</div>
+   150→<div class="text-xs font-medium text-slate-500">Pathways</div>
+   151→</div>
+   152→</div>
+   153→<!-- 2: Courses -->
+   154→<div class="bg-white p-5 rounded-xl border border-slate-200 flex items-center gap-4 shadow-sm hover:border-slate-300 transition">
+   155→<div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0">
+   156→<i class="fa-solid fa-book-open"></i>
+   157→</div>
+   158→<div>
+   159→<div class="text-2xl font-bold text-slate-900 leading-tight">200</div>
+   160→<div class="text-xs font-medium text-slate-500">Courses</div>
+   161→</div>
+   162→</div>
+   163→<!-- 3: Modules -->
+   164→<div class="bg-white p-5 rounded-xl border border-slate-200 flex items-center gap-4 shadow-sm hover:border-slate-300 transition">
+   165→<div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl shrink-0">
+   166→<i class="fa-regular fa-copy"></i>
+   167→</div>
+   168→<div>
+   169→<div class="text-2xl font-bold text-slate-900 leading-tight">2,000</div>
+   170→<div class="text-xs font-medium text-slate-500">Modules</div>
+   171→</div>
+   172→</div>
+   173→<!-- 4: Learning Hours -->
+   174→<div class="bg-white p-5 rounded-xl border border-slate-200 flex items-center gap-4 shadow-sm hover:border-slate-300 transition">
+   175→<div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
+   176→<i class="fa-regular fa-clock"></i>
+   177→</div>
+   178→<div>
+   179→<div class="text-2xl font-bold text-slate-900 leading-tight">1,200</div>
+   180→<div class="text-xs font-medium text-slate-500">Learning Hours</div>
+   181→</div>
+   182→</div>
+   183→</section>
+   184→<!-- END: StatsGrid -->
+   185→<!-- Lower Dashboard Row (Continue Learning + Help Card) -->
+   186→<!-- BEGIN: DashboardActionsSection -->
+   187→<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   188→<!-- Continue Where You Left Off (Spans 2 Columns) -->
+   189→<div class="lg:col-span-2 space-y-3">
+   190→<h2 class="text-base font-semibold text-slate-900 tracking-tight">
+   191→            Continue Where You Left Off
+   192→          </h2>
+   193→<div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
+   194→<div class="flex items-center justify-between gap-4 mb-4">
+   195→<div class="flex items-center gap-4">
+   196→<div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 text-xl shrink-0">
+   197→<i class="fa-regular fa-bookmark"></i>
+   198→</div>
+   199→<div>
+   200→<div class="inline-block px-2 py-0.5 mb-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded">
+   201→                    LIF-101
+   202→                  </div>
+   203→<h3 class="text-base font-semibold text-slate-800">
+   204→                    Personal Readiness &amp; Professional Habits
+   205→                  </h3>
+   206→</div>
+   207→</div>
+   208→<!-- Action Link / Arrow -->
+   209→<a aria-label="Resume Course" class="w-8 h-8 rounded-full border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-700 transition shrink-0" href="#">
+   210→<i class="fa-solid fa-chevron-right text-xs"></i>
+   211→</a>
+   212→</div>
+   213→<!-- Progress Indicator -->
+   214→<div class="flex items-center gap-3 pt-2">
+   215→<div class="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+   216→<div class="bg-blue-600 h-full w-0 rounded-full"></div>
+   217→</div>
+   218→<span class="text-xs font-medium text-slate-500 shrink-0">0%</span>
+   219→</div>
+   220→</div>
+   221→</div>
+   222→<!-- Need Help Support Card (Spans 1 Column) -->
+   223→<div class="space-y-3">
+   224→<h2 class="text-base font-semibold text-slate-900 tracking-tight invisible">
+   225→            Support
+   226→          </h2>
+   227→<div class="bg-blue-50/50 border border-blue-100/90 rounded-xl p-6 text-center shadow-sm flex flex-col justify-center items-center h-[calc(100%-1.875rem)]">
+   228→<div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-3">
+   229→<i class="fa-solid fa-headset text-lg"></i>
+   230→</div>
+   231→<h3 class="text-base font-bold text-slate-900 mb-1.5">
+   232→              Need Help?
+   233→            </h3>
+   234→<p class="text-xs text-slate-600 max-w-xs mb-4 leading-relaxed">
+   235→              Your instructor and LeashGuide are here to support you.
+   236→            </p>
+   237→<a class="inline-block w-full py-2 px-4 bg-white border border-blue-200 hover:bg-blue-600 hover:border-blue-600 hover:text-white text-blue-600 text-sm font-semibold rounded-lg shadow-sm transition duration-150" href="#">
+   238→              Contact Support
+   239→            </a>
+   240→</div>
+   241→</div>
+   242→</section>
+   243→<!-- END: DashboardActionsSection -->
+   244→</main>
+   245→</div>
+   246→<!-- END: MainContentArea -->
+   247→</body></html>
+   248→
+   249→<!-- Leashed.io - 4. Course List – Life Skills & Personal Readiness (100 Level) -->
+   250→<!DOCTYPE html>
+   251→
+   252→<html lang="en"><head>
+   253→<meta charset="utf-8"/>
+   254→<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+   255→<title>Course List – Life Skills &amp; Personal Readiness (100 Level) | Leashed.io</title>
+   256→<!-- Tailwind CSS CDN with forms and container plugins -->
+   257→<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+   258→<script>
+   259→    tailwind.config = {
+   260→      theme: {
+   261→        extend: {
+   262→          colors: {
+   263→            sidebar: '#0b1b2d',
+   264→            sidebarHover: '#132840',
+   265→            sidebarActive: '#1a3658',
+   266→            brandTeal: '#0d9488',
+   267→            brandGreen: '#10b981',
+   268→            brandBlue: '#0284c7',
+   269→            brandPurple: '#7c3aed',
+   270→            brandOrange: '#f97316'
+   271→          }
+   272→        }
+   273→      }
+   274→    }
+   275→  </script>
+   276→<style data-purpose="custom-typography">
+   277→    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+   278→    body {
+   279→      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+   280→    }
+   281→  </style>
+   282→</head>
+   283→<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col md:flex-row">
+   284→<!-- BEGIN: Sidebar -->
+   285→<aside class="w-full md:w-64 bg-sidebar text-slate-300 flex-shrink-0 flex flex-col justify-between p-5 select-none" data-purpose="main-navigation">
+   286→<div class="space-y-6">
+   287→<!-- Logo Branding -->
+   288→<div class="flex items-center space-x-2.5 px-2">
+   289→<div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+   290→<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24">
+   291→<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z"></path>
+   292→</svg>
+   293→</div>
+   294→<span class="text-xl font-bold tracking-tight text-white">Leashed.io</span>
+   295→</div>
+   296→<!-- Navigation Links -->
+   297→<nav class="space-y-1.5 pt-2">
+   298→<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-sidebarHover transition" href="#">
+   299→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   300→<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   301→</svg>
+   302→<span>Home</span>
+   303→</a>
+   304→<!-- Active Courses Item -->
+   305→<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold bg-sidebarActive text-white shadow-sm transition" href="#">
+   306→<svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   307→<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   308→</svg>
+   309→<span>Courses</span>
+   310→</a>
+   311→<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-sidebarHover transition" href="#">
+   312→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   313→<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   314→</svg>
+   315→<span>Syllabus</span>
+   316→</a>
+   317→<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-sidebarHover transition" href="#">
+   318→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   319→<path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   320→</svg>
+   321→<span>Resources</span>
+   322→</a>
+   323→<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-sidebarHover transition" href="#">
+   324→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   325→<path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   326→</svg>
+   327→<span>My Progress</span>
+   328→</a>
+   329→<a class="flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:text-white hover:bg-sidebarHover transition" href="#">
+   330→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   331→<path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   332→</svg>
+   333→<span>Support</span>
+   334→</a>
+   335→</nav>
+   336→</div>
+   337→<!-- Bottom User Section -->
+   338→<div class="pt-6 border-t border-slate-700/60 mt-auto">
+   339→<div class="flex items-center space-x-3 px-2">
+   340→<div class="w-8 h-8 rounded-full bg-cyan-700/60 flex items-center justify-center text-xs font-semibold text-white ring-1 ring-white/20">
+   341→          JS
+   342→        </div>
+   343→<div class="truncate">
+   344→<div class="text-xs font-medium text-white truncate">Jamie Smith</div>
+   345→<div class="text-[10px] text-slate-400 truncate">100 Level Student</div>
+   346→</div>
+   347→</div>
+   348→</div>
+   349→</aside>
+   350→<!-- END: Sidebar -->
+   351→<!-- BEGIN: MainContent -->
+   352→<main class="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full overflow-y-auto">
+   353→<!-- Back to Pathways Link -->
+   354→<a class="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition mb-3" href="#">
+   355→<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   356→<path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+   357→</svg>
+   358→<span>Back to Pathways</span>
+   359→</a>
+   360→<!-- Header Section -->
+   361→<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+   362→<div class="flex items-center space-x-3">
+   363→<!-- Paw / Pathway Icon -->
+   364→<div class="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200/70 flex items-center justify-center text-teal-600 shadow-sm flex-shrink-0">
+   365→<svg class="w-6 h-6 fill-current" viewbox="0 0 24 24">
+   366→<ellipse cx="12" cy="16" rx="4" ry="3.5"></ellipse>
+   367→<circle cx="7" cy="10" r="2.2"></circle>
+   368→<circle cx="17" cy="10" r="2.2"></circle>
+   369→<circle cx="10" cy="5.8" r="1.8"></circle>
+   370→<circle cx="14" cy="5.8" r="1.8"></circle>
+   371→</svg>
+   372→</div>
+   373→<div>
+   374→<h1 class="text-2xl font-bold text-slate-900 tracking-tight">Life Skills &amp; Personal Readiness</h1>
+   375→<p class="text-xs text-slate-500 font-medium mt-0.5">
+   376→            100 Level • Foundation • 5 Courses • 120 Hours
+   377→          </p>
+   378→</div>
+   379→</div>
+   380→<!-- Recommended Badge -->
+   381→<div>
+   382→<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+   383→          Recommended Starting Pathway
+   384→        </span>
+   385→</div>
+   386→</div>
+   387→<!-- BEGIN: Stepper Navigation -->
+   388→<section class="my-8" data-purpose="pathway-progression-stepper">
+   389→<div class="relative flex items-center justify-between max-w-2xl mx-auto px-4">
+   390→<!-- Progress track horizontal line -->
+   391→<div class="absolute left-8 right-8 top-1/2 -translate-y-1/2 h-0.5 bg-slate-200 -z-0"></div>
+   392→<!-- Step 1: 100 Foundation (Active) -->
+   393→<div class="relative z-10 flex flex-col items-center group cursor-pointer">
+   394→<div class="w-13 h-13 px-4 py-2 rounded-full bg-teal-600 text-white font-bold text-sm shadow-md ring-4 ring-teal-50 flex items-center justify-center border-2 border-teal-600">
+   395→            100
+   396→          </div>
+   397→<span class="text-xs font-semibold text-teal-800 mt-2">Foundation</span>
+   398→</div>
+   399→<!-- Step 2: 200 Core Skill -->
+   400→<div class="relative z-10 flex flex-col items-center group cursor-pointer opacity-70 hover:opacity-100 transition">
+   401→<div class="w-13 h-13 px-4 py-2 rounded-full bg-white text-slate-700 font-bold text-sm border-2 border-sky-400 shadow-sm flex items-center justify-center">
+   402→            200
+   403→          </div>
+   404→<span class="text-xs font-medium text-slate-600 mt-2">Core Skill</span>
+   405→</div>
+   406→<!-- Step 3: 300 Advanced Skill -->
+   407→<div class="relative z-10 flex flex-col items-center group cursor-pointer opacity-70 hover:opacity-100 transition">
+   408→<div class="w-13 h-13 px-4 py-2 rounded-full bg-white text-slate-700 font-bold text-sm border-2 border-purple-400 shadow-sm flex items-center justify-center">
+   409→            300
+   410→          </div>
+   411→<span class="text-xs font-medium text-slate-600 mt-2">Advanced Skill</span>
+   412→</div>
+   413→<!-- Step 4: 400 Capstone -->
+   414→<div class="relative z-10 flex flex-col items-center group cursor-pointer opacity-70 hover:opacity-100 transition">
+   415→<div class="w-13 h-13 px-4 py-2 rounded-full bg-white text-slate-700 font-bold text-sm border-2 border-amber-400 shadow-sm flex items-center justify-center">
+   416→            400
+   417→          </div>
+   418→<span class="text-xs font-medium text-slate-600 mt-2">Capstone</span>
+   419→</div>
+   420→</div>
+   421→</section>
+   422→<!-- END: Stepper Navigation -->
+   423→<!-- BEGIN: Filter and Sort Bar -->
+   424→<div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-5 mt-8">
+   425→<!-- Filter Button -->
+   426→<button class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-sm" type="button">
+   427→<span>View All</span>
+   428→<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   429→<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   430→</svg>
+   431→</button>
+   432→<!-- Sort Selection -->
+   433→<div class="flex items-center space-x-2 text-xs">
+   434→<span class="text-slate-500 font-medium">Sort by:</span>
+   435→<button class="inline-flex items-center space-x-1 px-2.5 py-1 bg-white border border-slate-300 rounded-lg font-medium text-slate-700 hover:bg-slate-50 shadow-sm" type="button">
+   436→<span>Course Order</span>
+   437→<svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   438→<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   439→</svg>
+   440→</button>
+   441→</div>
+   442→</div>
+   443→<!-- END: Filter and Sort Bar -->
+   444→<!-- BEGIN: Course List Cards -->
+   445→<div class="space-y-3" data-purpose="course-list-container">
+   446→<!-- Course 1 -->
+   447→<article class="group bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4">
+   448→<div class="flex items-start space-x-4">
+   449→<!-- Course Left Icon Badge -->
+   450→<div class="w-11 h-11 rounded-lg bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+   451→<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   452→<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+   453→</svg>
+   454→</div>
+   455→<div>
+   456→<div class="text-[11px] font-semibold tracking-wider text-teal-700 uppercase">LSH-LIF-101</div>
+   457→<h2 class="text-base font-bold text-slate-900 group-hover:text-teal-700 transition">Personal Readiness &amp; Professional Habits</h2>
+   458→<p class="text-xs text-slate-500 mt-0.5 line-clamp-1">Build the habits, communication skills, and practical tools...</p>
+   459→</div>
+   460→</div>
+   461→<div class="flex items-center justify-between md:justify-end md:space-x-6 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+   462→<div class="text-right">
+   463→<div class="text-xs text-slate-500 font-medium">6h • 3 modules • 9 classes</div>
+   464→<span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+   465→              Level 100 • Course 1 of 5
+   466→            </span>
+   467→</div>
+   468→<div class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 group-hover:text-teal-600 group-hover:translate-x-1 transition">
+   469→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   470→<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   471→</svg>
+   472→</div>
+   473→</div>
+   474→</article>
+   475→<!-- Course 2 -->
+   476→<article class="group bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4">
+   477→<div class="flex items-start space-x-4">
+   478→<div class="w-11 h-11 rounded-lg bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+   479→<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   480→<path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+   481→</svg>
+   482→</div>
+   483→<div>
+   484→<div class="text-[11px] font-semibold tracking-wider text-teal-700 uppercase">LSH-LIF-102</div>
+   485→<h2 class="text-base font-bold text-slate-900 group-hover:text-teal-700 transition">Digital Skills for Daily Life</h2>
+   486→<p class="text-xs text-slate-500 mt-0.5 line-clamp-1">Gain essential digital skills for communication, tools...</p>
+   487→</div>
+   488→</div>
+   489→<div class="flex items-center justify-between md:justify-end md:space-x-6 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+   490→<div class="text-right">
+   491→<div class="text-xs text-slate-500 font-medium">6h • 3 modules • 9 classes</div>
+   492→<span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+   493→              Level 100 • Course 2 of 5
+   494→            </span>
+   495→</div>
+   496→<div class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 group-hover:text-teal-600 group-hover:translate-x-1 transition">
+   497→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   498→<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   499→</svg>
+   500→</div>
+   501→</div>
+   502→</article>
+   503→<!-- Course 3 -->
+   504→<article class="group bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4">
+   505→<div class="flex items-start space-x-4">
+   506→<div class="w-11 h-11 rounded-lg bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+   507→<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   508→<path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+   509→</svg>
+   510→</div>
+   511→<div>
+   512→<div class="text-[11px] font-semibold tracking-wider text-teal-700 uppercase">LSH-LIF-103</div>
+   513→<h2 class="text-base font-bold text-slate-900 group-hover:text-teal-700 transition">Financial Basics for Stability</h2>
+   514→<p class="text-xs text-slate-500 mt-0.5 line-clamp-1">Learn money management, budgeting, and financial basics...</p>
+   515→</div>
+   516→</div>
+   517→<div class="flex items-center justify-between md:justify-end md:space-x-6 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+   518→<div class="text-right">
+   519→<div class="text-xs text-slate-500 font-medium">6h • 3 modules • 9 classes</div>
+   520→<span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+   521→              Level 100 • Course 3 of 5
+   522→            </span>
+   523→</div>
+   524→<div class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 group-hover:text-teal-600 group-hover:translate-x-1 transition">
+   525→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   526→<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   527→</svg>
+   528→</div>
+   529→</div>
+   530→</article>
+   531→<!-- Course 4 -->
+   532→<article class="group bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4">
+   533→<div class="flex items-start space-x-4">
+   534→<div class="w-11 h-11 rounded-lg bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+   535→<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   536→<path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+   537→</svg>
+   538→</div>
+   539→<div>
+   540→<div class="text-[11px] font-semibold tracking-wider text-teal-700 uppercase">LSH-LIF-104</div>
+   541→<h2 class="text-base font-bold text-slate-900 group-hover:text-teal-700 transition">Customer Service &amp; Professional Communication</h2>
+   542→<p class="text-xs text-slate-500 mt-0.5 line-clamp-1">Build professional communication and customer service skills...</p>
+   543→</div>
+   544→</div>
+   545→<div class="flex items-center justify-between md:justify-end md:space-x-6 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+   546→<div class="text-right">
+   547→<div class="text-xs text-slate-500 font-medium">6h • 3 modules • 9 classes</div>
+   548→<span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+   549→              Level 100 • Course 4 of 5
+   550→            </span>
+   551→</div>
+   552→<div class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 group-hover:text-teal-600 group-hover:translate-x-1 transition">
+   553→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   554→<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   555→</svg>
+   556→</div>
+   557→</div>
+   558→</article>
+   559→<!-- Course 5 -->
+   560→<article class="group bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-teal-400 hover:shadow-md transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4">
+   561→<div class="flex items-start space-x-4">
+   562→<div class="w-11 h-11 rounded-lg bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+   563→<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   564→<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+   565→</svg>
+   566→</div>
+   567→<div>
+   568→<div class="text-[11px] font-semibold tracking-wider text-teal-700 uppercase">LSH-LIF-105</div>
+   569→<h2 class="text-base font-bold text-slate-900 group-hover:text-teal-700 transition">Animal Welfare, Safety &amp; Sanitation Orientation</h2>
+   570→<p class="text-xs text-slate-500 mt-0.5 line-clamp-1">Learn animal care standards, safety, and sanitation practices...</p>
+   571→</div>
+   572→</div>
+   573→<div class="flex items-center justify-between md:justify-end md:space-x-6 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+   574→<div class="text-right">
+   575→<div class="text-xs text-slate-500 font-medium">6h • 3 modules • 9 classes</div>
+   576→<span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+   577→              Level 100 • Course 5 of 5
+   578→            </span>
+   579→</div>
+   580→<div class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 group-hover:text-teal-600 group-hover:translate-x-1 transition">
+   581→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   582→<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   583→</svg>
+   584→</div>
+   585→</div>
+   586→</article>
+   587→</div>
+   588→<!-- END: Course List Cards -->
+   589→</main>
+   590→<!-- END: MainContent -->
+   591→</body></html>
+   592→
+   593→<!-- Leashed.io - 2. Pathways Overview -->
+   594→<!DOCTYPE html>
+   595→
+   596→<html lang="en"><head>
+   597→<meta charset="utf-8"/>
+   598→<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+   599→<title>Pathways Overview - Leashed.io</title>
+   600→<!-- Tailwind CSS CDN with forms and container queries plugins -->
+   601→<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+   602→<script>
+   603→    tailwind.config = {
+   604→      theme: {
+   605→        extend: {
+   606→          colors: {
+   607→            sidebar: '#0b1928',
+   608→            sidebarActive: '#13283f',
+   609→            pageBg: '#f8fafc',
+   610→          },
+   611→          fontFamily: {
+   612→            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+   613→          }
+   614→        }
+   615→      }
+   616→    }
+   617→  </script>
+   618→<style data-purpose="custom-scrollbars">
+   619→    /* Subtle custom scrollbar for horizontal or vertical overflowing */
+   620→    ::-webkit-scrollbar {
+   621→      width: 6px;
+   622→      height: 6px;
+   623→    }
+   624→    ::-webkit-scrollbar-track {
+   625→      background: transparent;
+   626→    }
+   627→    ::-webkit-scrollbar-thumb {
+   628→      background: #cbd5e1;
+   629→      border-radius: 9999px;
+   630→    }
+   631→    ::-webkit-scrollbar-thumb:hover {
+   632→      background: #94a3b8;
+   633→    }
+   634→  </style>
+   635→</head>
+   636→<body class="bg-pageBg text-slate-800 antialiased font-sans min-h-screen flex">
+   637→<!-- BEGIN: LeftSidebar -->
+   638→<aside class="w-56 bg-sidebar text-slate-300 flex-shrink-0 flex flex-col justify-between select-none min-h-screen border-r border-slate-800/80" data-purpose="sidebar-navigation">
+   639→<!-- Top section: Logo and Nav links -->
+   640→<div>
+   641→<!-- Brand Logo -->
+   642→<div class="h-16 flex items-center gap-2.5 px-6 border-b border-slate-800/50">
+   643→<svg aria-hidden="true" class="w-6 h-6 text-emerald-400 fill-current" viewbox="0 0 24 24">
+   644→<circle cx="7" cy="8.5" r="2.5"></circle>
+   645→<circle cx="17" cy="8.5" r="2.5"></circle>
+   646→<circle cx="10" cy="4.5" r="2"></circle>
+   647→<circle cx="14" cy="4.5" r="2"></circle>
+   648→<path d="M12 10.5c-3.2 0-6 2.5-6 6.5 0 2.2 2 4 6 4s6-1.8 6-4c0-4-2.8-6.5-6-6.5z"></path>
+   649→</svg>
+   650→<span class="text-white text-base font-semibold tracking-tight">Leashed<span class="text-emerald-400">.io</span></span>
+   651→</div>
+   652→<!-- Navigation Menu -->
+   653→<nav aria-label="Main Navigation" class="mt-4 px-3 space-y-1">
+   654→<!-- Home Link -->
+   655→<a class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/50 transition" href="#">
+   656→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   657→<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   658→</svg>
+   659→<span>Home</span>
+   660→</a>
+   661→<!-- Pathways Link (Active) -->
+   662→<a aria-current="page" class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg bg-sidebarActive text-white shadow-sm border border-slate-700/60" href="#">
+   663→<svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   664→<path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   665→</svg>
+   666→<span class="font-semibold">Pathways</span>
+   667→</a>
+   668→<!-- Courses Link -->
+   669→<a class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/50 transition" href="#">
+   670→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   671→<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   672→</svg>
+   673→<span>Courses</span>
+   674→</a>
+   675→<!-- Syllabus Link -->
+   676→<a class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/50 transition" href="#">
+   677→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   678→<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   679→</svg>
+   680→<span>Syllabus</span>
+   681→</a>
+   682→<!-- Resources Link -->
+   683→<a class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/50 transition" href="#">
+   684→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   685→<path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   686→</svg>
+   687→<span>Resources</span>
+   688→</a>
+   689→<!-- My Progress Link -->
+   690→<a class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/50 transition" href="#">
+   691→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   692→<path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   693→</svg>
+   694→<span>My Progress</span>
+   695→</a>
+   696→</nav>
+   697→</div>
+   698→<!-- Bottom section: Support Link -->
+   699→<div class="p-3 border-t border-slate-800/60">
+   700→<a class="flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/50 transition" href="#">
+   701→<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   702→<path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   703→</svg>
+   704→<span>Support</span>
+   705→</a>
+   706→</div>
+   707→</aside>
+   708→<!-- END: LeftSidebar -->
+   709→<!-- BEGIN: MainContentArea -->
+   710→<div class="flex-1 flex flex-col min-w-0 bg-[#f8fafc]">
+   711→<!-- BEGIN: TopBar -->
+   712→<header class="h-16 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between gap-6" data-purpose="top-navigation-bar">
+   713→<!-- Search Input -->
+   714→<div class="flex-1 max-w-2xl">
+   715→<div class="relative w-full">
+   716→<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+   717→<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   718→<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   719→</svg>
+   720→</div>
+   721→<input class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition" placeholder="Search pathways, courses, or keywords..." type="text"/>
+   722→</div>
+   723→</div>
+   724→<!-- Action items & User Profile -->
+   725→<div class="flex items-center gap-4">
+   726→<!-- Search icon button (Mobile/Tablet helper) -->
+   727→<button aria-label="Search" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 md:hidden" type="button">
+   728→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   729→<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   730→</svg>
+   731→</button>
+   732→<!-- Notification Bell -->
+   733→<button aria-label="Notifications" class="relative p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition" type="button">
+   734→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   735→<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   736→</svg>
+   737→<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full"></span>
+   738→</button>
+   739→<!-- User Avatar Circle -->
+   740→<div class="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-semibold shadow-inner cursor-pointer" title="Jamie Smith">
+   741→          JS
+   742→        </div>
+   743→</div>
+   744→</header>
+   745→<!-- END: TopBar -->
+   746→<!-- BEGIN: PathwaysOverviewContent -->
+   747→<main class="flex-1 p-8 max-w-7xl mx-auto w-full" data-purpose="pathways-grid-view">
+   748→<!-- Page Header -->
+   749→<section class="mb-7" data-purpose="page-title-section">
+   750→<h1 class="text-2xl font-bold tracking-tight text-slate-900 mb-1.5">10 Learning Pathways</h1>
+   751→<p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+   752→          Each pathway includes a structured set of courses, built from <strong class="font-medium text-slate-700">100–400 levels</strong>, with clear outcomes and real-world applications.
+   753→        </p>
+   754→</section>
+   755→<!-- Pathway Grid: 10 Cards (2 rows of 5 on desktop) -->
+   756→<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5" data-purpose="pathways-cards-container">
+   757→<!-- Card 1: Life Skills & Personal Readiness -->
+   758→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   759→<div>
+   760→<!-- Icon Badge (Green) -->
+   761→<div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100/80 flex items-center justify-center text-emerald-600 mb-3.5">
+   762→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   763→<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   764→</svg>
+   765→</div>
+   766→<!-- Title -->
+   767→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   768→              1. Life Skills &amp; Personal Readiness
+   769→            </h2>
+   770→<!-- Meta details -->
+   771→<p class="text-[11px] text-slate-500 mt-2">5 courses • 120 hours</p>
+   772→</div>
+   773→<!-- Action Link -->
+   774→<div class="mt-4 pt-2 border-t border-slate-50">
+   775→<a class="inline-flex items-center text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 group transition" href="#">
+   776→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   777→</a>
+   778→</div>
+   779→</article>
+   780→<!-- Card 2: Pet Grooming & Animal Care -->
+   781→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   782→<div>
+   783→<!-- Icon Badge (Purple) -->
+   784→<div class="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100/80 flex items-center justify-center text-purple-600 mb-3.5">
+   785→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   786→<path d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879a3 3 0 11-4.242-4.242 3 3 0 014.242 0M12 12l-2.879-2.879A3 3 0 104.879 13.364 3 3 0 009.121 9.121L12 12z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   787→</svg>
+   788→</div>
+   789→<!-- Title -->
+   790→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   791→              2. Pet Grooming &amp; Animal Care
+   792→            </h2>
+   793→<!-- Meta details -->
+   794→<p class="text-[11px] text-slate-500 mt-2">5 courses • 160 hours</p>
+   795→</div>
+   796→<!-- Action Link -->
+   797→<div class="mt-4 pt-2 border-t border-slate-50">
+   798→<a class="inline-flex items-center text-[11px] font-semibold text-purple-600 hover:text-purple-700 group transition" href="#">
+   799→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   800→</a>
+   801→</div>
+   802→</article>
+   803→<!-- Card 3: Business & Leadership -->
+   804→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   805→<div>
+   806→<!-- Icon Badge (Blue) -->
+   807→<div class="w-10 h-10 rounded-xl bg-sky-50 border border-sky-100/80 flex items-center justify-center text-sky-600 mb-3.5">
+   808→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   809→<path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   810→</svg>
+   811→</div>
+   812→<!-- Title -->
+   813→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   814→              3. Business &amp; Leadership
+   815→            </h2>
+   816→<!-- Meta details -->
+   817→<p class="text-[11px] text-slate-500 mt-2">5 courses • 160 hours</p>
+   818→</div>
+   819→<!-- Action Link -->
+   820→<div class="mt-4 pt-2 border-t border-slate-50">
+   821→<a class="inline-flex items-center text-[11px] font-semibold text-sky-600 hover:text-sky-700 group transition" href="#">
+   822→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   823→</a>
+   824→</div>
+   825→</article>
+   826→<!-- Card 4: Partner Programs & Workforce Transition -->
+   827→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   828→<div>
+   829→<!-- Icon Badge (Teal) -->
+   830→<div class="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100/80 flex items-center justify-center text-teal-600 mb-3.5">
+   831→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   832→<path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   833→</svg>
+   834→</div>
+   835→<!-- Title -->
+   836→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   837→              4. Partner Programs &amp; Workforce Transition
+   838→            </h2>
+   839→<!-- Meta details -->
+   840→<p class="text-[11px] text-slate-500 mt-2">4 courses • 120 hours</p>
+   841→</div>
+   842→<!-- Action Link -->
+   843→<div class="mt-4 pt-2 border-t border-slate-50">
+   844→<a class="inline-flex items-center text-[11px] font-semibold text-teal-600 hover:text-teal-700 group transition" href="#">
+   845→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   846→</a>
+   847→</div>
+   848→</article>
+   849→<!-- Card 5: Personal Mastery & Lifelong Growth -->
+   850→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   851→<div>
+   852→<!-- Icon Badge (Amber/Orange) -->
+   853→<div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-600 mb-3.5">
+   854→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   855→<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   856→</svg>
+   857→</div>
+   858→<!-- Title -->
+   859→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   860→              5. Personal Mastery &amp; Lifelong Growth
+   861→            </h2>
+   862→<!-- Meta details -->
+   863→<p class="text-[11px] text-slate-500 mt-2">4 courses • 100 hours</p>
+   864→</div>
+   865→<!-- Action Link -->
+   866→<div class="mt-4 pt-2 border-t border-slate-50">
+   867→<a class="inline-flex items-center text-[11px] font-semibold text-amber-600 hover:text-amber-700 group transition" href="#">
+   868→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   869→</a>
+   870→</div>
+   871→</article>
+   872→<!-- Card 6: Marketing, Branding & SEO Mastery -->
+   873→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   874→<div>
+   875→<!-- Icon Badge (Orange) -->
+   876→<div class="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100/80 flex items-center justify-center text-orange-600 mb-3.5">
+   877→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   878→<path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   879→</svg>
+   880→</div>
+   881→<!-- Title -->
+   882→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   883→              6. Marketing, Branding &amp; SEO Mastery
+   884→            </h2>
+   885→<!-- Meta details -->
+   886→<p class="text-[11px] text-slate-500 mt-2">4 courses • 120 hours</p>
+   887→</div>
+   888→<!-- Action Link -->
+   889→<div class="mt-4 pt-2 border-t border-slate-50">
+   890→<a class="inline-flex items-center text-[11px] font-semibold text-orange-600 hover:text-orange-700 group transition" href="#">
+   891→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   892→</a>
+   893→</div>
+   894→</article>
+   895→<!-- Card 7: AI & Technology Systems -->
+   896→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   897→<div>
+   898→<!-- Icon Badge (Blue/Tech) -->
+   899→<div class="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100/80 flex items-center justify-center text-blue-600 mb-3.5">
+   900→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   901→<path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   902→</svg>
+   903→</div>
+   904→<!-- Title -->
+   905→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   906→              7. AI &amp; Technology Systems
+   907→            </h2>
+   908→<!-- Meta details -->
+   909→<p class="text-[11px] text-slate-500 mt-2">4 courses • 140 hours</p>
+   910→</div>
+   911→<!-- Action Link -->
+   912→<div class="mt-4 pt-2 border-t border-slate-50">
+   913→<a class="inline-flex items-center text-[11px] font-semibold text-blue-600 hover:text-blue-700 group transition" href="#">
+   914→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   915→</a>
+   916→</div>
+   917→</article>
+   918→<!-- Card 8: Financial Mastery, Bookkeeping & Tax -->
+   919→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   920→<div>
+   921→<!-- Icon Badge (Green/Finance) -->
+   922→<div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100/80 flex items-center justify-center text-emerald-600 mb-3.5">
+   923→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   924→<path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   925→</svg>
+   926→</div>
+   927→<!-- Title -->
+   928→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   929→              8. Financial Mastery, Bookkeeping &amp; Tax
+   930→            </h2>
+   931→<!-- Meta details -->
+   932→<p class="text-[11px] text-slate-500 mt-2">4 courses • 140 hours</p>
+   933→</div>
+   934→<!-- Action Link -->
+   935→<div class="mt-4 pt-2 border-t border-slate-50">
+   936→<a class="inline-flex items-center text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 group transition" href="#">
+   937→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   938→</a>
+   939→</div>
+   940→</article>
+   941→<!-- Card 9: Business Leadership, Operations & Expansion -->
+   942→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   943→<div>
+   944→<!-- Icon Badge (Teal) -->
+   945→<div class="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100/80 flex items-center justify-center text-teal-600 mb-3.5">
+   946→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   947→<path d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   948→</svg>
+   949→</div>
+   950→<!-- Title -->
+   951→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   952→              9. Business Leadership, Operations &amp; Expansion
+   953→            </h2>
+   954→<!-- Meta details -->
+   955→<p class="text-[11px] text-slate-500 mt-2">4 courses • 160 hours</p>
+   956→</div>
+   957→<!-- Action Link -->
+   958→<div class="mt-4 pt-2 border-t border-slate-50">
+   959→<a class="inline-flex items-center text-[11px] font-semibold text-teal-600 hover:text-teal-700 group transition" href="#">
+   960→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   961→</a>
+   962→</div>
+   963→</article>
+   964→<!-- Card 10: Legal, Risk, Compliance & Ethical Governance -->
+   965→<article class="bg-white rounded-xl p-4 border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between" data-purpose="pathway-card">
+   966→<div>
+   967→<!-- Icon Badge (Amber/Orange Scale) -->
+   968→<div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100/80 flex items-center justify-center text-amber-600 mb-3.5">
+   969→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+   970→<path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+   971→</svg>
+   972→</div>
+   973→<!-- Title -->
+   974→<h2 class="text-xs font-semibold text-slate-900 leading-snug min-h-[2.5rem]">
+   975→              10. Legal, Risk, Compliance &amp; Ethical Governance
+   976→            </h2>
+   977→<!-- Meta details -->
+   978→<p class="text-[11px] text-slate-500 mt-2">4 courses • 120 hours</p>
+   979→</div>
+   980→<!-- Action Link -->
+   981→<div class="mt-4 pt-2 border-t border-slate-50">
+   982→<a class="inline-flex items-center text-[11px] font-semibold text-amber-600 hover:text-amber-700 group transition" href="#">
+   983→              View Pathway <span class="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+   984→</a>
+   985→</div>
+   986→</article>
+   987→</div>
+   988→</main>
+   989→<!-- END: PathwaysOverviewContent -->
+   990→</div>
+   991→<!-- END: MainContentArea -->
+   992→</body></html>
+   993→
+   994→<!-- Leashed.io - 5. Course Syllabus – LSH-LIF-101 -->
+   995→<!DOCTYPE html>
+   996→
+   997→<html lang="en"><head>
+   998→<meta charset="utf-8"/>
+   999→<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  1000→<title>Leashed.io - Course Syllabus (LSH-LIF-101)</title>
+  1001→<!-- Tailwind CSS CDN with forms and container queries plugins -->
+  1002→<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  1003→<!-- Google Fonts: Inter -->
+  1004→<link href="https://fonts.googleapis.com" rel="preconnect"/>
+  1005→<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  1006→<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+  1007→<script>
+  1008→    tailwind.config = {
+  1009→      theme: {
+  1010→        extend: {
+  1011→          fontFamily: {
+  1012→            sans: ['Inter', 'sans-serif'],
+  1013→          },
+  1014→          colors: {
+  1015→            brand: {
+  1016→              dark: '#0a1628',
+  1017→              navy: '#0f1f38',
+  1018→              sidebarActive: '#172b4d',
+  1019→              accent: '#0284c7',
+  1020→              primaryBlue: '#0066cc',
+  1021→              primaryHover: '#0052a3',
+  1022→              tealLight: '#e6f7f5',
+  1023→              tealText: '#0f766e',
+  1024→              badgeGreen: '#e8f7ee',
+  1025→              badgeText: '#15803d',
+  1026→            }
+  1027→          }
+  1028→        }
+  1029→      }
+  1030→    }
+  1031→  </script>
+  1032→<style data-purpose="custom-scroll-and-typography">
+  1033→    body {
+  1034→      font-family: 'Inter', sans-serif;
+  1035→      -webkit-font-smoothing: antialiased;
+  1036→    }
+  1037→  </style>
+  1038→</head>
+  1039→<body class="bg-[#f3f6fb] text-slate-800 min-h-screen flex antialiased">
+  1040→<!-- BEGIN: LeftSidebar -->
+  1041→<aside class="w-64 bg-[#091524] text-slate-300 flex-shrink-0 flex flex-col justify-between py-6 min-h-screen border-r border-[#142338]" data-purpose="main-navigation-sidebar">
+  1042→<div>
+  1043→<!-- Brand Logo -->
+  1044→<div class="px-6 flex items-center gap-3 mb-8">
+  1045→<div class="w-8 h-8 rounded-full bg-cyan-400 flex items-center justify-center text-[#091524]">
+  1046→<svg class="w-5 h-5 fill-current" viewbox="0 0 24 24">
+  1047→<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"></path>
+  1048→</svg>
+  1049→</div>
+  1050→<span class="text-white text-xl font-bold tracking-tight">Leashed.io</span>
+  1051→</div>
+  1052→<!-- Navigation Links -->
+  1053→<nav class="space-y-1.5 px-3">
+  1054→<!-- Home Link -->
+  1055→<a class="flex items-center gap-3.5 px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 text-sm font-medium transition" href="#">
+  1056→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1057→<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1058→</svg>
+  1059→          Home
+  1060→        </a>
+  1061→<!-- Courses Link (Active State) -->
+  1062→<a class="flex items-center gap-3.5 px-4 py-2.5 rounded-lg bg-[#14263f] text-cyan-400 text-sm font-semibold border-l-4 border-cyan-400 transition" href="#">
+  1063→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1064→<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1065→</svg>
+  1066→          Courses
+  1067→        </a>
+  1068→<!-- Syllabus Link -->
+  1069→<a class="flex items-center gap-3.5 px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 text-sm font-medium transition" href="#">
+  1070→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1071→<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1072→</svg>
+  1073→          Syllabus
+  1074→        </a>
+  1075→<!-- Resources Link -->
+  1076→<a class="flex items-center gap-3.5 px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 text-sm font-medium transition" href="#">
+  1077→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1078→<path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1079→</svg>
+  1080→          Resources
+  1081→        </a>
+  1082→<!-- My Progress Link -->
+  1083→<a class="flex items-center gap-3.5 px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 text-sm font-medium transition" href="#">
+  1084→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1085→<path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1086→</svg>
+  1087→          My Progress
+  1088→        </a>
+  1089→</nav>
+  1090→</div>
+  1091→<!-- Bottom Support Link -->
+  1092→<div class="px-3">
+  1093→<a class="flex items-center gap-3.5 px-4 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 text-sm font-medium transition" href="#">
+  1094→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1095→<path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1096→</svg>
+  1097→        Support
+  1098→      </a>
+  1099→</div>
+  1100→</aside>
+  1101→<!-- END: LeftSidebar -->
+  1102→<!-- BEGIN: MainContentArea -->
+  1103→<main class="flex-1 flex flex-col p-8 max-w-7xl mx-auto overflow-y-auto" data-purpose="course-syllabus-content">
+  1104→<!-- Top Back Navigation -->
+  1105→<div class="mb-4">
+  1106→<a class="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-800 transition" href="#">
+  1107→<svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1108→<path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1109→</svg>
+  1110→        Back to Course List
+  1111→      </a>
+  1112→</div>
+  1113→<!-- BEGIN: CourseHeaderBanner -->
+  1114→<section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 mb-6" data-purpose="course-hero-header">
+  1115→<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+  1116→<!-- Course Title Info -->
+  1117→<div class="space-y-2 max-w-2xl">
+  1118→<span class="text-xs font-bold tracking-wider text-slate-400 uppercase">LSH-LIF-101</span>
+  1119→<h1 class="text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight">
+  1120→            Personal Readiness &amp; Professional Habits
+  1121→          </h1>
+  1122→<p class="text-xs sm:text-sm text-slate-500 font-medium">
+  1123→            Life Skills &amp; Personal Readiness <span class="mx-1.5">•</span> 100 Level <span class="mx-1.5">•</span> Course 1 of 5
+  1124→          </p>
+  1125→<div class="pt-1">
+  1126→<span class="inline-block bg-[#ebfaf0] text-[#16803c] text-xs font-semibold px-3 py-1 rounded-full border border-[#d1f2dc]">
+  1127→              Recommended Starting Course
+  1128→            </span>
+  1129→</div>
+  1130→</div>
+  1131→<!-- Right Side Book / Motivational Graphic -->
+  1132→<div class="flex-shrink-0">
+  1133→<div class="w-48 h-28 rounded-xl bg-gradient-to-br from-amber-50 to-orange-100 border border-amber-200/80 p-3 shadow-inner flex flex-col justify-center relative overflow-hidden group">
+  1134→<div class="absolute -right-4 -bottom-4 w-20 h-20 bg-amber-200/40 rounded-full blur-sm"></div>
+  1135→<span class="text-amber-800/80 font-black text-xs tracking-wider uppercase">Guidebook</span>
+  1136→<p class="text-base font-extrabold text-amber-950 leading-tight mt-1">
+  1137→              Better Habits<br/>
+  1138→<span class="text-amber-600">Bigger Goals</span>
+  1139→</p>
+  1140→<div class="mt-2 flex items-center gap-1.5">
+  1141→<span class="h-1.5 w-6 bg-amber-500 rounded-full"></span>
+  1142→<span class="text-[10px] text-amber-800 font-medium">Foundations</span>
+  1143→</div>
+  1144→</div>
+  1145→</div>
+  1146→</div>
+  1147→<!-- Quick Metrics Strip -->
+  1148→<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-6 mt-6 border-t border-slate-100">
+  1149→<!-- Metric 1 -->
+  1150→<div class="flex items-center gap-3 p-2">
+  1151→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1152→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1153→<circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+  1154→<polyline points="12 6 12 12 16 14" stroke-width="2"></polyline>
+  1155→</svg>
+  1156→</div>
+  1157→<div>
+  1158→<div class="text-xs font-bold text-slate-800">6 hours</div>
+  1159→<div class="text-[11px] text-slate-400 leading-tight">Total Learning Time</div>
+  1160→</div>
+  1161→</div>
+  1162→<!-- Metric 2 -->
+  1163→<div class="flex items-center gap-3 p-2">
+  1164→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1165→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1166→<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1167→</svg>
+  1168→</div>
+  1169→<div>
+  1170→<div class="text-xs font-bold text-slate-800">3 modules</div>
+  1171→<div class="text-[11px] text-slate-400 leading-tight">9 classes</div>
+  1172→</div>
+  1173→</div>
+  1174→<!-- Metric 3 -->
+  1175→<div class="flex items-center gap-3 p-2">
+  1176→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1177→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1178→<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1179→</svg>
+  1180→</div>
+  1181→<div>
+  1182→<div class="text-xs font-bold text-slate-800">3 quizzes</div>
+  1183→<div class="text-[11px] text-slate-400 leading-tight">6 knowledge checks</div>
+  1184→</div>
+  1185→</div>
+  1186→<!-- Metric 4 -->
+  1187→<div class="flex items-center gap-3 p-2">
+  1188→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1189→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1190→<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1191→</svg>
+  1192→</div>
+  1193→<div>
+  1194→<div class="text-xs font-bold text-slate-800">4 rubrics</div>
+  1195→<div class="text-[11px] text-slate-400 leading-tight">3 artifacts</div>
+  1196→</div>
+  1197→</div>
+  1198→<!-- Metric 5 -->
+  1199→<div class="flex items-center gap-3 p-2">
+  1200→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1201→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1202→<path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1203→</svg>
+  1204→</div>
+  1205→<div>
+  1206→<div class="text-xs font-bold text-slate-800">1 capstone</div>
+  1207→<div class="text-[11px] text-slate-400 leading-tight">Practical Evidence</div>
+  1208→</div>
+  1209→</div>
+  1210→</div>
+  1211→</section>
+  1212→<!-- END: CourseHeaderBanner -->
+  1213→<!-- BEGIN: SyllabusTabsNavigation -->
+  1214→<nav class="border-b border-slate-200 mb-6 flex overflow-x-auto gap-7 text-xs font-medium text-slate-500 whitespace-nowrap" data-purpose="course-navigation-tabs">
+  1215→<button class="pb-3 text-sky-600 font-bold border-b-2 border-sky-600 transition">Overview</button>
+  1216→<button class="pb-3 hover:text-slate-900 transition">Modules</button>
+  1217→<button class="pb-3 hover:text-slate-900 transition">Outcomes</button>
+  1218→<button class="pb-3 hover:text-slate-900 transition">Assessment</button>
+  1219→<button class="pb-3 hover:text-slate-900 transition">Requirements</button>
+  1220→<button class="pb-3 hover:text-slate-900 transition">Evidence</button>
+  1221→<button class="pb-3 hover:text-slate-900 transition">Instructors &amp; AI</button>
+  1222→<button class="pb-3 hover:text-slate-900 transition">FAQ</button>
+  1223→</nav>
+  1224→<!-- END: SyllabusTabsNavigation -->
+  1225→<!-- BEGIN: MainOverviewColumns -->
+  1226→<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+  1227→<!-- Left Column: What You'll Learn & CTA -->
+  1228→<section class="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between" data-purpose="learning-outcomes-section">
+  1229→<div>
+  1230→<h2 class="text-base font-bold text-slate-900 mb-2">What You'll Learn</h2>
+  1231→<p class="text-xs text-slate-600 mb-5 leading-relaxed">
+  1232→            This course helps you build the habits, communication skills, and practical tools needed to succeed in training, employment, and business ownership.
+  1233→          </p>
+  1234→<!-- Checklist -->
+  1235→<ul class="space-y-3.5 mb-8">
+  1236→<li class="flex items-start gap-3">
+  1237→<span class="w-5 h-5 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-teal-200">
+  1238→<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1239→<polyline points="20 6 9 17 4 12"></polyline>
+  1240→</svg>
+  1241→</span>
+  1242→<span class="text-xs text-slate-700 leading-normal">
+  1243→                Create a weekly routine that accounts for class, work, transportation...
+  1244→              </span>
+  1245→</li>
+  1246→<li class="flex items-start gap-3">
+  1247→<span class="w-5 h-5 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-teal-200">
+  1248→<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1249→<polyline points="20 6 9 17 4 12"></polyline>
+  1250→</svg>
+  1251→</span>
+  1252→<span class="text-xs text-slate-700 leading-normal">
+  1253→                Use calendars, reminders, messages, and task tracking.
+  1254→              </span>
+  1255→</li>
+  1256→<li class="flex items-start gap-3">
+  1257→<span class="w-5 h-5 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-teal-200">
+  1258→<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1259→<polyline points="20 6 9 17 4 12"></polyline>
+  1260→</svg>
+  1261→</span>
+  1262→<span class="text-xs text-slate-700 leading-normal">
+  1263→                Demonstrate professional communication.
+  1264→              </span>
+  1265→</li>
+  1266→<li class="flex items-start gap-3">
+  1267→<span class="w-5 h-5 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-teal-200">
+  1268→<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1269→<polyline points="20 6 9 17 4 12"></polyline>
+  1270→</svg>
+  1271→</span>
+  1272→<span class="text-xs text-slate-700 leading-normal">
+  1273→                Respond to feedback, conflict, and schedule disruption.
+  1274→              </span>
+  1275→</li>
+  1276→<li class="flex items-start gap-3">
+  1277→<span class="w-5 h-5 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-teal-200">
+  1278→<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1279→<polyline points="20 6 9 17 4 12"></polyline>
+  1280→</svg>
+  1281→</span>
+  1282→<span class="text-xs text-slate-700 leading-normal">
+  1283→                Identify barriers and choose an appropriate support pathway.
+  1284→              </span>
+  1285→</li>
+  1286→<li class="flex items-start gap-3">
+  1287→<span class="w-5 h-5 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0 mt-0.5 border border-teal-200">
+  1288→<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1289→<polyline points="20 6 9 17 4 12"></polyline>
+  1290→</svg>
+  1291→</span>
+  1292→<span class="text-xs text-slate-700 leading-normal">
+  1293→                Produce a 30-Day Personal Readiness Action Plan.
+  1294→              </span>
+  1295→</li>
+  1296→</ul>
+  1297→</div>
+  1298→<!-- Action Button -->
+  1299→<button class="w-full py-3 px-4 bg-[#0066cc] hover:bg-[#0052a3] text-white font-semibold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition" type="button">
+  1300→<span>Enroll in Course</span>
+  1301→<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1302→<path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1303→</svg>
+  1304→</button>
+  1305→</section>
+  1306→<!-- Right Column: Course Structure Modules -->
+  1307→<section class="lg:col-span-5 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm" data-purpose="course-modules-breakdown">
+  1308→<h2 class="text-base font-bold text-slate-900 mb-4">Course Structure</h2>
+  1309→<div class="space-y-3">
+  1310→<!-- Module 1 Card -->
+  1311→<div class="p-3.5 rounded-xl border border-slate-200 hover:border-sky-300 bg-white hover:bg-sky-50/20 flex items-center justify-between cursor-pointer transition">
+  1312→<div class="space-y-0.5">
+  1313→<span class="text-[11px] font-bold text-sky-700 uppercase tracking-wide">Module 1</span>
+  1314→<h3 class="text-xs font-bold text-slate-900">Building a Reliable Weekly Routine</h3>
+  1315→<p class="text-[11px] text-slate-400">2 hours • 3 classes • 1 quiz</p>
+  1316→</div>
+  1317→<svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1318→<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1319→</svg>
+  1320→</div>
+  1321→<!-- Module 2 Card -->
+  1322→<div class="p-3.5 rounded-xl border border-slate-200 hover:border-sky-300 bg-white hover:bg-sky-50/20 flex items-center justify-between cursor-pointer transition">
+  1323→<div class="space-y-0.5">
+  1324→<span class="text-[11px] font-bold text-sky-700 uppercase tracking-wide">Module 2</span>
+  1325→<h3 class="text-xs font-bold text-slate-900">Professional Communication &amp; Digital Confidence</h3>
+  1326→<p class="text-[11px] text-slate-400">2 hours • 3 classes • 1 quiz</p>
+  1327→</div>
+  1328→<svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1329→<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1330→</svg>
+  1331→</div>
+  1332→<!-- Module 3 Card -->
+  1333→<div class="p-3.5 rounded-xl border border-slate-200 hover:border-sky-300 bg-white hover:bg-sky-50/20 flex items-center justify-between cursor-pointer transition">
+  1334→<div class="space-y-0.5">
+  1335→<span class="text-[11px] font-bold text-sky-700 uppercase tracking-wide">Module 3</span>
+  1336→<h3 class="text-xs font-bold text-slate-900">Managing Challenges &amp; Building Support</h3>
+  1337→<p class="text-[11px] text-slate-400">2 hours • 3 classes • 1 quiz</p>
+  1338→</div>
+  1339→<svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1340→<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1341→</svg>
+  1342→</div>
+  1343→</div>
+  1344→</section>
+  1345→</div>
+  1346→<!-- END: MainOverviewColumns -->
+  1347→</main>
+  1348→<!-- END: MainContentArea -->
+  1349→</body></html>
+  1350→
+  1351→<!-- Leashed.io - 6. Pathway Progression – Visual Roadmap -->
+  1352→<!DOCTYPE html>
+  1353→
+  1354→<html lang="en"><head>
+  1355→<meta charset="utf-8"/>
+  1356→<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  1357→<title>Pathway Progression – Visual Roadmap | Leashed.io</title>
+  1358→<!-- Tailwind CSS v3 with Plugins -->
+  1359→<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  1360→<!-- Google Fonts: Inter -->
+  1361→<link href="https://fonts.googleapis.com" rel="preconnect"/>
+  1362→<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  1363→<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+  1364→<script>
+  1365→    tailwind.config = {
+  1366→      theme: {
+  1367→        extend: {
+  1368→          fontFamily: {
+  1369→            sans: ['Inter', 'sans-serif'],
+  1370→          },
+  1371→          colors: {
+  1372→            brand: {
+  1373→              50: '#f0f7ff',
+  1374→              100: '#e0effe',
+  1375→              500: '#0284c7',
+  1376→              600: '#0072ce',
+  1377→              700: '#005bb5',
+  1378→            }
+  1379→          }
+  1380→        }
+  1381→      }
+  1382→    }
+  1383→  </script>
+  1384→</head>
+  1385→<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 sm:p-8 font-sans text-slate-900 antialiased">
+  1386→<!-- BEGIN: RoadmapContainer -->
+  1387→<!-- Main white container representing Screen 6: Pathway Progression -->
+  1388→<main class="w-full max-w-5xl bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 sm:p-12 transition-all">
+  1389→<!-- BEGIN: PathwayHeader -->
+  1390→<!-- Header section with paw badge, pathway title and subtitle -->
+  1391→<header class="flex items-start gap-4 mb-10">
+  1392→<!-- Blue circular paw print icon badge -->
+  1393→<div class="w-14 h-14 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 shadow-sm border border-sky-100">
+  1394→<svg aria-hidden="true" class="w-8 h-8 fill-current" viewbox="0 0 24 24">
+  1395→<!-- Central paw pad -->
+  1396→<ellipse cx="12" cy="16.5" rx="4.5" ry="3.8"></ellipse>
+  1397→<!-- Toe pads -->
+  1398→<circle cx="6.5" cy="10" r="2.1"></circle>
+  1399→<circle cx="10" cy="6.2" r="2.1"></circle>
+  1400→<circle cx="14" cy="6.2" r="2.1"></circle>
+  1401→<circle cx="17.5" cy="10" r="2.1"></circle>
+  1402→</svg>
+  1403→</div>
+  1404→<div>
+  1405→<h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+  1406→          Life Skills &amp; Personal Readiness
+  1407→        </h1>
+  1408→<p class="text-slate-500 font-medium text-sm sm:text-base mt-1">
+  1409→          Your complete learning journey from 100 to 400.
+  1410→        </p>
+  1411→</div>
+  1412→</header>
+  1413→<!-- END: PathwayHeader -->
+  1414→<!-- BEGIN: ProgressionTiers -->
+  1415→<!-- 4 Progression Tier Cards in a row with arrows -->
+  1416→<section aria-label="Progression Tiers" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+  1417→<!-- Tier 1: 100 Foundation (Green theme) -->
+  1418→<div class="relative bg-emerald-50/70 border border-emerald-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+  1419→<div>
+  1420→<div class="inline-flex items-center gap-2 bg-emerald-600 text-white text-xs font-bold px-2.5 py-1 rounded-md mb-3 shadow-xs">
+  1421→<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 24 24">
+  1422→<path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10h2v4h-2zm0 6h2v2h-2z"></path>
+  1423→</svg>
+  1424→<span>100</span>
+  1425→</div>
+  1426→<h2 class="text-base font-bold text-slate-900 mb-1">Foundation</h2>
+  1427→<div class="text-xs text-slate-600 flex items-center gap-1.5 font-medium mt-3">
+  1428→<span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+  1429→<span>5 courses</span>
+  1430→<span class="text-slate-400">•</span>
+  1431→<span>120 hours</span>
+  1432→</div>
+  1433→</div>
+  1434→<!-- Progression Indicator Arrow -->
+  1435→<div class="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:flex items-center text-emerald-400 font-semibold text-lg">
+  1436→<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1437→<path d="M8.25 4.5l7.5 7.5-7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  1438→</svg>
+  1439→</div>
+  1440→</div>
+  1441→<!-- Tier 2: 200 Core Skill (Blue theme) -->
+  1442→<div class="relative bg-sky-50/80 border border-sky-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+  1443→<div>
+  1444→<div class="inline-flex items-center gap-2 bg-sky-600 text-white text-xs font-bold px-2.5 py-1 rounded-md mb-3 shadow-xs">
+  1445→<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 24 24">
+  1446→<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 14.5h-2v-2h2v2zm0-4h-2V7h2v5.5z"></path>
+  1447→</svg>
+  1448→<span>200</span>
+  1449→</div>
+  1450→<h2 class="text-base font-bold text-slate-900 mb-1">Core Skill</h2>
+  1451→<div class="text-xs text-slate-600 flex items-center gap-1.5 font-medium mt-3">
+  1452→<span class="inline-block w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+  1453→<span>5 courses</span>
+  1454→<span class="text-slate-400">•</span>
+  1455→<span>120 hours</span>
+  1456→</div>
+  1457→</div>
+  1458→<!-- Progression Indicator Arrow -->
+  1459→<div class="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:flex items-center text-sky-400 font-semibold text-lg">
+  1460→<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1461→<path d="M8.25 4.5l7.5 7.5-7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  1462→</svg>
+  1463→</div>
+  1464→</div>
+  1465→<!-- Tier 3: 300 Advanced Skill (Purple theme) -->
+  1466→<div class="relative bg-indigo-50/70 border border-indigo-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+  1467→<div>
+  1468→<div class="inline-flex items-center gap-2 bg-indigo-600 text-white text-xs font-bold px-2.5 py-1 rounded-md mb-3 shadow-xs">
+  1469→<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 24 24">
+  1470→<path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"></path>
+  1471→</svg>
+  1472→<span>300</span>
+  1473→</div>
+  1474→<h2 class="text-base font-bold text-slate-900 mb-1">Advanced Skill</h2>
+  1475→<div class="text-xs text-slate-600 flex items-center gap-1.5 font-medium mt-3">
+  1476→<span class="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+  1477→<span>5 courses</span>
+  1478→<span class="text-slate-400">•</span>
+  1479→<span>120 hours</span>
+  1480→</div>
+  1481→</div>
+  1482→<!-- Progression Indicator Arrow -->
+  1483→<div class="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:flex items-center text-indigo-400 font-semibold text-lg">
+  1484→<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1485→<path d="M8.25 4.5l7.5 7.5-7.5 7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  1486→</svg>
+  1487→</div>
+  1488→</div>
+  1489→<!-- Tier 4: 400 Capstone (Orange theme) -->
+  1490→<div class="relative bg-amber-50/70 border border-amber-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+  1491→<div>
+  1492→<div class="inline-flex items-center gap-2 bg-amber-600 text-white text-xs font-bold px-2.5 py-1 rounded-md mb-3 shadow-xs">
+  1493→<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 24 24">
+  1494→<path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path>
+  1495→</svg>
+  1496→<span>400</span>
+  1497→</div>
+  1498→<h2 class="text-base font-bold text-slate-900 mb-1">Capstone</h2>
+  1499→<div class="text-xs text-slate-600 flex items-center gap-1.5 font-medium mt-3">
+  1500→<span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+  1501→<span>5 courses</span>
+  1502→<span class="text-slate-400">•</span>
+  1503→<span>120 hours</span>
+  1504→</div>
+  1505→</div>
+  1506→</div>
+  1507→</section>
+  1508→<!-- END: ProgressionTiers -->
+  1509→<!-- BEGIN: DetailedSummarySplit -->
+  1510→<!-- Two-column bottom section: Checklist & Pathway Totals Box -->
+  1511→<div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+  1512→<!-- Left Column: What You'll Achieve Checklist -->
+  1513→<div class="md:col-span-7 space-y-4">
+  1514→<h2 class="text-base font-bold text-slate-900 mb-4">What You'll Achieve</h2>
+  1515→<ul class="space-y-3.5">
+  1516→<!-- Item 1 -->
+  1517→<li class="flex items-center gap-3 text-slate-700 text-sm font-medium">
+  1518→<div class="w-5 h-5 rounded-full border border-sky-500 flex items-center justify-center text-sky-600 flex-shrink-0">
+  1519→<svg class="w-3 h-3 stroke-[2.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1520→<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  1521→</svg>
+  1522→</div>
+  1523→<span>Complete 20 courses across 4 levels</span>
+  1524→</li>
+  1525→<!-- Item 2 -->
+  1526→<li class="flex items-center gap-3 text-slate-700 text-sm font-medium">
+  1527→<div class="w-5 h-5 rounded-full border border-sky-500 flex items-center justify-center text-sky-600 flex-shrink-0">
+  1528→<svg class="w-3 h-3 stroke-[2.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1529→<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  1530→</svg>
+  1531→</div>
+  1532→<span>Build 120 hours of structured learning</span>
+  1533→</li>
+  1534→<!-- Item 3 -->
+  1535→<li class="flex items-center gap-3 text-slate-700 text-sm font-medium">
+  1536→<div class="w-5 h-5 rounded-full border border-sky-500 flex items-center justify-center text-sky-600 flex-shrink-0">
+  1537→<svg class="w-3 h-3 stroke-[2.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1538→<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  1539→</svg>
+  1540→</div>
+  1541→<span>Earn 20 module completions</span>
+  1542→</li>
+  1543→<!-- Item 4 -->
+  1544→<li class="flex items-center gap-3 text-slate-700 text-sm font-medium">
+  1545→<div class="w-5 h-5 rounded-full border border-sky-500 flex items-center justify-center text-sky-600 flex-shrink-0">
+  1546→<svg class="w-3 h-3 stroke-[2.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1547→<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  1548→</svg>
+  1549→</div>
+  1550→<span>Create 20+ pieces of evidence</span>
+  1551→</li>
+  1552→<!-- Item 5 -->
+  1553→<li class="flex items-center gap-3 text-slate-700 text-sm font-medium">
+  1554→<div class="w-5 h-5 rounded-full border border-sky-500 flex items-center justify-center text-sky-600 flex-shrink-0">
+  1555→<svg class="w-3 h-3 stroke-[2.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1556→<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+  1557→</svg>
+  1558→</div>
+  1559→<span>Finish with a verified capstone project</span>
+  1560→</li>
+  1561→</ul>
+  1562→</div>
+  1563→<!-- Right Column: Total for this Pathway Box -->
+  1564→<div class="md:col-span-5 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
+  1565→<div>
+  1566→<h2 class="text-xs font-bold text-slate-800 tracking-tight uppercase mb-5">
+  1567→            Total for this Pathway
+  1568→          </h2>
+  1569→<div class="space-y-3.5 mb-6 text-sm">
+  1570→<!-- 5 Courses -->
+  1571→<div class="flex items-center gap-3 text-slate-700 font-medium">
+  1572→<div class="text-slate-500">
+  1573→<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+  1574→<path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" stroke-linecap="round" stroke-linejoin="round"></path>
+  1575→</svg>
+  1576→</div>
+  1577→<span>5 Courses</span>
+  1578→</div>
+  1579→<!-- 120 Hours -->
+  1580→<div class="flex items-center gap-3 text-slate-700 font-medium">
+  1581→<div class="text-slate-500">
+  1582→<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+  1583→<path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+  1584→</svg>
+  1585→</div>
+  1586→<span>120 Hours</span>
+  1587→</div>
+  1588→<!-- 20 Modules -->
+  1589→<div class="flex items-center gap-3 text-slate-700 font-medium">
+  1590→<div class="text-slate-500">
+  1591→<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+  1592→<path d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3" stroke-linecap="round" stroke-linejoin="round"></path>
+  1593→</svg>
+  1594→</div>
+  1595→<span>20 Modules</span>
+  1596→</div>
+  1597→<!-- 40+ Activities -->
+  1598→<div class="flex items-center gap-3 text-slate-700 font-medium">
+  1599→<div class="text-slate-500">
+  1600→<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+  1601→<path d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" stroke-linecap="round" stroke-linejoin="round"></path>
+  1602→</svg>
+  1603→</div>
+  1604→<span>40+ Activities</span>
+  1605→</div>
+  1606→</div>
+  1607→</div>
+  1608→<!-- Action Button -->
+  1609→<a class="w-full inline-flex items-center justify-center gap-2 bg-[#0072ce] hover:bg-[#005bb5] text-white text-xs font-semibold py-2.5 px-4 rounded-lg shadow-sm transition-colors text-center" href="#courses">
+  1610→<span>View All Courses in This Pathway</span>
+  1611→<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+  1612→<path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" stroke-linecap="round" stroke-linejoin="round"></path>
+  1613→</svg>
+  1614→</a>
+  1615→</div>
+  1616→</div>
+  1617→<!-- END: DetailedSummarySplit -->
+  1618→</main>
+  1619→<!-- END: RoadmapContainer -->
+  1620→</body></html>
+  1621→
+  1622→<!-- Leashed Academy - 24. Module Entry / Learning Experience -->
+  1623→<!DOCTYPE html>
+  1624→
+  1625→<html lang="en"><head>
+  1626→<meta charset="utf-8"/>
+  1627→<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  1628→<title>Leashed Academy - Module Entry / Learning Experience</title>
+  1629→<!-- Tailwind CSS v3 with Forms & Container Plugins -->
+  1630→<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  1631→<script>
+  1632→    tailwind.config = {
+  1633→      theme: {
+  1634→        extend: {
+  1635→          colors: {
+  1636→            brand: {
+  1637→              dark: '#0b1928',
+  1638→              sidebarHover: '#13283f',
+  1639→              primary: '#0284c7',
+  1640→              primaryHover: '#0369a1',
+  1641→              accent: '#38bdf8'
+  1642→            }
+  1643→          }
+  1644→        }
+  1645→      }
+  1646→    }
+  1647→  </script>
+  1648→<!-- Fonts -->
+  1649→<link href="https://fonts.googleapis.com" rel="preconnect"/>
+  1650→<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  1651→<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+  1652→<style data-purpose="base-styling">
+  1653→    body {
+  1654→      font-family: 'Inter', sans-serif;
+  1655→    }
+  1656→    /* Custom subtle scrollbar */
+  1657→    ::-webkit-scrollbar {
+  1658→      width: 6px;
+  1659→      height: 6px;
+  1660→    }
+  1661→    ::-webkit-scrollbar-track {
+  1662→      background: #f1f5f9;
+  1663→    }
+  1664→    ::-webkit-scrollbar-thumb {
+  1665→      background: #cbd5e1;
+  1666→      border-radius: 3px;
+  1667→    }
+  1668→    ::-webkit-scrollbar-thumb:hover {
+  1669→      background: #94a3b8;
+  1670→    }
+  1671→  </style>
+  1672→</head>
+  1673→<body class="bg-[#f8fafc] text-slate-800 antialiased min-h-screen flex">
+  1674→<!-- BEGIN: NavigationSidebar -->
+  1675→<aside class="w-64 bg-[#0b1928] text-slate-300 flex flex-col justify-between flex-shrink-0 min-h-screen border-r border-[#152e4a]" data-purpose="main-sidebar">
+  1676→<!-- Top Navigation Section -->
+  1677→<div class="p-5">
+  1678→<!-- Logo Branding -->
+  1679→<div class="flex items-center gap-3 px-2 mb-8">
+  1680→<!-- Paw Print Icon -->
+  1681→<div class="w-7 h-7 flex items-center justify-center text-sky-400">
+  1682→<svg class="w-7 h-7 fill-current" viewbox="0 0 24 24">
+  1683→<circle cx="4.5" cy="10" r="2.5"></circle>
+  1684→<circle cx="9" cy="5" r="2.5"></circle>
+  1685→<circle cx="15" cy="5" r="2.5"></circle>
+  1686→<circle cx="19.5" cy="10" r="2.5"></circle>
+  1687→<path d="M12 11.5c-3.2 0-6 2.5-6 6 0 2.2 2.3 3.5 6 3.5s6-1.3 6-3.5c0-3.5-2.8-6-6-6z"></path>
+  1688→</svg>
+  1689→</div>
+  1690→<span class="text-xl font-bold tracking-tight text-white">Leashed<span class="text-sky-400">.io</span></span>
+  1691→</div>
+  1692→<!-- Navigation Menu Items -->
+  1693→<nav class="space-y-1">
+  1694→<!-- Home -->
+  1695→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-[#13283f] hover:text-white transition-colors" href="#">
+  1696→<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1697→<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1698→</svg>
+  1699→          Home
+  1700→        </a>
+  1701→<!-- Training -->
+  1702→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-[#13283f] hover:text-white transition-colors" href="#">
+  1703→<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1704→<path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1705→</svg>
+  1706→          Training
+  1707→        </a>
+  1708→<!-- Pathways -->
+  1709→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-[#13283f] hover:text-white transition-colors" href="#">
+  1710→<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1711→<path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1712→</svg>
+  1713→          Pathways
+  1714→        </a>
+  1715→<!-- Courses (Active Highlighted) -->
+  1716→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-semibold bg-[#0284c7] text-white shadow-sm transition-colors" href="#">
+  1717→<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1718→<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1719→</svg>
+  1720→          Courses
+  1721→        </a>
+  1722→<!-- Syllabus -->
+  1723→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-[#13283f] hover:text-white transition-colors" href="#">
+  1724→<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1725→<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1726→</svg>
+  1727→          Syllabus
+  1728→        </a>
+  1729→<!-- Resources -->
+  1730→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-[#13283f] hover:text-white transition-colors" href="#">
+  1731→<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1732→<path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1733→</svg>
+  1734→          Resources
+  1735→        </a>
+  1736→<!-- My Progress -->
+  1737→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-[#13283f] hover:text-white transition-colors" href="#">
+  1738→<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1739→<path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1740→</svg>
+  1741→          My Progress
+  1742→        </a>
+  1743→<!-- Support -->
+  1744→<a class="flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-[#13283f] hover:text-white transition-colors" href="#">
+  1745→<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1746→<path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1747→</svg>
+  1748→          Support
+  1749→        </a>
+  1750→</nav>
+  1751→</div>
+  1752→<!-- Learner Profile Bottom Bar -->
+  1753→<div class="p-4 border-t border-[#1a3450] flex items-center gap-3 bg-[#081320]" data-purpose="user-profile-badge">
+  1754→<div class="w-9 h-9 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center font-semibold text-xs text-white">
+  1755→        JS
+  1756→      </div>
+  1757→<div class="overflow-hidden">
+  1758→<h4 class="text-sm font-medium text-white truncate">Jamie Smith</h4>
+  1759→<p class="text-xs text-slate-400 truncate">Learner</p>
+  1760→</div>
+  1761→</div>
+  1762→</aside>
+  1763→<!-- END: NavigationSidebar -->
+  1764→<!-- BEGIN: MainContentArea -->
+  1765→<main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  1766→<!-- BEGIN: TopBar -->
+  1767→<header class="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between sticky top-0 z-20" data-purpose="breadcrumbs-and-search">
+  1768→<!-- Breadcrumb trail -->
+  1769→<nav class="flex items-center text-xs font-medium text-slate-500 space-x-2 truncate pr-4">
+  1770→<span class="text-sky-600 hover:text-sky-700 cursor-pointer">Pet Grooming &amp; Animal Care</span>
+  1771→<span>›</span>
+  1772→<span class="hover:text-slate-700 cursor-pointer">100 Level</span>
+  1773→<span>›</span>
+  1774→<span class="hover:text-slate-700 cursor-pointer">Introduction to Pet Grooming</span>
+  1775→<span>›</span>
+  1776→<span class="text-slate-800 font-semibold truncate">Module 1</span>
+  1777→</nav>
+  1778→<!-- Global Actions: Search, Notifications & User -->
+  1779→<div class="flex items-center gap-4">
+  1780→<div class="relative w-64">
+  1781→<input class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition-all" placeholder="Search anything..." type="text"/>
+  1782→<svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1783→<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1784→</svg>
+  1785→</div>
+  1786→<!-- Notification Bell -->
+  1787→<button class="text-slate-400 hover:text-slate-600 relative p-1">
+  1788→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1789→<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1790→</svg>
+  1791→<span class="absolute top-1 right-1 w-2 h-2 bg-sky-500 rounded-full"></span>
+  1792→</button>
+  1793→<!-- User Initials Pill -->
+  1794→<div class="w-7 h-7 rounded-full bg-[#0b1928] text-white flex items-center justify-center text-xs font-semibold">
+  1795→          JS
+  1796→        </div>
+  1797→</div>
+  1798→</header>
+  1799→<!-- END: TopBar -->
+  1800→<!-- Main Container Content -->
+  1801→<div class="p-8 max-w-7xl w-full mx-auto space-y-6">
+  1802→<!-- BEGIN: HeaderModuleInfo -->
+  1803→<section class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2" data-purpose="module-header-details">
+  1804→<!-- Module badge and titles -->
+  1805→<div class="flex items-start gap-4">
+  1806→<div class="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0 mt-0.5">
+  1807→<!-- Paw print icon -->
+  1808→<svg class="w-6 h-6 fill-current" viewbox="0 0 24 24">
+  1809→<circle cx="4.5" cy="10" r="2.5"></circle>
+  1810→<circle cx="9" cy="5" r="2.5"></circle>
+  1811→<circle cx="15" cy="5" r="2.5"></circle>
+  1812→<circle cx="19.5" cy="10" r="2.5"></circle>
+  1813→<path d="M12 11.5c-3.2 0-6 2.5-6 6 0 2.2 2.3 3.5 6 3.5s6-1.3 6-3.5c0-3.5-2.8-6-6-6z"></path>
+  1814→</svg>
+  1815→</div>
+  1816→<div>
+  1817→<span class="text-xs font-semibold tracking-wide text-slate-500 uppercase">Module 1</span>
+  1818→<h1 class="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">Grooming Basics &amp; Safety</h1>
+  1819→<p class="text-sm text-slate-500 mt-1">Learn the fundamental tools, procedures, and safety practices for professional pet grooming.</p>
+  1820→</div>
+  1821→</div>
+  1822→<!-- Progress Overview -->
+  1823→<div class="w-full md:w-56 flex flex-col items-start md:items-end justify-center self-end md:self-center">
+  1824→<div class="flex items-center justify-between w-full mb-1.5">
+  1825→<span class="text-xs font-semibold text-slate-700">0% Complete</span>
+  1826→</div>
+  1827→<div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+  1828→<div class="bg-sky-500 h-2 rounded-full w-0 transition-all duration-300"></div>
+  1829→</div>
+  1830→</div>
+  1831→</section>
+  1832→<!-- END: HeaderModuleInfo -->
+  1833→<!-- BEGIN: LearningGridColumns -->
+  1834→<section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" data-purpose="module-interactive-layout">
+  1835→<!-- Left Column: Video Player Container (5 cols) -->
+  1836→<div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-2 shadow-sm overflow-hidden flex flex-col" data-purpose="video-preview-player">
+  1837→<div class="relative w-full aspect-[4/3] rounded-lg overflow-hidden group bg-slate-900">
+  1838→<!-- Dog & Groomer High-Res Image -->
+  1839→<img alt="Golden retriever being groomed" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeYbagKWl0AATn6qXF2ZOgWVXIcAcCn6uXlVFjFrkr7F7anIX3GCerIHhYVlbnBjSVpGEP1Q8h9AtdNxeicaU0b7SE-lGjUrxBlwa0wH5jLPz686KEIJBD_JbT9dXKPMOv4BA8RO6iBznfQh90_s6g9OpMzGKJ3GI8o9DfTLKFCU5jiFcaXDSNKqSdwzL4GRdB0p3AR2CnK22919LcZ3HWxXwY1IVuTIkSv7KnwuU30soyCmRx3xjw"/>
+  1840→<!-- Dark Overlay Gradient -->
+  1841→<div class="absolute inset-0 bg-black/25"></div>
+  1842→<!-- Central Big Blue Play Button -->
+  1843→<button aria-label="Play video lesson" class="absolute inset-0 m-auto w-14 h-14 bg-sky-600 hover:bg-sky-500 text-white rounded-full flex items-center justify-center shadow-lg transform transition active:scale-95 focus:outline-none focus:ring-4 focus:ring-sky-300">
+  1844→<svg class="w-6 h-6 fill-current translate-x-0.5" viewbox="0 0 24 24">
+  1845→<path d="M8 5v14l11-7z"></path>
+  1846→</svg>
+  1847→</button>
+  1848→<!-- Bottom-right Timestamp Badge -->
+  1849→<span class="absolute bottom-2.5 right-2.5 bg-black/75 text-white font-medium text-xs px-2 py-0.5 rounded shadow">
+  1850→              12:45
+  1851→            </span>
+  1852→</div>
+  1853→</div>
+  1854→<!-- Center Column: Module Content / Checklist (5 cols) -->
+  1855→<div class="lg:col-span-5 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden" data-purpose="module-content-curriculum">
+  1856→<div class="p-5 border-b border-slate-100">
+  1857→<h2 class="text-base font-semibold text-slate-800">Module Content</h2>
+  1858→</div>
+  1859→<!-- Content List Items -->
+  1860→<div class="divide-y divide-slate-100 flex-1">
+  1861→<!-- Item 1: Video Lesson -->
+  1862→<div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+  1863→<div class="flex items-center gap-3.5">
+  1864→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1865→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1866→<path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1867→<path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1868→</svg>
+  1869→</div>
+  1870→<div>
+  1871→<h3 class="text-sm font-semibold text-slate-800">Video Lesson</h3>
+  1872→<p class="text-xs text-slate-500">Grooming Basics &amp; Safety</p>
+  1873→</div>
+  1874→</div>
+  1875→<span class="text-xs font-medium text-slate-400">12:45</span>
+  1876→</div>
+  1877→<!-- Item 2: Knowledge Check -->
+  1878→<div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+  1879→<div class="flex items-center gap-3.5">
+  1880→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1881→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1882→<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1883→</svg>
+  1884→</div>
+  1885→<div>
+  1886→<h3 class="text-sm font-semibold text-slate-800">Knowledge Check</h3>
+  1887→<p class="text-xs text-slate-500">3 questions</p>
+  1888→</div>
+  1889→</div>
+  1890→<span class="text-xs font-medium text-slate-400">5 min</span>
+  1891→</div>
+  1892→<!-- Item 3: Practice Activity -->
+  1893→<div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+  1894→<div class="flex items-center gap-3.5">
+  1895→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1896→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1897→<path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1898→</svg>
+  1899→</div>
+  1900→<div>
+  1901→<h3 class="text-sm font-semibold text-slate-800">Practice Activity</h3>
+  1902→<p class="text-xs text-slate-500">Tool Identification</p>
+  1903→</div>
+  1904→</div>
+  1905→<span class="text-xs font-medium text-slate-400">10 min</span>
+  1906→</div>
+  1907→<!-- Item 4: Module Quiz -->
+  1908→<div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+  1909→<div class="flex items-center gap-3.5">
+  1910→<div class="w-9 h-9 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+  1911→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1912→<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1913→</svg>
+  1914→</div>
+  1915→<div>
+  1916→<h3 class="text-sm font-semibold text-slate-800">Module Quiz</h3>
+  1917→<p class="text-xs text-slate-500">4 questions</p>
+  1918→</div>
+  1919→</div>
+  1920→<span class="text-xs font-medium text-slate-400">10 min</span>
+  1921→</div>
+  1922→</div>
+  1923→<!-- Bottom Action Button -->
+  1924→<div class="p-4 bg-slate-50/50 border-t border-slate-100">
+  1925→<button class="w-full bg-[#0284c7] hover:bg-[#0369a1] text-white py-2.5 px-4 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-sm">
+  1926→<span>Start Module</span>
+  1927→<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1928→<path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1929→</svg>
+  1930→</button>
+  1931→</div>
+  1932→</div>
+  1933→<!-- Right Column: Resources & Help (3 cols) -->
+  1934→<div class="lg:col-span-3 space-y-6" data-purpose="module-resources-and-support">
+  1935→<!-- Card: Module Resources -->
+  1936→<div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+  1937→<h2 class="text-sm font-bold text-slate-800 mb-4">Module Resources</h2>
+  1938→<div class="space-y-4">
+  1939→<!-- Resource 1 -->
+  1940→<div class="flex items-start gap-3 cursor-pointer group">
+  1941→<div class="text-slate-400 group-hover:text-sky-600 transition-colors mt-0.5">
+  1942→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1943→<path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+  1944→</svg>
+  1945→</div>
+  1946→<div>
+  1947→<h3 class="text-xs font-semibold text-slate-800 group-hover:text-sky-600 transition-colors">Download Guide</h3>
+  1948→<p class="text-[11px] text-slate-400">PDF • 2.4 MB</p>
+  1949→</div>
+  1950→</div>
+  1951→<!-- Resource 2 -->
+  1952→<div class="flex items-start gap-3 cursor-pointer group">
+  1953→<div class="text-slate-400 group-hover:text-sky-600 transition-colors mt-0.5">
+  1954→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1955→<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+  1956→</svg>
+  1957→</div>
+  1958→<div>
+  1959→<h3 class="text-xs font-semibold text-slate-800 group-hover:text-sky-600 transition-colors">Safety Checklist</h3>
+  1960→<p class="text-[11px] text-slate-400">PDF • 1.1 MB</p>
+  1961→</div>
+  1962→</div>
+  1963→<!-- Resource 3 -->
+  1964→<div class="flex items-start gap-3 cursor-pointer group">
+  1965→<div class="text-slate-400 group-hover:text-sky-600 transition-colors mt-0.5">
+  1966→<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1967→<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+  1968→</svg>
+  1969→</div>
+  1970→<div>
+  1971→<h3 class="text-xs font-semibold text-slate-800 group-hover:text-sky-600 transition-colors">Tool Reference</h3>
+  1972→<p class="text-[11px] text-slate-400">PDF • 3.2 MB</p>
+  1973→</div>
+  1974→</div>
+  1975→</div>
+  1976→</div>
+  1977→<!-- Card: Need Help? -->
+  1978→<div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm text-left">
+  1979→<div class="flex items-start gap-3 mb-2">
+  1980→<div class="text-slate-700 mt-0.5">
+  1981→<svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+  1982→<path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+  1983→</svg>
+  1984→</div>
+  1985→<h2 class="text-sm font-bold text-slate-800">Need Help?</h2>
+  1986→</div>
+  1987→<p class="text-xs text-slate-500 mb-4 leading-relaxed">
+  1988→              Get support from your instructor or support team.
+  1989→            </p>
+  1990→<button class="w-full border border-sky-600 text-sky-600 hover:bg-sky-50 py-2 px-3 rounded-lg text-xs font-semibold transition-colors">
+  1991→              Contact Support
+  1992→            </button>
+  1993→</div>
+  1994→</div>
+  1995→</section>
+  1996→<!-- END: LearningGridColumns -->
+  1997→</div>
+  1998→</main>
+  1999→<!-- END: MainContentArea -->
+  2000→</body></html>
+
+[showing lines 1-2000 of 12578; use offset=2001 with limit to continue reading]

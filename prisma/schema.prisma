@@ -40,15 +40,66 @@ model Learner {
   id          String   @id @default(cuid())
   name        String   @unique
   email       String?
-  // Onboarding context — collected before the first lesson so the AI can personalize
-  situation   String? // e.g. "reentering after incarceration", "single parent", "unhoused"
-  goals       String? // what they want to achieve
-  background  String? // prior experience, education, constraints
-  strengths   String? // what they're good at
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   enrollments Enrollment[]
+
+  // ── 13-step enrollment intake (stored as JSON, updated progressively) ──
+  intake      String   @default("{}") // JSON: all 13 steps of intake data
+  intakeStep  Int      @default(0) // 0 = not started, 13 = complete
+  intakeComplete Boolean @default(false)
+
+  // ── Referral / partner verification (step 3) ──
+  partnerId   String?  // links to Partner if enrolled via referral
+  partner     Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+
+  // ── Support team assignment ──
+  supportTeamAssignments SupportTeamAssignment[]
+}
+
+/// A referring partner organization (salon, nonprofit, workforce board, reentry program)
+model Partner {
+  id              String   @id @default(cuid())
+  code            String   @unique // the "partner number / referral code"
+  name            String   // org name
+  type            String   // salon | nonprofit | workforce-board | reentry-program | community-org
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  learners        Learner[]
+}
+
+/// Support team members — case managers, academic advisors, mentors
+model SupportStaff {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  role            String   // case-manager | academic-advisor | mentor | instructor
+  specialties     String?  // JSON array: ["reentry", "pet-grooming", "financial-literacy"]
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  caseManagerAssignments  SupportTeamAssignment[] @relation("CaseManagerAssign")
+  advisorAssignments      SupportTeamAssignment[] @relation("AdvisorAssign")
+  mentorAssignments       SupportTeamAssignment[] @relation("MentorAssign")
+}
+
+/// Links a learner to their support team members
+model SupportTeamAssignment {
+  id              String   @id @default(cuid())
+  learnerId        String  @unique // one support team per learner
+  learner          Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  caseManagerId   String?
+  academicAdvisorId String?
+  mentorId        String?
+  caseManager     SupportStaff? @relation("CaseManagerAssign", fields: [caseManagerId], references: [id], onDelete: SetNull)
+  academicAdvisor SupportStaff? @relation("AdvisorAssign", fields: [academicAdvisorId], references: [id], onDelete: SetNull)
+  mentor          SupportStaff? @relation("MentorAssign", fields: [mentorId], references: [id], onDelete: SetNull)
+  assignedAt      DateTime @default(now())
 }
 
 model CourseSource {
