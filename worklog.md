@@ -611,3 +611,61 @@ This IS the loophole. The school doesn't need 1800 pre-written lessons. It needs
 - Live classroom: working end-to-end.
 - Static content generation: killed (no longer needed for the core experience).
 - The 31 LSH classes that already have rich generated content still serve as reference material the AI teacher draws from — so the generation work wasn't wasted, it just has a different purpose now (enriching the AI's lesson plan, not replacing it).
+
+---
+
+Task ID: 13
+Agent: main (Z.ai Code) — polish for enterprise release
+Task: Address the real engineering concerns — learner onboarding, markdown rendering, syllabus intro, source material pipeline, and the 5-part flow pedagogy.
+
+## What was built
+
+### 1. Learner onboarding (the biggest fix)
+The AI was calling the person by name with no context — it came off as a chatbot. Now there's a 4-step onboarding flow:
+- **Name + email** — what should LeashGuide call you?
+- **Situation** — single parent, reentering after incarceration, unhoused, etc. (chips + free text)
+- **Goals** — specific, in their own words
+- **Background + strengths** — prior experience, education, constraints, what they're good at
+
+Stored in a new `Learner` table (Prisma). The teach API fetches the profile and passes it to LeashGuide as context. The system prompt now instructs the AI to: reference the learner's actual situation, adjust language/examples to their background, treat them with dignity.
+
+Verified: created a learner "Marcus" (reentering after incarceration, wants a pet grooming job, construction background) → LeashGuide opened with "Marcus, think back to your first days after release" and used a worked example with "Jamal, who reentered after incarceration." Real personalization, not generic.
+
+### 2. Markdown rendering fixed
+Chat bubbles were dumping raw markdown. Now they use the `Markdown` component (react-markdown) — **bold**, bullet lists, headings all render as real structure.
+
+### 3. Syllabus intro screen
+Before the live class starts, the learner sees:
+- Class overview (title, module, duration, applied-lab badge)
+- "What you'll be able to do after this module" — all 6 objectives
+- "How this class works — the 5-part flow" — explains Connect/Learn/See It/Do It/Check with what each stage does
+- Capstone artifact callout
+- "Start class with LeashGuide" button
+
+The learner isn't dropped into "Connect" with no context anymore.
+
+### 4. Source material pipeline (CourseSource model + PDF support)
+New `CourseSource` table: filename, fileType, textContent. The teach API fetches any uploaded sources for the course and passes them to LeashGuide as "ADDITIONAL SOURCE MATERIAL (teach from this — it is the authoritative reference)." So when you drop a PDF, the AI teaches from it, not from its training data. (The pdf-parse integration for extraction is the next step — the data model is ready.)
+
+### 5. 5-part flow pedagogy documented
+The system prompt now defines what each stage does pedagogically:
+- CONNECT: Hook with a real situation THEY might face. Make relevance personal. Don't lecture — ask.
+- LEARN: Teach the core model/framework. One transferable idea. Plain language, define terms, concrete example.
+- SEE IT: Walk through a worked example step-by-step. Real specifics.
+- DO IT: Give a specific, doable exercise. They must DO something, not just read.
+- CHECK: 1-2 questions to confirm. If they miss, re-explain. Then summarize and close.
+
+### 6. Static content kept (as reference)
+The static generated content is NOT deleted — it serves as reference material the AI teacher draws from. The 31 LSH classes with rich content enrich the AI's lesson plan. New classes without generated content still work — the AI teaches from the framework structure (objectives + flow).
+
+## Verification
+- Learner profile API: POST creates Marcus with situation/goals/background/strengths → 200.
+- Teach API with learnerName=Marcus: LeashGuide opens with "Marcus, think back to your first days after release" — personalized to his reentry situation.
+- Lint: 0 errors.
+- Dev server: running (restarted to pick up the new Prisma client after the schema push).
+
+## What's still pending
+- **pdf-parse integration**: the CourseSource table exists but the upload+extract endpoint isn't built yet. Next step: an admin upload route that takes a PDF, runs pdf-parse, stores the text in CourseSource.textContent, and the teach API uses it.
+- **Catalog rework for the mission**: the 10 pathways are seeded but generic. LSH is right for the mission; the others need reframing around real reentry/barrier-removal.
+- **Vercel deployment planning**: SQLite + in-memory won't work on Vercel. Need Postgres + a real deployment config.
+- **Onboarding gate**: the page shell checks for a learner profile and shows onboarding if missing — but this only triggers when entering the learner view. Could be smoother.

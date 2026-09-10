@@ -23,6 +23,7 @@ import {
 import type { Module, ClassBlock } from "@/lib/framework/types";
 import { cn } from "@/lib/utils";
 import { ModuleQuiz } from "./module-quiz";
+import { Markdown } from "./markdown";
 
 type Progress2 = Record<string, { completedClasses: string[]; quizScore?: number; quizPassed?: boolean }>;
 
@@ -402,6 +403,7 @@ function LiveClassroom({
   const [classComplete, setClassComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [started, setStarted] = useState(false);
 
   // Reset when class changes
   useEffect(() => {
@@ -409,8 +411,7 @@ function LiveClassroom({
     setClassComplete(false);
     setError(null);
     setInput("");
-    // Auto-start the lesson
-    send("(begin lesson)");
+    setStarted(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [course.code, module.code, cls.id]);
 
@@ -418,6 +419,11 @@ function LiveClassroom({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
+
+  async function beginLesson() {
+    setStarted(true);
+    await send("(begin lesson)");
+  }
 
   async function send(text: string) {
     const trimmed = text.trim();
@@ -480,8 +486,88 @@ function LiveClassroom({
         <p className="mt-0.5 text-xs text-muted-foreground">{module.code} · {module.title} · {cls.duration}</p>
       </div>
 
-      {/* The classroom conversation — this IS the lesson */}
-      <div ref={scrollRef} className="scroll-area-custom flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+      {/* Syllabus intro — shown before the live lesson starts */}
+      {!started && messages.length === 0 && !loading && (
+        <div className="scroll-area-custom flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+          <div className="mx-auto max-w-3xl space-y-5">
+            <div>
+              <Badge variant="outline" className="gap-1 text-[10px]">
+                <Sparkles className="h-2.5 w-2.5 text-primary" /> Class overview
+              </Badge>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight">{cls.title}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {module.code} · {module.title} — {cls.duration}
+                {cls.isAppliedLab && " · Applied Lab"}
+              </p>
+            </div>
+
+            {/* What you'll learn */}
+            <div className="rounded-xl border border-border/60 bg-card p-5">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                What you&apos;ll be able to do after this module
+              </p>
+              <ul className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
+                {module.objectives.map((o, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">{i + 1}</span>
+                    {o}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* The 5-part flow explainer */}
+            <div className="rounded-xl border border-border/60 bg-card p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                How this class works — the 5-part flow
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                LeashGuide teaches this class live, one stage at a time. You won&apos;t read a wall of text —
+                you&apos;ll have a conversation. Here&apos;s the structure:
+              </p>
+              <div className="mt-3 space-y-2">
+                {[
+                  { n: 1, name: "Connect", desc: "LeashGuide hooks you with a real situation and asks about your experience." },
+                  { n: 2, name: "Learn", desc: "LeashGuide teaches the core model — one transferable idea, in plain language." },
+                  { n: 3, name: "See It", desc: "LeashGuide walks through a worked example so you see the model in action." },
+                  { n: 4, name: "Do It", desc: "You do a short exercise — answer a question, decide a scenario, draft a quick artifact." },
+                  { n: 5, name: "Check", desc: "LeashGuide confirms you got it, then closes the class." },
+                ].map((s) => (
+                  <div key={s.n} className="flex items-start gap-3">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{s.n}</span>
+                    <div>
+                      <p className="text-sm font-medium">{s.name}</p>
+                      <p className="text-xs text-muted-foreground">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Capstone */}
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                <Award className="h-3.5 w-3.5" /> Capstone artifact for this module
+              </p>
+              <p className="mt-1.5 text-sm font-medium">{module.capstoneEvidence}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pass the module quiz at {module.quiz.passThreshold}% and complete the artifact to earn this module&apos;s credit.
+              </p>
+            </div>
+
+            <div className="flex justify-center pb-4">
+              <Button size="lg" onClick={beginLesson} className="gap-2">
+                <Sparkles className="h-4 w-4" /> Start class with LeashGuide
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* The classroom conversation — shown after the intro */}
+      {started && (
+        <>
+        <div ref={scrollRef} className="scroll-area-custom flex-1 overflow-y-auto px-4 py-6 sm:px-8">
         <div className="mx-auto max-w-3xl space-y-4">
           {messages.length === 0 && !loading && (
             <div className="py-12 text-center">
@@ -512,7 +598,7 @@ function LiveClassroom({
                     : "bg-primary text-primary-foreground",
                 )}
               >
-                <div className="prose-leash">{m.content}</div>
+                <Markdown>{m.content}</Markdown>
               </div>
             </div>
           ))}
@@ -531,7 +617,7 @@ function LiveClassroom({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
-      </div>
+        </div>
 
       {/* Bottom bar: response input OR complete actions */}
       <div className="border-t border-border/60 bg-background px-4 py-3 sm:px-8">
@@ -599,6 +685,8 @@ function LiveClassroom({
           ) : <span />}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

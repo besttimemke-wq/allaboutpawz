@@ -33,12 +33,42 @@ model Course {
   chatSessions ChatSession[]
   quizAttempts QuizAttempt[]
   reviews      Review[]
+  sources      CourseSource[]
+}
+
+model Learner {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  email       String?
+  // Onboarding context — collected before the first lesson so the AI can personalize
+  situation   String? // e.g. "reentering after incarceration", "single parent", "unhoused"
+  goals       String? // what they want to achieve
+  background  String? // prior experience, education, constraints
+  strengths   String? // what they're good at
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments Enrollment[]
+}
+
+model CourseSource {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  filename    String
+  fileType    String // pdf | docx | txt | md
+  textContent String // extracted raw text — the AI's reference material
+  uploadedAt  DateTime @default(now())
+
+  @@index([courseId])
 }
 
 model Enrollment {
   id          String   @id @default(cuid())
   learnerName String // lightweight learner identity (MVP — no auth)
   learnerEmail String?
+  learnerId   String?
+  learner     Learner? @relation(fields: [learnerId], references: [id], onDelete: SetNull)
   courseId    String
   course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   progress    String   @default("{}") // JSON: { [moduleCode]: { completedClasses: string[], quizScore?: number, quizPassed?: boolean } }

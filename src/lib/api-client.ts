@@ -163,6 +163,18 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
+
+  getLearnerProfile: (name: string) =>
+    json<{ learner: { id: string; name: string; situation?: string | null; goals?: string | null; background?: string | null; strengths?: string | null } | null }>(
+      `${base}/learner-profile?name=${encodeURIComponent(name)}`,
+    ).then((r) => r.learner),
+
+  saveLearnerProfile: (body: { name: string; email?: string; situation?: string; goals?: string; background?: string; strengths?: string }) =>
+    json<{ learner: { id: string; name: string } }>(`${base}/learner-profile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then((r) => r.learner),
 };
 
 export interface ReviewRow {
