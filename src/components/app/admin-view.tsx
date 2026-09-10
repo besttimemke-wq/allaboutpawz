@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api, type CourseRow, type RosterRow, type RosterSummary } from "@/lib/api-client";
 import {
   AlertDialog,
@@ -875,9 +876,12 @@ function ModuleEditorCard({ module: m, li, mi, expandedModule, setExpandedModule
 
           {/* Quiz sample */}
           <div className="rounded-md border border-border/50 bg-muted/20 p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <ListChecks className="h-3 w-3 text-primary" /> Module quiz sample item (pass {m.quiz.passThreshold}%)
-            </p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <ListChecks className="h-3 w-3 text-primary" /> Module quiz sample item (pass {m.quiz.passThreshold}%)
+              </p>
+              <QuizPreviewDialog module={m} />
+            </div>
             <Input
               value={m.quiz.sampleItem.question}
               onChange={(e) => update((d) => { d.levels[li].modules[mi].quiz.sampleItem.question = e.target.value; })}
@@ -1213,6 +1217,140 @@ function KnowledgeCheckEditor({
           <p className="py-2 text-center text-[10px] text-muted-foreground">No knowledge check items. Click &ldquo;Add item&rdquo; to create one.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Quiz preview dialog — lets admins test the module quiz bank before publishing
+// ---------------------------------------------------------------------------
+
+function QuizPreviewDialog({ module: m }: { module: Pathway["levels"][number]["modules"][number] }) {
+  const [open, setOpen] = useState(false);
+
+  // Build the quiz pool exactly like the learner module quiz does.
+  const questions = useMemo(() => {
+    const pool: { question: string; options: string[]; answer: string; rationale: string; source: string }[] = [];
+    for (const sm of m.subModules) {
+      for (const cls of sm.classes) {
+        for (const k of cls.knowledgeCheck) {
+          if (k.options && k.options.length > 1) {
+            pool.push({ question: k.question, options: k.options, answer: k.answer, rationale: k.rationale, source: `${m.code} · ${cls.id}` });
+          }
+        }
+      }
+    }
+    return pool;
+  }, [m]);
+
+  const quizCount = questions.length;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="h-6 gap-1 text-[10px]">
+          <Eye className="h-3 w-3" /> Preview quiz
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto scroll-area-custom">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ListChecks className="h-4 w-4 text-primary" /> Quiz preview · {m.code}
+          </DialogTitle>
+          <DialogDescription>
+            Preview the quiz bank for {m.title} — {quizCount} questions from the module&apos;s class knowledge checks. Learners see 8 random questions; 80% to pass.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="rounded-lg bg-muted/40 p-3 text-xs">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <span><strong className="text-foreground">{quizCount}</strong> questions available</span>
+              <span>Pass threshold: <strong className="text-foreground">{m.quiz.passThreshold}%</strong></span>
+              <span>Learner sees: <strong className="text-foreground">8</strong> random</span>
+              <span>Question mix: {m.quiz.questionMix.join(" · ")}</span>
+            </div>
+          </div>
+
+          {quizCount === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="p-8 text-center text-sm text-muted-foreground">
+                No quiz questions yet. Add knowledge-check items to the module&apos;s classes to build the quiz bank.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {questions.map((q, i) => (
+                <QuizPreviewItem key={i} idx={i} q={q} />
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function QuizPreviewItem({
+  idx,
+  q,
+}: {
+  idx: number;
+  q: { question: string; options: string[]; answer: string; rationale: string; source: string };
+}) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <div className="rounded-lg border border-border/60 p-3">
+      <div className="flex items-start gap-2">
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+          {idx + 1}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">{q.question}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">Source: {q.source}</p>
+        </div>
+      </div>
+      <div className="mt-2 space-y-1 pl-7">
+        {q.options.map((opt) => {
+          const isCorrect = revealed && opt === q.answer;
+          return (
+            <div
+              key={opt}
+              className={cn(
+                "flex items-center gap-2 rounded px-2 py-1 text-xs transition",
+                isCorrect ? "bg-primary/10 text-primary" : "text-muted-foreground",
+                revealed && opt !== q.answer && "opacity-60",
+              )}
+            >
+              <span
+                className={cn(
+                  "grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border",
+                  isCorrect ? "border-primary bg-primary text-primary-foreground" : "border-border",
+                )}
+              >
+                {isCorrect && <CheckCircle2 className="h-2 w-2" />}
+              </span>
+              <span className={cn(isCorrect && "font-medium")}>{opt}</span>
+            </div>
+          );
+        })}
+      </div>
+      {revealed ? (
+        <div className="mt-2 pl-7 text-[11px]">
+          <p>
+            <span className="font-medium text-primary">Answer:</span> {q.answer}
+          </p>
+          <p className="mt-0.5 text-muted-foreground">
+            <span className="font-medium">Rationale:</span> {q.rationale}
+          </p>
+          <Button type="button" variant="ghost" size="sm" className="mt-1 h-6 text-[10px]" onClick={() => setRevealed(false)}>
+            Hide answer
+          </Button>
+        </div>
+      ) : (
+        <Button type="button" variant="ghost" size="sm" className="mt-1.5 ml-7 h-6 text-[10px]" onClick={() => setRevealed(true)}>
+          Reveal answer
+        </Button>
+      )}
     </div>
   );
 }

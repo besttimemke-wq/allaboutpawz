@@ -14,7 +14,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ArrowLeft, Clock, Award, Layers, Target, Users, CalendarDays, CheckCircle2, Sparkles, Play, BookOpen } from "lucide-react";
+import { ArrowLeft, Clock, Award, Layers, Target, Users, CalendarDays, CheckCircle2, Sparkles, Play, BookOpen, FileDown } from "lucide-react";
 
 export function CourseView() {
   const code = useAppStore((s) => s.selectedCourseCode);
@@ -102,7 +102,7 @@ export function CourseView() {
       <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{course.title}</h1>
       <p className="mt-2 text-base text-muted-foreground">{course.subtitle}</p>
 
-      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
         <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1">
           <Clock className="h-3.5 w-3.5 text-primary" /> {course.totalHours} hours
         </span>
@@ -115,6 +115,11 @@ export function CourseView() {
         <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1">
           <BookOpen className="h-3.5 w-3.5 text-primary" /> SCORM-packaged
         </span>
+        <Button asChild size="sm" variant="outline" className="ml-auto h-7 gap-1.5 text-xs">
+          <a href={`/api/syllabus?courseCode=${encodeURIComponent(course.code)}`} download={`syllabus-${course.code}.md`}>
+            <FileDown className="h-3.5 w-3.5" /> Download syllabus
+          </a>
+        </Button>
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">

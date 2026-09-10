@@ -262,3 +262,61 @@ Task: QA the app, then add server-rendered certificate PDF, catalog search/filte
 - **Bookmarks are local-only**: bookmarks persist to localStorage per-browser; a future round could persist them server-side per learner account (requires auth).
 - **Quiz preview in admin**: now that knowledge-check items are editable, a "quiz preview" in the admin would let authors test their quiz banks.
 - Recommend next cron round focus on: (a) SCORM zip packaging (manifest + per-module HTML), (b) NextAuth real authentication, or (c) quiz preview in admin + more seed courses to make comparison meaningful.
+
+---
+
+Task ID: 6
+Agent: webDevReview (cron round 4)
+Task: QA the app, seed more courses, add quiz preview in admin, add course syllabus export, polish styling.
+
+## Current project status (assessment)
+- App is stable after round 3: all views render, live LeashGuide AI tutor works, certificate HTML+PDF, SCORM XML, catalog filters/bookmarks/comparison all functional, 0 lint errors, dev server healthy.
+- Quick QA confirmed no regressions (home, catalog, admin all render with 0 console errors).
+- This round tackled the round-3 roadmap items: seed more courses, quiz preview in admin, and syllabus export.
+
+## New features added
+
+### 1. Two more published courses seeded (WDC + FIN)
+- Used the existing AI Course Builder API to generate two new 120-hour pathways:
+  - **WDC** — Workplace Digital Communication (domain: professional digital communication, email etiquette, virtual collaboration; audience: early-career professionals in remote/hybrid teams).
+  - **FIN** — Personal Financial Literacy (domain: budgeting, saving, credit, debt management, financial goal-setting; audience: young adults building their first financial foundation).
+- Both generated with 20 modules each, then published via PATCH `/api/courses/{code}` status=published.
+- Catalog now shows 3 published courses (LSH, WDC, FIN) — comparison and accreditation filters are now genuinely useful.
+- Verified: catalog renders "3 courses" with all three titles visible; comparison sheet shows a 3-column side-by-side table.
+
+### 2. Quiz preview in the Admin Builder
+- New `QuizPreviewDialog` component: each module editor now has a "Preview quiz" button next to the quiz sample item.
+- Opens a Dialog showing the full quiz bank for that module — questions pulled from every class's knowledge-check items, exactly like the learner quiz builds them. Shows: total questions available, pass threshold (80%), learner sees 8 random, question mix (3 MC / 2 T-F / 2 scenario / 1 short-answer).
+- Each question has a "Reveal answer" toggle that highlights the correct option (primary color + check icon), shows the answer + rationale, and offers a "Hide answer" toggle.
+- Empty state handled ("No quiz questions yet. Add knowledge-check items…").
+- Fixed an a11y warning by adding `DialogDescription` to the dialog.
+- Verified: opened LSH-101 → "Preview quiz" button → dialog opens with "questions available", "Pass threshold", "Reveal answer" buttons; revealing shows Answer + Rationale + "Hide answer".
+
+### 3. Course syllabus export (printable Markdown)
+- New `/api/syllabus?courseCode=...` route (GET): returns a complete, printable Markdown syllabus for the course — header (code, hours, CEUs, SCORM ID, accreditation, framework), overview + mission, enrollment copy (headline, who-for, what-you'll-achieve, what-you'll-earn, time, prereqs), then per-level → per-module → per-sub-module → per-class detail (5-part flow, AI tutor prompt, knowledge check with correct answers marked), and a final shipping-checklist table (Structure, Hours, Quiz, Rubric, Capstone, Credential ladder, SCORM, AI tutoring) with accreditation bodies.
+- Downloads as `syllabus-{CODE}.md` via `Content-Disposition: attachment`.
+- **Course detail integration**: added a "Download syllabus" button in the course header stats row (right-aligned, outline variant).
+- Verified: `curl /api/syllabus?courseCode=LSH` → HTTP 200, 609KB, `text/markdown`; LSH + WDC both generate full syllabi.
+
+### 4. Styling polish
+- Course detail header now includes a "Download syllabus" button (outline, FileDown icon) right-aligned in the stats row.
+- Quiz preview dialog uses numbered circular badges for questions, primary-tinted correct-answer highlighting, and a clean info bar (questions available / pass threshold / learner sees / question mix).
+- Comparison sheet now meaningfully shows 3 columns with all attributes side-by-side.
+- All new UI uses the existing emerald/amber brand tokens for consistency.
+
+## Verification (agent-browser end-to-end)
+- Catalog: "3 courses" — Life Skills, Workplace Digital Communication, Financial Literacy all render.
+- Comparison: added all 3 → sticky bar → opened sheet → 3-column table with Hours, Accreditation, etc.
+- Course detail: "Download syllabus" button present on LSH course page.
+- Syllabus API: `curl` → HTTP 200, 609KB Markdown for LSH; 644KB for WDC.
+- Quiz preview: opened LSH-101 editor → "Preview quiz" → dialog with "questions available", "Pass threshold", "Reveal answer"; revealing shows Answer + Rationale.
+- Console: 0 errors (the DialogDescription a11y warning is now fixed).
+- Lint: 0 errors (758 warnings, all from uploaded perplexity HTML assets).
+
+## Unresolved issues / risks + next-phase priorities
+- **SCORM is still XML-only**: the manifest downloads but referenced `modules/*.html` SCO files aren't packaged into a zip. A future round could generate per-module HTML stubs + zip everything for turnkey LMS import.
+- **Real auth**: identity is still name-only. NextAuth integration remains the biggest roadmap item.
+- **Bookmarks are local-only**: persist to localStorage; a future round could persist server-side per learner (requires auth).
+- **Quiz preview vs learner quiz divergence**: the preview shows ALL questions while the learner quiz randomly samples 8. A future round could add a "Simulate learner quiz" mode in the preview that shows exactly 8 random questions with scoring.
+- **Syllabus is Markdown-only**: a future round could render the syllabus to PDF (via the PDF skill) for a polished printable version.
+- Recommend next cron round focus on: (a) SCORM zip packaging (manifest + per-module HTML), (b) NextAuth real authentication, or (c) syllabus PDF rendering + simulated quiz mode in the preview.
