@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { repo } from "@/lib/repo";
 import { isAdmin } from "@/lib/auth/server";
 import { enrollCustomer } from "@/lib/auth/enroll-customer";
+import { withPg, TENANT_ID } from "@/lib/crm/enterprise";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe | null {
@@ -11,30 +12,46 @@ function getStripe(): Stripe | null {
   return _stripe;
 }
 
+// Paid payments per customer, from the owner's commerce_payments ledger —
+// keyed by the crm_customers registry (email or the salon-record back-link).
+async function paidSpendByCustomer(): Promise<Map<string, number>> {
+  return withPg(async (client) => {
+    const res = await client.query(
+      `SELECT cc.source_customer_id, lower(cc.email) AS email, SUM(cp.amount) AS spent
+       FROM public.commerce_payments cp
+       JOIN public.crm_customers cc ON cp.customer_id = cc.id
+       WHERE cp.tenant_id = $1 AND cp.status IN ('succeeded', 'captured')
+       GROUP BY cc.source_customer_id, lower(cc.email)`,
+      [TENANT_ID()],
+    )
+    const map = new Map<string, number>();
+    for (const r of res.rows) {
+      const spent = parseFloat(String(r.spent || "0")) || 0;
+      if (r.email) map.set(String(r.email), spent);
+      if (r.source_customer_id) map.set(String(r.source_customer_id), spent);
+    }
+    return map;
+  }).catch(() => new Map<string, number>()) as Promise<Map<string, number>>;
+}
+
 // GET /api/customers - List customers with dogs & bookings
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
 
-    const [customers, dogs, bookings, payments] = await Promise.all([
+    const [customers, dogs, bookings, spend] = await Promise.all([
       repo.list("customers").catch(() => []),
       repo.list("dogs").catch(() => []),
       repo.list("bookings").catch(() => []),
-      repo.list("payments").catch(() => []),
+      paidSpendByCustomer(),
     ]);
 
     // Enhance customers with dogs, latest booking, and calculated spend
     const enhanced = customers.map((c: any) => {
       const customerDogs = dogs.filter((d: any) => d.customerId === c.id);
       const customerBookings = bookings.filter((b: any) => b.customerId === c.id || b.email?.toLowerCase() === c.email?.toLowerCase());
-      const customerPayments = payments.filter((p: any) => p.customerId === c.id && (p.status === "paid" || p.status === "succeeded"));
-
-      let calculatedSpent = 0;
-      for (const p of customerPayments) {
-        const val = parseFloat(String(p.amount || "").replace(/[^0-9.]/g, ""));
-        if (!isNaN(val)) calculatedSpent += val;
-      }
+      const calculatedSpent = spend.get(String(c.id)) || spend.get(String(c.email || "").toLowerCase()) || 0;
 
       // Sort bookings by date
       const sortedBookings = [...customerBookings].sort((a, b) => {

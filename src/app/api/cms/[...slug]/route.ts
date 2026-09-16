@@ -13,7 +13,7 @@ const RESOURCES = new Set<CmsResource>([
   "sanitary_options", "nail_services", "paw_pad_services", "ear_services",
   "teeth_services", "deshedding_services", "coat_techniques",
   "dog_grooming_profiles", "appointment_grooming_requests",
-  "payments", "blocked_times", "availability", "service_pricing",
+  "blocked_times", "availability", "service_pricing",
   "invoices", "invoice_items", "email_messages", "communications", "product_reviews",
   "pet_product_categories", "pet_product_filters", "pet_product_filter_values", "pet_category_filters",
   "serviceItems",

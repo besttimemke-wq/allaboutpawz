@@ -3,6 +3,7 @@ import Stripe from "stripe"
 import { repo } from "@/lib/repo"
 import { sendEmail } from "@/lib/email"
 import { callbackBase } from "@/lib/site-url"
+import { syncCrmAppointment, writeCommercePayment, withPg } from "@/lib/crm/enterprise"
 
 const salonNotifyTo = "notifications@confirmation.aapawz.com"
 
@@ -80,6 +81,17 @@ export async function POST(req: NextRequest) {
     customerId: customerId || null,
     dogId: dogId || null,
   })) as any
+
+  // 1b. The owner's appointment registry — the booking's existence populates
+  //     crm_customers / crm_pets / crm_appointments (status precheck) the
+  //     moment it is created. Non-fatal — checkout proceeds regardless.
+  if (booking?.id) {
+    try {
+      await syncCrmAppointment(booking)
+    } catch (e: any) {
+      console.error("[booking checkout] crm_appointments sync failed:", e.message)
+    }
+  }
 
   // 2. Persist the grooming profile (permanent dog profile — NOT appointment-specific)
   //    Only create if it doesn't already exist for this dog.
@@ -213,18 +225,22 @@ export async function POST(req: NextRequest) {
       await repo.update("bookings", booking.id, { stripeCheckoutSessionId: session.id })
     }
 
-    // 8. Create a payment record (pending until webhook confirms)
+    // 8. The pending payment row — commerce_payments on the owner's table
+    //    (PAY-<bookingId8>, deterministic). The webhook flips it to
+    //    succeeded and links commerce_deposits.payment_id to it.
     try {
-      await repo.create("payments", {
-        bookingId: booking?.id || null,
-        customerId: customerId || null,
-        stripeCheckoutSessionId: session.id,
-        amount: "$25.00",
-        type: "deposit",
-        status: "pending",
-      })
+      if (booking?.id) {
+        await withPg((client) =>
+          writeCommercePayment(client, {
+            paymentNumber: `PAY-${String(booking.id).slice(0, 8).toUpperCase()}`,
+            amount: 25,
+            status: "pending",
+            externalReference: session.id,
+          }),
+        )
+      }
     } catch (e: any) {
-      console.error("[booking checkout] payment record failed:", e.message)
+      console.error("[booking checkout] commerce_payments row failed:", e.message)
     }
 
     return NextResponse.json({ url: session.url, sessionId: session.id, bookingId: booking?.id })

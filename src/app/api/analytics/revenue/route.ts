@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
 import { repo } from "@/lib/repo"
+import { withPg, TENANT_ID } from "@/lib/crm/enterprise"
 
 // GET /api/analytics/revenue?period=week|month|quarter
 // Returns daily revenue data for the dashboard chart.
-// Calculates from actual payments in Supabase.
+// Calculates from the owner's commerce_payments ledger (Supabase).
+async function ledgerPayments(): Promise<{ createdAt: string; amount: number }[]> {
+  return withPg(async (client) => {
+    const res = await client.query(
+      `SELECT created_at, amount FROM public.commerce_payments
+       WHERE tenant_id = $1 AND status IN ('succeeded', 'captured')
+       ORDER BY created_at DESC`,
+      [TENANT_ID()],
+    )
+    return res.rows.map((r: any) => ({ createdAt: new Date(r.created_at).toISOString(), amount: parseFloat(String(r.amount || "0")) || 0 }))
+  }).catch(() => []) as Promise<{ createdAt: string; amount: number }[]>
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const period = searchParams.get("period") || "week"
@@ -13,13 +26,12 @@ export async function GET(req: NextRequest) {
   const startDate = new Date(now)
   startDate.setDate(startDate.getDate() - days)
 
-  // Fetch all payments
-  const allPayments = (await repo.list("payments")) as any[]
+  // Fetch the payment ledger
+  const allPayments = await ledgerPayments()
   const allBookings = (await repo.list("bookings")) as any[]
 
   // Filter to paid payments within the date range
   const paidPayments = allPayments.filter(p => {
-    if (p.status !== "paid" && p.status !== "succeeded") return false
     const date = new Date(p.createdAt)
     return date >= startDate && date <= now
   })
@@ -37,7 +49,7 @@ export async function GET(req: NextRequest) {
       return pDate.toISOString().split("T")[0] === dayStr
     })
 
-    const total = dayPayments.reduce((sum, p) => sum + parseFloat(p.amount?.replace(/[^0-9.]/g, "") || "0"), 0)
+    const total = dayPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
 
     dailyRevenue.push({
       date: dayStr,
@@ -55,11 +67,10 @@ export async function GET(req: NextRequest) {
   const prevStart = new Date(startDate)
   prevStart.setDate(prevStart.getDate() - days)
   const prevPayments = allPayments.filter(p => {
-    if (p.status !== "paid" && p.status !== "succeeded") return false
     const date = new Date(p.createdAt)
     return date >= prevStart && date < startDate
   })
-  const prevTotal = prevPayments.reduce((sum, p) => sum + parseFloat(p.amount?.replace(/[^0-9.]/g, "") || "0"), 0)
+  const prevTotal = prevPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
   const prevCount = prevPayments.length
 
   const revenueChange = prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : 0

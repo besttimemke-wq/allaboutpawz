@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo } from "@/lib/repo";
 import { sendUserNotification } from "@/lib/notifications";
+import { syncCrmAppointment } from "@/lib/crm/enterprise";
 import pg from "pg";
 
 // Resolves the auth user id for a booking's customer — the linked salon
@@ -12,7 +13,7 @@ async function authUserIdForBooking(bookingId: string): Promise<string | null> {
   await client.connect();
   try {
     const res = await client.query(
-      `SELECT c."userId"::text AS user_id, lower(c.email) AS email
+      `SELECT c."userId"::text AS user_id, COALESCE(lower(c.email), lower(b.email)) AS email
        FROM public.bookings b
        LEFT JOIN public.customers c
          ON c.id = b."customerId" OR (c.email IS NOT NULL AND lower(c.email) = lower(b.email))
@@ -146,6 +147,16 @@ export async function POST(req: NextRequest) {
         ...(balanceDue && { balanceDue }),
       });
 
+      // The owner's appointment registry — every status change lands in
+      // crm_appointments (with a status_history row). Non-fatal: the app
+      // booking update must never be blocked by the registry sync.
+      try {
+        const fresh = await repo.get("bookings", id);
+        if (fresh) await syncCrmAppointment(fresh);
+      } catch (e: any) {
+        console.error("[bookings] crm_appointments sync failed:", e.message);
+      }
+
       // Cancellation → simple messaging: the customer gets a message in
       // their portal Messages page (Supabase user_notifications) the moment
       // their appointment is cancelled. Non-fatal — the status update
@@ -199,6 +210,15 @@ export async function POST(req: NextRequest) {
       depositAmount: depositAmount || "$25.00",
       balanceDue: balanceDue || "$70.00",
     });
+
+    // The owner's appointment registry — crm_customers/crm_pets/
+    // crm_appointments are populated the moment a booking exists (the
+    // schema is ground truth; these are its write paths). Non-fatal.
+    try {
+      if (created) await syncCrmAppointment(created);
+    } catch (e: any) {
+      console.error("[bookings] crm_appointments sync failed:", e.message);
+    }
 
     return NextResponse.json(created, { status: 201 });
   } catch (error: any) {

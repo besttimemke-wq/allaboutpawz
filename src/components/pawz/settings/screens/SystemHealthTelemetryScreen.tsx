@@ -291,7 +291,7 @@ export const SystemHealthTelemetryScreen: React.FC<ScreenProps> = ({
               {/* LIVE CONSOLE EXCERPT */}
               <div className="border border-border bg-primary text-primary-foreground tabular-nums p-3 text-[11px] leading-relaxed space-y-1 overflow-y-auto max-h-[180px]">
                 <div className="text-muted-foreground text-[10px] uppercase border-b border-border pb-1 flex items-center justify-between">
-                  <span>LIVE POSTGRESQL AUDIT STREAM // SITE_SETTINGS</span>
+                  <span>LIVE POSTGRESQL AUDIT STREAM // PLATFORM_AUDIT_LOG</span>
                   <span className="animate-pulse text-success font-semibold">[CONNECTED]</span>
                 </div>
                 {dbLogs.map((log) => (

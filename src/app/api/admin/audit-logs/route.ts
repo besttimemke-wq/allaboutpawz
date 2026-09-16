@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import pg from "pg";
 import { requireAdminApi } from "@/lib/admin/gate";
+import { TENANT_ID } from "@/lib/crm/enterprise";
 
 async function getPgClient() {
   const connectionString = process.env.SUPABASE_SESSION_POOLER || process.env.SUPABASE_DIRECT_CONNECTION;
   if (!connectionString) return null;
-  const client = new pg.Client({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-  });
+  const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } });
   await client.connect();
   return client;
 }
 
+// GET /api/admin/audit-logs
+// The audit trail reads the owner's platform_audit_log table. Entries are
+// written by real system events (settings commits, webhook money events,
+// permission changes). There are NO seeded/fake rows — an empty list means
+// nothing has happened yet, which is the truth.
 export async function GET(req: NextRequest) {
   const gate = await requireAdminApi();
   if (gate) return gate;
@@ -20,42 +23,40 @@ export async function GET(req: NextRequest) {
   try {
     const pgClient = await getPgClient();
     if (!pgClient) {
-      // Mock logs fallback
-      return NextResponse.json([
-        { id: 2, timestamp: new Date().toISOString(), action: "SERVICE_START", details: "All About Pawz core services initialized successfully on node US-CENTRAL-01 (Database Offline Fallback)" },
-        { id: 1, timestamp: new Date(Date.now() - 5000).toISOString(), action: "BOOTSTRAP", details: "System default database tables successfully seeded to Postgres cluster" }
-      ]);
+      return NextResponse.json([]);
     }
 
-    // Ensure audit_logs table exists
-    await pgClient.query(`
-      CREATE TABLE IF NOT EXISTS public.audit_logs (
-        id SERIAL PRIMARY KEY,
-        timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-        action TEXT NOT NULL,
-        details TEXT NOT NULL
-      );
-    `);
-
-    // Fetch logs
-    const result = await pgClient.query("SELECT id, timestamp, action, details FROM public.audit_logs ORDER BY timestamp DESC LIMIT 50");
-    
-    if (result.rows.length === 0) {
-      // Seed initial logs
-      await pgClient.query(`
-        INSERT INTO public.audit_logs (action, details)
-        VALUES 
-          ('BOOTSTRAP', 'System default database tables successfully seeded to Postgres cluster'),
-          ('SERVICE_START', 'All About Pawz core services initialized successfully on node US-CENTRAL-01'),
-          ('AUTH_INITIALIZATION', 'Twilio, Stripe & Supabase active listener sockets verified')
-      `);
-      const retryResult = await pgClient.query("SELECT id, timestamp, action, details FROM public.audit_logs ORDER BY timestamp DESC LIMIT 50");
-      await pgClient.end();
-      return NextResponse.json(retryResult.rows);
-    }
+    const result = await pgClient.query(
+      `SELECT id::text, created_at, action, actor_role, target_entity_type,
+              target_entity_id::text, metadata
+       FROM public.platform_audit_log
+       WHERE tenant_id = $1
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [TENANT_ID()],
+    );
 
     await pgClient.end();
-    return NextResponse.json(result.rows);
+
+    const rows = result.rows.map((r: any) => {
+      let meta: any = r.metadata;
+      if (meta && typeof meta === "object" && Object.keys(meta).length > 0) {
+        try { meta = JSON.stringify(meta); } catch { meta = String(meta); }
+      } else {
+        meta = "";
+      }
+      const target = r.target_entity_type
+        ? r.target_entity_type + (r.target_entity_id ? ` ${String(r.target_entity_id).slice(0, 8)}` : "")
+        : "";
+      return {
+        id: r.id,
+        timestamp: new Date(r.created_at).toISOString(),
+        action: String(r.action || "").toUpperCase(),
+        details: [target, meta].filter(Boolean).join(" — ") || `performed by ${r.actor_role || "system"}`,
+      };
+    });
+
+    return NextResponse.json(rows);
   } catch (err: any) {
     console.error("[GET /api/admin/audit-logs] Error:", err);
     return NextResponse.json({ error: err.message || "Failed to load audit logs" }, { status: 500 });

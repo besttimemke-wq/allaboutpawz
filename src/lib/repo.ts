@@ -21,7 +21,7 @@ export type CmsResource =
   | "sanitary_options" | "nail_services" | "paw_pad_services" | "ear_services"
   | "teeth_services" | "deshedding_services" | "coat_techniques"
   | "dog_grooming_profiles" | "appointment_grooming_requests"
-  | "payments" | "blocked_times" | "availability" | "service_pricing"
+  | "blocked_times" | "availability" | "service_pricing"
   | "invoices" | "invoice_items" | "email_messages" | "communications"
   | "product_reviews"
   | "pet_product_categories" | "pet_product_filters" | "pet_product_filter_values" | "pet_category_filters"
@@ -56,7 +56,6 @@ const TABLE: Record<CmsResource, string> = {
   deshedding_services: "deshedding_services", coat_techniques: "coat_techniques",
   dog_grooming_profiles: "dog_grooming_profiles",
   appointment_grooming_requests: "appointment_grooming_requests",
-  payments: "payments",
   blocked_times: "blocked_times",
   availability: "availability",
   service_pricing: "service_pricing",
@@ -215,17 +214,27 @@ export const repo: Repo = {
   },
   async getSettings() {
     if (!supabaseReady) return {}
-    const rows = await sb<Row[]>("site_settings?select=key,value")
+    // Site settings live in the owner's cms_global_content table
+    // (content_group general/contact/social/hours/footer). No parallel
+    // key-value table exists anymore.
+    const rows = await sb<Row[]>(`cms_global_content?select=content_key,value_text&tenant_id=eq.${TENANT_ID}&locale=eq.en-US`)
     const obj: Record<string, string> = {}
-    for (const r of rows || []) obj[r.key] = r.value
+    for (const r of rows || []) obj[r.content_key] = r.value_text ?? ""
     return obj
   },
   async saveSettings(obj) {
     for (const [key, value] of Object.entries(obj)) {
-      await sb("site_settings", {
+      await sb("cms_global_content", {
         method: "POST",
         headers: { Prefer: "resolution=merge-duplicates" },
-        body: JSON.stringify({ key, value: String(value) }),
+        body: JSON.stringify({
+          tenant_id: TENANT_ID,
+          locale: "en-US",
+          content_key: key,
+          label: prettifyKey(key),
+          value_text: String(value),
+          content_group: contentGroupFor(key),
+        }),
       })
     }
   },
@@ -250,6 +259,24 @@ function stripNulls(data: Row): Row {
     if (v !== undefined) out[k] = v === null ? undefined : v
   }
   return out
+}
+
+// ---- site settings helpers (cms_global_content) ----
+const TENANT_ID =
+  process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001"
+
+function contentGroupFor(key: string): string {
+  if (["phone", "email", "addressLine1", "addressLine2", "address", "city", "state", "postalCode"].includes(key)) return "contact"
+  if (["facebook", "instagram", "twitter", "youtube", "tiktok"].includes(key)) return "social"
+  if (/^hours/i.test(key)) return "hours"
+  if (/^footer/i.test(key)) return "footer"
+  return "general"
+}
+
+function prettifyKey(key: string): string {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/^./, (c) => c.toUpperCase())
 }
 
 // ---- backend status ----

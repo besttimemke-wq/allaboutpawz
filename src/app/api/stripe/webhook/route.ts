@@ -4,33 +4,42 @@ import { repo } from "@/lib/repo"
 import { fulfillOrderFromSession } from "@/app/api/checkout/route"
 import { sendBookingConfirmation, sendPaymentReceipt } from "@/lib/email"
 import { enrollCustomer } from "@/lib/auth/enroll-customer"
-import pg from "pg"
+import { syncCrmAppointment, writeCommercePayment, withPg, platformAudit, TENANT_ID, parseMoney } from "@/lib/crm/enterprise"
 
-// Writes the owner's commerce_deposits escrow registry row (find-or-create by
-// deposit_number — deterministic off the booking id, so replays converge).
+// The owner's escrow registry + payment ledger — all money events land in HIS
+// tables (never a parallel payments row):
+//   commerce_payments (PAY-<bookingId8> / PAY-<orderId8>, deterministic → replay-safe)
+//   commerce_deposits (DEP-<bookingId8>, payment_id → the commerce_payments row)
+// The appointment registry (crm_appointments) is synced from the booking row
+// on every state change this handler makes.
 async function writeCommerceDeposit(opts: {
   depositNumber: string
   crmCustomerId: string
   amount: number
   notes: string
   paymentIntentId: string
+  paymentId: string | null
 }) {
-  const cs = process.env.SUPABASE_SESSION_POOLER || process.env.SUPABASE_DIRECT_CONNECTION
-  if (!cs) return
-  const TENANT_ID = process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001"
-  const client = new pg.Client({ connectionString: cs, ssl: { rejectUnauthorized: false } })
-  await client.connect()
-  try {
+  await withPg(async (client) => {
+    // Link the registry row to the ledger row when one already exists.
+    if (opts.paymentId) {
+      const updated = await client.query(
+        `UPDATE public.commerce_deposits
+           SET payment_id = $3::uuid, collected_at = now(), status = 'held', method = 'card'
+         WHERE tenant_id = $1 AND deposit_number = $2
+         RETURNING id::text`,
+        [TENANT_ID(), opts.depositNumber, opts.paymentId],
+      )
+      if (updated.rows[0]) return
+    }
     await client.query(
       `INSERT INTO public.commerce_deposits
-         (tenant_id, deposit_number, customer_id, amount, currency, collected_at, method, status, notes, deposit_type)
-       VALUES ($1, $2, $3::uuid, $4, 'USD', now(), 'card', 'held', $5, 'booking')
+         (tenant_id, deposit_number, customer_id, amount, currency, collected_at, method, status, notes, deposit_type, payment_id)
+       VALUES ($1, $2, $3::uuid, $4, 'USD', now(), 'card', 'held', $5, 'booking', $6::uuid)
        ON CONFLICT DO NOTHING`,
-      [TENANT_ID, opts.depositNumber, opts.crmCustomerId, opts.amount, opts.notes],
+      [TENANT_ID(), opts.depositNumber, opts.crmCustomerId, opts.amount, opts.notes, opts.paymentId],
     )
-  } finally {
-    await client.end().catch(() => {})
-  }
+  })
 }
 
 // Lazy Stripe client — module-level init would crash the route file when
@@ -91,37 +100,35 @@ export async function POST(req: NextRequest) {
             paymentStatus: "DEPOSIT_PAID",
             stripePaymentIntentId: paymentIntentId,
           })
+          booking = booking
+            ? { ...booking, status: "CONFIRMED", paymentStatus: "DEPOSIT_PAID", stripePaymentIntentId: paymentIntentId }
+            : booking
         }
 
-        // 3. Deposits & Escrow accounting entry — the payments row
-        //    (type "deposit") is the transaction ledger entry: find-or-create,
-        //    marked paid. No order row, no fake order — the operational
-        //    booking data stays in Salon CRM. Idempotent on replay.
-        try {
-          const payments = (await repo.list("payments")) as any[]
-          const paymentRecord = payments.find((p) => p.stripeCheckoutSessionId === session.id)
-          if (paymentRecord) {
-            await repo.update("payments", paymentRecord.id, {
-              status: "paid",
-              stripePaymentIntentId: paymentIntentId,
-            })
-          } else {
-            await repo.create("payments", {
-              bookingId: bookingId || null,
-              customerId: customerId || null,
-              stripeCheckoutSessionId: session.id,
-              stripePaymentIntentId: paymentIntentId,
-              amount: "$25.00",
-              type: "deposit",
-              status: "paid",
-            })
+        // 3. The payment ledger — commerce_payments (find-or-create by the
+        //    deterministic payment number; a replayed event converges here).
+        //    THE owner's table replaces the old app payments row.
+        let paymentId: string | null = null
+        if (bookingId) {
+          try {
+            paymentId = await withPg((client) =>
+              writeCommercePayment(client, {
+                paymentNumber: `PAY-${String(bookingId).slice(0, 8).toUpperCase()}`,
+                amount: 25,
+                status: "succeeded",
+                customerId: enrollResult?.crmCustomerId || null,
+                processorTransactionId: paymentIntentId || null,
+                externalReference: session.id,
+              }),
+            )
+          } catch (e: any) {
+            console.error("[webhook] commerce_payments write failed:", e.message)
           }
-        } catch { /* ignore */ }
+        }
 
-        // 4. The owner's escrow registry table — commerce_deposits
-        //    (customer_id -> crm_customers, deposit_number deterministic off
-        //    the booking id so a replayed event finds the same row). The
-        //    booking reference rides in notes for the Deposits & Escrow join.
+        // 4. The owner's escrow registry — commerce_deposits, now linked to
+        //    the ledger row (payment_id). The booking reference rides in
+        //    notes for the Deposits & Escrow join.
         if (enrollResult?.crmCustomerId && bookingId) {
           try {
             const depositNumber = `DEP-${String(bookingId).slice(0, 8).toUpperCase()}`
@@ -132,13 +139,39 @@ export async function POST(req: NextRequest) {
               amount: 25,
               notes,
               paymentIntentId,
+              paymentId,
             })
           } catch (e: any) {
             console.error("[webhook] commerce_deposits write failed:", e.message)
           }
         }
 
-        // 5. Send confirmation email (triggered by webhook, NOT the success page)
+        // 5. The appointment registry — crm_appointments + status history
+        //    (precheck → confirmed, reason "deposit paid"). Non-fatal.
+        if (booking) {
+          try {
+            await syncCrmAppointment(booking)
+          } catch (e: any) {
+            console.error("[webhook] crm_appointments sync failed:", e.message)
+          }
+        }
+
+        // 5b. Real audit trail entry (his platform_audit_log).
+        if (bookingId) {
+          try {
+            await withPg((client) =>
+              platformAudit(client, {
+                action: "payment.deposit.succeeded",
+                targetType: "commerce_deposits",
+                targetId: null,
+                actorRole: "stripe_webhook",
+                metadata: { bookingId, paymentNumber: `PAY-${String(bookingId).slice(0, 8).toUpperCase()}`, amount: 25 },
+              }),
+            )
+          } catch { /* non-fatal */ }
+        }
+
+        // 6. Send confirmation email (triggered by webhook, NOT the success page)
         if (booking) {
           sendBookingConfirmation({
             customerId,
@@ -166,7 +199,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 6. Log activity
+        // 7. Log activity
         try {
           await repo.create("activity_log", {
             entity: "booking", entityId: bookingId || "", action: "deposit_paid",
@@ -178,63 +211,92 @@ export async function POST(req: NextRequest) {
         await fulfillOrderFromSession(session)
         const orderId = session.metadata?.orderId
 
-        // Product revenue -> Accounting (Payments & Register): the payments
-        // row (type "order") keyed off the order id. Orders feed accounting;
-        // the deposit path above never touches this. Idempotent on replay.
-        try {
-          const order = orderId ? await repo.get("orders" as any, orderId) : null
-          const payments = (await repo.list("payments")) as any[]
-          const hasRow = payments.some((p) => p.orderId === orderId && p.type === "order")
-          if (order && orderId && !hasRow) {
-            await repo.create("payments", {
-              orderId,
-              customerId: order.customerId || null,
-              stripeCheckoutSessionId: session.id,
-              stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : "",
-              amount: order.subtotal || "",
-              type: "order",
-              status: "paid",
-            })
-          }
-        } catch (e: any) {
-          console.error("[webhook] order payment row failed:", e.message)
-        }
-
-        // Auto-enroll the buyer — single login created after money moved,
-        // exact-email join, invite email sent by Supabase. Non-fatal.
+        // 1. Auto-enroll the buyer FIRST — single login created after money
+        //    moved, exact-email join, invite email sent by Supabase. The
+        //    commerce_payments row below carries its crm_customers id.
+        let crmCustomerId: string | null = null
         try {
           const order = orderId ? await repo.get("orders" as any, orderId) : null
           const enrollEmail = session.customer_details?.email || order?.email
           if (enrollEmail) {
-            await enrollCustomer({ email: enrollEmail, source: "purchase", referenceId: orderId })
+            const enrollResult = await enrollCustomer({ email: enrollEmail, source: "purchase", referenceId: orderId })
+            crmCustomerId = enrollResult.crmCustomerId
           }
         } catch (e: any) {
           console.error("[webhook] purchase enroll failed:", e.message)
+        }
+
+        // 2. Product revenue -> Accounting: the commerce_payments ledger row
+        //    (PAY-<orderId8>) on the owner's table. Orders feed accounting;
+        //    the deposit path above never touches this. Idempotent on replay.
+        try {
+          const order = orderId ? await repo.get("orders" as any, orderId) : null
+          if (order && orderId) {
+            const amount = parseMoney(order.total || order.subtotal || session.amount_total)
+            if (amount > 0) {
+              const paymentId = await withPg((client) =>
+                writeCommercePayment(client, {
+                  paymentNumber: `PAY-${String(orderId).slice(0, 8).toUpperCase()}`,
+                  amount,
+                  status: "succeeded",
+                  customerId: crmCustomerId,
+                  processorTransactionId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+                  externalReference: session.id,
+                }),
+              )
+              if (paymentId) {
+                await withPg((client) =>
+                  platformAudit(client, {
+                    action: "payment.order.succeeded",
+                    targetType: "commerce_payments",
+                    targetId: paymentId,
+                    actorRole: "stripe_webhook",
+                    metadata: { orderId, amount },
+                  }),
+                ).catch(() => {})
+              }
+            }
+          }
+        } catch (e: any) {
+          console.error("[webhook] order payment row failed:", e.message)
         }
       }
     } else if (event.type === "payment_intent.payment_failed") {
       const intent = event.data.object as Stripe.PaymentIntent
       console.log("[webhook] payment failed:", intent.id)
-      // Update payment record if exists
       try {
-        const payments = (await repo.list("payments")) as any[]
-        const payment = payments.find((p) => p.stripePaymentIntentId === intent.id)
-        if (payment) {
-          await repo.update("payments", payment.id, { status: "failed" })
-        }
+        await withPg(async (client) => {
+          await client.query(
+            `UPDATE public.commerce_payments SET status = 'failed' WHERE tenant_id = $1 AND processor_transaction_id = $2`,
+            [TENANT_ID(), intent.id],
+          )
+        })
       } catch { /* ignore */ }
     } else if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge
       console.log("[webhook] refund:", charge.id)
+      let paymentRowId: string | null = null
       try {
-        const payments = (await repo.list("payments")) as any[]
-        const payment = payments.find((p) => p.stripePaymentIntentId === charge.payment_intent)
-        if (payment) {
-          await repo.update("payments", payment.id, { status: "refunded" })
-        }
+        await withPg(async (client) => {
+          const updated = await client.query(
+            `UPDATE public.commerce_payments SET status = 'refunded'
+             WHERE tenant_id = $1 AND processor_transaction_id = $2
+             RETURNING id::text`,
+            [TENANT_ID(), charge.payment_intent],
+          )
+          paymentRowId = updated.rows[0]?.id || null
+          // A refunded deposit releases its escrow registry row too.
+          if (paymentRowId) {
+            await client.query(
+              `UPDATE public.commerce_deposits SET status = 'refunded', updated_at = now()
+               WHERE tenant_id = $1 AND payment_id = $2::uuid`,
+              [TENANT_ID(), paymentRowId],
+            )
+          }
+        })
         // Log activity
         await repo.create("activity_log", {
-          entity: "payment", entityId: payment?.id || "", action: "refunded",
+          entity: "payment", entityId: paymentRowId || "", action: "refunded",
           summary: `Refund processed for ${charge.amount_refunded / 100} cents`,
         })
       } catch { /* ignore */ }
