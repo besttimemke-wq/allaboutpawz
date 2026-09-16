@@ -8,7 +8,7 @@ import { Header } from '@/components/pawz/Header';
 import { cn } from '@/lib/utils';
 import type { DawgNavSection } from '@/lib/types';
 import {
-  LayoutGrid, Calendar, PawPrint, FileText, MessageSquare,
+  LayoutGrid, Calendar, PawPrint, FileText, MessageSquare, ShoppingBag,
 } from 'lucide-react';
 
 // Customer-specific sidebar nav groups
@@ -20,6 +20,7 @@ const customerNavGroups = [
       { id: 'dashboard' as DawgNavSection, label: 'Parent Dashboard', icon: LayoutGrid },
       { id: 'appointments' as DawgNavSection, label: 'Appointments', icon: Calendar },
       { id: 'pets' as DawgNavSection, label: 'My Pets', icon: PawPrint },
+      { id: 'orders' as DawgNavSection, label: 'My Orders', icon: ShoppingBag },
       { id: 'invoices' as DawgNavSection, label: 'Billing', icon: FileText },
       { id: 'messages' as DawgNavSection, label: 'Messages', icon: MessageSquare },
     ],

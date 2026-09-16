@@ -1,5 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo } from "@/lib/repo";
+import { sendUserNotification } from "@/lib/notifications";
+import pg from "pg";
+
+// Resolves the auth user id for a booking's customer — the linked salon
+// record's "userId" FK first, then exact email match in auth.users.
+async function authUserIdForBooking(bookingId: string): Promise<string | null> {
+  const cs = process.env.SUPABASE_SESSION_POOLER || process.env.SUPABASE_DIRECT_CONNECTION;
+  if (!cs) return null;
+  const client = new pg.Client({ connectionString: cs, ssl: { rejectUnauthorized: false } });
+  await client.connect();
+  try {
+    const res = await client.query(
+      `SELECT c."userId"::text AS user_id, lower(c.email) AS email
+       FROM public.bookings b
+       LEFT JOIN public.customers c
+         ON c.id = b."customerId" OR (c.email IS NOT NULL AND lower(c.email) = lower(b.email))
+       WHERE b.id = $1 LIMIT 1;`,
+      [bookingId],
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    if (row.user_id) return row.user_id;
+    if (row.email) {
+      const auth = await client.query(
+        `SELECT id::text FROM auth.users WHERE lower(email) = $1 LIMIT 1;`,
+        [row.email],
+      );
+      return auth.rows[0]?.id || null;
+    }
+    return null;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
 
 // GET /api/bookings - List all appointments with full customer, dog, groomer details
 export async function GET(req: NextRequest) {
@@ -111,6 +145,33 @@ export async function POST(req: NextRequest) {
         ...(depositAmount && { depositAmount }),
         ...(balanceDue && { balanceDue }),
       });
+
+      // Cancellation → simple messaging: the customer gets a message in
+      // their portal Messages page (Supabase user_notifications) the moment
+      // their appointment is cancelled. Non-fatal — the status update
+      // itself must never be blocked by messaging.
+      if (status && /^cancel/i.test(String(status))) {
+        try {
+          const booking = await repo.get("bookings", id);
+          const authUserId = await authUserIdForBooking(id);
+          if (booking && authUserId) {
+            const when = booking.date
+              ? ` on ${booking.date}${booking.time ? ` at ${booking.time}` : ""}`
+              : "";
+            await sendUserNotification({
+              userId: authUserId,
+              notificationType: "booking_cancellation",
+              title: "Appointment cancelled",
+              body: `Your ${booking.service || "grooming"} appointment for ${booking.dogName || "your pet"}${when} has been cancelled. If this wasn't expected, message us here and we'll get it sorted.`,
+              actionUrl: "/customer/appointments",
+              metadata: { bookingId: id },
+            });
+          }
+        } catch (e: any) {
+          console.error("[bookings] cancellation message failed:", e.message);
+        }
+      }
+
       return NextResponse.json(updated);
     }
 

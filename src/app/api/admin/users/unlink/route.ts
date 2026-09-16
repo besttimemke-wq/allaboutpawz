@@ -6,11 +6,14 @@ import pg from "pg";
 //
 // The manual escape hatch from the owner's join spec §3: auto-join is exact
 // email match with no confirmation step, so the rare wrong join (two people
-// sharing an email) is fixed after the fact. Unlinking clears the nullable
-// FK (customers."userId") between the salon record and the login — the
-// salon record, the login, and any orders all survive, they are just no
-// longer attached to each other. A future transaction under the same email
-// re-applies the exact-email join (that is the documented default).
+// sharing an email) is fixed after the fact.
+//
+// On the owner's tables: deletes the portal_customer_accounts row — THAT row
+// is the login↔person join (auth_user_id ↔ crm_customers). The crm_customers
+// person record, the operational salon record, the login, and any orders all
+// survive; they are just no longer attached. The app-table mirror
+// (customers."userId") is cleared to match. A future transaction under the
+// same email re-applies the exact-email join (the documented default).
 export async function POST(req: NextRequest) {
   const gate = await requireAdminApi();
   if (gate) return gate;
@@ -25,17 +28,24 @@ export async function POST(req: NextRequest) {
     const client = new pg.Client({ connectionString: cs, ssl: { rejectUnauthorized: false } });
     await client.connect();
     try {
-      const res = await client.query(
+      // 1. Remove the join row (the login ↔ crm_customers registry entry).
+      const portal = await client.query(
+        `DELETE FROM public.portal_customer_accounts WHERE auth_user_id = $1::uuid RETURNING id;`,
+        [userId],
+      );
+      // 2. Clear the app-table mirror of the join.
+      const appMirror = await client.query(
         `UPDATE public.customers SET "userId" = NULL WHERE "userId" = $1::text RETURNING id;`,
         [userId],
       );
+      const unlinked = (portal.rowCount || 0) + (appMirror.rowCount || 0);
       return NextResponse.json({
         success: true,
-        unlinked: res.rowCount || 0,
+        unlinked,
         message:
-          (res.rowCount || 0) > 0
-            ? "Salon record unlinked from this login. The record and login both remain — a future transaction under the same email re-joins them."
-            : "No salon record was linked to this login.",
+          unlinked > 0
+            ? "Login unlinked from the customer record. Both records remain — a future transaction under the same email re-joins them."
+            : "No customer record was linked to this login.",
       });
     } finally {
       await client.end().catch(() => {});

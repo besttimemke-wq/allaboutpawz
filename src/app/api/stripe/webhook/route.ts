@@ -4,6 +4,34 @@ import { repo } from "@/lib/repo"
 import { fulfillOrderFromSession } from "@/app/api/checkout/route"
 import { sendBookingConfirmation, sendPaymentReceipt } from "@/lib/email"
 import { enrollCustomer } from "@/lib/auth/enroll-customer"
+import pg from "pg"
+
+// Writes the owner's commerce_deposits escrow registry row (find-or-create by
+// deposit_number — deterministic off the booking id, so replays converge).
+async function writeCommerceDeposit(opts: {
+  depositNumber: string
+  crmCustomerId: string
+  amount: number
+  notes: string
+  paymentIntentId: string
+}) {
+  const cs = process.env.SUPABASE_SESSION_POOLER || process.env.SUPABASE_DIRECT_CONNECTION
+  if (!cs) return
+  const TENANT_ID = process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001"
+  const client = new pg.Client({ connectionString: cs, ssl: { rejectUnauthorized: false } })
+  await client.connect()
+  try {
+    await client.query(
+      `INSERT INTO public.commerce_deposits
+         (tenant_id, deposit_number, customer_id, amount, currency, collected_at, method, status, notes, deposit_type)
+       VALUES ($1, $2, $3::uuid, $4, 'USD', now(), 'card', 'held', $5, 'booking')
+       ON CONFLICT DO NOTHING`,
+      [TENANT_ID, opts.depositNumber, opts.crmCustomerId, opts.amount, opts.notes],
+    )
+  } finally {
+    await client.end().catch(() => {})
+  }
+}
 
 // Lazy Stripe client — module-level init would crash the route file when
 // STRIPE_SECRET_KEY isn't set yet. Constructed on first authenticated use.
@@ -36,7 +64,27 @@ export async function POST(req: NextRequest) {
         const customerId = session.metadata?.customerId
         const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : ""
 
-        // 1. Confirm the booking
+        // 1. Auto-enroll the customer FIRST (single login, exact-email join,
+        //    crm_customers + portal_customer_accounts on the owner's tables).
+        //    This is the real server-side event that creates the account —
+        //    not the thank-you page. Non-fatal: a failure here must not block
+        //    fulfillment (Stripe retries the event and everything converges
+        //    because it is idempotent).
+        let booking: any = null
+        if (bookingId) booking = await repo.get("bookings", bookingId)
+        let customer: any = null
+        if (customerId) customer = await repo.get("customers", customerId)
+        const enrollEmail = booking?.email || customer?.email || session.customer_details?.email
+        let enrollResult: { crmCustomerId: string | null } | null = null
+        if (enrollEmail) {
+          try {
+            enrollResult = await enrollCustomer({ email: enrollEmail, source: "booking", referenceId: bookingId })
+          } catch (e: any) {
+            console.error("[webhook] booking enroll failed:", e.message)
+          }
+        }
+
+        // 2. Confirm the booking
         if (bookingId) {
           await repo.update("bookings", bookingId, {
             status: "CONFIRMED",
@@ -45,14 +93,13 @@ export async function POST(req: NextRequest) {
           })
         }
 
-        // 2. Deposits & Escrow accounting entry — the payments row
-        //    (type "deposit") IS the escrow ledger entry: find-or-create,
-        //    marked paid. No order_customers row, no fake order — the
-        //    operational booking data stays in Salon CRM, the accounting
-        //    entry lands here. Idempotent on replay.
+        // 3. Deposits & Escrow accounting entry — the payments row
+        //    (type "deposit") is the transaction ledger entry: find-or-create,
+        //    marked paid. No order row, no fake order — the operational
+        //    booking data stays in Salon CRM. Idempotent on replay.
         try {
           const payments = (await repo.list("payments")) as any[]
-          let paymentRecord = payments.find((p) => p.stripeCheckoutSessionId === session.id)
+          const paymentRecord = payments.find((p) => p.stripeCheckoutSessionId === session.id)
           if (paymentRecord) {
             await repo.update("payments", paymentRecord.id, {
               status: "paid",
@@ -71,16 +118,24 @@ export async function POST(req: NextRequest) {
           }
         } catch { /* ignore */ }
 
-        // 3. Get the booking details for the confirmation email
-        let booking: any = null
-        if (bookingId) {
-          booking = await repo.get("bookings", bookingId)
-        }
-
-        // 4. Get the customer for the email
-        let customer: any = null
-        if (customerId) {
-          customer = await repo.get("customers", customerId)
+        // 4. The owner's escrow registry table — commerce_deposits
+        //    (customer_id -> crm_customers, deposit_number deterministic off
+        //    the booking id so a replayed event finds the same row). The
+        //    booking reference rides in notes for the Deposits & Escrow join.
+        if (enrollResult?.crmCustomerId && bookingId) {
+          try {
+            const depositNumber = `DEP-${String(bookingId).slice(0, 8).toUpperCase()}`
+            const notes = JSON.stringify({ bookingId, service: booking?.service || null, dogName: booking?.dogName || null })
+            await writeCommerceDeposit({
+              depositNumber,
+              crmCustomerId: enrollResult.crmCustomerId,
+              amount: 25,
+              notes,
+              paymentIntentId,
+            })
+          } catch (e: any) {
+            console.error("[webhook] commerce_deposits write failed:", e.message)
+          }
         }
 
         // 5. Send confirmation email (triggered by webhook, NOT the success page)
@@ -111,21 +166,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 6. Auto-enroll the customer (single login, exact-email join).
-        //    This is the real server-side event that creates the account —
-        //    not the thank-you page. Non-fatal by design: a failure here
-        //    must not block fulfillment (Stripe would retry the event and
-        //    enrollCustomer is idempotent, so retries converge).
-        const enrollEmail = booking?.email || customer?.email || session.customer_details?.email
-        if (enrollEmail) {
-          try {
-            await enrollCustomer({ email: enrollEmail, source: "booking", referenceId: bookingId })
-          } catch (e: any) {
-            console.error("[webhook] booking enroll failed:", e.message)
-          }
-        }
-
-        // 7. Log activity
+        // 6. Log activity
         try {
           await repo.create("activity_log", {
             entity: "booking", entityId: bookingId || "", action: "deposit_paid",

@@ -40,23 +40,29 @@ export async function GET(req: NextRequest) {
         ORDER BY tm.created_at DESC;
       `);
 
-      // Customer identities: one row per real person (auth.users),
-      // excluding staff/admins (memberships, platform_admins, ADMIN_EMAILS).
-      // The salon-side record link is customers."userId" (the nullable FK
-      // from the owner's join spec); the order-side link is the order's own
-      // email / customerId. portal_customer_accounts is NOT consulted —
-      // that enterprise table is FK-locked to the empty crm_customers and
-      // can never reference the live customers table.
+      // Customer identities: one row per real person from the owner's
+      // registry — portal_customer_accounts (login ↔ crm_customers), joined
+      // to auth.users for confirmation/login state. The salon-side link is
+      // crm_customers.source_customer_id (→ customers.id, whose "userId"
+      // mirrors the auth link); the order-side link is the order's own
+      // email / customerId. Owner-declared admins and staff are excluded.
       const portalRes = await pgClient.query(`
-        SELECT u.id::text AS auth_user_id, u.email, u.email_confirmed_at::text AS email_confirmed_at,
-               u.last_sign_in_at::text AS last_sign_in_at,
-               c.id AS customer_id, c."firstName", c."lastName", c.phone, c."userId"::text AS customer_user_id
-        FROM auth.users u
-        LEFT JOIN public.customers c ON lower(c.email) = lower(u.email)
-        WHERE NOT EXISTS (SELECT 1 FROM public.tenant_memberships tm WHERE tm.user_id = u.id)
-          AND NOT EXISTS (SELECT 1 FROM public.platform_admins pa WHERE pa.user_id = u.id)
-        ORDER BY u.created_at DESC;
-      `);
+        SELECT pca.id::text AS portal_id, pca.auth_user_id::text AS auth_user_id, pca.status AS portal_status,
+               pca.invited_at::text AS invited_at, pca.last_login_at::text AS last_login_at,
+               cc.id::text AS crm_id, cc.first_name, cc.last_name, cc.email AS crm_email,
+               cc.phone, cc.source_customer_id,
+               u.email, u.email_confirmed_at::text AS email_confirmed_at, u.last_sign_in_at::text AS last_sign_in_at
+        FROM public.portal_customer_accounts pca
+        JOIN public.crm_customers cc ON pca.customer_id = cc.id
+        LEFT JOIN auth.users u ON pca.auth_user_id = u.id
+        WHERE pca.tenant_id = $1
+        ORDER BY pca.created_at DESC;
+      `, [process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001"]);
+
+      // App-table mirror for the salon link (customers."userId").
+      const appCustRes = await pgClient.query(`SELECT id, "userId"::text AS user_id, email FROM public.customers;`);
+      const appCustByEmail = new Map<string, any>();
+      for (const r of appCustRes.rows) appCustByEmail.set(String(r.email || "").toLowerCase(), r);
 
       const ordersRes = await pgClient.query(`SELECT id, "customerId", email FROM public.orders;`);
 
@@ -96,30 +102,36 @@ export async function GET(req: NextRequest) {
 
       const ordersRows = ordersRes.rows || [];
       const customers = portalRes.rows
-        .filter((r: any) => !adminEmails.includes((r.email || "").toLowerCase()))
+        .filter((r: any) => !adminEmails.includes((r.email || r.crm_email || "").toLowerCase()))
         .map((r: any) => {
-          const salonLinked = !!r.customer_user_id && r.customer_user_id === r.auth_user_id;
+          const email = (r.email || r.crm_email || "").toLowerCase();
+          const appRow = appCustByEmail.get(email) || null;
+          const salonLinked =
+            !!r.source_customer_id ||
+            !!(appRow && r.auth_user_id && appRow.user_id === r.auth_user_id);
+          const appCustomerId = r.source_customer_id || appRow?.id || null;
           const userOrders = ordersRows.filter(
             (o: any) =>
-              (o.email && r.email && o.email.toLowerCase() === r.email.toLowerCase()) ||
-              (salonLinked && r.customer_id && o.customerId === r.customer_id),
+              (o.email && email && o.email.toLowerCase() === email) ||
+              (salonLinked && appCustomerId && o.customerId === appCustomerId),
           );
-          const displayName = salonLinked
-            ? `${r.firstName || ""} ${r.lastName || ""}`.trim() || r.email
-            : r.email || "Customer";
+          const displayName = `${r.first_name || ""} ${r.last_name || ""}`.trim() || r.email || "Customer";
           const initials = displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
+          const lastActiveTs = r.last_login_at || r.last_sign_in_at;
           return {
-            id: r.auth_user_id,
+            id: r.portal_id,
             userId: r.auth_user_id,
-            customerId: r.customer_id || null,
+            customerId: appCustomerId,
+            crmCustomerId: r.crm_id,
+            portalAccountId: r.portal_id,
             email: r.email || "No email",
             name: displayName,
             phone: r.phone || "",
             role: "customer",
             twoFactorEnabled: false,
             status: r.email_confirmed_at ? "Active" : "Invited",
-            lastActive: r.last_sign_in_at
-              ? new Date(r.last_sign_in_at).toLocaleString()
+            lastActive: lastActiveTs
+              ? new Date(lastActiveTs).toLocaleString()
               : r.email_confirmed_at ? "Active" : "Never",
             avatarInitials: initials,
             scope: "customer",
