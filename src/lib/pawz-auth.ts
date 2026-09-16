@@ -115,34 +115,48 @@ export async function redirectUriRegistered(redirectUri: string): Promise<boolea
   return ok;
 }
 
-let relayCheck: { ok: boolean; at: number } | null = null;
+let relayCheck: { ok: boolean; status: number | null; at: number } | null = null;
 
 /** Live check: is the production deployment running relay-capable callback
  *  code (GET {relay}/api/auth/google/callback?probe=relay → {relay:true})?
  *  Preview-origin flows only relay when this is true, so users are never
  *  silently signed into the wrong deployment. Fails CLOSED — an unreachable
- *  probe never routes anyone into a dead end. */
-export async function productionRelayCapable(): Promise<boolean> {
+ *  probe never routes anyone into a dead end.
+ *
+ *  Redirects are FOLLOWED: the registered redirect URI is the apex
+ *  (https://aapawz.com/...) while the deployment may sit behind an apex→www
+ *  308 — a manual-redirect probe would report "not capable" forever even
+ *  after the build is deployed. The JSON + content-type check on the final
+ *  response keeps the probe honest (an HTML catch-all page never passes). */
+export async function productionRelayStatus(): Promise<{ ok: boolean; status: number | null }> {
   const hit = relayCheck;
   const ttl = hit?.ok ? 5 * 60 * 1000 : 60 * 1000;
-  if (hit && Date.now() - hit.at < ttl) return hit.ok;
+  if (hit && Date.now() - hit.at < ttl) return { ok: hit.ok, status: hit.status };
 
   let ok = false;
+  let status: number | null = null;
   try {
     const res = await fetch(`${productionRelayCallbackUri()}?probe=relay`, {
-      redirect: "manual",
+      redirect: "follow",
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(5000),
     });
+    status = res.status;
     if (res.status === 200 && (res.headers.get("content-type") || "").includes("application/json")) {
       const body = await res.json().catch(() => null);
       ok = Boolean(body && (body as any).relay === true);
     }
-  } catch {
+  } catch (e: any) {
     ok = false;
+    status = null;
   }
-  relayCheck = { ok, at: Date.now() };
-  return ok;
+  relayCheck = { ok, status, at: Date.now() };
+  return { ok, status };
+}
+
+/** Boolean convenience wrapper around productionRelayStatus(). */
+export async function productionRelayCapable(): Promise<boolean> {
+  return (await productionRelayStatus()).ok;
 }
 
 // ---------------------------------------------------------------------------
