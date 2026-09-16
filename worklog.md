@@ -1195,3 +1195,21 @@ Stage Summary:
 - The admin can finally create + invite a user: one role dropdown, optional temp password, Supabase sends the email, the user sets their own password, lands in the right portal. Re-send + truthful Invited status included.
 - Permissions are a per-user checkbox tree (parent domain + every child feature) persisting to user_module_access — the owner's constrained platform_module_permissions table was never touched and is no longer written to.
 - Stated plainly: the auto-enroll queue he described (marketing purchase/booking → admin queue → activate) needs a change on the PUBLIC site's checkout/booking flow, which I am not allowed to touch without his explicit go-ahead. Also stated: the buzzwords are gone from the doors; the repo's own reference dashboard chrome (which his screenshot matched) still says "Service Portal" — that string lives in the imported repo's components.
+
+---
+Task ID: 59
+Agent: main (direct work, no subagents)
+Task: Owner delivered the "AAPAWZ Customer Identity — Orders CRM ↔ Salon CRM Join Spec" (companion to AAPAWZ-AUTH-FINAL-SPEC.md) as the guidance for the booking flow and the shop flow, and asked whether I have questions before work starts. Review-only pass; no code changed.
+
+Work Log:
+- Read the full spec and verified every factual claim against the codebase and the live database (read-only REST introspection — no SQL executed, no data modified).
+- Deposit amount: already $25.00 everywhere in code (DEPOSIT_AMOUNT = 2500 in /api/bookings/checkout; "$25.00" in the payment record, receipt email, and the 503 copy). No $1 / 100-cent placeholder exists anywhere — the num-lock typo never made it into the code.
+- enrollCustomer(): does not exist anywhere in the codebase. AAPAWZ-AUTH-FINAL-SPEC.md is not present in the repo. The auth-routes half of that spec is live (Tasks 54–58); the webhook-trigger half is unbuilt.
+- Current data model: ONE shared customers table (7 live rows). Both public flows find-or-create it PRE-payment: booking wizard step 2 → POST /api/customers; shop checkout step 3 → POST /api/customers (source comment: "same endpoint as booking"). Shop orders link orders.customerId → customers. A product-only buyer therefore gets a row in the salon CRM customer list today — the exact conflation the spec fixes.
+- Live schema already contains unused (0-row) infrastructure built for this exact purpose: portal_customer_accounts (customer_id, auth_user_id, status, invited_by/at, activated_at, last_login_at), commerce_customer_accounts (customer_id, default_payment_method_id, credit_limit...), commerce_deposits (customer_id, pet_id, service_id, appointment_id, amount, method, status, applied_invoice_id, payment_id, deposit_type, transfer fields), platform_customer_identity_links (crm_customer_id, acct_customer_id), crm_customers (full CRM model incl. merged_into_customer_id). The customers table already has a userId column (auth link, never wired). /api/admin/users GET already joins portal_customer_accounts and returns customer-scope rows (0 today, so the Users screen shows staff only).
+- Stripe webhook today: booking_deposit → bookings CONFIRMED + payments row → paid + confirmation/receipt emails + activity log; product → fulfillOrderFromSession (orders → PAID). It writes no auth identity, no commerce_deposits row, nothing to Accounting.
+- Deposits & Escrow screen (DepositsView.tsx) renders hardcoded mock rows (Evelyn Vance, Marcus Chen, etc.) — not live data.
+- Submitted decision-ready questions to the owner: (1) physical layout — spec's order_customers table vs. the live schema's existing portal_customer_accounts/commerce tables; (2) enroll timing — webhook (payment success) vs. checkout start; (3) Deposits & Escrow wiring to commerce_deposits; (4) confirmation that the spec lifts the standing "do not touch Stripe routes" rule for the webhook; (5) walk-in back-link + backfill of the existing 7 customers / 4 orders / 2 payments / 2 bookings; (6) immediate invite per this spec vs. the earlier admin-queue idea. Also stated: metadata.referenceId maps to the existing bookingId/orderId metadata keys; admin_users = Supabase auth.users directly (no mirror table).
+
+Stage Summary:
+- Spec fully grounded against code + live DB. Implementation NOT started — waiting on the owner's answers per protocol.
