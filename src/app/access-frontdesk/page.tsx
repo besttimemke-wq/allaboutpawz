@@ -2,12 +2,11 @@
 
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { OwnerAuthView } from '@/components/pawz/auth/OwnerAuthView';
+import { LandingLoginView } from '@/components/dawg/LandingLoginView';
 
 // ============================================================================
-// /access-frontdesk — the Front Desk door.
-// The owner's original gate design. Email/password ONLY — no Google on
-// shared station devices (auth spec, Sections 3 & 6).
+// /access-frontdesk — the Front Desk door. The owner's original two-column
+// gate design, imported as-is (Staff tab + Front Desk card pre-selected).
 // ============================================================================
 
 function AccessFrontDeskContent() {
@@ -15,7 +14,7 @@ function AccessFrontDeskContent() {
   const oauthError = searchParams.get('error') || undefined;
   const redirect = searchParams.get('redirect') || undefined;
 
-  return <OwnerAuthView portal="frontdesk" error={oauthError} redirect={redirect} />;
+  return <LandingLoginView portal="frontdesk" initialPortal="staff" initialStaffRole="Front Desk" error={oauthError} redirect={redirect} />;
 }
 
 export default function AccessFrontDeskPage() {

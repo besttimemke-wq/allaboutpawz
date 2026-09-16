@@ -26,10 +26,34 @@ export interface PortalDefinition {
 export const PORTALS: Record<PortalId, PortalDefinition> = {
   customer: { id: "customer", door: "/access-customer", destination: "/customer/dashboard", google: true },
   groomer: { id: "groomer", door: "/access-groomer", destination: "/groomer/dashboard", google: true },
-  frontdesk: { id: "frontdesk", door: "/access-frontdesk", destination: "/admin/dashboard", google: false },
-  admin: { id: "admin", door: "/admin-login", destination: "/admin/dashboard", google: false },
+  frontdesk: { id: "frontdesk", door: "/access-frontdesk", destination: "/admin/dashboard", google: true },
+  admin: { id: "admin", door: "/admin-login", destination: "/admin/dashboard", google: true },
   lms: { id: "lms", door: "/learn/sign-in", destination: "/customer/dashboard", google: true },
 };
+
+// ---------------------------------------------------------------------------
+// Google OAuth redirect-URI registration
+// ---------------------------------------------------------------------------
+// The owner's single Google OAuth client has exactly these origins
+// registered as Authorized redirect URIs (his credential hand-off, verified
+// live): production + the dev/pre Cloud Run deployments. The sandbox preview
+// origin is NOT among them — /api/auth/google/start checks against this list
+// so an unregistered origin bounces back to the door with the exact URI to
+// register instead of dead-ending on Google's redirect_uri_mismatch page.
+// GOOGLE_REGISTERED_ORIGINS (comma-separated) extends the list if the owner
+// registers more origins later.
+export function registeredGoogleOrigins(): string[] {
+  const fixed = [
+    "https://aapawz.com",
+    "https://ais-dev-cb2aatci5phbtljv73uphk-62947767548.us-east1.run.app",
+    "https://ais-pre-cb2aatci5phbtljv73uphk-62947767548.us-east1.run.app",
+  ];
+  const extra = (process.env.GOOGLE_REGISTERED_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  return [...fixed, ...extra];
+}
 
 // The shape the portal store (Zustand) persists — mirrors lib/types AuthUser.
 export type PortalRole = "admin" | "groomer" | "customer";
@@ -359,6 +383,10 @@ export interface OAuthStateRow {
   nonce: string;
   portal: PortalId;
   redirectTo: string;
+  /** The redirect_uri sent to Google for THIS flow (origin carried through
+   *  the signed state so the callback exchanges against the exact same URI,
+   *  even when a gateway rewrites the Host header it sees). */
+  redirectUri?: string | null;
   expiresAt: string; // ISO
   used: boolean;
 }
@@ -387,7 +415,7 @@ export function verifyStateSignature(state: string | null | undefined): string |
 }
 
 /** Creates a single-use OAuth state row in public.oauth_states (service-role). */
-export async function createOAuthState(portal: PortalId, redirectTo: string): Promise<string | null> {
+export async function createOAuthState(portal: PortalId, redirectTo: string, redirectUri?: string): Promise<string | null> {
   const admin = getSupabaseAdmin();
   if (!admin) return null;
   // Housekeeping: states are single-use and short-lived; sweep rows that have
@@ -397,7 +425,7 @@ export async function createOAuthState(portal: PortalId, redirectTo: string): Pr
   } catch { /* hygiene is best-effort */ }
   const nonce = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + OAUTH_STATE_TTL_MS).toISOString();
-  const { error } = await admin.from("oauth_states").insert({ nonce, portal, redirect_to: redirectTo, expires_at: expiresAt, used: false });
+  const { error } = await admin.from("oauth_states").insert({ nonce, portal, redirect_to: redirectTo, redirect_uri: redirectUri || null, expires_at: expiresAt, used: false });
   if (error) {
     console.error("[pawz-auth] createOAuthState:", error.message);
     return null;
@@ -414,7 +442,7 @@ export async function consumeOAuthState(state: string | null | undefined): Promi
 
   const { data: rows, error } = await admin
     .from("oauth_states")
-    .select("nonce, portal, redirect_to, expires_at, used")
+    .select("nonce, portal, redirect_to, redirect_uri, expires_at, used")
     .eq("nonce", nonce)
     .limit(1);
   if (error || !rows || rows.length === 0) return null;
@@ -436,6 +464,7 @@ export async function consumeOAuthState(state: string | null | undefined): Promi
     nonce,
     portal,
     redirectTo: row.redirect_to || PORTALS[portal].destination,
+    redirectUri: row.redirect_uri || null,
     expiresAt: row.expires_at,
     used: true,
   };

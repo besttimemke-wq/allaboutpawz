@@ -2,12 +2,12 @@
 
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { OwnerAuthView } from '@/components/pawz/auth/OwnerAuthView';
+import { LandingLoginView } from '@/components/dawg/LandingLoginView';
 
 // ============================================================================
-// /admin-login — the Admin door.
-// The owner's original gate design. Email/password ONLY. Intentionally NOT
-// renamed to /access-admin — this route is already linked/bookmarked.
+// /admin-login — the Admin door. The owner's original two-column gate
+// design, imported as-is (Staff tab + Administrator card pre-selected).
+// Intentionally NOT renamed to /access-admin — this route is linked/bookmarked.
 // ============================================================================
 
 function AdminLoginContent() {
@@ -15,7 +15,7 @@ function AdminLoginContent() {
   const oauthError = searchParams.get('error') || undefined;
   const redirect = searchParams.get('redirect') || undefined;
 
-  return <OwnerAuthView portal="admin" error={oauthError} redirect={redirect} />;
+  return <LandingLoginView portal="admin" initialPortal="staff" initialStaffRole="Administrator" error={oauthError} redirect={redirect} />;
 }
 
 export default function AdminLoginPage() {

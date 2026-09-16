@@ -2,11 +2,11 @@
 
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { OwnerAuthView } from '@/components/pawz/auth/OwnerAuthView';
+import { LandingLoginView } from '@/components/dawg/LandingLoginView';
 
 // ============================================================================
-// /access-groomer — the Groomer door.
-// The owner's original gate design. Google OAuth + email/password.
+// /access-groomer — the Groomer door. The owner's original two-column gate
+// design, imported as-is (Staff tab + Groomer Station card pre-selected).
 // ============================================================================
 
 function AccessGroomerContent() {
@@ -14,7 +14,7 @@ function AccessGroomerContent() {
   const oauthError = searchParams.get('error') || undefined;
   const redirect = searchParams.get('redirect') || undefined;
 
-  return <OwnerAuthView portal="groomer" error={oauthError} redirect={redirect} />;
+  return <LandingLoginView portal="groomer" initialPortal="staff" initialStaffRole="Groomer" error={oauthError} redirect={redirect} />;
 }
 
 export default function AccessGroomerPage() {

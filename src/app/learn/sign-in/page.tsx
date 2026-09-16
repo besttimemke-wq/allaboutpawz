@@ -2,11 +2,11 @@
 
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { OwnerAuthView } from '@/components/pawz/auth/OwnerAuthView';
+import { LandingLoginView } from '@/components/dawg/LandingLoginView';
 
 // ============================================================================
-// /learn/sign-in — the LMS door.
-// The owner's original gate design. Google OAuth + email/password.
+// /learn/sign-in — the LMS door. The owner's original two-column gate
+// design, imported as-is (Pet Parent tab pre-selected; staff can switch).
 // ============================================================================
 
 function LearnSignInContent() {
@@ -14,7 +14,7 @@ function LearnSignInContent() {
   const oauthError = searchParams.get('error') || undefined;
   const redirect = searchParams.get('redirect') || undefined;
 
-  return <OwnerAuthView portal="lms" error={oauthError} redirect={redirect} />;
+  return <LandingLoginView portal="lms" initialPortal="client" error={oauthError} redirect={redirect} />;
 }
 
 export default function LearnSignInPage() {
