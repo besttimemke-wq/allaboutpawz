@@ -9,9 +9,9 @@ import {
   isPreviewOrigin,
   newBrowserBinding,
   OAUTH_BROWSER_COOKIE,
-  productionRelayCapable,
   productionRelayCallbackUri,
   productionRelayOrigin,
+  productionRelayStatus,
   redirectUriRegistered,
 } from "@/lib/pawz-auth";
 
@@ -34,16 +34,20 @@ import {
 //      client (verified live at click time) → direct flow, redirect_uri is
 //      that origin's own callback.
 //   2. A sandbox preview origin (https://preview-chat-<id>.space-z.ai —
-//      changes every session, impossible to pre-register) whose callback is
-//      NOT registered, while the production callback IS registered and the
-//      production deployment runs relay-capable code → the flow is routed
-//      THROUGH the registered production callback; that deployment relays the
-//      browser back to this preview origin with the code + state untouched,
-//      and this origin's callback finishes the flow and hosts the session.
-//   3. Anything else (unregistered origin, relay unavailable) → the user is
-//      bounced back to their door with the exact URI to register — a message
-//      generated from a live check, so it disappears the moment the owner
-//      registers the URI (≤60 s) or deploys the relay-capable build.
+//      changes every session, impossible to pre-register) → the flow is
+//      routed THROUGH the registered production callback — the ORIGINAL
+//      repo's strategy (redirect_uri resolved from NEXT_PUBLIC_SITE_URL,
+//      never from the live host), so the preview host NEVER needs console
+//      registration. That deployment relays the browser back to this preview
+//      origin with the code + state untouched, and this origin's callback
+//      finishes the flow and hosts the session. While production still runs
+//      an older build (its callback route 404s — verified live), the user is
+//      told the one activation step: deploy the current build. No
+//      registration instruction is ever shown for preview hosts.
+//   3. Any other unregistered origin (a custom domain hosting this repo) →
+//      the user is bounced back to their door with the exact URI to
+//      register — a message generated from a live check, so it disappears
+//      the moment the owner registers the URI (≤60 s).
 //
 // A short-lived browser-binding cookie (pawz_oauth_b, hash stored in the state
 // row) makes the callback refuse to complete in any OTHER browser — the
@@ -126,16 +130,37 @@ export async function GET(req: NextRequest) {
   let returnOrigin: string | null = null;
 
   if (!(await redirectUriRegistered(directUri))) {
-    if (isPreviewOrigin(origin) && (await productionRelayCapable())) {
-      // Relay flow — see the header comment. The state row carries this
-      // preview origin; the production callback relays the browser back here
-      // with code + state untouched, and THIS callback exchanges the code
-      // against the production redirect URI the authorize request used.
-      redirectUri = productionRelayCallbackUri();
-      returnOrigin = origin;
+    if (isPreviewOrigin(origin)) {
+      // THE OWNER'S ORIGINAL STRATEGY, RESTORED: the preview host is never
+      // part of the redirect flow and never needs console registration. The
+      // authorize request always uses the REGISTERED production callback
+      // (redirect_uri resolved from env, exactly like the imported repo's
+      // /api/auth/google did with NEXT_PUBLIC_SITE_URL), the production
+      // callback relays the browser back to this preview origin via the
+      // signed server-side state, and THIS callback exchanges the code and
+      // hosts the session.
+      const relay = await productionRelayStatus();
+      if (relay.ok) {
+        redirectUri = productionRelayCallbackUri();
+        returnOrigin = origin;
+      } else {
+        // Production is not running this build yet — verified live, stated
+        // truthfully, with the ONE activation step (deploy). Never a
+        // registration instruction for a preview host, never a dead end at
+        // a production 404 after Google's consent screen.
+        const detail =
+          relay.status === 404
+            ? `production currently answers HTTP 404 on that route (an older build is live there)`
+            : relay.status === null
+              ? `that host is not answering right now`
+              : `production answers HTTP ${relay.status} on that route`;
+        return redirectToPath(`${PORTALS[portal].door}?error=${encodeURIComponent(
+          `Google sign-in on this preview runs through the registered callback ${productionRelayCallbackUri()} — no console changes needed. It activates the moment the current build is deployed: ${detail}. Until then, use email and password.`,
+        )}`);
+      }
     } else {
       return redirectToPath(`${PORTALS[portal].door}?error=${encodeURIComponent(
-        `Google sign-in is not activated for ${origin} yet. Register this exact Authorized redirect URI on the Google client: ${directUri} — it starts working within a minute of saving it. (Deploying the current build also activates preview sign-in automatically: it relays through ${productionRelayOrigin()} with no registration at all.)`,
+        `Google sign-in is not activated for ${origin} yet. Add this exact Authorized redirect URI on the Google client: ${directUri} — it starts working within a minute of saving it.`,
       )}`);
     }
   }
