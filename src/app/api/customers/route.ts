@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { repo } from "@/lib/repo";
+import { isAdmin } from "@/lib/auth/server";
+import { enrollCustomer } from "@/lib/auth/enroll-customer";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe | null {
@@ -151,7 +153,26 @@ export async function POST(req: NextRequest) {
       customer = await repo.create("customers", data);
     }
 
-    return NextResponse.json(customer, { status: found ? 200 : 201 });
+    // Walk-in: when an ADMIN creates the customer, the identical
+    // enrollCustomer() runs — the same invite email fires as an online
+    // purchase or booking (the admin stays in the loop only for walk-ins,
+    // and even then through the same function, not a separate path).
+    // Public callers (booking wizard) never trigger this: their enrollment
+    // is the Stripe webhook after payment actually clears.
+    let invited = false;
+    if (!found) {
+      const adminCaller = await isAdmin().catch(() => false);
+      if (adminCaller) {
+        try {
+          const result = await enrollCustomer({ email, source: "walkin", referenceId: customer?.id });
+          invited = result.invited;
+        } catch (e: any) {
+          console.error("[api/customers POST] walk-in enroll failed:", e.message);
+        }
+      }
+    }
+
+    return NextResponse.json({ ...customer, invited }, { status: found ? 200 : 201 });
   } catch (error: any) {
     console.error("[api/customers POST]", error);
     return NextResponse.json({ error: error.message || "Failed to save customer" }, { status: 500 });

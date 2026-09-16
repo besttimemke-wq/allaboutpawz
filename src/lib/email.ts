@@ -12,6 +12,11 @@ const resend = apiKey ? new Resend(apiKey) : null
 const FROM = "All About Pawz <notifications@confirmation.aapawz.com>"
 const salonNotifyTo = "notifications@confirmation.aapawz.com"
 
+// The live single-tenant id — the same default every app write uses
+// (customers, bookings, memberships). email_messages/communications have
+// tenant_id NOT NULL; without this the audit row silently never lands.
+const TENANT_ID = process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001"
+
 export async function sendEmail(opts: {
   customerId?: string
   to: string
@@ -37,6 +42,7 @@ export async function sendEmail(opts: {
       relatedBookingId: opts.relatedBookingId || null,
       relatedInvoiceId: opts.relatedInvoiceId || null,
       relatedOrderId: opts.relatedOrderId || null,
+      tenant_id: TENANT_ID,
     })
   } catch (e: any) {
     console.error("[email] outbox failed:", e.message)
@@ -94,6 +100,7 @@ export async function sendEmail(opts: {
           status: "SENT",
           relatedBookingId: opts.relatedBookingId || null,
           sentAt: new Date().toISOString(),
+          tenant_id: TENANT_ID,
         })
       } catch { /* ignore */ }
     }

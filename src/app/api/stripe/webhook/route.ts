@@ -3,6 +3,7 @@ import Stripe from "stripe"
 import { repo } from "@/lib/repo"
 import { fulfillOrderFromSession } from "@/app/api/checkout/route"
 import { sendBookingConfirmation, sendPaymentReceipt } from "@/lib/email"
+import { enrollCustomer } from "@/lib/auth/enroll-customer"
 
 // Lazy Stripe client — module-level init would crash the route file when
 // STRIPE_SECRET_KEY isn't set yet. Constructed on first authenticated use.
@@ -44,15 +45,28 @@ export async function POST(req: NextRequest) {
           })
         }
 
-        // 2. Update the payment record to "paid"
-        let paymentRecord: any = null
+        // 2. Deposits & Escrow accounting entry — the payments row
+        //    (type "deposit") IS the escrow ledger entry: find-or-create,
+        //    marked paid. No order_customers row, no fake order — the
+        //    operational booking data stays in Salon CRM, the accounting
+        //    entry lands here. Idempotent on replay.
         try {
           const payments = (await repo.list("payments")) as any[]
-          paymentRecord = payments.find((p) => p.stripeCheckoutSessionId === session.id)
+          let paymentRecord = payments.find((p) => p.stripeCheckoutSessionId === session.id)
           if (paymentRecord) {
             await repo.update("payments", paymentRecord.id, {
               status: "paid",
               stripePaymentIntentId: paymentIntentId,
+            })
+          } else {
+            await repo.create("payments", {
+              bookingId: bookingId || null,
+              customerId: customerId || null,
+              stripeCheckoutSessionId: session.id,
+              stripePaymentIntentId: paymentIntentId,
+              amount: "$25.00",
+              type: "deposit",
+              status: "paid",
             })
           }
         } catch { /* ignore */ }
@@ -97,7 +111,21 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 6. Log activity
+        // 6. Auto-enroll the customer (single login, exact-email join).
+        //    This is the real server-side event that creates the account —
+        //    not the thank-you page. Non-fatal by design: a failure here
+        //    must not block fulfillment (Stripe would retry the event and
+        //    enrollCustomer is idempotent, so retries converge).
+        const enrollEmail = booking?.email || customer?.email || session.customer_details?.email
+        if (enrollEmail) {
+          try {
+            await enrollCustomer({ email: enrollEmail, source: "booking", referenceId: bookingId })
+          } catch (e: any) {
+            console.error("[webhook] booking enroll failed:", e.message)
+          }
+        }
+
+        // 7. Log activity
         try {
           await repo.create("activity_log", {
             entity: "booking", entityId: bookingId || "", action: "deposit_paid",
@@ -107,6 +135,41 @@ export async function POST(req: NextRequest) {
       } else {
         // Product order
         await fulfillOrderFromSession(session)
+        const orderId = session.metadata?.orderId
+
+        // Product revenue -> Accounting (Payments & Register): the payments
+        // row (type "order") keyed off the order id. Orders feed accounting;
+        // the deposit path above never touches this. Idempotent on replay.
+        try {
+          const order = orderId ? await repo.get("orders" as any, orderId) : null
+          const payments = (await repo.list("payments")) as any[]
+          const hasRow = payments.some((p) => p.orderId === orderId && p.type === "order")
+          if (order && orderId && !hasRow) {
+            await repo.create("payments", {
+              orderId,
+              customerId: order.customerId || null,
+              stripeCheckoutSessionId: session.id,
+              stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : "",
+              amount: order.subtotal || "",
+              type: "order",
+              status: "paid",
+            })
+          }
+        } catch (e: any) {
+          console.error("[webhook] order payment row failed:", e.message)
+        }
+
+        // Auto-enroll the buyer — single login created after money moved,
+        // exact-email join, invite email sent by Supabase. Non-fatal.
+        try {
+          const order = orderId ? await repo.get("orders" as any, orderId) : null
+          const enrollEmail = session.customer_details?.email || order?.email
+          if (enrollEmail) {
+            await enrollCustomer({ email: enrollEmail, source: "purchase", referenceId: orderId })
+          }
+        } catch (e: any) {
+          console.error("[webhook] purchase enroll failed:", e.message)
+        }
       }
     } else if (event.type === "payment_intent.payment_failed") {
       const intent = event.data.object as Stripe.PaymentIntent

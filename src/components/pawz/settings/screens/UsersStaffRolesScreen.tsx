@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Shield, Plus, Trash2, Edit2, Lock, Check, X,
-  Key, Mail, Phone, UserCircle, ChevronDown, Send,
+  Key, Mail, Phone, UserCircle, ChevronDown, Send, Link2Off,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +18,12 @@ interface AdminUser {
   lastActive: string;
   avatarInitials: string;
   scope: string;
+  // Linked-record indicators (owner's join spec §5) — customer rows only
+  customerId?: string | null;
+  salonLinked?: boolean;
+  ordersLinked?: boolean;
+  ordersCount?: number;
+  linkedBoth?: boolean;
 }
 
 interface PermissionModule {
@@ -248,6 +254,42 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
     }
   };
 
+  // Manual unlink — the escape hatch for the rare wrong email join
+  // (two people sharing one address). Clears the salon record's FK to the
+  // login; both records survive, a future same-email transaction re-joins.
+  const handleUnlink = async (user: AdminUser) => {
+    if (!confirm(`Unlink the salon record from ${user.email}? Both records remain — a future transaction under the same email re-joins them.`)) return;
+    try {
+      const res = await fetch('/api/admin/users/unlink', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.userId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(data.message || 'Unlinked.');
+        const refreshRes = await fetch('/api/admin/users');
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json();
+          const seen = new Set<string>();
+          setUsers([...(refreshData.admins || []), ...(refreshData.staff || []), ...(refreshData.customers || [])]
+            .filter((u: AdminUser) => {
+              const k = `${u.userId || ''}|${u.email}`;
+              if (seen.has(k)) return false;
+              seen.add(k);
+              return true;
+            }));
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Unlink failed');
+      }
+    } catch (err) {
+      console.error('Failed to unlink:', err);
+      showToast('Unlink failed');
+    }
+  };
+
   const roleLabels: Record<string, string> = {
     owner: 'Super Admin / Owner',
     admin: 'Salon Manager',
@@ -441,6 +483,7 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                   <th className="p-3 font-semibold">User</th>
                   <th className="p-3 font-semibold">Email</th>
                   <th className="p-3 font-semibold">Assigned Role</th>
+                  <th className="p-3 font-semibold">CRM Records</th>
                   <th className="p-3 font-semibold">2FA</th>
                   <th className="p-3 font-semibold">Status</th>
                   <th className="p-3 font-semibold">Last Active</th>
@@ -474,6 +517,35 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                       </select>
                     </td>
                     <td className="p-3">
+                      {user.scope === 'customer' ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={cn(
+                            'inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase',
+                            user.salonLinked
+                              ? 'bg-success/10 text-success border-success/20'
+                              : 'bg-muted text-muted-foreground border-border'
+                          )}>
+                            Salon {user.salonLinked ? '✓' : '—'}
+                          </span>
+                          <span className={cn(
+                            'inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase',
+                            user.ordersLinked
+                              ? 'bg-success/10 text-success border-success/20'
+                              : 'bg-muted text-muted-foreground border-border'
+                          )}>
+                            Orders {user.ordersLinked ? `✓${user.ordersCount ? ` ${user.ordersCount}` : ''}` : '—'}
+                          </span>
+                          {user.linkedBoth && (
+                            <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase bg-primary/10 text-primary border-primary/20">
+                              Both CRMs
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-[12px]">—</span>
+                      )}
+                    </td>
+                    <td className="p-3">
                       {user.twoFactorEnabled ? (
                         <span className="inline-flex items-center gap-1 text-success text-[12px] font-medium">
                           <Check className="size-3.5" /> Enabled
@@ -504,6 +576,15 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                             title="Re-send invitation email"
                           >
                             <Send className="size-3.5" />
+                          </button>
+                        )}
+                        {user.scope === 'customer' && user.salonLinked && (
+                          <button
+                            onClick={() => handleUnlink(user)}
+                            className="inline-flex items-center justify-center size-7 rounded-md hover:bg-warning/10 text-muted-foreground hover:text-warning cursor-pointer transition-colors"
+                            title="Unlink salon record from this login (wrong email join)"
+                          >
+                            <Link2Off className="size-3.5" />
                           </button>
                         )}
                         <button

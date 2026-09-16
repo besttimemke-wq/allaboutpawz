@@ -40,13 +40,25 @@ export async function GET(req: NextRequest) {
         ORDER BY tm.created_at DESC;
       `);
 
+      // Customer identities: one row per real person (auth.users),
+      // excluding staff/admins (memberships, platform_admins, ADMIN_EMAILS).
+      // The salon-side record link is customers."userId" (the nullable FK
+      // from the owner's join spec); the order-side link is the order's own
+      // email / customerId. portal_customer_accounts is NOT consulted —
+      // that enterprise table is FK-locked to the empty crm_customers and
+      // can never reference the live customers table.
       const portalRes = await pgClient.query(`
-        SELECT pca.id, pca.tenant_id, pca.customer_id, pca.auth_user_id, pca.status, pca.created_at, pca.last_login_at,
-               c."firstName", c."lastName", c.email, c.phone
-        FROM public.portal_customer_accounts pca
-        LEFT JOIN public.customers c ON pca.customer_id::text = c.id::text
-        ORDER BY pca.created_at DESC;
+        SELECT u.id::text AS auth_user_id, u.email, u.email_confirmed_at::text AS email_confirmed_at,
+               u.last_sign_in_at::text AS last_sign_in_at,
+               c.id AS customer_id, c."firstName", c."lastName", c.phone, c."userId"::text AS customer_user_id
+        FROM auth.users u
+        LEFT JOIN public.customers c ON lower(c.email) = lower(u.email)
+        WHERE NOT EXISTS (SELECT 1 FROM public.tenant_memberships tm WHERE tm.user_id = u.id)
+          AND NOT EXISTS (SELECT 1 FROM public.platform_admins pa WHERE pa.user_id = u.id)
+        ORDER BY u.created_at DESC;
       `);
+
+      const ordersRes = await pgClient.query(`SELECT id, "customerId", email FROM public.orders;`);
 
       let rolesRes = { rows: [] };
       try {
@@ -77,17 +89,47 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      const customers = portalRes.rows.map((r: any) => {
-        const name = `${r.firstName || ""} ${r.lastName || ""}`.trim() || r.email || "Customer";
-        const initials = name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
-        return {
-          id: r.id, userId: r.auth_user_id, customerId: r.customer_id, email: r.email || "No email",
-          name, phone: r.phone || "", role: "customer", twoFactorEnabled: false,
-          status: r.status === "active" ? "Active" : "Invited",
-          lastActive: r.last_login_at ? new Date(r.last_login_at).toLocaleString() : "Never",
-          avatarInitials: initials, scope: "customer",
-        };
-      });
+      // Owner-declared admins never appear as customers (their memberships
+      // may not exist in edge cases).
+      const adminEmails = (process.env.ADMIN_EMAILS || "")
+        .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+
+      const ordersRows = ordersRes.rows || [];
+      const customers = portalRes.rows
+        .filter((r: any) => !adminEmails.includes((r.email || "").toLowerCase()))
+        .map((r: any) => {
+          const salonLinked = !!r.customer_user_id && r.customer_user_id === r.auth_user_id;
+          const userOrders = ordersRows.filter(
+            (o: any) =>
+              (o.email && r.email && o.email.toLowerCase() === r.email.toLowerCase()) ||
+              (salonLinked && r.customer_id && o.customerId === r.customer_id),
+          );
+          const displayName = salonLinked
+            ? `${r.firstName || ""} ${r.lastName || ""}`.trim() || r.email
+            : r.email || "Customer";
+          const initials = displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
+          return {
+            id: r.auth_user_id,
+            userId: r.auth_user_id,
+            customerId: r.customer_id || null,
+            email: r.email || "No email",
+            name: displayName,
+            phone: r.phone || "",
+            role: "customer",
+            twoFactorEnabled: false,
+            status: r.email_confirmed_at ? "Active" : "Invited",
+            lastActive: r.last_sign_in_at
+              ? new Date(r.last_sign_in_at).toLocaleString()
+              : r.email_confirmed_at ? "Active" : "Never",
+            avatarInitials: initials,
+            scope: "customer",
+            // Linked-record indicators (owner's join spec §5)
+            salonLinked,
+            ordersLinked: userOrders.length > 0,
+            ordersCount: userOrders.length,
+            linkedBoth: salonLinked && userOrders.length > 0,
+          };
+        });
 
       return NextResponse.json({
         admins: adminsAndStaff.filter((u: any) => u.scope === "admin"),
@@ -138,24 +180,42 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const customers = (custRes.data || []).map((c: any) => {
-      const name = `${c.firstName || ""} ${c.lastName || ""}`.trim() || c.email || "Customer";
-      const initials = name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
-      return {
-        id: c.id,
-        userId: c.userId || c.id,
-        customerId: c.id,
-        email: c.email || "No email",
-        name,
-        phone: c.phone || "",
-        role: "customer",
-        twoFactorEnabled: false,
-        status: c.customerStatus === "ACTIVE" ? "Active" : "Invited",
-        lastActive: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "Active",
-        avatarInitials: initials,
-        scope: "customer",
-      };
-    });
+    const ordersRes = await supabaseAdmin.from("orders").select("id,customerId,email");
+    const ordersRows = (ordersRes.data || []) as any[];
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+    const memberUserIds = new Set((membersRes.data || []).map((m: any) => m.user_id));
+
+    const customers = (custRes.data || [])
+      .filter((c: any) => !memberUserIds.has(c.userId) && !adminEmails.includes((c.email || "").toLowerCase()))
+      .map((c: any) => {
+        const userOrders = ordersRows.filter(
+          (o: any) =>
+            (o.email && c.email && o.email.toLowerCase() === c.email.toLowerCase()) ||
+            (c.id && o.customerId === c.id),
+        );
+        const name = `${c.firstName || ""} ${c.lastName || ""}`.trim() || c.email || "Customer";
+        const initials = name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
+        const authUser = authMap.get(c.userId);
+        return {
+          id: c.id,
+          userId: c.userId || c.id,
+          customerId: c.id,
+          email: c.email || "No email",
+          name,
+          phone: c.phone || "",
+          role: "customer",
+          twoFactorEnabled: false,
+          status: authUser ? (authUser.email_confirmed_at ? "Active" : "Invited") : (c.customerStatus === "ACTIVE" ? "Active" : "Invited"),
+          lastActive: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "Active",
+          avatarInitials: initials,
+          scope: "customer",
+          salonLinked: !!c.userId,
+          ordersLinked: userOrders.length > 0,
+          ordersCount: userOrders.length,
+          linkedBoth: !!c.userId && userOrders.length > 0,
+        };
+      });
 
     return NextResponse.json({
       admins: adminsAndStaff.filter((u: any) => u.scope === "admin"),

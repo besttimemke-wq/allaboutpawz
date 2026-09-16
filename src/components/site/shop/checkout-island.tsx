@@ -137,33 +137,11 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
     setApiError(null)
     if (!canNext) return
 
-    // Step 3 → create/update the customer record (same endpoint as booking).
-    if (s.step === 3) {
-      try {
-        const res = await fetch("/api/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: s.firstName, lastName: s.lastName, email: s.email, phone: s.phone,
-            address: s.deliveryMethod === "ship" ? s.address : "",
-            addressLine2: s.deliveryMethod === "ship" ? s.addressLine2 : "",
-            city: s.deliveryMethod === "ship" ? s.city : "",
-            state: s.deliveryMethod === "ship" ? s.state : "",
-            postalCode: s.deliveryMethod === "ship" ? s.postalCode : "",
-          }),
-        })
-        if (!res.ok) {
-          const e = await res.json().catch(() => ({ error: "Failed to create customer" }))
-          setApiError(e.error || "Failed to create customer")
-          return
-        }
-        const data = await res.json()
-        s.patch({ customerId: data.id })
-      } catch (e: unknown) {
-        setApiError((e as Error).message || "Network error")
-        return
-      }
-    }
+    // No customer record is created here — checkout proceeds as a guest.
+    // The salon-side (customers) record is only created by the booking
+    // wizard or an admin walk-in; a product-only buyer exists solely in
+    // Orders CRM (identified by the order's own email), and the Stripe
+    // webhook enrolls the login after payment actually clears.
 
     s.setStep(s.step + 1)
   }
@@ -177,7 +155,6 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerId: s.customerId,
           items: s.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
           deliveryMethod: s.deliveryMethod,
           email: s.email, phone: s.phone,

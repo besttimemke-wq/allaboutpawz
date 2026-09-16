@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DawgNavSection } from '@/lib/types';
 import { PageHeader, PageTabs, KpiTiles, FilterSelect } from '../_shared/PageHeader';
 import { cn } from '@/lib/utils';
@@ -9,112 +9,57 @@ interface DepositsViewProps {
   onNavigateSection?: (section: DawgNavSection) => void;
 }
 
+interface DepositRow {
+  id: string;
+  customer: string;
+  phone: string;
+  pet: string;
+  breed: string;
+  service: string;
+  amount: number;
+  collectedDate: string;
+  collectedTime: string;
+  targetApptDate: string;
+  targetApptTime: string;
+  method: string;
+  auth: string;
+  status: string;
+}
+
 export const DepositsView: React.FC<DepositsViewProps> = ({ onNavigateSection }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'held' | 'applied' | 'released' | 'forfeited' | 'refunded'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [rangeFilter, setRangeFilter] = useState('Current Week (May 12 - 18, 2025)');
   const [showCollectModal, setShowCollectModal] = useState(false);
 
-  const initialDeposits = [
-    {
-      id: 'DEP-0456-A',
-      customer: 'Evelyn Vance',
-      phone: '+1 (555) 201-9981',
-      pet: 'Max Doodle',
-      breed: 'Golden Doodle',
-      service: 'SVC: FULL GROOM [PKG-01]',
-      amount: 50.00,
-      collectedDate: '2025-05-10',
-      collectedTime: '09:14:22 UTC',
-      targetApptDate: 'May 16, 2025',
-      targetApptTime: '10:30 AM // STATION 02',
-      method: 'CARD •••• 1111',
-      auth: 'AUTH: TXN_88129',
-      status: 'HELD'
-    },
-    {
-      id: 'DEP-0457-B',
-      customer: 'Marcus Chen',
-      phone: '+1 (555) 304-4112',
-      pet: 'Bella Shih Tzu',
-      breed: 'Shih Tzu',
-      service: 'SVC: BATH & BRUSH [PKG-04]',
-      amount: 25.00,
-      collectedDate: '2025-05-11',
-      collectedTime: '14:02:11 UTC',
-      targetApptDate: 'May 16, 2025',
-      targetApptTime: '01:00 PM // STATION 01',
-      method: 'APPLE PAY',
-      auth: 'AUTH: TXN_99104',
-      status: 'HELD'
-    },
-    {
-      id: 'DEP-0442-X',
-      customer: 'Cassandra Frost',
-      phone: '+1 (555) 890-3444',
-      pet: 'Thor Rottweiler',
-      breed: 'Rottweiler',
-      service: 'SVC: DE-SHEDDING SPA',
-      amount: 75.00,
-      collectedDate: '2025-05-08',
-      collectedTime: '11:15:40 UTC',
-      targetApptDate: 'May 14, 2025',
-      targetApptTime: '09:00 AM // COMPLETED',
-      method: 'CARD •••• 9920',
-      auth: 'AUTH: TXN_77401',
-      status: 'APPLIED'
-    },
-    {
-      id: 'DEP-0439-K',
-      customer: 'Devon Brooks',
-      phone: '+1 (555) 441-2090',
-      pet: 'Kona Husky',
-      breed: 'Husky',
-      service: 'SVC: EXPRESS GROOM',
-      amount: 50.00,
-      collectedDate: '2025-05-06',
-      collectedTime: '16:49:02 UTC',
-      targetApptDate: 'May 13, 2025',
-      targetApptTime: '02:30 PM // NO-SHOW',
-      method: 'CARD •••• 4018',
-      auth: 'AUTH: TXN_66311',
-      status: 'FORFEITED'
-    },
-    {
-      id: 'DEP-0430-P',
-      customer: 'Sophia Lindqvist',
-      phone: '+1 (555) 773-1289',
-      pet: 'Pixel Maltipoo',
-      breed: 'Maltipoo',
-      service: 'SVC: TEETH CLEAN + BATH',
-      amount: 40.00,
-      collectedDate: '2025-05-04',
-      collectedTime: '10:04:19 UTC',
-      targetApptDate: 'May 11, 2025',
-      targetApptTime: '11:00 AM // CANCELLED >48H',
-      method: 'CARD •••• 5590',
-      auth: 'AUTH: TXN_55102',
-      status: 'RELEASED'
-    },
-    {
-      id: 'DEP-0460-Z',
-      customer: 'Julian Alvarez',
-      phone: '+1 (555) 670-8821',
-      pet: 'Rocky Boxer',
-      breed: 'Boxer',
-      service: 'SVC: FULL GROOM + DESHED',
-      amount: 100.00,
-      collectedDate: '2025-05-12',
-      collectedTime: '08:22:15 UTC',
-      targetApptDate: 'May 17, 2025',
-      targetApptTime: '03:30 PM // STATION 03',
-      method: 'APPLE PAY',
-      auth: 'AUTH: TXN_31980',
-      status: 'HELD'
-    }
-  ];
+  // LIVE DATA — payments rows with type "deposit" (the escrow ledger
+  // entries written by the Stripe webhook on checkout.session.completed),
+  // joined to bookings + customers. No mock rows.
+  const [depositsList, setDepositsList] = useState<DepositRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [depositsList, setDepositsList] = useState(initialDeposits);
+  useEffect(() => {
+    fetch('/api/admin/deposits')
+      .then((r) => (r.ok ? r.json() : { deposits: [] }))
+      .then((d) => setDepositsList(d.deposits || []))
+      .catch(() => setDepositsList([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // KPI aggregates over the live rows
+  const heldRows = depositsList.filter((d) => d.status === 'HELD');
+  const forfeitedRows = depositsList.filter((d) => d.status === 'FORFEITED');
+  const appliedThisMonth = depositsList.filter((d) => {
+    if (d.status !== 'APPLIED' || !d.collectedDate) return false;
+    return d.collectedDate.slice(0, 7) === new Date().toISOString().slice(0, 7);
+  });
+  const upcoming48h = heldRows.filter((d) => {
+    if (!d.targetApptDate) return false;
+    const t = new Date(d.targetApptDate).getTime();
+    if (isNaN(t)) return false;
+    return t >= Date.now() && t <= Date.now() + 48 * 3600 * 1000;
+  });
+  const sum = (rows: DepositRow[]) => rows.reduce((acc, d) => acc + (Number(d.amount) || 0), 0);
 
   const filteredDeposits = depositsList.filter((dep) => {
     // Tab filter
@@ -177,10 +122,10 @@ export const DepositsView: React.FC<DepositsViewProps> = ({ onNavigateSection })
         onSelect={(id) => setActiveTab(id as typeof activeTab)}
         tabs={[
           { id: 'all', label: 'Deposits Dashboard' },
-          { id: 'held', label: 'Held / Active', count: 38 },
+          { id: 'held', label: 'Held / Active', count: heldRows.length },
           { id: 'applied', label: 'Applied to Invoice' },
           { id: 'released', label: 'Released' },
-          { id: 'forfeited', label: 'Forfeited / Late Cancel', count: 4 },
+          { id: 'forfeited', label: 'Forfeited / Late Cancel', count: forfeitedRows.length },
         ]}
       />
 
@@ -190,25 +135,25 @@ export const DepositsView: React.FC<DepositsViewProps> = ({ onNavigateSection })
           tiles={[
             {
               label: 'Total Active Deposits',
-              value: '$6,780.00',
+              value: `$${sum(heldRows).toFixed(2)}`,
               caption: 'Escrow balance across all held deposits',
               tone: 'primary',
             },
             {
               label: 'Held for Upcoming (48h)',
-              value: '$2,340.00',
+              value: `$${sum(upcoming48h).toFixed(2)}`,
               caption: 'Pre-appointment escrow holds',
               tone: 'warning',
             },
             {
               label: 'Applied This Month',
-              value: '$3,120.00',
+              value: `$${sum(appliedThisMonth).toFixed(2)}`,
               caption: 'MTD deposits applied to invoices',
               tone: 'success',
             },
             {
               label: 'Forfeited / Late Cancel',
-              value: '$420.00',
+              value: `$${sum(forfeitedRows).toFixed(2)}`,
               caption: 'Penalty revenue from no-shows',
               tone: 'destructive',
             },
@@ -288,7 +233,16 @@ export const DepositsView: React.FC<DepositsViewProps> = ({ onNavigateSection })
                 </tr>
               </thead>
               <tbody className="divide-y divide-border text-foreground">
-                {filteredDeposits.map((dep) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-muted-foreground text-[13px]">Loading escrow ledger from database…</td>
+                  </tr>
+                ) : filteredDeposits.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-muted-foreground text-[13px]">No deposit records yet. Deposits appear here the moment the Stripe webhook confirms a $25 booking payment.</td>
+                  </tr>
+                ) : (
+                filteredDeposits.map((dep) => (
                   <tr key={dep.id} className="hover:bg-accent/50 transition-colors">
                     <td className="p-3 border-r border-border font-semibold tabular-nums">{dep.id}</td>
                     <td className="p-3 border-r border-border">
@@ -341,7 +295,8 @@ export const DepositsView: React.FC<DepositsViewProps> = ({ onNavigateSection })
                       </select>
                     </td>
                   </tr>
-                ))}
+                ))
+                )}
               </tbody>
             </table>
           </div>
