@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { createClient } from "@/lib/auth/client"
 import { useRouter } from "next/navigation"
-import { PetCard } from "@/components/dawg/PetCard"
+import { PetCard } from "@/components/site/pet-card"
 import {
   PawPrint, CalendarCheck, CreditCard, CurrencyDollar,
   ArrowRight, SignOut,
@@ -32,7 +32,7 @@ export default function AccountPage() {
     let alive = true
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!alive) return
-      if (!session) { router.push("/admin/login?redirect=/account"); return }
+      if (!session) { router.push("/access-customer?redirect=/account"); return }
       setUser(session.user)
 
       // Find customer by email
