@@ -103,6 +103,18 @@ export async function resolvePortalUser(authUserId: string): Promise<ResolvedPor
     email.split("@")[0];
   const avatarUrl = authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture;
 
+  // 0. Owner-declared admins (ADMIN_EMAILS) — first and final word. The owner's
+  //    account is an admin regardless of table state; no provisioning row can
+  //    demote it, and an account created directly in Supabase by the owner
+  //    still resolves as admin.
+  const declaredAdmins = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (declaredAdmins.includes(email)) {
+    return { authUserId, email, name: nameFromMeta, role: "admin", avatarUrl, scope: "admin", membershipRole: "owner" };
+  }
+
   // 1. Platform admins (cross-tenant super admins)
   try {
     const { data: platformAdmins } = await admin.from("platform_admins").select("user_id").eq("user_id", authUserId).limit(1);
