@@ -378,6 +378,11 @@ export function verifyStateSignature(state: string | null | undefined): string |
 export async function createOAuthState(portal: PortalId, redirectTo: string): Promise<string | null> {
   const admin = getSupabaseAdmin();
   if (!admin) return null;
+  // Housekeeping: states are single-use and short-lived; sweep rows that have
+  // been dead for over a day so the table never grows unboundedly. Best-effort.
+  try {
+    await admin.from("oauth_states").delete().lt("expires_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+  } catch { /* hygiene is best-effort */ }
   const nonce = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + OAUTH_STATE_TTL_MS).toISOString();
   const { error } = await admin.from("oauth_states").insert({ nonce, portal, redirect_to: redirectTo, expires_at: expiresAt, used: false });
