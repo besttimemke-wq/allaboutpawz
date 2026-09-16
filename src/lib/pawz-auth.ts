@@ -9,7 +9,7 @@
 // ============================================================================
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 
 // ---------------------------------------------------------------------------
 // Portal (door) definitions
@@ -32,27 +32,137 @@ export const PORTALS: Record<PortalId, PortalDefinition> = {
 };
 
 // ---------------------------------------------------------------------------
-// Google OAuth redirect-URI registration
+// Google OAuth redirect-URI activation (LIVE verification — no stale lists)
 // ---------------------------------------------------------------------------
-// The owner's single Google OAuth client has exactly these origins
-// registered as Authorized redirect URIs (his credential hand-off, verified
-// live): production + the dev/pre Cloud Run deployments. The sandbox preview
-// origin is NOT among them — /api/auth/google/start checks against this list
-// so an unregistered origin bounces back to the door with the exact URI to
-// register instead of dead-ending on Google's redirect_uri_mismatch page.
-// GOOGLE_REGISTERED_ORIGINS (comma-separated) extends the list if the owner
-// registers more origins later.
-export function registeredGoogleOrigins(): string[] {
-  const fixed = [
-    "https://aapawz.com",
-    "https://ais-dev-cb2aatci5phbtljv73uphk-62947767548.us-east1.run.app",
-    "https://ais-pre-cb2aatci5phbtljv73uphk-62947767548.us-east1.run.app",
-  ];
-  const extra = (process.env.GOOGLE_REGISTERED_ORIGINS || "")
+// Ground truth for "is this origin activated" lives in the owner's Google
+// client, NOT in this codebase. The previous hardcoded origin list was a
+// second gate on top of Google's own: an origin the owner had already
+// registered still bounced, because the list only changes when the code does.
+// That double gate is gone. /api/auth/google/start now verifies the redirect
+// URI against Google's own authorize endpoint at click time: with prompt=none,
+// a REGISTERED redirect URI answers 302 back to that URI
+// (error=interaction_required / a code); an UNREGISTERED one answers 302 to
+// accounts.google.com/signin/oauth/error (redirect_uri_mismatch). Results are
+// cached in memory — positive 5 min, negative 60 s — so a URI registered in
+// the Google console takes effect within a minute, with no code or env change.
+// On a probe network failure the check fails OPEN (Google renders its own
+// error — the app never blocks a working flow).
+//
+// GOOGLE_REGISTERED_ORIGINS (comma-separated) is still honored as an
+// additional skip-the-probe allowlist for deployments that want zero
+// outbound calls to Google on the sign-in path.
+
+export const GOOGLE_CALLBACK_PATH = "/api/auth/google/callback";
+
+export function googleCallbackUri(origin: string): string {
+  return `${origin.replace(/\/$/, "")}${GOOGLE_CALLBACK_PATH}`;
+}
+
+/** The stable origin whose callback is registered on the Google client for
+ *  every deployment of this app. Preview origins change per session and can
+ *  never all be pre-registered, so their flows are routed THROUGH this
+ *  registered callback and relayed back (see /api/auth/google/callback). */
+export function productionRelayOrigin(): string {
+  return (process.env.GOOGLE_RELAY_ORIGIN || "https://aapawz.com").replace(/\/$/, "");
+}
+
+export function productionRelayCallbackUri(): string {
+  return googleCallbackUri(productionRelayOrigin());
+}
+
+/** The sandbox preview gateway pattern — https://preview-chat-<id>.space-z.ai.
+ *  Relay targets are RESTRICTED to this pattern: it is the platform's own
+ *  gateway (no attacker-controlled pages can exist on it), which is what
+ *  makes relaying an authorization code back to it safe. */
+export function isPreviewOrigin(origin: string): boolean {
+  return /^https:\/\/preview-chat-[a-z0-9-]+\.space-z\.ai$/i.test((origin || "").replace(/\/$/, ""));
+}
+
+const uriCache = new Map<string, { ok: boolean; at: number }>();
+
+/** Live check: does the Google client have this exact redirect URI registered? */
+export async function redirectUriRegistered(redirectUri: string): Promise<boolean> {
+  const allowlisted = (process.env.GOOGLE_REGISTERED_ORIGINS || "")
     .split(",")
     .map((s) => s.trim().replace(/\/$/, ""))
-    .filter(Boolean);
-  return [...fixed, ...extra];
+    .filter(Boolean)
+    .some((o) => redirectUri === googleCallbackUri(o));
+  if (allowlisted) return true;
+
+  const hit = uriCache.get(redirectUri);
+  const ttl = hit?.ok ? 5 * 60 * 1000 : 60 * 1000;
+  if (hit && Date.now() - hit.at < ttl) return hit.ok;
+
+  let ok = true; // fail-open — let Google itself render any error
+  try {
+    const probeUrl =
+      "https://accounts.google.com/o/oauth2/v2/auth?" +
+      new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID || "",
+        redirect_uri: redirectUri,
+        response_type: "code",
+        scope: "openid email profile",
+        state: "check",
+        prompt: "none",
+      }).toString();
+    const res = await fetch(probeUrl, { redirect: "manual", signal: AbortSignal.timeout(5000) });
+    const loc = res.headers.get("location") || "";
+    if (res.status === 302 && loc) ok = loc.startsWith(redirectUri);
+  } catch {
+    ok = true;
+  }
+  uriCache.set(redirectUri, { ok, at: Date.now() });
+  return ok;
+}
+
+let relayCheck: { ok: boolean; at: number } | null = null;
+
+/** Live check: is the production deployment running relay-capable callback
+ *  code (GET {relay}/api/auth/google/callback?probe=relay → {relay:true})?
+ *  Preview-origin flows only relay when this is true, so users are never
+ *  silently signed into the wrong deployment. Fails CLOSED — an unreachable
+ *  probe never routes anyone into a dead end. */
+export async function productionRelayCapable(): Promise<boolean> {
+  const hit = relayCheck;
+  const ttl = hit?.ok ? 5 * 60 * 1000 : 60 * 1000;
+  if (hit && Date.now() - hit.at < ttl) return hit.ok;
+
+  let ok = false;
+  try {
+    const res = await fetch(`${productionRelayCallbackUri()}?probe=relay`, {
+      redirect: "manual",
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.status === 200 && (res.headers.get("content-type") || "").includes("application/json")) {
+      const body = await res.json().catch(() => null);
+      ok = Boolean(body && (body as any).relay === true);
+    }
+  } catch {
+    ok = false;
+  }
+  relayCheck = { ok, at: Date.now() };
+  return ok;
+}
+
+// ---------------------------------------------------------------------------
+// OAuth browser binding (login-CSRF guard)
+// ---------------------------------------------------------------------------
+// The start route sets a short-lived cookie in the user's browser and stores
+// its hash in the state row; the callback refuses to complete without it, so
+// nobody can paste a sign-in link into someone else's browser and get them
+// logged into the attacker's account. SameSite=Lax survives the full
+// Google → (relay) → callback top-level navigation chain.
+export const OAUTH_BROWSER_COOKIE = "pawz_oauth_b";
+
+export function newBrowserBinding(): { value: string; hash: string } {
+  const value = randomBytes(32).toString("base64url");
+  return { value, hash: createHash("sha256").update(value).digest("hex") };
+}
+
+export function hashBrowserBinding(value: string | undefined | null): string | null {
+  if (!value) return null;
+  return createHash("sha256").update(value).digest("hex");
 }
 
 // The shape the portal store (Zustand) persists — mirrors lib/types AuthUser.
@@ -387,6 +497,14 @@ export interface OAuthStateRow {
    *  the signed state so the callback exchanges against the exact same URI,
    *  even when a gateway rewrites the Host header it sees). */
   redirectUri?: string | null;
+  /** For relay flows: the preview origin the browser is actually on. Google
+   *  sends the browser to the registered redirect_uri (production); that
+   *  deployment relays it back here with the code + state untouched, and
+   *  THIS origin's callback finishes the flow and hosts the session. */
+  returnOrigin?: string | null;
+  /** SHA-256 hex of the pawz_oauth_b cookie issued by the start route
+   *  (login-CSRF binding — see OAUTH_BROWSER_COOKIE). */
+  browserHash?: string | null;
   expiresAt: string; // ISO
   used: boolean;
 }
@@ -415,7 +533,13 @@ export function verifyStateSignature(state: string | null | undefined): string |
 }
 
 /** Creates a single-use OAuth state row in public.oauth_states (service-role). */
-export async function createOAuthState(portal: PortalId, redirectTo: string, redirectUri?: string): Promise<string | null> {
+export async function createOAuthState(
+  portal: PortalId,
+  redirectTo: string,
+  redirectUri?: string,
+  returnOrigin?: string | null,
+  browserHash?: string | null,
+): Promise<string | null> {
   const admin = getSupabaseAdmin();
   if (!admin) return null;
   // Housekeeping: states are single-use and short-lived; sweep rows that have
@@ -425,12 +549,53 @@ export async function createOAuthState(portal: PortalId, redirectTo: string, red
   } catch { /* hygiene is best-effort */ }
   const nonce = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + OAUTH_STATE_TTL_MS).toISOString();
-  const { error } = await admin.from("oauth_states").insert({ nonce, portal, redirect_to: redirectTo, redirect_uri: redirectUri || null, expires_at: expiresAt, used: false });
+  const { error } = await admin
+    .from("oauth_states")
+    .insert({ nonce, portal, redirect_to: redirectTo, redirect_uri: redirectUri || null, return_origin: returnOrigin || null, browser_hash: browserHash || null, expires_at: expiresAt, used: false });
   if (error) {
     console.error("[pawz-auth] createOAuthState:", error.message);
     return null;
   }
   return signStateNonce(nonce);
+}
+
+/** Maps a raw oauth_states row to the typed shape (no consumption). */
+function mapStateRow(row: any): OAuthStateRow | null {
+  const portal = row.portal as PortalId;
+  if (!PORTALS[portal]) return null;
+  return {
+    nonce: row.nonce,
+    portal,
+    redirectTo: row.redirect_to || PORTALS[portal].destination,
+    redirectUri: row.redirect_uri || null,
+    returnOrigin: row.return_origin || null,
+    browserHash: row.browser_hash || null,
+    expiresAt: row.expires_at,
+    used: Boolean(row.used),
+  };
+}
+
+const OAUTH_STATE_COLUMNS = "nonce, portal, redirect_to, redirect_uri, return_origin, browser_hash, expires_at, used";
+
+/** Verifies the signed state and reads its row WITHOUT consuming it — used
+ *  by the callback to decide whether this flow belongs to another origin
+ *  (relay) before anything is marked used. */
+export async function peekOAuthState(state: string | null | undefined): Promise<OAuthStateRow | null> {
+  const nonce = verifyStateSignature(state);
+  if (!nonce) return null;
+  const admin = getSupabaseAdmin();
+  if (!admin) return null;
+  const { data: rows, error } = await admin
+    .from("oauth_states")
+    .select(OAUTH_STATE_COLUMNS)
+    .eq("nonce", nonce)
+    .limit(1);
+  if (error || !rows || rows.length === 0) return null;
+  const row = mapStateRow(rows[0]);
+  if (!row) return null;
+  if (row.used) return null;
+  if (new Date(row.expiresAt).getTime() < Date.now()) return null;
+  return row;
 }
 
 /** Verifies + consumes a state value. Returns the row, or null on any failure. */
@@ -442,16 +607,15 @@ export async function consumeOAuthState(state: string | null | undefined): Promi
 
   const { data: rows, error } = await admin
     .from("oauth_states")
-    .select("nonce, portal, redirect_to, redirect_uri, expires_at, used")
+    .select(OAUTH_STATE_COLUMNS)
     .eq("nonce", nonce)
     .limit(1);
   if (error || !rows || rows.length === 0) return null;
 
-  const row = rows[0] as any;
+  const row = mapStateRow(rows[0]);
+  if (!row) return null;
   if (row.used) return null; // replay — reject
-  if (new Date(row.expires_at).getTime() < Date.now()) return null; // expired
-  const portal = row.portal as PortalId;
-  if (!PORTALS[portal]) return null;
+  if (new Date(row.expiresAt).getTime() < Date.now()) return null; // expired
 
   // Mark used immediately (single-use). If the update fails, reject.
   const { error: updateError } = await admin.from("oauth_states").update({ used: true }).eq("nonce", nonce).eq("used", false);
@@ -460,14 +624,7 @@ export async function consumeOAuthState(state: string | null | undefined): Promi
     return null;
   }
 
-  return {
-    nonce,
-    portal,
-    redirectTo: row.redirect_to || PORTALS[portal].destination,
-    redirectUri: row.redirect_uri || null,
-    expiresAt: row.expires_at,
-    used: true,
-  };
+  return { ...row, used: true };
 }
 
 // ---------------------------------------------------------------------------
