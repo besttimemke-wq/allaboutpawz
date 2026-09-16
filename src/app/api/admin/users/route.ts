@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     if (pgClient) {
       const membersRes = await pgClient.query(`
         SELECT tm.id, tm.tenant_id, tm.user_id, tm.role, tm.active, tm.status, tm.created_at, tm.last_active_at, tm.mfa_enabled,
-               u.email,
+               u.email, u.email_confirmed_at,
                s.name as staff_name, s.avatar as staff_avatar,
                cs.display_name as crm_name
         FROM public.tenant_memberships tm
@@ -55,13 +55,22 @@ export async function GET(req: NextRequest) {
 
       await pgClient.end();
 
-      const adminsAndStaff = membersRes.rows.map((r: any) => {
+      const adminsAndStaff = Object.values(
+        membersRes.rows.reduce((acc: Record<string, any>, r: any) => {
+          // The fan-out joins (staff + crm_staff) can duplicate a membership
+          // row — dedupe by membership id so each user appears once.
+          if (!acc[r.id]) acc[r.id] = r;
+          return acc;
+        }, {}) as Record<string, any>
+      ).map((r: any) => {
         const name = r.crm_name || r.staff_name || (r.email ? r.email.split("@")[0] : "User");
         const initials = name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
         return {
           id: r.id, userId: r.user_id, email: r.email || "No email", name, role: r.role,
           twoFactorEnabled: !!r.mfa_enabled,
-          status: r.status === "active" ? "Active" : r.status === "invited" ? "Invited" : "Suspended",
+          status: !r.email_confirmed_at
+            ? "Invited"
+            : r.status === "active" ? "Active" : r.status === "invited" ? "Invited" : "Suspended",
           lastActive: r.last_active_at ? new Date(r.last_active_at).toLocaleString() : "Recently",
           avatarInitials: initials,
           scope: ["owner", "admin", "manager"].includes(r.role) ? "admin" : "employee",
@@ -166,24 +175,74 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { email, password, name, role, scope, phone, tenantId, enforce2FA } = body;
-    if (!email || !role) return NextResponse.json({ error: "Email and Role required" }, { status: 400 });
+    // `scope` is intentionally NOT read — the role alone determines the
+    // portal (one way to assign). A client-supplied scope is ignored.
+    const { email, password, name, role, phone, tenantId, enforce2FA, resendInvite } = body;
+    if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
 
     const targetTenant = tenantId || "00000000-0000-0000-0000-000000000001";
     const supabaseAdmin = getSupabaseAdmin();
     const pgClient = await getPgClient();
 
+    // --- Resend invitation for an existing user -----------------------------
+    if (resendInvite) {
+      if (!supabaseAdmin) {
+        return NextResponse.json({ error: "Supabase connection not configured" }, { status: 500 });
+      }
+      const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
+      const found = existing?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+      if (!found) {
+        return NextResponse.json({ error: "No account found for that email." }, { status: 404 });
+      }
+      const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        data: found.user_metadata || {},
+      });
+      if (inviteError) {
+        return NextResponse.json({ error: inviteError.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, email, message: `Invitation re-sent to ${email}.` });
+    }
+
+    if (!role) return NextResponse.json({ error: "Role is required" }, { status: 400 });
+
     let authUserId: string | null = null;
+    let inviteSent = false;
     if (supabaseAdmin) {
       const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
       const found = existing?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-      if (found) authUserId = found.id;
-      else {
-        const userPassword = password || `PawzTemp#${Math.random().toString(36).substring(2, 8)}!`;
-        const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({
-          email, password: userPassword, email_confirm: true, user_metadata: { full_name: name, role, scope },
-        });
-        if (!error && newUser?.user) authUserId = newUser.user.id;
+      if (found) {
+        authUserId = found.id;
+        // Existing account that never confirmed its email — re-send the
+        // invitation so they can still set a password.
+        if (!found.email_confirmed_at) {
+          await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+            data: found.user_metadata || {},
+          });
+          inviteSent = true;
+        }
+      } else {
+        // THE INVITE FLOW (the owner's spec): Supabase emails the user a link
+        // to set their own password — no silent random password, no
+        // pre-confirmed email. If the admin typed a temporary password it is
+        // set on the account, and the email STILL goes out unconfirmed so
+        // the user lands on set-password and chooses their own.
+        if (password) {
+          const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({
+            email, password, email_confirm: false, user_metadata: { full_name: name, role },
+          });
+          if (!error && newUser?.user) {
+            authUserId = newUser.user.id;
+            inviteSent = true; // email_confirm:false + autoconfirm off → Supabase emails the link
+          }
+        } else {
+          const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+            data: { full_name: name, role },
+          });
+          if (!error && invited?.user) {
+            authUserId = invited.user.id;
+            inviteSent = true;
+          }
+        }
       }
     }
 
@@ -194,7 +253,7 @@ export async function POST(req: NextRequest) {
         else authUserId = (await pgClient.query("SELECT gen_random_uuid()::text as id")).rows[0].id;
       }
 
-      const targetScope = scope || (["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee");
+      const targetScope = ["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee";
 
       if (targetScope === "admin" || targetScope === "employee") {
         const validRole = ["owner", "admin", "manager", "staff", "viewer", "groomer", "front_desk"].includes(role) ? role : "staff";
@@ -213,7 +272,10 @@ export async function POST(req: NextRequest) {
       }
 
       await pgClient.end();
-      return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, message: `Provisioned ${email} with ${role} access.` });
+      const inviteNote = inviteSent
+        ? ` Invitation email sent to ${email} — they set their own password from the link.`
+        : "";
+      return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, message: `Provisioned ${email} with ${role} access.${inviteNote}` });
     }
 
     // Direct Supabase API Fallback
@@ -221,7 +283,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Supabase connection not configured" }, { status: 500 });
     }
 
-    const targetScope = scope || (["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee");
+    const targetScope = ["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee";
 
     if (targetScope === "admin" || targetScope === "employee") {
       const validRole = ["owner", "admin", "manager", "staff", "viewer", "groomer", "front_desk"].includes(role) ? role : "staff";
@@ -259,7 +321,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, message: `Provisioned ${email} with ${role} access via Supabase.` });
+    const inviteNote = inviteSent
+      ? ` Invitation email sent to ${email} — they set their own password from the link.`
+      : "";
+    return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, message: `Provisioned ${email} with ${role} access via Supabase.${inviteNote}` });
   } catch (err: any) {
     console.error("[POST /api/admin/users]", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

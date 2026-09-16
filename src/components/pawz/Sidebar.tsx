@@ -155,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <TooltipProvider delayDuration={150}>
         <aside
           className={cn(
-            'fixed top-0 bottom-0 left-0 z-50 flex flex-col flex-shrink-0 h-screen overflow-hidden select-none bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width,transform] duration-200 ease-in-out',
+            'fixed top-0 bottom-0 left-0 z-50 flex flex-col flex-shrink-0 h-screen overflow-hidden select-none bg-sidebar text-sidebar-foreground transition-[width,transform] duration-200 ease-in-out',
             mobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0',
             isCollapsed ? 'lg:w-16' : 'lg:w-64'
           )}
@@ -163,7 +163,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Brand Header — sticky at top */}
           <div
             className={cn(
-              'sticky top-0 z-10 flex items-center justify-between flex-shrink-0 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-sm',
+              'sticky top-0 z-10 flex items-center justify-between flex-shrink-0 bg-sidebar/95 backdrop-blur-sm',
               isCollapsed ? 'flex-col gap-2 p-3' : 'p-3.5'
             )}
           >

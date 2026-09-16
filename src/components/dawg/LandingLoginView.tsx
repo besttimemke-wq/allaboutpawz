@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserRole } from '@/lib/types';
 import { createClient } from '@/lib/auth/client';
+import { useAppStore } from '@/lib/store';
 
 // Real auth wiring (the only change from the owner's original file): the
 // door passes which portal this is; sign-in goes through /api/auth/login.
@@ -204,7 +205,10 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({
         return;
       }
 
-      // The server resolved the identity and the destination — go there.
+      // The server resolved the identity and the destination — hydrate the
+      // portal store with it (replacing any stale persisted user from a
+      // previous sign-in on this browser), then go where it said.
+      useAppStore.getState().setUser(data.user);
       router.push(data.redirectTo || '/');
       // submitting stays true while the portal shell swaps in
     } catch (err) {
@@ -243,7 +247,7 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({
               <h2 className="text-base sm:text-lg font-bold text-slate-700 leading-snug">
                 {portalType === 'client'
                   ? 'Your Pet Parent Dashboard for Seamless Grooming, Live Status & Easy Booking'
-                  : 'The Complete All-in-One Salon Operating System for Groomers & Staff'}
+                  : 'For groomers, front desk, and salon staff.'}
               </h2>
             </div>
 
@@ -302,9 +306,9 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-slate-900 leading-tight">Secure Salon OS</h3>
+                      <h3 className="text-xs font-bold text-slate-900 leading-tight">Access Set by Your Admin</h3>
                       <p className="text-[11px] text-slate-500 leading-normal mt-0.5">
-                        Enterprise role management for groomers, bathers, and managers.
+                        The salon admin invites staff and sets what they can use.
                       </p>
                     </div>
                   </div>
@@ -375,12 +379,12 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({
               {/* Header Title */}
               <div className="text-center mb-6">
                 <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mb-1.5">
-                  {portalType === 'client' ? 'Welcome Pet Parent!' : 'Staff Command Portal'}
+                  {portalType === 'client' ? 'Welcome Pet Parent!' : 'Staff Sign In'}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500">
                   {portalType === 'client'
                     ? 'Sign in to view Buddy & Luna, track grooming in real-time, and manage payments.'
-                    : 'Select your salon role to launch your active workstation.'}
+                    : 'Sign in with your staff email and password.'}
                 </p>
               </div>
 

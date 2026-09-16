@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Shield, Plus, Trash2, Edit2, Lock, Check, X,
-  Key, Mail, Phone, UserCircle, ChevronDown,
+  Key, Mail, Phone, UserCircle, ChevronDown, Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,17 +18,6 @@ interface AdminUser {
   lastActive: string;
   avatarInitials: string;
   scope: string;
-}
-
-interface RoleDef {
-  id: string;
-  role_key: string;
-  label: string;
-  description: string;
-  permissions: string[];
-  is_system: boolean;
-  can_sign_off: boolean;
-  signoff_max_level: number;
 }
 
 interface PermissionModule {
@@ -47,12 +36,11 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
   onNavigateScreen,
   selectedLocation = 'All Locations',
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'users' | 'permissions' | 'roles' | 'invitations'>('users');
+  const [activeSubTab, setActiveSubTab] = useState<'users' | 'permissions' | 'invitations'>('users');
   const [permissionModules, setPermissionModules] = useState<PermissionModule[]>([]);
   const [userPermissions, setUserPermissions] = useState<Record<string, string>>({});
   const [selectedPermissionUser, setSelectedPermissionUser] = useState<AdminUser | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [roles, setRoles] = useState<RoleDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -62,7 +50,7 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState('staff');
   const [newPhone, setNewPhone] = useState('');
-  const [newScope, setNewScope] = useState('employee');
+  const [newPassword, setNewPassword] = useState('');
   const [enforce2FA, setEnforce2FA] = useState(false);
 
   const showToast = (msg: string) => {
@@ -70,7 +58,7 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  // Fetch users + roles from live API
+  // Fetch users from live API
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     async function fetchData() {
@@ -78,8 +66,17 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
         const res = await fetch('/api/admin/users');
         if (res.ok) {
           const data = await res.json();
-          setUsers([...(data.admins || []), ...(data.staff || []), ...(data.customers || [])]);
-          setRoles(data.roles || []);
+          // Dedupe by identity so a user never appears twice (the API also
+          // dedupes; this is belt-and-braces for the row keys).
+          const seen = new Set<string>();
+          const merged = [...(data.admins || []), ...(data.staff || []), ...(data.customers || [])]
+            .filter((u: AdminUser) => {
+              const k = `${u.userId || ''}|${u.email}`;
+              if (seen.has(k)) return false;
+              seen.add(k);
+              return true;
+            });
+          setUsers(merged);
         }
         // Also fetch permission modules
         const permRes = await fetch('/api/admin/permissions');
@@ -110,24 +107,48 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
     }
   };
 
-  // Toggle a module permission for the selected user
-  const togglePermission = async (moduleCode: string, level: 'view' | 'edit' | 'none') => {
+  // Toggle one module for the selected user (checkbox = feature granted)
+  const togglePermission = async (moduleCode: string, granted: boolean) => {
     if (!selectedPermissionUser) return;
-    const newLevel = userPermissions[moduleCode] === level ? 'none' : level;
     setUserPermissions(prev => {
       const next = { ...prev };
-      if (newLevel === 'none') delete next[moduleCode];
-      else next[moduleCode] = newLevel;
+      if (!granted) delete next[moduleCode];
+      else next[moduleCode] = 'edit';
       return next;
     });
     try {
       await fetch('/api/admin/permissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: selectedPermissionUser.userId, moduleCode, accessLevel: newLevel }),
+        body: JSON.stringify({ userId: selectedPermissionUser.userId, moduleCode, accessLevel: granted ? 'edit' : 'none' }),
       });
     } catch (err) {
       console.error('Failed to update permission:', err);
+    }
+  };
+
+  // Toggle every module in a domain for the selected user (parent checkbox)
+  const toggleDomain = async (group: string, granted: boolean) => {
+    if (!selectedPermissionUser) return;
+    const codes = permissionModules.filter(m => m.module === group).map(m => m.code);
+    setUserPermissions(prev => {
+      const next = { ...prev };
+      for (const c of codes) {
+        if (!granted) delete next[c];
+        else next[c] = 'edit';
+      }
+      return next;
+    });
+    try {
+      for (const c of codes) {
+        await fetch('/api/admin/permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: selectedPermissionUser.userId, moduleCode: c, accessLevel: granted ? 'edit' : 'none' }),
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update permissions:', err);
     }
   };
 
@@ -144,27 +165,54 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
           email: newEmail,
           name: newName,
           role: newRole,
-          scope: newScope,
           phone: newPhone,
+          password: newPassword || undefined,
           enforce2FA,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        showToast(`User ${newEmail} provisioned as ${newRole}`);
+        showToast(data.message || `Invitation email sent to ${newEmail}`);
         // Refresh users
         const refreshRes = await fetch('/api/admin/users');
         if (refreshRes.ok) {
           const refreshData = await refreshRes.json();
-          setUsers([...(refreshData.admins || []), ...(refreshData.staff || []), ...(refreshData.customers || [])]);
+          const seen = new Set<string>();
+          setUsers([...(refreshData.admins || []), ...(refreshData.staff || []), ...(refreshData.customers || [])]
+            .filter((u: AdminUser) => {
+              const k = `${u.userId || ''}|${u.email}`;
+              if (seen.has(k)) return false;
+              seen.add(k);
+              return true;
+            }));
         }
         setShowCreateForm(false);
         setNewEmail('');
         setNewName('');
         setNewPhone('');
+        setNewPassword('');
       } else {
         const err = await res.json();
         showToast(err.error || 'Failed to create user');
+      }
+    } catch (err) {
+      showToast('Network error');
+    }
+  };
+
+  // Re-send the Supabase invitation email to a user who hasn't set a password yet
+  const handleResendInvite = async (email: string) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, resendInvite: true }),
+      });
+      if (res.ok) {
+        showToast(`Invitation re-sent to ${email}`);
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Failed to re-send invitation');
       }
     } catch (err) {
       showToast('Network error');
@@ -301,22 +349,26 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                 <ChevronDown className="size-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
             </div>
-            {/* Scope */}
+            {/* Temporary password — optional. The invitation email is ALWAYS
+                sent; the user sets their own password from the link either way. */}
             <div>
-              <label className="text-[12px] font-medium text-muted-foreground block mb-1">Portal Scope</label>
+              <label className="text-[12px] font-medium text-muted-foreground block mb-1">
+                Temporary Password <span className="font-normal text-muted-foreground/70">(optional)</span>
+              </label>
               <div className="relative">
-                <Users className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <select
-                  value={newScope}
-                  onChange={(e) => setNewScope(e.target.value)}
-                  className="w-full pl-9 pr-8 h-9 bg-background border border-input rounded-md text-[13px] text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring appearance-none"
-                >
-                  <option value="admin">Admin Portal</option>
-                  <option value="employee">Employee / Groomer Portal</option>
-                  <option value="customer">Customer Portal</option>
-                </select>
-                <ChevronDown className="size-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Key className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Leave blank — the invite email lets them set it"
+                  autoComplete="new-password"
+                  className="w-full pl-9 pr-3 h-9 bg-background border border-input rounded-md text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
               </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                An invitation email is always sent — the user sets their own password from the link.
+              </p>
             </div>
             {/* 2FA */}
             <div className="flex items-center gap-2 pt-6">
@@ -358,7 +410,6 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
         {([
           { id: 'users', label: 'Users' },
           { id: 'permissions', label: 'Module Access' },
-          { id: 'roles', label: 'Roles & Permissions' },
           { id: 'invitations', label: 'Pending Invitations' },
         ] as const).map((tab) => (
           <button
@@ -397,8 +448,8 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {users.map((user) => (
-                  <tr key={user.id + user.userId} className="hover:bg-accent/50 transition-colors">
+                {users.map((user, index) => (
+                  <tr key={`${user.userId || user.id}-${index}`} className="hover:bg-accent/50 transition-colors">
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <div className="size-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[11px] font-semibold">
@@ -445,13 +496,24 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                     </td>
                     <td className="p-3 text-muted-foreground text-[12px] tabular-nums">{user.lastActive}</td>
                     <td className="p-3 text-center">
-                      <button
-                        onClick={() => handleDeleteUser(user.userId)}
-                        className="inline-flex items-center justify-center size-7 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer transition-colors"
-                        title="Revoke Access"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        {user.status === 'Invited' && (
+                          <button
+                            onClick={() => handleResendInvite(user.email)}
+                            className="inline-flex items-center justify-center size-7 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                            title="Re-send invitation email"
+                          >
+                            <Send className="size-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteUser(user.userId)}
+                          className="inline-flex items-center justify-center size-7 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer transition-colors"
+                          title="Revoke Access"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -486,52 +548,55 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
             </div>
           </div>
 
-          {/* Permission checklist */}
+          {/* Permission checklist — parent/child checkbox tree */}
           {selectedPermissionUser && (
             <div className="bg-card border border-border rounded-xl shadow-card overflow-hidden">
               <div className="bg-muted/40 border-b border-border px-4 py-2.5">
                 <span className="text-[13px] font-medium text-foreground">Module Access for {selectedPermissionUser.name}</span>
                 <span className="text-[11px] text-muted-foreground ml-2">({selectedPermissionUser.role})</span>
+                <span className="text-[11px] text-muted-foreground ml-3">Check a feature to add it to this user's profile.</span>
               </div>
-              <table className="w-full text-left text-[13px] text-foreground">
-                <thead>
-                  <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    <th className="p-3 font-semibold">Module</th>
-                    <th className="p-3 text-center font-semibold">View</th>
-                    <th className="p-3 text-center font-semibold">Edit</th>
-                    <th className="p-3 text-center font-semibold">No Access</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {(['CRM', 'ORDERS', 'ACCOUNTING', 'SYSTEM'].map(group => ({
-                    group,
-                    items: permissionModules.filter(m => m.module === group)
-                  }))).map(({ group, items }) => (
-                    <>
-                      <tr key={group} className="bg-muted/20">
-                        <td colSpan={4} className="p-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{group}</td>
-                      </tr>
-                      {items.map((mod) => {
-                        const current = userPermissions[mod.code] || 'none';
-                        return (
-                          <tr key={mod.code} className="hover:bg-accent/50 transition-colors">
-                            <td className="p-3 font-medium text-foreground">{mod.label}</td>
-                            <td className="p-3 text-center">
-                              <input type="radio" name={mod.code} checked={current === 'view'} onChange={() => togglePermission(mod.code, 'view')} className="size-4 cursor-pointer accent-primary" />
-                            </td>
-                            <td className="p-3 text-center">
-                              <input type="radio" name={mod.code} checked={current === 'edit'} onChange={() => togglePermission(mod.code, 'edit')} className="size-4 cursor-pointer accent-primary" />
-                            </td>
-                            <td className="p-3 text-center">
-                              <input type="radio" name={mod.code} checked={current === 'none'} onChange={() => togglePermission(mod.code, 'none')} className="size-4 cursor-pointer accent-muted-foreground" />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </>
-                  ))}
-                </tbody>
-              </table>
+              <div className="divide-y divide-border">
+                {['CRM', 'ORDERS', 'ACCOUNTING', 'SYSTEM'].map(group => {
+                  const items = permissionModules.filter(m => m.module === group);
+                  const onCount = items.filter(m => userPermissions[m.code]).length;
+                  const allOn = items.length > 0 && onCount === items.length;
+                  const someOn = onCount > 0 && !allOn;
+                  return (
+                    <div key={group}>
+                      {/* Parent — the domain */}
+                      <label className="flex items-center gap-3 px-4 py-3 bg-muted/20 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={allOn}
+                          ref={(el) => { if (el) el.indeterminate = someOn; }}
+                          onChange={(e) => toggleDomain(group, e.target.checked)}
+                          className="size-4 cursor-pointer accent-primary"
+                        />
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground">{group}</span>
+                        <span className="text-[11px] text-muted-foreground">{onCount}/{items.length} features</span>
+                      </label>
+                      {/* Children — the features */}
+                      <div className="divide-y divide-border border-t border-border">
+                        {items.map((mod) => (
+                          <label
+                            key={mod.code}
+                            className="flex items-center gap-3 px-4 py-2.5 pl-10 cursor-pointer select-none hover:bg-accent/40 transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!!userPermissions[mod.code]}
+                              onChange={(e) => togglePermission(mod.code, e.target.checked)}
+                              className="size-4 cursor-pointer accent-primary"
+                            />
+                            <span className="text-[13px] text-foreground">{mod.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
           {!selectedPermissionUser && (
@@ -542,46 +607,54 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
         </div>
       )}
 
-      {/* Roles & Permissions tab */}
-      {activeSubTab === 'roles' && (
-        <div className="space-y-4">
-          {roles.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground text-[13px]">No role definitions found in database.</div>
-          ) : (
-            roles.map((role) => (
-              <div key={role.id} className="bg-card border border-border rounded-xl shadow-card p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="text-[15px] font-semibold text-foreground">{role.label}</h3>
-                    <p className="text-[12px] text-muted-foreground mt-0.5">{role.description}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {role.is_system && (
-                      <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border uppercase">System</span>
-                    )}
-                    {role.can_sign_off && (
-                      <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 uppercase">Can Sign Off</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {role.permissions?.map((perm, idx) => (
-                    <span key={idx} className="inline-flex items-center text-[11px] font-medium px-2 py-1 rounded-md bg-muted/40 text-muted-foreground border border-border">
-                      <Shield className="size-3 mr-1" />
-                      {perm}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Invitations tab */}
+      {/* Invitations tab — users who haven't set a password yet */}
       {activeSubTab === 'invitations' && (
-        <div className="bg-card border border-border rounded-xl shadow-card p-8 text-center">
-          <p className="text-[13px] text-muted-foreground">No pending invitations.</p>
+        <div className="bg-card border border-border rounded-xl shadow-card overflow-hidden">
+          {users.filter(u => u.status === 'Invited').length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-[13px]">No pending invitations.</div>
+          ) : (
+            <table className="w-full text-left text-[13px] text-foreground">
+              <thead>
+                <tr className="bg-muted/40 border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="p-3 font-semibold">User</th>
+                  <th className="p-3 font-semibold">Email</th>
+                  <th className="p-3 font-semibold">Role</th>
+                  <th className="p-3 font-semibold">Status</th>
+                  <th className="p-3 text-center font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {users.filter(u => u.status === 'Invited').map((user, index) => (
+                  <tr key={`${user.userId || user.id}-invite-${index}`} className="hover:bg-accent/50 transition-colors">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="size-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[11px] font-semibold">
+                          {user.avatarInitials}
+                        </div>
+                        <span className="font-medium text-foreground">{user.name}</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{user.email}</td>
+                    <td className="p-3 text-muted-foreground">{roleLabels[user.role] || user.role}</td>
+                    <td className="p-3">
+                      <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase bg-warning/10 text-warning border-warning/20">
+                        Awaiting password
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <button
+                        onClick={() => handleResendInvite(user.email)}
+                        className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 text-[12px] font-medium cursor-pointer transition-colors"
+                      >
+                        <Send className="size-3.5" />
+                        Re-send invite
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>

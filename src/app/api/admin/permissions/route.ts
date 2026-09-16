@@ -10,8 +10,12 @@ async function getPgClient() {
   return client;
 }
 
+// The module tree the admin can check per user — parent = domain, children =
+// the features inside it. Adding a line here adds a checkbox in the admin
+// panel; nothing is predefined per role.
 const MODULES = [
   { code: 'crm:dashboard', label: 'CRM Dashboard', module: 'CRM' },
+  { code: 'crm:quick-actions', label: 'Quick Actions', module: 'CRM' },
   { code: 'crm:customers', label: 'Customers', module: 'CRM' },
   { code: 'crm:pets', label: 'Pets & Patients', module: 'CRM' },
   { code: 'crm:appointments', label: 'Appointments', module: 'CRM' },
@@ -39,6 +43,29 @@ const MODULES = [
   { code: 'system:settings', label: 'Admin Settings', module: 'SYSTEM' },
 ];
 
+const VALID_CODES = new Set(MODULES.map(m => m.code));
+
+// The owner's live platform_module_permissions table has CHECK constraints
+// (module_code ∈ a fixed 14-code enum, access_level ∈ none/read/write/full)
+// and a staff_id → crm_staff foreign key — values this app's module tree
+// cannot satisfy, so NOTHING ever persisted through it (same in the source
+// repo). His schema is left untouched; per-user feature grants live in this
+// app-owned table keyed by the AUTH user id, RLS enabled with no policies so
+// only the server (service/postgres role) can read or write it.
+async function ensureTable(pgClient: pg.Client) {
+  await pgClient.query(`
+    CREATE TABLE IF NOT EXISTS public.user_module_access (
+      user_id UUID NOT NULL,
+      module_code TEXT NOT NULL,
+      access_level TEXT NOT NULL DEFAULT 'edit',
+      granted_by UUID,
+      granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, module_code)
+    );
+    ALTER TABLE public.user_module_access ENABLE ROW LEVEL SECURITY;
+  `);
+}
+
 export async function GET(req: NextRequest) {
   const gate = await requireAdminApi();
   if (gate) return gate;
@@ -49,20 +76,24 @@ export async function GET(req: NextRequest) {
     const pgClient = await getPgClient();
     if (!pgClient) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
 
-    await pgClient.query(`CREATE TABLE IF NOT EXISTS public.platform_permission_registry (permission_code TEXT PRIMARY KEY, module TEXT NOT NULL, description TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
-    const count = await pgClient.query("SELECT count(*) FROM public.platform_permission_registry");
-    if (parseInt(count.rows[0].count) === 0) {
-      for (const m of MODULES) { await pgClient.query("INSERT INTO public.platform_permission_registry (permission_code, module, description) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING", [m.code, m.module, m.label]); }
-    }
-    await pgClient.query(`CREATE TABLE IF NOT EXISTS public.platform_module_permissions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001', staff_id UUID, module_code TEXT NOT NULL, access_level TEXT DEFAULT 'view', granted_by UUID, granted_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(staff_id, module_code))`);
+    await ensureTable(pgClient);
 
     let userPerms: any[] = [];
     if (userId) {
-      const res = await pgClient.query("SELECT module_code, access_level FROM public.platform_module_permissions WHERE staff_id::text = $1", [userId]);
+      const res = await pgClient.query(
+        "SELECT module_code, access_level FROM public.user_module_access WHERE user_id::text = $1",
+        [userId]
+      );
       userPerms = res.rows;
     }
     await pgClient.end();
-    return NextResponse.json({ modules: MODULES, userPermissions: userPerms.reduce((acc: Record<string, string>, p: any) => { acc[p.module_code] = p.access_level; return acc; }, {}) });
+    return NextResponse.json({
+      modules: MODULES,
+      userPermissions: userPerms.reduce((acc: Record<string, string>, p: any) => {
+        acc[p.module_code] = p.access_level;
+        return acc;
+      }, {}),
+    });
   } catch (err: any) {
     console.error("[GET /api/admin/permissions]", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -76,13 +107,26 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { userId, moduleCode, accessLevel } = body;
-    if (!userId || !moduleCode) return NextResponse.json({ error: "userId and moduleCode required" }, { status: 400 });
+    if (!userId || !moduleCode || !VALID_CODES.has(moduleCode)) {
+      return NextResponse.json({ error: "userId and a valid moduleCode are required" }, { status: 400 });
+    }
     const pgClient = await getPgClient();
     if (!pgClient) return NextResponse.json({ error: "DB unavailable" }, { status: 500 });
+
+    await ensureTable(pgClient);
+
     if (accessLevel === 'none') {
-      await pgClient.query("DELETE FROM public.platform_module_permissions WHERE staff_id::text = $1 AND module_code = $2", [userId, moduleCode]);
+      await pgClient.query(
+        "DELETE FROM public.user_module_access WHERE user_id::text = $1 AND module_code = $2",
+        [userId, moduleCode]
+      );
     } else {
-      await pgClient.query(`INSERT INTO public.platform_module_permissions (tenant_id, staff_id, module_code, access_level, granted_at) VALUES ('00000000-0000-0000-0000-000000000001', $1, $2, $3, NOW()) ON CONFLICT (staff_id, module_code) DO UPDATE SET access_level = EXCLUDED.access_level, granted_at = NOW()`, [userId, moduleCode, accessLevel || 'view']);
+      await pgClient.query(
+        `INSERT INTO public.user_module_access (user_id, module_code, access_level, granted_at)
+         VALUES ($1, $2, 'edit', NOW())
+         ON CONFLICT (user_id, module_code) DO UPDATE SET access_level = 'edit', granted_at = NOW()`,
+        [userId, moduleCode]
+      );
     }
     await pgClient.end();
     return NextResponse.json({ success: true });

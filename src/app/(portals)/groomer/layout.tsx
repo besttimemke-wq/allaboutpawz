@@ -39,29 +39,54 @@ export default function GroomerLayout({ children }: { children: React.ReactNode 
     return unsub;
   }, []);
 
+  // Auth gate — the SERVER session (pawz_session cookie) is the single
+  // source of truth. On mount we reconcile: a stale persisted user from a
+  // previous sign-in on this browser is replaced by the server's answer
+  // BEFORE any role redirect fires (prevents wrong-portal bounces), and no
+  // server session at all clears the store and sends the visitor to the
+  // Groomer door, never the public site.
+  const [sessionChecked, setSessionChecked] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!hasHydrated) return;
-    if (!currentUser) {
-      let cancelled = false;
-      (async () => {
-        try {
-          const res = await fetch('/api/auth/portal-session');
-          const data = await res.json();
-          if (!cancelled && data?.user) {
-            useAppStore.getState().setUser(data.user);
-            return;
-          }
-        } catch {
-          // network hiccup — fall through to the door
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/portal-session');
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.user) {
+          useAppStore.getState().setUser(data.user);
+        } else {
+          useAppStore.getState().setUser(null);
+          router.replace('/access-groomer');
+          return;
         }
-        if (!cancelled) router.replace('/access-groomer');
-      })();
-      return () => { cancelled = true; };
+      } catch {
+        // network hiccup — fall back to the persisted store below
+      }
+      if (!cancelled) setSessionChecked(true);
+    })();
+    return () => { cancelled = true; };
+  }, [hasHydrated, router]);
+
+  // Scope enforcement — only after the server session has spoken.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!hasHydrated || !sessionChecked) return;
+    if (!currentUser) {
+      router.replace('/access-groomer');
+      return;
     }
-    if (currentUser.role === 'admin') { router.replace('/admin/dashboard'); return; }
-    if (currentUser.role === 'customer') { router.replace('/customer/dashboard'); return; }
-  }, [hasHydrated, currentUser, router]);
+    if (currentUser.role === 'admin') {
+      router.replace('/admin/dashboard');
+      return;
+    }
+    if (currentUser.role === 'customer') {
+      router.replace('/customer/dashboard');
+      return;
+    }
+  }, [hasHydrated, sessionChecked, currentUser, router]);
 
   if (!hasHydrated || !currentUser || currentUser.role !== 'groomer') {
     return (

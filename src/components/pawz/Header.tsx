@@ -187,7 +187,7 @@ export const Header: React.FC<HeaderProps> = ({
     'rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-9 w-9 flex items-center justify-center transition-colors duration-150 text-topbar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-topbar';
 
   return (
-    <header className="sticky top-0 z-30 flex-shrink-0 select-none bg-topbar text-topbar-foreground border-b border-topbar-border">
+    <header className="sticky top-0 z-30 flex-shrink-0 select-none bg-topbar text-topbar-foreground">
       {/* Top bar — global utilities only (no duplicate brand, no page CTAs) */}
       <div className="h-14 px-3 sm:px-4 flex items-center justify-between gap-2">
         {/* Left: mobile menu + sidebar toggle */}
@@ -355,7 +355,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Sub-nav — pillar pills only (sub-routes are icons on the page itself) */}
-      <div className="h-10 px-3 sm:px-4 flex items-center gap-1 border-t border-topbar-border overflow-x-auto custom-scrollbar bg-topbar text-topbar-foreground">
+      <div className="h-10 px-3 sm:px-4 flex items-center gap-1 overflow-x-auto custom-scrollbar bg-topbar text-topbar-foreground">
         {pillars.map((pillar) => {
           const isSelected = activePillar === pillar.id;
           return (
