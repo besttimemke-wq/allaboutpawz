@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import {
   PORTALS,
   PortalId,
+  autoDestination,
   resolvePortalUser,
   sessionCookieOptions,
   SESSION_COOKIE_NAME,
@@ -14,11 +15,13 @@ import { createServerSupabase } from "@/lib/auth/server";
 
 // ============================================================================
 // POST /api/auth/login
-// Email + password sign-in, used by all five bifurcated auth pages
-// (/access-customer, /access-groomer, /access-frontdesk, /admin-login,
-// /learn/sign-in). The client sends ONLY credentials + which door was used;
-// the server resolves the role, validates the door, issues the session
-// cookie, and returns the destination.
+// Email + password sign-in. TWO contracts:
+//   1. THE REPO'S (Serviceportals — the imported LandingLoginView sends ONLY
+//      { email, password }): no portal, no door validation — the server
+//      resolves the role from the salon records and routes by it.
+//   2. The door contract (bifurcated pages): { email, password, portal } —
+//      same resolution, then the door is validated server-side.
+// The client NEVER decides its own role in either contract.
 // ============================================================================
 
 export async function POST(req: NextRequest) {
@@ -34,7 +37,7 @@ export async function POST(req: NextRequest) {
     if (!password) {
       return NextResponse.json({ error: "Enter your password." }, { status: 400 });
     }
-    if (!PORTALS[portal]) {
+    if (portal && !PORTALS[portal]) {
       return NextResponse.json({ error: "Unknown sign-in portal." }, { status: 400 });
     }
     if (!supabaseConfigured()) {
@@ -65,17 +68,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Validate the door.
-    const validation = validatePortalAccess(portal, resolved);
-    if (!validation.ok) {
-      return NextResponse.json({ error: validation.error }, { status: 403 });
+    // 3. Validate the door — ONLY when a portal was sent (the repo's
+    //    contract sends none: the database alone decides).
+    if (portal) {
+      const validation = validatePortalAccess(portal, resolved);
+      if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: 403 });
+      }
     }
 
-    // 4. Issue the portal session cookie + optional redirect override
-    //    (?redirect= from the door URL, restricted to same-site paths).
+    // 4. Issue the portal session cookie + destination. No portal → the
+    //    repo's rule: route by the resolved salon record. Door flow → the
+    //    door's destination, with the same-site ?redirect= override.
     cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions());
 
-    let redirectTo = validation.redirectTo || PORTALS[portal].destination;
+    let redirectTo = autoDestination(resolved);
+    if (portal) {
+      redirectTo = PORTALS[portal].destination;
+    }
     const requested = typeof body?.redirect === "string" ? body.redirect : "";
     if (requested && requested.startsWith("/") && !requested.startsWith("//")) {
       redirectTo = requested;

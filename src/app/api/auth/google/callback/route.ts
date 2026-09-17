@@ -4,6 +4,7 @@ import {
   PORTALS,
   PortalId,
   ResolvedPortalUser,
+  autoDestination,
   consumeOAuthState,
   exchangeGoogleCode,
   findAuthUserByEmail,
@@ -108,6 +109,10 @@ export async function GET(req: NextRequest) {
     return redirectToPath(doorUrl("customer", "This sign-in link is invalid or has expired. Please try again."));
   }
   const portal = stateRow.portal;
+  // AUTO = the ORIGINAL repo's flow (/api/auth/google): "DB is source of
+  // truth" — no door validation, destination by resolved role, unknown
+  // emails rejected (the salon gate).
+  const autoFlow = stateRow.redirectTo === "AUTO";
 
   if (googleError) {
     return redirectToPath(doorUrl(portal, "Google sign-in was cancelled or failed."));
@@ -154,57 +159,83 @@ export async function GET(req: NextRequest) {
   }
 
   if (!authUser) {
-    // Case b — staff doors REJECT unknown emails (accounts must be
-    // admin-provisioned first).
-    if (portal === "groomer") {
-      return redirectToPath(doorUrl(portal, "No groomer account found for this email. Contact your admin."));
-    }
-    if (portal === "frontdesk") {
-      return redirectToPath(doorUrl(portal, "No front desk account found for this email. Contact your admin."));
-    }
-    if (portal === "admin") {
-      return redirectToPath(doorUrl(portal, "No admin account found for this email. Contact your admin."));
-    }
-
-    // Case a — customer/lms doors create the account.
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email: profile.email,
-      email_confirm: true,
-      user_metadata: {
-        full_name: profile.name || profile.email.split("@")[0],
-        avatar_url: profile.picture,
-        role: "customer",
-        google_sub: profile.sub,
-        google_linked: true,
-      },
-    });
-    if (createError || !created?.user) {
-      return redirectToPath(doorUrl(portal, createError?.message || "Could not create your account."));
-    }
-    // Provision the customer records so the customer scope resolves.
-    const nameParts = (profile.name || profile.email.split("@")[0]).split(" ");
-    try {
-      const { data: existingCustomer } = await admin
-        .from("customers")
-        .select("id")
-        .eq("email", profile.email)
-        .limit(1);
-      if (!existingCustomer || existingCustomer.length === 0) {
-        await admin.from("customers").insert({
-          firstName: nameParts[0] || "",
-          lastName: nameParts.slice(1).join(" ") || "",
-          email: profile.email,
-          customerStatus: "ACTIVE",
-          userId: created.user.id,
-        });
-      } else {
-        await admin.from("customers").update({ userId: created.user.id }).eq("id", (existingCustomer[0] as any).id);
+    if (autoFlow) {
+      // THE REPO'S SALON GATE — unknown emails are REJECTED, no public
+      // self-registration. Clients are created at checkout, booking, or
+      // walk-in; staff are admin-provisioned. The single carve-out:
+      // owner-declared ADMIN_EMAILS bootstrap the owner's own account.
+      const declaredAdmin = (process.env.ADMIN_EMAILS || "")
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+        .includes(profile.email);
+      if (!declaredAdmin) {
+        return redirectToPath(doorUrl(portal, `${profile.email} is not registered at this salon. Access is gated — you must be an existing client (created at checkout, booking, or walk-in) or staff (pre-created by an administrator) before you can sign in. Please contact the salon to be set up.`));
       }
-    } catch (e: any) {
-      // Customer row provisioning is best-effort; the auth user exists.
-      console.warn("[google/callback] customer provisioning:", e?.message);
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email: profile.email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: profile.name || profile.email.split("@")[0],
+          avatar_url: profile.picture,
+          role: "admin",
+          google_sub: profile.sub,
+          google_linked: true,
+        },
+      });
+      if (createError || !created?.user) {
+        return redirectToPath(doorUrl(portal, createError?.message || "Could not create your account."));
+      }
+      authUser = created.user;
+    } else if (portal === "groomer") {
+      // Case b — staff doors REJECT unknown emails (accounts must be
+      // admin-provisioned first).
+      return redirectToPath(doorUrl(portal, "No groomer account found for this email. Contact your admin."));
+    } else if (portal === "frontdesk") {
+      return redirectToPath(doorUrl(portal, "No front desk account found for this email. Contact your admin."));
+    } else if (portal === "admin") {
+      return redirectToPath(doorUrl(portal, "No admin account found for this email. Contact your admin."));
+    } else {
+      // Case a — customer/lms doors create the account.
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email: profile.email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: profile.name || profile.email.split("@")[0],
+          avatar_url: profile.picture,
+          role: "customer",
+          google_sub: profile.sub,
+          google_linked: true,
+        },
+      });
+      if (createError || !created?.user) {
+        return redirectToPath(doorUrl(portal, createError?.message || "Could not create your account."));
+      }
+      // Provision the customer records so the customer scope resolves.
+      const nameParts = (profile.name || profile.email.split("@")[0]).split(" ");
+      try {
+        const { data: existingCustomer } = await admin
+          .from("customers")
+          .select("id")
+          .eq("email", profile.email)
+          .limit(1);
+        if (!existingCustomer || existingCustomer.length === 0) {
+          await admin.from("customers").insert({
+            firstName: nameParts[0] || "",
+            lastName: nameParts.slice(1).join(" ") || "",
+            email: profile.email,
+            customerStatus: "ACTIVE",
+            userId: created.user.id,
+          });
+        } else {
+          await admin.from("customers").update({ userId: created.user.id }).eq("id", (existingCustomer[0] as any).id);
+        }
+      } catch (e: any) {
+        // Customer row provisioning is best-effort; the auth user exists.
+        console.warn("[google/callback] customer provisioning:", e?.message);
+      }
+      authUser = created.user;
     }
-    authUser = created.user;
   } else if (!googleIdentityLinked(authUser)) {
     // Case c — link the Google identity to the existing account. The GoTrue
     // admin API has no linkIdentity (that is a user-session method), so the
@@ -220,21 +251,26 @@ export async function GET(req: NextRequest) {
   }
   // Case d — already linked: fall through to login.
 
-  // 5. Resolve + validate the portal (role confusion is impossible: the
-  //    portal came from the server-stored state, the role from Supabase).
+  // 5. Resolve who this is (server-side only — never trusted from client).
   const resolved: ResolvedPortalUser | null = await resolvePortalUser(authUser.id).catch(() => null);
   if (!resolved) {
     return redirectToPath(doorUrl(portal, "Your account has no profile records. Contact your admin."));
   }
+
+  // 6. Set the session cookie and redirect (relative) so the browser stays on
+  //    the origin it is on. AUTO (the repo's flow): the DATABASE decides the
+  //    destination — no door validation, route by the resolved salon record.
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions());
+
+  if (autoFlow) {
+    return redirectToPath(autoDestination(resolved));
+  }
+
   const validation = validatePortalAccess(portal, resolved);
   if (!validation.ok) {
     return redirectToPath(doorUrl(portal, validation.error || "This account cannot use this sign-in page."));
   }
-
-  // 6. Set the session cookie and redirect (relative) to the state-specified
-  //    destination — the browser stays on the origin it is on.
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions());
 
   return redirectToPath(stateRow.redirectTo);
 }

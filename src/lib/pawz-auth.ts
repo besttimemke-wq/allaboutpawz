@@ -355,6 +355,16 @@ export interface PortalValidationResult {
   error?: string;
 }
 
+/** The ORIGINAL repo's routing rule (Serviceportals /api/auth/google):
+ *  "DB is source of truth" — the destination comes from the resolved salon
+ *  identity, never from the door, a URL param, or anything the user picked. */
+export function autoDestination(user: ResolvedPortalUser): string {
+  if (user.scope === "admin") return "/admin/dashboard";
+  if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) return "/admin/dashboard";
+  if (user.scope === "employee") return "/groomer/dashboard";
+  return "/customer/dashboard";
+}
+
 export function validatePortalAccess(portal: PortalId, user: ResolvedPortalUser): PortalValidationResult {
   const def = PORTALS[portal];
 
