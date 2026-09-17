@@ -519,7 +519,7 @@ export async function platformAudit(
   },
 ): Promise<void> {
   await client.query(
-    `INSERT INTO public.platform_audit_log (tenant_id, actor_user_id, actor_role, action, target_entity_type, target_entity_id, metadata)
+    `INSERT INTO lms.platform_audit_log (tenant_id, actor_user_id, actor_role, action, target_entity_type, target_entity_id, metadata)
      VALUES ($1, $2::uuid, $3, $4, $5, $6::uuid, $7::jsonb)`,
     [TENANT_ID(), entry.actorUserId || null, entry.actorRole || "system", entry.action,
       entry.targetType, entry.targetId || null, JSON.stringify(entry.metadata ?? {})],

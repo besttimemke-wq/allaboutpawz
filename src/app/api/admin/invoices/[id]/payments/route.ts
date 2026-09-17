@@ -105,14 +105,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     );
     const invoiceRow = updated.rows[0];
 
-    // Ledger row — deterministic payment number: PAY-<INV####>-<n> so Stripe
-    // retries and double submissions converge on the same row.
+    // Ledger row — payment number keyed to the INVOICE's unique id (not the
+    // display number): PAY-<id8>-<n>. The id never gets reused, so a deleted
+    // invoice can never free a number that collides with a future one.
     const count = await client.query(
       `SELECT count(*)::int AS n FROM public.commerce_payments
        WHERE tenant_id = $1 AND external_reference = $2`,
       [tenant, id],
     );
-    const paymentNumber = `PAY-${String(inv.number || id.slice(0, 8)).replace(/^INV-/, "INV")}-${(count.rows[0]?.n || 0) + 1}`;
+    const paymentNumber = `PAY-${id.replace(/-/g, "").slice(0, 8).toUpperCase()}-${(count.rows[0]?.n || 0) + 1}`;
 
     let crmCustomerId: string | null = null;
     if (inv.customer_email) {

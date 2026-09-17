@@ -414,8 +414,25 @@ function CreateInvoiceModal({
 
   useEffect(() => {
     fetch('/api/bookings')
-      .then((r) => r.ok ? r.json() : { bookings: [] })
-      .then((d) => setBookings(Array.isArray(d) ? d : (d.bookings || [])))
+      .then((r) => r.ok ? r.json() : {})
+      .then((d) => {
+        // /api/bookings returns { appointments: [...] } with customerName /
+        // customerEmail / petName / serviceName; map onto the BookingOption
+        // shape (ownerName / email / dogName / service) this picker uses.
+        const raw = Array.isArray(d) ? d : (d.appointments || d.bookings || []);
+        setBookings(raw.map((a: any) => ({
+          id: String(a.id),
+          ownerName: a.ownerName || a.customerName || '—',
+          dogName: a.dogName || a.petName || '',
+          service: a.service || a.serviceName || 'Grooming',
+          servicePrice: String(a.servicePrice ?? a.price ?? '0'),
+          depositAmount: String(a.depositAmount ?? '0'),
+          date: a.date || '',
+          time: a.time || '',
+          email: a.email || a.customerEmail || '',
+          status: a.status || '',
+        })));
+      })
       .catch(() => setBookings([]))
       .finally(() => setBookingsLoading(false));
   }, []);

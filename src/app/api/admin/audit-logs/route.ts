@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const result = await pgClient.query(
       `SELECT id::text, created_at, action, actor_role, target_entity_type,
               target_entity_id::text, metadata
-       FROM public.platform_audit_log
+       FROM lms.platform_audit_log
        WHERE tenant_id = $1
        ORDER BY created_at DESC
        LIMIT 50`,
