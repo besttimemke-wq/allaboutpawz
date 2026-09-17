@@ -15,9 +15,15 @@ import { SITE_URL } from "@/lib/site-url";
 // defaults (consent-boot.ts) so the tags boot cookie-less while the visitor
 // has not opted in. This is Google's documented Consent Mode v2 pattern and
 // what Tag Assistant / the GA4 & GTM installation checkers detect.
+//
+// The IDs are PUBLIC values (they appear in every page's HTML by design —
+// Google's own snippet ships the measurement ID in plain text), so they are
+// hardcoded as DEFAULTS here: the tags fire on every deployment with zero
+// environment configuration. Env vars still override if the owner ever
+// re-points them.
 // ---------------------------------------------------------------------------
-const GA4_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID;
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
+const GA4_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID || "G-7EVNS33CKD";
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-WT35373V";
 
 // Organization + WebSite structured data (server-rendered JSON-LD).
 const SITE_JSON_LD = {

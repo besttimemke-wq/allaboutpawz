@@ -59,3 +59,6 @@ server.log
 *.pem
 .env*
 .env.backup
+
+# owner pasted screenshots/uploads — local only
+/upload/
