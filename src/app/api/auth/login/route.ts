@@ -101,6 +101,8 @@ export async function POST(req: NextRequest) {
         role: resolved.role,
         stationName: resolved.stationName,
         avatarUrl: resolved.avatarUrl,
+        membershipRole: resolved.membershipRole,
+        scope: resolved.scope,
       },
       redirectTo,
     });

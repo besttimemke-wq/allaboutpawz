@@ -88,6 +88,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace('/customer/dashboard');
       return;
     }
+    // Front desk employees resolve role='admin' with a front_desk membership —
+    // they are NOT real admins and belong in THEIR portal, never the admin OS.
+    if (
+      user.role === 'admin' &&
+      ['front_desk', 'frontdesk', 'reception'].includes(String(user.membershipRole || '').toLowerCase())
+    ) {
+      router.replace('/frontdesk/dashboard');
+      return;
+    }
   }, [session.isResolved, session.user, router]);
 
   if (!hasHydrated || !currentUser || currentUser.role !== 'admin') {

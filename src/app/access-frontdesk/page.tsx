@@ -1,4 +1,4 @@
-import { AuthShell, DoorDivider, DoorHint } from '@/components/pawz/auth/AuthShell';
+import { AuthShell, DoorHint } from '@/components/pawz/auth/AuthShell';
 import { EmailPasswordForm } from '@/components/pawz/auth/EmailPasswordForm';
 
 // ============================================================================
@@ -40,7 +40,6 @@ export default async function AccessFrontDeskPage({
         <br />
         Google sign-in is not offered on this desk.
       </DoorHint>
-      <DoorDivider />
       <EmailPasswordForm
         portal="frontdesk"
         submitLabel="SIGN IN"
