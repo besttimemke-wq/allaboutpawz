@@ -10,28 +10,33 @@ import {
   newBrowserBinding,
   OAUTH_BROWSER_COOKIE,
   productionRelayCallbackUri,
-  productionRelayStatus,
   redirectUriRegistered,
 } from "@/lib/pawz-auth";
 
 // ============================================================================
 // GET /api/auth/google
 //
-// THE OWNER'S ORIGINAL ROUTE (Serviceportals), restored as the primary Google
-// sign-in entry. The Google button on his imported LandingLoginView navigates
-// here. His contract, kept exactly:
-//   - ?portal=admin|groomer is INFORMATIONAL ONLY — "DB is source of truth".
-//     The callback resolves the user's role from their salon records and
-//     routes to that role's dashboard (/admin, /groomer, /customer).
-//   - The redirect_uri is the registered callback for the origin the browser
-//     is on (verified live); sandbox preview origins ride the registered
-//     production callback via the relay — never a per-preview registration.
+// THE OWNER'S ROUTE (Serviceportals) — the one and only Google sign-in entry.
+// The Google button on his imported LandingLoginView navigates here. His
+// contract, kept exactly:
+//   - ?portal is INFORMATIONAL ONLY — the DATABASE resolves the user's role
+//     in the callback and routes to that role's dashboard. Nothing the user
+//     picked is ever trusted.
+//   - The redirect_uri is a REGISTERED callback, resolved the way his repo
+//     resolves it — never the live host when the live host is a sandbox
+//     preview:
+//       1. If the origin's own callback IS registered on the Google client
+//          (production, or any origin added in the console later — verified
+//          live, cached 60 s), the flow runs direct against it.
+//       2. Otherwise the flow runs against the REGISTERED production callback
+//          (https://aapawz.com/api/auth/google/callback) — exactly his
+//          repo's strategy. Preview flows additionally record returnOrigin
+//          in the signed server-side state, so the callback relays the
+//          browser back to the preview to finish sign-in there — active the
+//          moment the current build answers on the registered callback.
 //
-// Under the hood this uses the same OAuth engine as /api/auth/google/start
-// (single-use signed server-side state, browser-binding CSRF guard), but the
-// state's redirect_to is "AUTO": the callback routes by resolved role instead
-// of by door, and unknown emails are rejected — his salon gate (no public
-// self-registration; clients are created at checkout/booking/walk-in).
+// This route NEVER renders a message — every path is a redirect. If sign-in
+// cannot start, the browser simply lands back on the sign-in page, clean.
 // ============================================================================
 
 function isLocalHost(host: string): boolean {
@@ -59,7 +64,7 @@ function realOrigin(req: NextRequest): string {
   return (req.nextUrl.origin || process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
 }
 
-/** Which door did the click come from? (For error bounces only — the actual
+/** Which door did the click come from? (Bounce destination only — the actual
  *  routing is decided by the database at callback time.) */
 function portalFromReferer(referer: string | null, fallback: PortalId): PortalId {
   if (!referer) return fallback;
@@ -87,16 +92,15 @@ export async function GET(req: NextRequest) {
   const referer = req.headers.get("referer");
 
   // The portal hint is informational (his design). It is used ONLY to pick
-  // the door an error message bounces back to.
+  // the door the browser returns to — never to decide access.
   const portal: PortalId =
     portalParam && PORTALS[portalParam]
       ? portalParam
       : portalFromReferer(referer, "customer");
 
   if (!googleConfigured()) {
-    return redirectToPath(`${PORTALS[portal].door}?error=${encodeURIComponent(
-      "Google sign-in is not configured on this deployment yet. Use email and password for now.",
-    )}`);
+    // Cannot start — land on the sign-in page, clean. No message.
+    return redirectToPath(PORTALS[portal].door);
   }
 
   const origin = realOrigin(req);
@@ -106,28 +110,15 @@ export async function GET(req: NextRequest) {
   let returnOrigin: string | null = null;
 
   if (!(await redirectUriRegistered(directUri))) {
+    // Unregistered origin — the flow rides the REGISTERED production callback,
+    // exactly like his repo (redirect_uri resolved from the registered site,
+    // never from the live host).
+    redirectUri = productionRelayCallbackUri();
     if (isPreviewOrigin(origin)) {
-      // Preview host — flow rides the REGISTERED production callback (his
-      // original strategy: the preview host is never registered with Google).
-      const relay = await productionRelayStatus();
-      if (relay.ok) {
-        redirectUri = productionRelayCallbackUri();
-        returnOrigin = origin;
-      } else {
-        const detail =
-          relay.status === 404
-            ? `production currently answers HTTP 404 on that route (an older build is live there)`
-            : relay.status === null
-              ? `that host is not answering right now`
-              : `production answers HTTP ${relay.status} on that route`;
-        return redirectToPath(`${PORTALS[portal].door}?error=${encodeURIComponent(
-          `Google sign-in on this preview runs through the registered callback ${productionRelayCallbackUri()} — no console changes needed. It activates the moment the current build is deployed: ${detail}. Until then, use email and password.`,
-        )}`);
-      }
-    } else {
-      return redirectToPath(`${PORTALS[portal].door}?error=${encodeURIComponent(
-        `Google sign-in is not activated for ${origin} yet. Add this exact Authorized redirect URI on the Google client: ${directUri} — it starts working within a minute of saving it.`,
-      )}`);
+      // Sandbox preview: record where the browser actually is so the callback
+      // can relay it back here to complete sign-in (single-use signed state,
+      // preview-pattern-restricted — see /api/auth/google/callback).
+      returnOrigin = origin;
     }
   }
 
@@ -136,9 +127,8 @@ export async function GET(req: NextRequest) {
   const binding = newBrowserBinding();
   const state = await createOAuthState(portal, "AUTO", redirectUri, returnOrigin, binding.hash);
   if (!state) {
-    return redirectToPath(`${PORTALS[portal].door}?error=${encodeURIComponent(
-      "Could not create a sign-in state. Please try again.",
-    )}`);
+    // Cannot start — land on the sign-in page, clean. No message.
+    return redirectToPath(PORTALS[portal].door);
   }
 
   const res = NextResponse.redirect(googleAuthUrl(state, redirectUri));

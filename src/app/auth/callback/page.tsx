@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/auth/client';
 
 // ============================================================================
@@ -26,15 +25,14 @@ import { createClient } from '@/lib/auth/client';
 // In both cases the server then resolves who landed (single source of
 // truth), issues the portal session cookie, and tells this page where to
 // go next: /auth/set-password, then the user's portal.
+//
+// A link that cannot complete (expired, already used, or anything else)
+// lands the browser back on the sign-in door — clean, no error card.
 // ============================================================================
-
-type Phase = 'working' | 'error';
 
 export default function AuthCallbackPage() {
   const router = useRouter();
   const started = useRef(false);
-  const [phase, setPhase] = useState<Phase>('working');
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (started.current) return; // strict double-invoke guard
@@ -58,8 +56,7 @@ export default function AuthCallbackPage() {
               refresh_token: refreshToken,
             });
             if (sessionError) {
-              setPhase('error');
-              setMessage('This sign-in link is invalid or has expired. Please try again.');
+              router.replace('/access-customer');
               return;
             }
             // Scrub the tokens from the address bar.
@@ -81,14 +78,9 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        setPhase('error');
-        setMessage(
-          data?.error ||
-            'This sign-in link is invalid or has expired. Please try again.',
-        );
-      } catch (err) {
-        setPhase('error');
-        setMessage('Could not complete sign-in from this link. Please try again.');
+        router.replace('/access-customer');
+      } catch {
+        router.replace('/access-customer');
       }
     })();
   }, [router]);
@@ -108,27 +100,12 @@ export default function AuthCallbackPage() {
         </div>
 
         <div className="bg-white rounded-3xl p-8 shadow-[0_10px_35px_-4px_rgba(0,0,0,0.04)] border border-slate-100 space-y-4">
-          {phase === 'working' ? (
-            <>
-              <div
-                className="w-8 h-8 mx-auto rounded-full border-2 border-slate-200 border-t-gold-deep animate-spin"
-                role="status"
-                aria-label="Signing in"
-              />
-              <p className="text-sm text-slate-500">Completing sign-in…</p>
-            </>
-          ) : (
-            <>
-              <h2 className="text-xl font-bold text-slate-900">This link didn&apos;t work</h2>
-              <p className="text-xs text-slate-500 leading-relaxed">{message}</p>
-              <Link
-                href="/access-customer"
-                className="inline-block px-5 py-2.5 bg-gold-deep hover:bg-ink text-white rounded-xl text-sm font-semibold transition"
-              >
-                Back to sign-in
-              </Link>
-            </>
-          )}
+          <div
+            className="w-8 h-8 mx-auto rounded-full border-2 border-slate-200 border-t-gold-deep animate-spin"
+            role="status"
+            aria-label="Signing in"
+          />
+          <p className="text-sm text-slate-500">Completing sign-in…</p>
         </div>
 
         <p className="mt-6 text-center text-[10px] text-slate-400">

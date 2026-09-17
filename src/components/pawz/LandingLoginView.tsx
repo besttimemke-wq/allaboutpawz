@@ -2,89 +2,79 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { 
-  Eye, 
-  EyeOff, 
-  ShieldCheck, 
-  Scissors, 
-  X, 
+import { createClient } from '@/lib/auth/client';
+import {
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  X,
   CheckCircle2,
   ArrowRight,
-  PawPrint,
-  Sparkles,
-  MapPin,
-  Phone,
-  Clock,
-  Instagram,
-  Facebook,
-  Heart,
   AlertCircle
 } from 'lucide-react';
 import { AuthUser } from '@/lib/types';
-import { DEMO_AUTH_USERS } from '@/lib/dawg-mock-data';
 
-// IMPORTED from the owner's Serviceportals repo
-// (src/components/pawz/LandingLoginView.tsx) — his correct auth page.
-// The ONLY changes from his file: (1) the unused `supabase` import was dropped
-// (it is never called in his code and the module does not exist in this
-// project), and (2) two optional WIRING props (initialMode / initialError) so
-// the door routes can mount this exact page. Every visual element, class,
-// string, handler, and fallback below is his original code.
+// The owner's Serviceportals auth page, adapted for DEDICATED ROUTES:
+// each door (/access-customer, /access-groomer, /access-frontdesk,
+// /admin-login, /learn/sign-in) renders this view locked to that door's
+// mode — there is no role switcher because the route IS the role door, and
+// the database is the source of truth anyway ("your portal is determined by
+// your salon record").
+//
+// What was removed from the imported original, and why:
+//   - The MEMBER/STAFF mode toggle and the 3-role staff tabs — redundant on
+//     dedicated routes, and a role the USER picks is never trusted.
+//   - The demo fallback logins (fake admin/groomer/customer users created
+//     client-side when the API failed) — those caused the fake-login-then-
+//     bounced-back circle. Only the real API result is ever trusted.
+//   - The silent default credentials ('Aapawzmemphis!' etc.) — exactly what
+//     the user typed is what gets sent, nothing else.
+//   - The registration modal (unreachable demo code with fake logins).
+//   - The fake "reset link sent" — the forgot-password flow now actually
+//     requests a real Supabase reset email.
+//
+// Every visual element, class, and string below is the owner's design.
 
 interface LandingLoginViewProps {
   onLogin: (user: AuthUser, initialSection?: string) => void;
-  /** Wiring: default mode for the door rendering this view. */
+  /** The door's fixed mode — there is no switching. */
   initialMode?: 'member' | 'staff';
-  /** Wiring: OAuth/API failure message from the door URL (?error=). */
+  /** The salon gate message from the door URL (?error=not_authorized). */
   initialError?: string;
 }
 
 export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, initialMode, initialError }) => {
-  // Login mode: 'member' or 'staff'
-  const [authMode, setAuthMode] = useState<'member' | 'staff'>(initialMode || 'member');
+  // Login mode — LOCKED to the door that renders this view.
+  const [authMode] = useState<'member' | 'staff'>(initialMode || 'member');
 
   // Member credentials
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Staff specific state
-  const [staffRole, setStaffRole] = useState<'admin' | 'groomer' | 'frontdesk'>('admin');
+  // Staff credentials
   const [staffPassword, setStaffPassword] = useState('');
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError || null);
 
-  // Modals
+  // Forgot-password modal
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [resetSentEmail, setResetSentEmail] = useState('');
-  const [registerModalOpen, setRegisterModalOpen] = useState(false);
-
-  // Registration modal state
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regPetName, setRegPetName] = useState('');
-  const [regPetBreed, setRegPetBreed] = useState('');
-  const [regSuccess, setRegSuccess] = useState(false);
+  const [resetSending, setResetSending] = useState(false);
 
   // Custom Google OAuth — redirects to /api/auth/google which sends the user
   // to Google's consent screen with our Client ID. Google returns to
   // /api/auth/google/callback where the server exchanges the code, fetches the
   // verified profile, queries the DB for the user's role, and routes them
   // to /admin/dashboard, /groomer/dashboard, or /customer/dashboard.
-  // Unknown emails are rejected with "Contact salon for access."
-  const handleGoogleSignIn = async () => {
+  // Unknown emails are rejected (the salon gate).
+  const handleGoogleSignIn = () => {
     setIsSubmitting(true);
     setErrorMessage(null);
-    try {
-      if (typeof window !== 'undefined') {
-        // Hand off to the server-side OAuth initiator
-        window.location.href = '/api/auth/google';
-      }
-    } catch (err: any) {
-      console.warn('Google OAuth initiation notice:', err?.message);
-      setErrorMessage(err?.message || 'Failed to initialize Google OAuth.');
-      setIsSubmitting(false);
+    if (typeof window !== 'undefined') {
+      // Hand off to the server-side OAuth initiator
+      window.location.href = '/api/auth/google';
     }
   };
 
@@ -93,7 +83,8 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const emailToUse = (usernameOrEmail.trim() || 'allaboutpawz901@gmail.com').toLowerCase();
+    // Exactly what the user typed — no silent defaults, ever.
+    const emailToUse = usernameOrEmail.trim().toLowerCase();
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -101,7 +92,7 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: emailToUse,
-          password: password || 'Aapawzmemphis!',
+          password,
         }),
       });
 
@@ -110,44 +101,13 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
       if (res.ok && data.user) {
         onLogin(data.user, data.user.role === 'admin' ? 'dashboard' : undefined);
       } else {
-        if (emailToUse.includes('admin') || emailToUse === 'allaboutpawz901@gmail.com') {
-          onLogin(
-            {
-              id: 'usr-admin-1',
-              name: 'Salon Administrator',
-              email: emailToUse,
-              role: 'admin',
-              avatarUrl: DEMO_AUTH_USERS[0].avatarUrl,
-              stationName: 'Central Management & RBAC Portal',
-            },
-            'dashboard'
-          );
-        } else if (
-          emailToUse.includes('groomer') || 
-          emailToUse.includes('sarah.miller') ||
-          emailToUse.includes('miller')
-        ) {
-          onLogin({
-            id: 'usr-groomer-1',
-            name: 'Sarah Miller',
-            email: emailToUse,
-            role: 'groomer',
-            avatarUrl: DEMO_AUTH_USERS[1].avatarUrl,
-            stationName: 'Station #3 (Master Grooming Suite)',
-          });
-        } else {
-          onLogin({
-            id: 'usr-client-1',
-            name: emailToUse.split('@')[0],
-            email: emailToUse,
-            role: 'customer',
-            avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
-          });
-        }
+        // The real API said no. No fake fallback — the database is the only
+        // source of truth.
+        setErrorMessage('Invalid email or password.');
+        setIsSubmitting(false);
       }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Login failed. Please verify credentials.');
-    } finally {
+    } catch {
+      setErrorMessage('Invalid email or password.');
       setIsSubmitting(false);
     }
   };
@@ -157,10 +117,8 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const emailToUse = (
-      usernameOrEmail.trim() || 
-      (staffRole === 'admin' ? 'admin@allaboutpawz.com' : staffRole === 'groomer' ? 'sarah.groomer@allaboutpawz.com' : 'reception@allaboutpawz.com')
-    ).toLowerCase();
+    // Exactly what the user typed — no silent defaults, ever.
+    const emailToUse = usernameOrEmail.trim().toLowerCase();
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -168,7 +126,7 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: emailToUse,
-          password: staffPassword || 'Aapawzmemphis!',
+          password: staffPassword,
         }),
       });
 
@@ -177,102 +135,52 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
       if (res.ok && data.user) {
         onLogin(data.user, data.user.role === 'admin' ? 'dashboard' : undefined);
       } else {
-        if (staffRole === 'admin') {
-          onLogin(
-            {
-              id: 'usr-admin-1',
-              name: 'Salon Administrator',
-              email: emailToUse,
-              role: 'admin',
-              avatarUrl: DEMO_AUTH_USERS[0].avatarUrl,
-              stationName: 'Central Management & RBAC Portal',
-            },
-            'dashboard'
-          );
-        } else if (staffRole === 'groomer') {
-          onLogin({
-            id: 'usr-groomer-1',
-            name: 'Sarah Miller',
-            email: emailToUse,
-            role: 'groomer',
-            avatarUrl: DEMO_AUTH_USERS[1].avatarUrl,
-            stationName: 'Station #3 (Master Grooming Suite)',
-          });
-        } else {
-          onLogin({
-            id: 'usr-frontdesk-1',
-            name: 'Front Desk Reception',
-            email: emailToUse,
-            role: 'admin',
-            avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
-            stationName: 'Intake & Concierge Desk',
-          }, 'dashboard');
-        }
+        setErrorMessage('Invalid email or password.');
+        setIsSubmitting(false);
       }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Staff login failed.');
-    } finally {
+    } catch {
+      setErrorMessage('Invalid email or password.');
       setIsSubmitting(false);
     }
   };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
+  // Forgot password — REAL: requests an actual Supabase reset email for the
+  // entered address. Privacy-standard: the confirmation state shows for any
+  // address, so it never reveals which emails exist.
+  const handleForgotSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
+    const email = String(new FormData(e.currentTarget).get('email') || '').trim();
+    if (!email || resetSending) return;
+    setResetSending(true);
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: regEmail,
-          password: 'Password123!',
-          name: regName || 'Valued Pet Parent',
-          role: 'customer',
-          phone: regPhone,
-        }),
-      });
-
-      const data = await res.json();
-      setRegSuccess(true);
-      setTimeout(() => {
-        onLogin({
-          id: data.user?.id || `usr-cust-${Date.now()}`,
-          name: regName || 'Valued Pet Parent',
-          email: regEmail || 'member@allaboutpawz.com',
-          role: 'customer',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      const supabase = createClient();
+      try {
+        // Prefer returning to THIS origin's callback so the reset completes
+        // where the user is.
+        await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/callback`,
         });
-        setRegisterModalOpen(false);
-        setRegSuccess(false);
-      }, 500);
-    } catch (err) {
-      setRegSuccess(true);
-      setTimeout(() => {
-        onLogin({
-          id: `usr-cust-${Date.now()}`,
-          name: regName || 'Valued Pet Parent',
-          email: regEmail || 'member@allaboutpawz.com',
-          role: 'customer',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-        });
-        setRegisterModalOpen(false);
-        setRegSuccess(false);
-      }, 500);
+      } catch {
+        // Origin not in the project's allowlist — the project's Site URL is
+        // used instead. Either way a real email goes out.
+        await supabase.auth.resetPasswordForEmail(email);
+      }
+      setResetSentEmail(email);
+    } catch {
+      // The send itself failed — keep the form open so the user can retry.
     } finally {
-      setIsSubmitting(false);
+      setResetSending(false);
     }
   };
 
   return (
     <div className="w-full min-h-screen bg-black flex flex-col antialiased selection:bg-warning/100 selection:text-white">
-      
+
       {/* 2-Column Responsive Layout (Scrollable - No Locked Height) */}
       <main className="w-full grid grid-cols-1 lg:grid-cols-2 bg-black">
-        
+
         {/* ================= LEFT HALF: FULL IMAGE IN NATURAL FLOW ================= */}
-        <section 
+        <section
           aria-label="All About Pawz Presentation"
           className="w-full bg-black flex flex-col items-center justify-start select-none"
         >
@@ -292,13 +200,13 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
 
 
         {/* ================= RIGHT HALF: AUTHENTICATION FORM ================= */}
-        <section 
+        <section
           aria-label="Member Authentication Terminal"
           className="bg-card flex flex-col items-center justify-center p-6 sm:p-12 lg:p-16 min-h-[500px]"
         >
           <div className="w-full max-w-[360px] flex flex-col my-auto py-8">
-            
-            {/* Mode Switcher / Title */}
+
+            {/* Door Title — fixed by the route */}
             {authMode === 'member' ? (
               <div className="text-center mb-6">
                 <h1 className="text-2xl sm:text-[26px] font-serif tracking-[0.16em] text-foreground uppercase font-normal mb-1">
@@ -322,7 +230,7 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
               </div>
             )}
 
-            {/* Error Message Banner */}
+            {/* Error Message Banner — the salon gate or invalid credentials */}
             {errorMessage && (
               <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-2.5 text-xs text-destructive">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -333,7 +241,7 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
             {/* Google Sign-in — SINGLE entry for all three personas.
                 The server-side callback (/api/auth/google/callback) queries the DB
                 to determine role (admin / groomer / customer) and routes accordingly.
-                Unknown emails are rejected with "Contact salon for access." */}
+                Unknown emails are rejected (the salon gate). */}
             <button
               type="button"
               onClick={handleGoogleSignIn}
@@ -377,11 +285,11 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
             {/* ================= MEMBER FORM ================= */}
             {authMode === 'member' ? (
               <form onSubmit={handleMemberLogin} className="space-y-4">
-                
+
                 {/* Username/Email */}
                 <div>
-                  <label 
-                    htmlFor="member-username" 
+                  <label
+                    htmlFor="member-username"
                     className="block text-[13px] font-normal text-foreground mb-1.5"
                   >
                     Username/Email
@@ -392,14 +300,15 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
                     value={usernameOrEmail}
                     onChange={(e) => setUsernameOrEmail(e.target.value)}
                     placeholder="Username/Email"
+                    autoComplete="username"
                     className="w-full bg-card border border-border rounded-md px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border transition"
                   />
                 </div>
 
                 {/* Password */}
                 <div>
-                  <label 
-                    htmlFor="member-password" 
+                  <label
+                    htmlFor="member-password"
                     className="block text-[13px] font-normal text-foreground mb-1.5"
                   >
                     Password
@@ -411,6 +320,7 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Password"
+                      autoComplete="current-password"
                       className="w-full bg-card border border-border rounded-md px-3.5 pr-10 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border transition"
                     />
                     <button
@@ -447,96 +357,69 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
                       <span>LOG IN</span>
                     )}
                   </button>
-
-                  {/* REGISTER removed — customers are created at checkout/booking, not via public registration */}
-                </div>
-
-                {/* Bottom Route to Staff form toggle */}
-                <div className="pt-4 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode('staff')}
-                    className="text-[13px] font-serif text-foreground hover:text-foreground underline underline-offset-4 transition cursor-pointer"
-                  >
-                    Staff here.
-                  </button>
                 </div>
 
               </form>
             ) : (
               /* ================= STAFF & ADMIN ROUTE FORM ================= */
               <form onSubmit={handleStaffLogin} className="space-y-4 animate-in fade-in duration-200">
-                
-                {/* Staff Role Selector Tabs */}
-                <div className="grid grid-cols-3 gap-1 p-1 bg-muted/40 rounded-lg border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setStaffRole('admin')}
-                    className={`py-1.5 text-[13px] font-semibold rounded-md transition cursor-pointer ${
-                      staffRole === 'admin' 
-                        ? 'bg-card text-white shadow-xs' 
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Administrator
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStaffRole('groomer')}
-                    className={`py-1.5 text-[13px] font-semibold rounded-md transition cursor-pointer ${
-                      staffRole === 'groomer' 
-                        ? 'bg-card text-white shadow-xs' 
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Groomer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStaffRole('frontdesk')}
-                    className={`py-1.5 text-[13px] font-semibold rounded-md transition cursor-pointer ${
-                      staffRole === 'frontdesk' 
-                        ? 'bg-card text-white shadow-xs' 
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Front Desk
-                  </button>
-                </div>
 
-                {/* Staff Email or Employee ID */}
+                {/* Staff Email */}
                 <div>
-                  <label 
-                    htmlFor="staff-id" 
+                  <label
+                    htmlFor="staff-id"
                     className="block text-[13px] font-normal text-foreground mb-1.5"
                   >
-                    Staff Email or ID
+                    Staff Email
                   </label>
                   <input
                     id="staff-id"
                     type="text"
-                    value={usernameOrEmail || (staffRole === 'admin' ? 'admin@allaboutpawz.com' : staffRole === 'groomer' ? 'sarah.groomer@allaboutpawz.com' : 'reception@allaboutpawz.com')}
+                    value={usernameOrEmail}
                     onChange={(e) => setUsernameOrEmail(e.target.value)}
+                    placeholder="you@allaboutpawz.com"
+                    autoComplete="username"
                     className="w-full bg-card border border-border rounded-md px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-border transition"
                   />
                 </div>
 
-                {/* Security Passcode / Password */}
+                {/* Password */}
                 <div>
-                  <label 
-                    htmlFor="staff-passcode" 
+                  <label
+                    htmlFor="staff-passcode"
                     className="block text-[13px] font-normal text-foreground mb-1.5"
                   >
-                    Password or 4-Digit Station PIN
+                    Password
                   </label>
-                  <input
-                    id="staff-passcode"
-                    type="password"
-                    value={staffPassword}
-                    onChange={(e) => setStaffPassword(e.target.value)}
-                    placeholder="Enter password or PIN"
-                    className="w-full bg-card border border-border rounded-md px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:border-border transition"
-                  />
+                  <div className="relative">
+                    <input
+                      id="staff-passcode"
+                      type={showPassword ? 'text' : 'password'}
+                      value={staffPassword}
+                      onChange={(e) => setStaffPassword(e.target.value)}
+                      placeholder="Password"
+                      autoComplete="current-password"
+                      className="w-full bg-card border border-border rounded-md px-3.5 pr-10 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground/70 hover:text-foreground cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {/* Right-aligned Forgot Password? */}
+                  <div className="flex justify-end pt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setForgotPasswordOpen(true)}
+                      className="text-[12px] text-muted-foreground hover:text-foreground font-serif italic transition cursor-pointer"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
                 </div>
 
                 {/* Staff Actions */}
@@ -550,18 +433,10 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
                       <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>ENTER {staffRole === 'admin' ? 'ADMIN OS' : staffRole === 'groomer' ? 'GROOMER SUITE' : 'FRONT DESK'}</span>
+                        <span>SIGN IN</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </>
                     )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode('member')}
-                    className="w-full py-2.5 text-muted-foreground hover:text-foreground text-[13px] font-medium transition cursor-pointer"
-                  >
-                    ← Return to Member Login
                   </button>
                 </div>
 
@@ -584,20 +459,18 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
           </div>
 
           <div className="flex items-center gap-5 text-muted-foreground/70">
-            <button 
-              type="button"
-              onClick={() => setAuthMode('member')}
+            <a
+              href="/access-customer"
               className="hover:text-white transition cursor-pointer"
             >
               Member Portal
-            </button>
-            <button 
-              type="button"
-              onClick={() => setAuthMode('staff')}
+            </a>
+            <a
+              href="/admin-login"
               className="hover:text-white transition cursor-pointer"
             >
               Staff Access
-            </button>
+            </a>
             <span className="text-foreground">|</span>
             <span className="text-muted-foreground hover:text-muted-foreground transition cursor-pointer">
               Privacy
@@ -607,124 +480,9 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
       </footer>
 
 
-      {/* ================= REGISTER PET PARENT MODAL ================= */}
-      {registerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/[0-9]0 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg bg-card rounded-2xl shadow-2xl border border-border overflow-hidden">
-            <div className="p-5 bg-card text-white flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-card text-foreground flex items-center justify-center font-semibold">
-                  <PawPrint className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold tracking-tight">New Member Registration</h3>
-                  <p className="text-[11px] text-muted-foreground">Join All About Pawz Rewards &amp; Booking Portal</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setRegisterModalOpen(false)}
-                className="p-1.5 text-muted-foreground/70 hover:text-white rounded-lg hover:bg-muted transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleRegisterSubmit} className="p-6 space-y-4">
-              {regSuccess ? (
-                <div className="p-8 text-center space-y-3">
-                  <CheckCircle2 className="w-12 h-12 text-success mx-auto animate-bounce" />
-                  <h4 className="text-base font-semibold text-foreground">Welcome to All About Pawz!</h4>
-                  <p className="text-[13px] text-muted-foreground">Setting up your member dashboard...</p>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[13px] font-semibold text-foreground mb-1">Your Full Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={regName}
-                        onChange={(e) => setRegName(e.target.value)}
-                        placeholder="e.g. Jessica Williams"
-                        className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-border"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-semibold text-foreground mb-1">Email Address</label>
-                      <input
-                        type="email"
-                        required
-                        value={regEmail}
-                        onChange={(e) => setRegEmail(e.target.value)}
-                        placeholder="jessica@example.com"
-                        className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-border"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[13px] font-semibold text-foreground mb-1">Phone Number</label>
-                      <input
-                        type="tel"
-                        required
-                        value={regPhone}
-                        onChange={(e) => setRegPhone(e.target.value)}
-                        placeholder="(214) 555-0199"
-                        className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-border"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-semibold text-foreground mb-1">Pet Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={regPetName}
-                        onChange={(e) => setRegPetName(e.target.value)}
-                        placeholder="e.g. Milo"
-                        className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-border"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[13px] font-semibold text-foreground mb-1">Pet Breed &amp; Details</label>
-                    <input
-                      type="text"
-                      value={regPetBreed}
-                      onChange={(e) => setRegPetBreed(e.target.value)}
-                      placeholder="e.g. Mini Goldendoodle, 22 lbs"
-                      className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-border"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRegisterModalOpen(false)}
-                      className="px-4 py-2 border border-border text-[13px] font-semibold text-foreground rounded-lg hover:bg-muted/40 cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 bg-black hover:bg-muted text-white text-[13px] font-semibold rounded-lg transition cursor-pointer"
-                    >
-                      Complete Registration
-                    </button>
-                  </div>
-                </>
-              )}
-            </form>
-          </div>
-        </div>
-      )}
-
-
       {/* ================= FORGOT PASSWORD MODAL ================= */}
       {forgotPasswordOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/[0-9]0 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-sm bg-card rounded-2xl shadow-2xl border border-border p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">Reset Your Password</h3>
@@ -757,10 +515,7 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
               </div>
             ) : (
               <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setResetSentEmail(usernameOrEmail || 'your.email@example.com');
-                }}
+                onSubmit={handleForgotSubmit}
                 className="space-y-3"
               >
                 <p className="text-[13px] text-muted-foreground">
@@ -768,6 +523,7 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
                 </p>
                 <input
                   type="email"
+                  name="email"
                   required
                   defaultValue={usernameOrEmail}
                   placeholder="Enter your email"
@@ -775,9 +531,10 @@ export const LandingLoginView: React.FC<LandingLoginViewProps> = ({ onLogin, ini
                 />
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-black hover:bg-card text-white font-semibold text-[13px] rounded-lg transition cursor-pointer"
+                  disabled={resetSending}
+                  className="w-full py-2.5 bg-black hover:bg-card text-white font-semibold text-[13px] rounded-lg transition cursor-pointer disabled:opacity-60"
                 >
-                  Send Reset Link
+                  {resetSending ? 'Sending…' : 'Send Reset Link'}
                 </button>
               </form>
             )}

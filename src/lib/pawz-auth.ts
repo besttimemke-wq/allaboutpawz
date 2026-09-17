@@ -260,7 +260,13 @@ export async function resolvePortalUser(authUserId: string): Promise<ResolvedPor
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   if (declaredAdmins.includes(email)) {
-    return { authUserId, email, name: nameFromMeta, role: "admin", avatarUrl, scope: "admin", membershipRole: "owner" };
+    // Prefer the salon's own staff record for the display name (best-effort).
+    let name = nameFromMeta;
+    try {
+      const { data: staffRow } = await admin.from("staff").select("name").ilike("email", email).limit(1);
+      if (staffRow && staffRow.length > 0 && (staffRow[0] as any).name) name = (staffRow[0] as any).name;
+    } catch { /* best-effort */ }
+    return { authUserId, email, name, role: "admin", avatarUrl, scope: "admin", membershipRole: "owner" };
   }
 
   // 1. Platform admins (cross-tenant super admins)
