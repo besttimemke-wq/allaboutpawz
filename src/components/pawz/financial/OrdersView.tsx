@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShoppingBag, 
   Search, 
@@ -34,7 +34,13 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrders, setSelectedOrders] = useState<string[]>(['ORD-2025-1048', 'ORD-2025-1044', 'ORD-2025-1042']);
 
-  const orders = [
+  // ---- LIVE DATA (fallback to mock when no real orders exist) ----
+  // Real shop orders live in the Supabase `orders` table (written by the
+  // Stripe shop checkout + booking deposit flow). The fetch happens once on
+  // mount; when it returns rows we surface them and stop showing the mock
+  // array. When the env is unconfigured or the call fails, the existing mock
+  // rows render so the page is never blank.
+  const MOCK_ORDERS = [
     {
       id: 'ORD-2025-1048',
       time: '1h 40m ago',
@@ -171,8 +177,68 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
       due: 'DELIVERED',
       status: 'DELIVERED',
     },
-  ];
+  ] as const;
 
+  type MockOrder = typeof MOCK_ORDERS[number];
+  const [realOrders, setRealOrders] = useState<MockOrder[]>([]);
+  const [realOrdersLoading, setRealOrdersLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/orders')
+      .then((r) => (r.ok ? r.json() : { orders: [] }))
+      .then((d) => {
+        const rows: MockOrder[] = (d.orders || []).map((o: any) => {
+          // Map the live order row to the display shape the table already expects.
+          const createdIso = o.createdAt || null;
+          let dateText = '—';
+          let time = '—';
+          if (createdIso) {
+            const dt = new Date(createdIso);
+            if (!isNaN(dt.getTime())) {
+              dateText = dt.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+              const minsAgo = Math.max(0, Math.floor((Date.now() - dt.getTime()) / 60000));
+              if (minsAgo < 60) time = `${minsAgo}m ago`;
+              else if (minsAgo < 1440) time = `${Math.floor(minsAgo / 60)}h ago`;
+              else time = `${Math.floor(minsAgo / 1440)}d ago`;
+            }
+          }
+          const itemsText = (o.items || []).map((it: any) => `${it.quantity}× ${it.name}`).join(', ') || (o.itemCount ? `${o.itemCount} item${o.itemCount > 1 ? 's' : ''}` : '—');
+          const methodType = (o.deliveryMethod || '').toLowerCase().includes('pickup') ? 'pickup' : (o.deliveryMethod || '').toLowerCase().includes('ship') ? 'shipping' : 'pickup';
+          const payment = (o.paymentStatus || '').toUpperCase() === 'PAID' ? 'PAID (ONLINE)' : (o.paymentStatus || 'UNPAID').toUpperCase();
+          const total = Number(o.subtotal || o.itemsTotal || 0) || 0;
+          // Status mapping: live `orders.status` is e.g. PAYMENT_PENDING / PAID / CANCELLED.
+          // Display uses: UNFULFILLED | READY | LOCAL_PICKUP | SHIPPED | DELIVERED.
+          let status: MockOrder['status'] = 'UNFULFILLED';
+          const fs = String(o.fulfillmentStatus || '').toUpperCase();
+          if (fs === 'DELIVERED') status = 'DELIVERED';
+          else if (fs === 'SHIPPED' || fs.includes('SHIP')) status = 'SHIPPED';
+          else if (methodType === 'pickup' && String(o.status || '').toUpperCase() === 'PAID') status = 'READY';
+          else if (methodType === 'pickup') status = 'LOCAL_PICKUP';
+          return {
+            id: o.id || '—',
+            time,
+            dateText,
+            customer: o.customerName || o.email || 'Guest',
+            pets: '—',
+            items: itemsText,
+            bins: '—',
+            total,
+            payment,
+            method: o.deliveryMethod || (methodType === 'pickup' ? 'In-Salon Counter' : 'USPS'),
+            methodType,
+            weight: '—',
+            urgency: String(o.status || '').toUpperCase(),
+            due: '—',
+            status,
+          } as unknown as MockOrder;
+        });
+        setRealOrders(rows);
+      })
+      .catch(() => setRealOrders([]))
+      .finally(() => setRealOrdersLoading(false));
+  }, []);
+
+  const orders: MockOrder[] = realOrders.length > 0 ? realOrders : (MOCK_ORDERS as unknown as MockOrder[]);
   const handleToggleSelect = (id: string) => {
     setSelectedOrders(prev => 
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]

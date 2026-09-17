@@ -40,7 +40,7 @@ export interface PageHeaderProps {
 }
 
 const TONE_TEXT_CLASS: Record<
-  NonNullable<PageHeaderProps["statusItems"]>[number]["tone"],
+  NonNullable<NonNullable<PageHeaderProps["statusItems"]>[number]["tone"]>,
   string
 > = {
   default: "text-muted-foreground",
@@ -302,8 +302,8 @@ export interface KpiTile {
   caption?: React.ReactNode;
   /** Tone for the value text. Defaults to "default" (foreground). */
   tone?: "default" | "primary" | "success" | "warning" | "destructive" | "info";
-  /** Optional Lucide icon component. */
-  icon?: React.ElementType;
+  /** Optional Lucide icon component OR a ready-rendered icon element. */
+  icon?: React.ElementType | React.ReactElement;
 }
 
 export interface KpiTilesProps {
@@ -352,11 +352,15 @@ export function KpiTiles({ tiles, className }: KpiTilesProps) {
               {Icon && (
                 <span
                   className={cn(
-                    "inline-flex size-7 items-center justify-center rounded-lg shrink-0",
+                    "inline-flex size-7 items-center justify-center rounded-lg shrink-0 [&>svg]:size-4",
                     KPI_ICON_TONE_BG[tone],
                   )}
                 >
-                  <Icon className="size-4" />
+                  {typeof Icon === "function" ? (
+                    <Icon className="size-4" />
+                  ) : (
+                    (Icon as React.ReactElement)
+                  )}
                 </span>
               )}
             </div>

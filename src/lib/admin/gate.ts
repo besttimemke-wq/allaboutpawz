@@ -36,7 +36,10 @@ async function isPortalAdmin(): Promise<boolean> {
 }
 
 export async function requireAdminApi(): Promise<NextResponse | null> {
-  if (process.env.ALLOW_OPEN_ADMIN_API === "1") return null
+  // Dev-only convenience: the open-API flag is honored OUTSIDE production
+  // only, so a stray env var on the host can never disable the admin gate
+  // where it actually matters.
+  if (process.env.ALLOW_OPEN_ADMIN_API === "1" && process.env.NODE_ENV !== "production") return null
   try {
     if (await isAdmin()) return null
     if (await isPortalAdmin()) return null

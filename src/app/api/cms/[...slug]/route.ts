@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { repo, type CmsResource } from "@/lib/repo"
 import { sendBookingConfirmation, sendConsultationRequest } from "@/lib/email"
 import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
+import { requireAdminApi } from "@/lib/admin/gate"
 
 const RESOURCES = new Set<CmsResource>([
   "services", "products", "gallery", "packages", "addons", "faqs",
@@ -20,8 +21,34 @@ const RESOURCES = new Set<CmsResource>([
   "serviceItems",
 ])
 
+// Resources the PUBLIC website forms are allowed to write to without admin
+// sign-in. These are the only endpoints under /api/cms that any anonymous
+// visitor can POST/PUT/DELETE — every other resource (orders, customers,
+// staff, invoices, products, services, …) requires an admin session.
+//
+//   - bookings        → /book (booking-form)
+//   - consultations    → /book/consultation (consultation-form, booking-wizard-v2)
+//   - dogs             → booking-wizard-v2 (creates a pet profile before booking)
+//   - messages         → /contact (contact-form)
+//   - newsletter       → footer newsletter form
+//   - product_reviews  → shop product pages (moderated, visible:false on insert)
+//
+// Anything else (orders, order_items, customers, staff, invoices,
+// invoice_items, services, products, …) is admin-only on writes.
+const PUBLIC_WRITE_RESOURCES = new Set<CmsResource>([
+  "bookings", "consultations", "dogs", "messages", "newsletter", "product_reviews",
+])
+
 function isResource(k: string): k is CmsResource {
   return RESOURCES.has(k as CmsResource)
+}
+
+// Enforce the admin gate on writes for any resource that is NOT in the
+// public allowlist. Returns a NextResponse (401/500) when access is denied,
+// or null when the caller is allowed to proceed.
+async function enforceWriteGate(resource: CmsResource): Promise<NextResponse | null> {
+  if (PUBLIC_WRITE_RESOURCES.has(resource)) return null
+  return await requireAdminApi()
 }
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ slug: string[] }> }) {
@@ -49,6 +76,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
   const [resource] = slug
 
   if (resource === "settings") {
+    // Settings writes are admin-only — the public site only reads them via GET.
+    const gate = await requireAdminApi()
+    if (gate) return gate
     const body = await req.json()
     if (body.settings && typeof body.settings === "object") {
       await repo.saveSettings(body.settings as Record<string, string>)
@@ -62,6 +92,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
   }
 
   if (!isResource(resource)) return NextResponse.json({ error: `Unknown resource: ${resource}` }, { status: 404 })
+
+  // Gate: only public-form resources (bookings, consultations, dogs, messages,
+  // newsletter, product_reviews) accept anonymous writes. Everything else
+  // (orders, customers, staff, invoices, services, products, …) requires
+  // an admin session.
+  const writeGate = await enforceWriteGate(resource)
+  if (writeGate) return writeGate
 
   const body = await req.json()
   const rec = await repo.create(resource, body)
@@ -104,6 +141,8 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ slug: strin
   const { slug } = await ctx.params
   const [resource, id] = slug
   if (!isResource(resource) || !id) return NextResponse.json({ error: "Bad request" }, { status: 400 })
+  const writeGate = await enforceWriteGate(resource)
+  if (writeGate) return writeGate
   const body = await req.json()
   const rec = await repo.update(resource, id, body)
   return NextResponse.json(rec)
@@ -113,6 +152,8 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ slug: s
   const { slug } = await ctx.params
   const [resource, id] = slug
   if (!isResource(resource) || !id) return NextResponse.json({ error: "Bad request" }, { status: 400 })
+  const writeGate = await enforceWriteGate(resource)
+  if (writeGate) return writeGate
 
   // When a product is deleted, archive its Stripe twin too (fail-soft — the
   // catalog row is the source of truth, so deletion must always succeed).
