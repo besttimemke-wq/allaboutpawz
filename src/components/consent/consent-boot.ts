@@ -10,6 +10,11 @@
 //   3. Restore a previously saved consent record from the
 //      `pawz_cookie_consent` cookie and immediately `gtag('consent','update')`
 //      with it — returning visitors keep their choice with no banner flash.
+//      On PORTAL pages (admin / groomer / customer + their auth screens) the
+//      restore is SKIPPED: portals run on strictly-necessary cookies only, so
+//      Consent Mode stays fully denied there and no tag fires on portal
+//      views. Entering the public site re-applies the saved choice (see
+//      GoogleAnalytics.tsx).
 //   4. Expose the restored record on `window.__pawzConsent` so the React
 //      consent UI and the GA4 loader can hydrate without re-parsing.
 // ---------------------------------------------------------------------------
@@ -30,6 +35,10 @@ gtag('consent','default',{
   security_storage:'granted',
   wait_for_update:500
 });
+var PORTALS=['/admin','/admin-login','/groomer','/customer','/access-customer','/access-groomer','/access-frontdesk','/account','/auth','/learn','/api'];
+var p=location.pathname.toLowerCase(),onPortal=false;
+for(var i=0;i<PORTALS.length;i++){var pre=PORTALS[i];if(p===pre||p.indexOf(pre+'/')===0){onPortal=true;break;}}
+if(onPortal)return;
 var m=document.cookie.match(/(?:^|;\\s*)pawz_cookie_consent=([^;]*)/);
 if(m){
   try{

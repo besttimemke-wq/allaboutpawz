@@ -17,13 +17,19 @@
 //
 // The center can be re-opened anytime — the site footer fires
 // `pawz:open-cookie-preferences` on this same window.
+//
+// PORTALS: the admin / groomer / customer portals run on strictly-necessary
+// cookies only — no banner, no consent center, no cookie statement is
+// rendered there at all (see src/lib/portal-paths.ts).
 // ---------------------------------------------------------------------------
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Shield, ShieldCheck, Lock, X, SlidersHorizontal, Globe } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { isPortalPath } from "@/lib/portal-paths";
 import {
   ALL_GRANTED,
   CONSENT_COOKIE,
@@ -142,8 +148,11 @@ function ConsentBanner({
       className="fixed inset-x-0 bottom-0 z-[90] flex justify-center px-3 pb-3 sm:px-6 sm:pb-6"
     >
       <div className="consent-rise w-full max-w-3xl overflow-hidden rounded-lg border border-gold/40 bg-cream shadow-[0_24px_60px_-12px_rgba(26,20,10,0.45)]">
-        {/* Header strip — shield, governance title, compliance badges, close */}
-        <div className="flex items-center gap-3 border-b border-gold/25 bg-ink px-4 py-2.5 sm:px-6">
+        {/* Header strip — shield, governance title, compliance badges, close.
+            The X is a full-size, high-contrast close button (40px target,
+            gold on ink): a visitor looking for a way to close the banner
+            finds it instantly — it is never buried among the badges. */}
+        <div className="flex items-center gap-3 border-b border-gold/25 bg-ink px-4 py-2 sm:px-6">
           <Shield className="h-4 w-4 shrink-0 text-gold" strokeWidth={1.8} aria-hidden="true" />
           <span className="truncate text-[9px] font-bold tracking-[0.22em] text-on-dark sm:text-[10px]">
             ALL ABOUT PAWZ · PRIVACY GOVERNANCE
@@ -161,9 +170,9 @@ function ConsentBanner({
             onClick={onRejectNonEssential}
             title="Close (keep only essential cookies)"
             aria-label="Close and keep only essential cookies"
-            className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-gold/30 text-on-dark-muted transition-colors hover:border-gold hover:text-gold sm:ml-2"
+            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/70 text-gold transition-colors hover:bg-gold hover:text-ink sm:ml-3"
           >
-            <X className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+            <X className="h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
 
@@ -273,10 +282,11 @@ function ConsentCenter({
           <button
             type="button"
             onClick={onClose}
+            title="Close"
             aria-label="Close cookie preferences"
-            className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/30 text-on-dark-muted transition-colors hover:border-gold hover:text-gold"
+            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/70 text-gold transition-colors hover:bg-gold hover:text-ink"
           >
-            <X className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+            <X className="h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
 
@@ -403,6 +413,7 @@ function ConsentCenter({
 
 export function CookieConsent() {
   const { toast } = useToast();
+  const pathname = usePathname();
   // Hydration gate — the codebase's own idiom (see site-chrome): false during
   // SSR and the first client render (markup matches the server exactly),
   // then flips to true and re-renders so the banner can appear client-only.
@@ -450,7 +461,9 @@ export function CookieConsent() {
 
   // Pre-hydration (and SSR) render nothing — the boot script already
   // restored a returning visitor's consent, so there is never a flash.
-  if (!hydrated) return null;
+  // Portal pages never render ANY cookie statement: they run on
+  // strictly-necessary cookies only, so there is nothing to consent to.
+  if (!hydrated || isPortalPath(pathname)) return null;
 
   return (
     <>

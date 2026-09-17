@@ -21,6 +21,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { PostHogProvider as PHProvider } from "@posthog/react";
 import posthog from "posthog-js";
 import { useAnalyticsConsent } from "@/components/analytics/use-analytics-consent";
+import { isPortalPath } from "@/lib/portal-paths";
 
 const POSTHOG_TOKEN = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
@@ -33,6 +34,8 @@ function PostHogPageView() {
 
   useEffect(() => {
     if (!granted || !posthog.__loaded) return;
+    // Portal views are internal tool pages — never counted as site pageviews.
+    if (isPortalPath(pathname)) return;
     try {
       posthog.capture("$pageview", { $current_url: window.location.href });
     } catch {
@@ -45,9 +48,15 @@ function PostHogPageView() {
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const granted = useAnalyticsConsent();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!granted || !POSTHOG_TOKEN || posthog.__loaded) return;
+    // The portals run on strictly-necessary cookies only — PostHog never
+    // initializes there (a visitor entering the public site from a portal
+    // gets the saved consent re-applied by GoogleAnalytics and PostHog boots
+    // then, exactly as on a direct public visit).
+    if (isPortalPath(pathname)) return;
     try {
       posthog.init(POSTHOG_TOKEN, {
         api_host: POSTHOG_HOST,

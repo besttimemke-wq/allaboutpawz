@@ -27,11 +27,19 @@
 //      moment analytics consent is granted (returning visitors: right after
 //      restore) and one on every app-router navigation while granted. Never
 //      doubled.
+//
+//   4. PORTALS — the admin / groomer / customer portals are internal tools:
+//      no page_view is ever sent for a portal path, and a landing on a portal
+//      (where the boot script deliberately skips the consent restore) is
+//      recovered the moment the visitor enters the public site — their saved
+//      choice is re-applied and PostHog / Clarity hydrate as on a direct
+//      public visit.
 // ---------------------------------------------------------------------------
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { toConsentMode, type ConsentCategories } from "@/lib/consent";
+import { toConsentMode, readConsentCookie, type ConsentCategories } from "@/lib/consent";
+import { isPortalPath } from "@/lib/portal-paths";
 
 declare global {
   interface Window {
@@ -150,10 +158,33 @@ export function GoogleAnalytics() {
 
   // SPA page_view hits for app-router navigation (GA4 only receives them
   // while analytics consent is granted; send_page_view is false in the head
-  // config, so these are the only page_view hits — never doubled).
+  // config, so these are the only page_view hits — never doubled). Portal
+  // paths are NEVER tracked: they are internal tools, not marketing pages.
   useEffect(() => {
-    if (!GA4_ID) return;
+    if (isPortalPath(pathname)) return;
     if (lastPath.current === pathname) return;
+
+    // Landing view was a portal page — the boot script skips the consent
+    // restore there so no tag ever fires on a portal. Entering the public
+    // site re-applies the visitor's saved choice: the dispatch below runs
+    // the consent-changed listener above (applyConsent + the first
+    // page_view) synchronously and wakes PostHog / Clarity as well.
+    if (!analyticsOn.current && !window.__pawzConsent) {
+      const prior = readConsentCookie();
+      if (prior) {
+        const cats: ConsentCategories = {
+          essential: true,
+          functional: prior.functional,
+          analytics: prior.analytics,
+        };
+        window.__pawzConsent = cats;
+        window.dispatchEvent(new CustomEvent("pawz:consent-changed", { detail: cats }));
+      }
+    }
+
+    // The listener above may have just sent this view's page_view.
+    if (lastPath.current === pathname) return;
+    if (!GA4_ID) return;
     if (!analyticsOn.current) {
       // Not granted yet — remember the path so the grant handler above
       // sends exactly one page_view for the current view.

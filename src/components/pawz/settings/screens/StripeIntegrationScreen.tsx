@@ -35,8 +35,8 @@ export const StripeIntegrationScreen: React.FC<ScreenProps> = ({
 }) => {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [stripeMode, setStripeMode] = useState<'live' | 'test'>('live');
-  const [publicKey, setPublicKey] = useState('pk_live_[REDACTED]');
-  const [webhookSecret, setWebhookSecret] = useState('whsec_[REDACTED]');
+  const [publicKey, setPublicKey] = useState('pk_live_••••••••••••••••••••');
+  const [webhookSecret, setWebhookSecret] = useState('whsec_••••••••••••••••••');
 
   /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {

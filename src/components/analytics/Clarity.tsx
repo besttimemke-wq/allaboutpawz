@@ -16,7 +16,9 @@
 // ---------------------------------------------------------------------------
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useAnalyticsConsent } from "@/components/analytics/use-analytics-consent";
+import { isPortalPath } from "@/lib/portal-paths";
 
 const CLARITY_ID = process.env.NEXT_PUBLIC_CLARITY_ID;
 
@@ -28,9 +30,13 @@ declare global {
 
 export function Clarity() {
   const granted = useAnalyticsConsent();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!granted || !CLARITY_ID || window.clarity) return;
+    // Session recordings are for the public site only — never start on a
+    // portal view (admin / groomer / customer tools hold private data).
+    if (isPortalPath(pathname)) return;
     try {
       // Microsoft's official install snippet, inlined:
       // https://learn.microsoft.com/en-us/clarity/clarity-setup
@@ -52,7 +58,7 @@ export function Clarity() {
     } catch {
       /* never fatal */
     }
-  }, [granted]);
+  }, [granted, pathname]);
 
   return null;
 }
