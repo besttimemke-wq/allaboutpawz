@@ -56,10 +56,22 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         {children}
+        {/* Google Tag Manager (noscript) — the standard no-JS fallback from
+            the owner's GTM install (GTM-WT35373V). Only meaningful in
+            browsers with JavaScript disabled, where nothing else on this
+            site runs either. */}
+        <noscript>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-WT35373V"
+            height="0"
+            width="0"
+            style={{ display: "none", visibility: "hidden" }}
+          />
+        </noscript>
         <Toaster />
         {/* Cookie consent: load-time banner + Consent Management Center */}
         <CookieConsent />
-        {/* Consent-gated GA4 loader + cookie collector → Google console */}
+        {/* Consent-gated GA4 + GTM loader and cookie collector → Google console */}
         <GoogleAnalytics />
       </body>
     </html>

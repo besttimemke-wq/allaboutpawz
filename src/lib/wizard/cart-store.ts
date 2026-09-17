@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
+import { track, priceToDollars, type AnalyticsItem } from "@/lib/analytics"
 
 // ---------------------------------------------------------------------------
 // Shop Cart & Checkout Store
@@ -61,6 +62,15 @@ export type ShopState = {
   reset: () => void
 }
 
+// GA4 item shape for this cart line (ecommerce events).
+const toAnalyticsItem = (i: CartItem): AnalyticsItem => ({
+  item_id: i.productId,
+  item_name: i.name,
+  item_category: i.category ?? undefined,
+  price: priceToDollars(i.price),
+  quantity: i.quantity,
+})
+
 const MAX_PER_ITEM = 10
 
 export const useCart = create<ShopState>()(
@@ -84,6 +94,15 @@ export const useCart = create<ShopState>()(
       add: (p) =>
         set((s) => {
           const found = s.items.find((i) => i.productId === p.productId)
+          // GA4 add_to_cart — fired where the bag changes (the single source
+          // of truth), so every entry point (buy box, quick-add) is covered.
+          track.addToCart({
+            item_id: p.productId,
+            item_name: p.name,
+            item_category: p.category ?? undefined,
+            price: priceToDollars(p.price),
+            quantity: 1,
+          })
           if (found) {
             return {
               items: s.items.map((i) =>
@@ -97,18 +116,33 @@ export const useCart = create<ShopState>()(
         }),
 
       remove: (productId) =>
-        set((s) => ({ items: s.items.filter((i) => i.productId !== productId) })),
+        set((s) => {
+          const removed = s.items.find((i) => i.productId === productId)
+          if (removed) track.removeFromCart(toAnalyticsItem(removed))
+          return { items: s.items.filter((i) => i.productId !== productId) }
+        }),
 
       setQty: (productId, qty) =>
-        set((s) => ({
-          items: s.items
-            .map((i) =>
-              i.productId === productId
-                ? { ...i, quantity: Math.max(0, Math.min(MAX_PER_ITEM, qty)) }
-                : i,
-            )
-            .filter((i) => i.quantity > 0),
-        })),
+        set((s) => {
+          const before = s.items.find((i) => i.productId === productId)
+          if (before) {
+            const after = Math.max(0, Math.min(MAX_PER_ITEM, qty))
+            if (after > before.quantity) {
+              track.addToCart({ ...toAnalyticsItem(before), quantity: after - before.quantity })
+            } else if (after < before.quantity) {
+              track.removeFromCart({ ...toAnalyticsItem(before), quantity: before.quantity - after })
+            }
+          }
+          return {
+            items: s.items
+              .map((i) =>
+                i.productId === productId
+                  ? { ...i, quantity: Math.max(0, Math.min(MAX_PER_ITEM, qty)) }
+                  : i,
+              )
+              .filter((i) => i.quantity > 0),
+          }
+        }),
 
       setStep: (n) => set({ step: n }),
 

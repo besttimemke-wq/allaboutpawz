@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   Check, ArrowLeft, ArrowRight, ShoppingBag, Plus, Minus, X, Trash,
   Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
+import { track, priceToDollars } from "@/lib/analytics"
 
 // ---------------------------------------------------------------------------
 // CheckoutIsland — the shop checkout flow, mounted on the SSR shop page.
@@ -38,6 +39,43 @@ export function CheckoutIsland() {
   const [verify, setVerify] = useState<"checking" | "paid" | "pending" | null>(
     checkoutParam === "success" ? (searchParams.get("session_id") ? "checking" : "paid") : null,
   )
+
+  // GA4 purchase — fires once on the Stripe success return, with the bag
+  // contents still in localStorage (the reset only happens when the visitor
+  // clicks CONTINUE SHOPPING) and the Stripe session id as transaction_id.
+  const purchaseSent = useRef(false)
+  useEffect(() => {
+    if (purchaseSent.current || view !== "success") return
+    purchaseSent.current = true
+    const sessionId = searchParams.get("session_id")
+    track.purchase(
+      sessionId || `shop-${Date.now()}`,
+      s.items.map((i) => ({
+        item_id: i.productId,
+        item_name: i.name,
+        item_category: i.category ?? undefined,
+        price: priceToDollars(i.price),
+        quantity: i.quantity,
+      })),
+    )
+  }, [view, searchParams, s.items])
+
+  // GA4 begin_checkout — fires when the checkout wizard is entered.
+  const checkoutStarted = useRef(false)
+  useEffect(() => {
+    if (checkoutStarted.current || view !== "checkout" || s.items.length === 0) return
+    checkoutStarted.current = true
+    track.beginCheckout(
+      s.items.map((i) => ({
+        item_id: i.productId,
+        item_name: i.name,
+        item_category: i.category ?? undefined,
+        price: priceToDollars(i.price),
+        quantity: i.quantity,
+      })),
+      "shop",
+    )
+  }, [view, s.items])
 
   // Side effects only: verify payment with Stripe + scrub the URL so a
   // refresh doesn't re-trigger the flow.
@@ -137,6 +175,21 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
     setApiError(null)
     if (!canNext) return
 
+    // GA4 add_shipping_info — fires when the delivery step is completed
+    // (step 3 = Shipping / Pickup choice).
+    if (s.step === 3) {
+      track.addShippingInfo(
+        s.items.map((i) => ({
+          item_id: i.productId,
+          item_name: i.name,
+          item_category: i.category ?? undefined,
+          price: priceToDollars(i.price),
+          quantity: i.quantity,
+        })),
+        s.deliveryMethod,
+      )
+    }
+
     // No customer record is created here — checkout proceeds as a guest.
     // The salon-side (customers) record is only created by the booking
     // wizard or an admin walk-in; a product-only buyer exists solely in
@@ -150,6 +203,17 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
   const submit = async () => {
     setApiError(null)
     setSubmitting(true)
+    // GA4 add_payment_info — the visitor chose to pay; fired right before the
+    // Stripe redirect.
+    track.addPaymentInfo(
+      s.items.map((i) => ({
+        item_id: i.productId,
+        item_name: i.name,
+        item_category: i.category ?? undefined,
+        price: priceToDollars(i.price),
+        quantity: i.quantity,
+      })),
+    )
     try {
       const res = await fetch("/api/shop/checkout", {
         method: "POST",

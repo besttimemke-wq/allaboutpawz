@@ -13,6 +13,7 @@ import {
 import { ShopSidebar, type SidebarData } from "./shop-sidebar"
 import { PlpToolbar } from "./plp-toolbar"
 import { ProductCard } from "./product-card"
+import { TrackViewItemList } from "../islands/track-view"
 
 // ---------------------------------------------------------------------------
 // Plp — the shared server-rendered Product Listing Page section used by
@@ -80,6 +81,17 @@ export async function Plp({
 
   const basePath = scope.kind === "category" ? scope.node.path : scope.kind === "merch" ? `/shop/${scope.merch}` : "/shop"
 
+  // GA4 view_item_list — the server knows the exact rendered list, so it
+  // hands the page's items to a null-rendering tracking island.
+  const listId = scope.kind === "category" ? `category-${scope.node.path}` : scope.kind === "merch" ? `merch-${scope.merch}` : "shop-all"
+  const listName = scope.kind === "category" ? scope.node.displayName : scope.kind === "merch" ? scope.title || scope.merch : "All Products"
+  const analyticsItems = result.items.map((p) => ({
+    item_id: p.id,
+    item_name: p.name,
+    item_category: p.category ?? undefined,
+    price: p.priceCents != null ? p.priceCents / 100 : undefined,
+  }))
+
   return (
     <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
       {/* Desktop rail — sticky; categories navigate, filters refine */}
@@ -90,6 +102,7 @@ export async function Plp({
       </aside>
 
       <div className="min-w-0">
+        <TrackViewItemList listId={listId} listName={listName} items={analyticsItems} />
         <PlpToolbar total={result.total} shown={result.items.length} sort={state.sort} sidebar={sidebar} />
 
         {/* Active filter chips — individually removable, server-rendered */}

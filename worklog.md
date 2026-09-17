@@ -1418,3 +1418,28 @@ Stage Summary:
 - dataLayer verified: consent default (all denied) → consent update (mapped states) → pawz_cookie_inventory event with consent + cookie names (sensitive values masked).
 - Lint: 0 errors (44 pre-existing warnings in unrelated files).
 - To activate GA4 in the Google console: paste the measurement id into NEXT_PUBLIC_GA4_MEASUREMENT_ID in .env and restart; consent signals then flow into GA4/Google Ads reporting automatically.
+
+---
+Task ID: 68
+Agent: Z.ai Code (main)
+Task: Tag the website with the owner's GA4 (G-7EVNS33CKD) + GTM (GTM-WT35373V) snippets, set up booking + ecommerce events, and build custom Analytics functionality.
+
+Work Log:
+- Set NEXT_PUBLIC_GA4_MEASUREMENT_ID=G-7EVNS33CKD + NEXT_PUBLIC_GTM_ID=GTM-WT35373V in .env; restarted dev server.
+- Extended src/components/consent/GoogleAnalytics.tsx: after analytics consent it now injects BOTH the GA4 gtag.js tag (owner's snippet #1) AND the GTM container using Google's official snippet verbatim (gtm.start → gtm.js) as an inline script; documented the double-tagging caveat (if a GA4 tag for the same property is also created inside GTM, remove one).
+- Added the GTM noscript iframe (owner's snippet #3) to the root layout body — present in raw SSR HTML, only meaningful for no-JS browsers.
+- Created src/lib/analytics.ts — typed, consent-aware tracking library. Every event fans out to (1) gtag('event') for GA4, (2) dataLayer.push({event, ecommerce}) in the GTM/GA4 schema, (3) navigator.sendBeacon → /api/analytics/events (the salon's own analytics). Nothing leaves the browser while analytics consent is denied. Includes pawz_sid session cookie (30 min, set only with consent).
+- Created the analytics_events table in live Supabase via the session pooler (migration 0007_analytics_events.sql; RLS enabled, service_role-only grants) — same path as migration 0006.
+- Created /api/analytics/events: POST ingests beacons (event-name regex validation, payload caps, value/currency extraction); GET (admin-gated via requireAdminApi) returns recent events + per-event counts + distinct sessions.
+- Wired ecommerce events: view_item_list (Plp server component → TrackViewItemList null-rendering client island; covers /shop + category + merch pages), view_item (ProductBuyBox mount), add_to_cart / remove_from_cart (cart-store add/remove/setQty — single source of truth), view_cart (bag page), begin_checkout + add_shipping_info + add_payment_info + purchase (checkout-island; purchase fires on the Stripe success return with session_id as transaction_id).
+- Wired booking events: begin_booking + booking_step per step (booking-wizard-v2 onContinue), add_payment_info on deposit submit, purchase ($25 appointment-deposit item, transaction_id = bookingId) + book_appointment on the ?success=booking Stripe return, generate_lead on consultation submit + ?success=consultation return.
+- Custom analytics admin panel: added a "LIVE EVENT STREAM — CUSTOM ANALYTICS" section to AnalyticsReportingScreen (settings → Dashboard & Reports) fetching /api/analytics/events — recent-events table (Time/Event/Page/Detail/Value, max-h-96 scroll), sessions + event-value + by-event-name aggregates, Refresh button. Styled to match the existing terminal aesthetic.
+- Fixed one lint error (setState-in-effect in the panel → async-callbacks-only pattern). Lint: 0 errors (45 pre-existing warnings in unrelated files).
+
+Stage Summary:
+- Browser-verified (agent-browser, as signed-in visitor): NO tags load before consent; after ACCEPT ALL both gtag/js?id=G-7EVNS33CKD and gtm.js?id=GTM-WT35373V load, gtag config sent, GTM container processes events (gtm.uniqueEventId attached to pushed events — proof the container listener is live).
+- Ecommerce events verified live: view_item_list (shop-all, 8 items; category-/shop/dog/grooming), view_item ($34 Pawz Signature Shampoo with item_id/name/category/price), add_to_cart (from the store — value $34), view_cart ($34), begin_checkout (value 34, flow "shop"), add_shipping_info (tier "Salon pickup", value 34).
+- Booking funnel verified live: begin_booking (flow appointment) + booking_step (step 1 "Name").
+- Custom analytics verified live: all events landed in Supabase analytics_events via sendBeacon (7+ events with correct pages/values), admin GET aggregates correct; admin panel renders the live stream with real rows. Test events deleted afterward (10 rows) — table starts clean for real traffic.
+- Privacy verified: with consent denied (REJECT NON-ESSENTIAL), no GA4/GTM scripts load and zero events reach the server (dataLayer stays in-memory and inert).
+- Known caveats: purchase event only fires on the Stripe success return (not server-side from the webhook — a webhook-driven mirror would need server-side Measurement Protocol, not requested); PAY click was intentionally not exercised in verification to avoid creating a live Stripe session; GTM container contents are owner-side (any tags he adds inherit the Consent Mode state).

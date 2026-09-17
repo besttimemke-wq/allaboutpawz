@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -13,8 +13,191 @@ import {
   Printer, 
   Calendar,
   Lock,
-  RefreshCw
+  RefreshCw,
+  Activity
 } from 'lucide-react';
+
+// ---------------------------------------------------------------------------
+// Live event stream — the salon's OWN custom analytics (analytics_events
+// table in Supabase), fed by the client-side `track` library. Independent
+// of the Google console: booking + ecommerce events land here via
+// navigator.sendBeacon while the visitor granted the analytics cookie
+// category.
+// ---------------------------------------------------------------------------
+type LiveEvent = {
+  id: string
+  createdAt: string
+  event: string
+  page: string
+  sessionId?: string
+  value: number | null
+  currency?: string
+  data: Record<string, unknown>
+}
+type LiveCounts = { event: string; count: number; totalValue: number }
+
+function LiveEventStream() {
+  const [events, setEvents] = useState<LiveEvent[] | null>(null)
+  const [counts, setCounts] = useState<LiveCounts[]>([])
+  const [sessions, setSessions] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Initial load — results land in the async callbacks only (codebase
+  // pattern); `events === null` is the initial loading state.
+  useEffect(() => {
+    let alive = true
+    fetch('/api/analytics/events?limit=50&days=7')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => {
+        if (!alive) return
+        setEvents(d.recent || [])
+        setCounts(d.counts || [])
+        setSessions(d.sessions || 0)
+      })
+      .catch((e: Error) => {
+        if (alive) setError(e.message)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const load = () => {
+    setRefreshing(true)
+    setError(null)
+    fetch('/api/analytics/events?limit=50&days=7')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => {
+        setEvents(d.recent || [])
+        setCounts(d.counts || [])
+        setSessions(d.sessions || 0)
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setRefreshing(false))
+  }
+
+  const totalEvents = counts.reduce((n, c) => n + c.count, 0)
+  const totalValue = counts.reduce((n, c) => n + (c.totalValue || 0), 0)
+
+  return (
+    <div className="border border-border bg-card">
+      {/* Panel header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-primary" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground">
+            Live Event Stream — Custom Analytics
+          </span>
+          <span className="border border-border bg-card px-1.5 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">
+            analytics_events · 7 days
+          </span>
+        </div>
+        <button
+          onClick={load}
+          disabled={refreshing}
+          className="flex h-7 items-center gap-1.5 border border-border bg-card px-2.5 text-[9px] font-semibold uppercase tracking-wider text-foreground hover:bg-muted/40 disabled:opacity-50 cursor-pointer"
+        >
+          <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      {error ? (
+        <div className="px-4 py-6 text-center text-[11px] text-muted-foreground">
+          Event stream unavailable ({error}). The table exists — events appear here as visitors
+          with analytics consent browse, add to bag, book, or purchase.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px]">
+          {/* Recent events */}
+          <div className="max-h-96 overflow-y-auto border-r border-border">
+            {events === null ? (
+              <div className="px-4 py-6 text-center text-[11px] text-muted-foreground">Loading…</div>
+            ) : events.length === 0 ? (
+              <div className="px-4 py-6 text-center text-[11px] text-muted-foreground">
+                No events recorded in the last 7 days yet.
+              </div>
+            ) : (
+              <table className="w-full text-[10px] tabular-nums">
+                <thead className="sticky top-0 bg-muted/60 text-[9px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">Time</th>
+                    <th className="px-3 py-2 text-left font-semibold">Event</th>
+                    <th className="px-3 py-2 text-left font-semibold">Page</th>
+                    <th className="px-3 py-2 text-left font-semibold">Detail</th>
+                    <th className="px-3 py-2 text-right font-semibold">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map((e) => (
+                    <tr key={e.id} className="border-t border-border/50">
+                      <td className="px-3 py-1.5 text-muted-foreground">
+                        {new Date(e.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <span className="border border-border bg-muted/40 px-1.5 py-0.5 font-semibold">{e.event}</span>
+                      </td>
+                      <td className="px-3 py-1.5 text-muted-foreground">{e.page || '—'}</td>
+                      <td className="px-3 py-1.5 text-muted-foreground truncate max-w-[220px]">
+                        {e.data && typeof e.data === 'object'
+                          ? (e.data.item_name as string)
+                            || ((e.data.items as any[])?.[0]?.item_name as string)
+                            || (e.data.step_name as string)
+                            || (e.data.booking_flow as string)
+                            || (e.data.lead_type as string)
+                            || ''
+                          : ''}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-semibold">
+                        {e.value != null ? `$${e.value.toFixed(2)}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Aggregate rail */}
+          <div className="p-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="border border-border bg-muted/30 p-3">
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Events · 7d</div>
+                <div className="mt-1 text-[20px] font-semibold tabular-nums">{totalEvents}</div>
+              </div>
+              <div className="border border-border bg-muted/30 p-3">
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Sessions</div>
+                <div className="mt-1 text-[20px] font-semibold tabular-nums">{sessions}</div>
+              </div>
+            </div>
+            <div className="mt-3 border border-border bg-muted/30 p-3">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Event value · 7d
+              </div>
+              <div className="mt-1 text-[20px] font-semibold tabular-nums">${totalValue.toFixed(2)}</div>
+            </div>
+            <div className="mt-3 space-y-1">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                By event name
+              </div>
+              {counts.length === 0 ? (
+                <div className="text-[10px] text-muted-foreground">—</div>
+              ) : (
+                counts.slice(0, 14).map((c) => (
+                  <div key={c.event} className="flex items-center justify-between text-[10px] tabular-nums">
+                    <span className="truncate text-foreground">{c.event}</span>
+                    <span className="ml-2 shrink-0 text-muted-foreground">{c.count}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface ScreenProps {
   systemSettings?: any;
@@ -634,6 +817,9 @@ export const AnalyticsReportingScreen: React.FC<ScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {/* LIVE EVENT STREAM — the salon's own custom analytics (real data) */}
+      <LiveEventStream />
 
       {/* SUPER ADMIN SECURITY LOCK FOOTER / HARDWARE ATTESTATION */}
       <div className="w-full bg-muted/30 border-b border-border p-4 flex flex-col md:flex-row items-center justify-between gap-4 select-none tabular-nums text-[13px]">

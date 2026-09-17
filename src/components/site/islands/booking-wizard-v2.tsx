@@ -7,6 +7,7 @@ import {
   Dog, CreditCard, Sparkle, Camera, Spinner,
 } from "@phosphor-icons/react"
 import { useWizard, type BookingType } from "@/lib/wizard/wizard-store"
+import { track } from "@/lib/analytics"
 
 // ---------------------------------------------------------------------------
 // Types — everything the wizard needs comes from server-side props.
@@ -75,8 +76,30 @@ export function BookingWizardV2({
   useEffect(() => {
     if (typeof window === "undefined") return
     const params = new URLSearchParams(window.location.search)
-    if (params.get("success") === "booking") setSuccess("booking")
-    if (params.get("success") === "consultation") setSuccess("consultation")
+    if (params.get("success") === "booking") {
+      setSuccess("booking")
+      // GA4 purchase + book_appointment — the $25 appointment deposit was
+      // paid on Stripe and the visitor is back on the confirmation view.
+      track.purchase(
+        s.bookingId || `booking-${Date.now()}`,
+        [{ item_id: "appointment-deposit", item_name: "Appointment Deposit", item_category: "booking", price: 25, quantity: 1 }],
+        25,
+      )
+      track.bookAppointment({
+        service: s.serviceName,
+        groomer: selectedGroomer?.name,
+        date: s.date,
+        time: s.time,
+        deposit: 25,
+        currency: "USD",
+      })
+    }
+    if (params.get("success") === "consultation") {
+      setSuccess("consultation")
+      // GA4 generate_lead — the consultation request is a salon lead.
+      track.generateLead("consultation", { breed: selectedBreed?.name })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ----- Derived lookups -----
@@ -193,6 +216,14 @@ export function BookingWizardV2({
     }
 
     s.setStep(s.step + 1)
+
+    // GA4 booking funnel — begin_booking on the first completed step, then a
+    // booking_step event for every step the visitor advances through.
+    if (s.step === 1) track.beginBooking(isConsult ? "consultation" : "appointment")
+    const labels = isConsult
+      ? ["Name", "Contact", "Dog", "Coat", "Grooming", "Preferred", "Groomer", "Notes", "Review"]
+      : ["Name", "Contact", "Dog", "Coat", "Grooming", "Schedule", "Groomer", "Notes", "Review"]
+    track.bookingStep(s.step, labels[s.step - 1] || `Step ${s.step}`, isConsult ? "consultation" : "appointment")
   }
 
   // ----- Final checkout submit -----
@@ -227,8 +258,18 @@ export function BookingWizardV2({
         const data = await res.json()
         s.patch({ bookingId: data.id })
         setSuccess("consultation")
+        // GA4 generate_lead — submitted directly (no deposit leg).
+        track.generateLead("consultation", {
+          breed: selectedBreed?.name,
+          service: s.serviceName,
+        })
       } else {
         // Appointment → Stripe checkout for $25 deposit
+        // GA4 add_payment_info + begin_checkout (booking leg) — the visitor
+        // chose to pay the deposit; fired right before the Stripe redirect.
+        track.addPaymentInfo(
+          [{ item_id: "appointment-deposit", item_name: "Appointment Deposit", item_category: "booking", price: 25, quantity: 1 }],
+        )
         const ownerName = `${s.firstName} ${s.lastName}`.trim()
         const res = await fetch("/api/bookings/checkout", {
           method: "POST",

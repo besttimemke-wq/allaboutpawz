@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import {
   Check, Minus, Plus, ShoppingBag, Truck, Lock, Medal, PawPrint,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
+import { track, priceToDollars } from "@/lib/analytics"
 
 // ---------------------------------------------------------------------------
 // Product page islands.
@@ -38,6 +39,19 @@ export function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
   const s = useCart()
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
+
+  // GA4 view_item — fires once when the product detail mounts.
+  const viewed = useRef(false)
+  useEffect(() => {
+    if (viewed.current) return
+    viewed.current = true
+    track.viewItem({
+      item_id: product.id,
+      item_name: product.name,
+      item_category: product.category ?? undefined,
+      price: priceToDollars(product.price),
+    })
+  }, [product.id, product.name, product.category, product.price])
 
   const inStock = (product.stock ?? 0) > 0
   const unitCents = parsePriceToCents(product.price) || 0

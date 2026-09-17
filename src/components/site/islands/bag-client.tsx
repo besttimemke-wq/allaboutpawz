@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useMemo, useSyncExternalStore, Fragment } from "react"
+import { useState, useMemo, useEffect, useRef, useSyncExternalStore, Fragment } from "react"
 import Link from "next/link"
 import {
   ShoppingBag, Trash, Minus, Plus, PawPrint, ArrowRight, Check,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
+import { track, priceToDollars } from "@/lib/analytics"
 
 // ---------------------------------------------------------------------------
 // Bag island — /shop/bag
@@ -72,6 +73,22 @@ export function BagClient({
     () => s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0),
     [s.items],
   )
+
+  // GA4 view_cart — fires once when the hydrated, non-empty bag renders.
+  const cartViewed = useRef(false)
+  useEffect(() => {
+    if (cartViewed.current || !hydrated || s.items.length === 0) return
+    cartViewed.current = true
+    track.viewCart(
+      s.items.map((i) => ({
+        item_id: i.productId,
+        item_name: i.name,
+        item_category: i.category ?? undefined,
+        price: priceToDollars(i.price),
+        quantity: i.quantity,
+      })),
+    )
+  }, [hydrated, s.items])
 
   if (!hydrated) {
     return (

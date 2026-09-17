@@ -1,7 +1,8 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// All About Pawz — Google Consent Mode v2 + GA4 loader + cookie collector.
+// All About Pawz — Google tag loading (GA4 + GTM) + Consent Mode v2 + cookie
+// collector.
 //
 // This is the bridge between the visitor's cookie choice and the Google
 // console:
@@ -13,16 +14,29 @@
 //      flips to "granted". Consent states appear in GA4 Admin → Privacy
 //      (Consent Mode) reporting and in Google Ads consent reporting.
 //
-//   2. GA4 TAG LOADER — gtag.js is injected ONLY after the visitor grants
-//      analytics, and only when a measurement ID is configured
-//      (NEXT_PUBLIC_GA4_MEASUREMENT_ID). Route changes push page_view hits.
+//   2. GA4 TAG — googletagmanager.com/gtag/js?id=G-7EVNS33CKD loads ONLY
+//      after the visitor grants analytics (NEXT_PUBLIC_GA4_MEASUREMENT_ID).
+//      Route changes push page_view hits.
 //
-//   3. COOKIE COLLECTOR — after every consent decision the browser's current
+//   3. GTM CONTAINER — the owner's Google Tag Manager container
+//      (NEXT_PUBLIC_GTM_ID = GTM-WT35373V) is injected with the standard
+//      container snippet (gtm.start → gtm.js) after the Consent Mode
+//      defaults are already declared (the pre-paint boot script) and only
+//      after analytics consent, so every tag inside the container inherits
+//      the correct consent state. Tags configured in the container that
+//      use the GA4 built-in consent checks respect denied/granted
+//      automatically.
+//
+//   4. COOKIE COLLECTOR — after every consent decision the browser's current
 //      first-party cookies are collected (sensitive values masked) and pushed
 //      to the dataLayer as a `pawz_cookie_inventory` event with the consent
-//      state attached. This is visible in Google Tag Assistant Preview and
-//      GA4 DebugView, and can be bound to a GA4 custom dimension (event
-//      parameter `cookie_names`) to persist it in the Google console.
+//      state attached. Visible in Google Tag Assistant Preview + GA4
+//      DebugView.
+//
+// NOTE ON DOUBLE-TAGGING: both the direct GA4 tag AND the GTM container are
+// installed per the owner's snippets. If a GA4 tag for the SAME property
+// (G-7EVNS33CKD) is ever also created inside the GTM container, remove one
+// of the two or every hit will be counted twice.
 // ---------------------------------------------------------------------------
 
 import { useEffect, useRef } from "react";
@@ -35,10 +49,12 @@ declare global {
     __pawzGtag?: (...args: unknown[]) => void;
     __pawzConsent?: ConsentCategories | null;
     __pawzGa4Loaded?: boolean;
+    __pawzGtmLoaded?: boolean;
   }
 }
 
 const GA4_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID;
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
 
 /** Cookie names whose VALUES must never leave the browser. */
 const SENSITIVE_COOKIE = /session|csrf|oauth|token|secret|nonce|__host/i;
@@ -98,6 +114,25 @@ function loadGa4Tag() {
   });
 }
 
+/** Inject the GTM container with the standard Google snippet (gtm.start → gtm.js). */
+function loadGtmContainer() {
+  if (window.__pawzGtmLoaded || !GTM_ID) return;
+  window.__pawzGtmLoaded = true;
+
+  // Google's official container snippet, verbatim — executed by injecting it
+  // as an inline script so it runs in page context (not module scope):
+  //   w[l].push({'gtm.start': …, event:'gtm.js'}) then insert gtm.js?id=GTM-…
+  const snippet = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${GTM_ID}');`;
+
+  const script = document.createElement("script");
+  script.textContent = snippet;
+  document.head.appendChild(script);
+}
+
 /** Apply a consent decision everywhere Google looks for it. */
 function applyConsent(cats: ConsentCategories, trigger: string) {
   // 1. Google Consent Mode v2 — the signal GA4 / Google Ads read natively.
@@ -114,8 +149,11 @@ function applyConsent(cats: ConsentCategories, trigger: string) {
   // 3. Collect the browser's cookies and hand them to the dataLayer.
   pushCookieInventory(cats, trigger);
 
-  // 4. Only now may the analytics tag itself load.
-  if (cats.analytics) loadGa4Tag();
+  // 4. Only now may the measurement containers themselves load.
+  if (cats.analytics) {
+    loadGa4Tag();
+    loadGtmContainer();
+  }
 }
 
 export function GoogleAnalytics() {
