@@ -1,0 +1,37 @@
+From 3852ba5b0c4aac292ed14463853e06adcbca8c55 Mon Sep 17 00:00:00 2001
+From: Z User <z@container>
+Date: Thu, 17 Sep 2026 10:56:43 +0000
+Subject: [PATCH 1/8] 92aab292-3837-4839-9af9-5e4857d2f2eb-cron
+
+---
+ worklog.md | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/worklog.md b/worklog.md
+index fe8b247..c897a69 100755
+--- a/worklog.md
++++ b/worklog.md
+@@ -1543,3 +1543,20 @@ Stage Summary:
+ - VLM re-review of the new banner: X "clearly visible and easy to find … no significant visibility concerns remain".
+ - lint: 0 errors (45→44 fixable warnings, pre-existing); dev.log clean (all routes 200); robots.txt + 45-URL sitemap.xml still serving.
+ - GitHub repo now holds the complete, verified, secrets-free project history (75 commits, main = 86690d1 + this worklog commit).
++
++---
++Task ID: unify-pull-20260917
++Agent: main session (Super Z)
++Task: Pull https://github.com/besttimemke-wq/allaboutpawz.git and unify local portal with the repo ("catch up").
++
++Work Log:
++- Fetched upstream-pawz; local main and upstream-pawz/main are IDENTICAL at 6416e2f ("worklog: Task 69") — nothing to merge, tree already unified.
++- Discovered histories are UNRELATED (no merge-base): repo line (6416e2f) vs original workspace line (6385773), which was reset off main this morning ("reset: moving to upstream-pawz/main").
++- 6385773 contains ~772 files / 94k lines not in the repo line: the complete in-house auth build (src/lib/auth/jwt.ts, passwords.ts, db/migrations 0003-0005, google OAuth routes, E2E scripts) plus settings/permissions overhaul.
++- Safety refs exist: backup-before-pull-20260917-105022 and backup/local-line-6385773 both point at 6385773. Nothing is lost.
++- NOTE: DB migrations 0003-0005 remain APPLIED in Supabase Postgres (app_password_credentials, portal_account_links live), but current tree's login route is the repo's Supabase version — seeded scrypt credentials (allaboutpawz901@gmail.com / besttimemke@gmail.com) are NOT consumed by this code.
++- Dev server health: 200.
++
++Stage Summary:
++- Portal tree now exactly equals GitHub main (user's "overwrite" intent satisfied).
++- Discarded local line preserved on backup branches; merging it back into the repo line is the recommended next unification step.
+-- 
+2.47.3
+

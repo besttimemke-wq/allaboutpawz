@@ -1,0 +1,39 @@
+From d0e0eacbcb6b0a6965c60627643fa47acdfa326a Mon Sep 17 00:00:00 2001
+From: Z User <z@container>
+Date: Thu, 17 Sep 2026 11:46:10 +0000
+Subject: [PATCH 2/8] 01b24224-4599-49ce-9cc2-3af35c897c62-cron
+
+---
+ worklog.md | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/worklog.md b/worklog.md
+index c897a69..1d90488 100755
+--- a/worklog.md
++++ b/worklog.md
+@@ -1560,3 +1560,22 @@ Work Log:
+ Stage Summary:
+ - Portal tree now exactly equals GitHub main (user's "overwrite" intent satisfied).
+ - Discarded local line preserved on backup branches; merging it back into the repo line is the recommended next unification step.
++
++---
++Task ID: flow-map-20260917
++Agent: Super Z (main)
++Task: Map the ENTIRE user flow of the production repo (one repo, one surface, no bifurcation)
++
++Work Log:
++- Enumerated all 65 page.tsx routes across (site), (portals)/admin|customer|groomer, access doors, auth, learn
++- Read src/proxy.ts: learn.aapawz.com host-rewrite → /learn tree; doors stay on apex
++- Read src/lib/pawz-auth.ts (747 lines, single source of truth): 5 doors, self-managed Google OAuth (own callback on aapawz.com + preview relay + live redirect-URI probe + pawz_oauth_b CSRF binding + single-use oauth_states rows), HMAC-signed pawz_session cookie (7d), role resolution cascade (ADMIN_EMAILS → platform_admins → tenant_memberships → staff → portal_customer_accounts → customers.userId → metadata-failsafe-customer)
++- Confirmed /api/auth/login uses @supabase/ssr signInWithPassword → persists Supabase cookies AND pawz_session in one response → both gates (portal shell + /api/admin/* requireAdminApi) satisfied together
++- portal-session endpoint: pawz_session primary, Supabase SSR fallback
++- CMS = /api/cms/[...slug] catch-all over src/lib/repo.ts (Supabase backend), ~50 resources + settings/stats/newsletter/upload; admin OS IS the CMS console
++- SSR status: (site) 13 routes = 0 client pages (full SSR, repo-fetched); portals 36 client shells + QueryProvider SWR by design (cached paint, background revalidate)
++
++Stage Summary:
++- Entire user flow mapped on the live surface; no merge/backup work pending
++- Doors: /access-customer /access-groomer /access-frontdesk /admin-login /learn/sign-in
++- Admin OS: 27 pages; Customer: 6; Groomer: 5; Site: 13; API routes: 38
+-- 
+2.47.3
+

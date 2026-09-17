@@ -1,0 +1,106 @@
+From 6bb1019273070cc2bc6088e6b0e1a2849d9c6e62 Mon Sep 17 00:00:00 2001
+From: Z User <z@container>
+Date: Thu, 17 Sep 2026 12:06:58 +0000
+Subject: [PATCH 5/8] auth: /api/admin/* gate accepts the Google-sign-in portal
+ session
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The OAuth callback hosts pawz_session (HMAC, service-key-signed) and never
+creates Supabase SSR cookies, so every /api/admin/* call after a Google
+sign-in returned 401. requireAdminApi now also accepts a portal session
+resolving to role=admin/scope=admin under the same ADMIN_EMAILS restriction.
+Verified live: no-cookie 401 → pawz_session-admin 200 with settings data.
+---
+ scripts/verify-admin-gate.mjs | 26 ++++++++++++++++++++++++++
+ src/lib/admin/gate.ts         | 29 ++++++++++++++++++++++++++++-
+ 2 files changed, 54 insertions(+), 1 deletion(-)
+ create mode 100644 scripts/verify-admin-gate.mjs
+
+diff --git a/scripts/verify-admin-gate.mjs b/scripts/verify-admin-gate.mjs
+new file mode 100644
+index 0000000..d142452
+--- /dev/null
++++ b/scripts/verify-admin-gate.mjs
+@@ -0,0 +1,26 @@
++// Verify the /api/admin/* gate accepts the portal (pawz_session) admin cookie:
++// 1. mint a valid admin session cookie locally (same HMAC the server uses)
++// 2. curl /api/admin/settings with and without it
++import { readFileSync } from "fs";
++import { createClient } from "@supabase/supabase-js";
++
++const env = readFileSync("/home/z/my-project/.env", "utf8");
++const get = (k) => (env.match(new RegExp(`^${k}=(.*)$`, "m")) || [])[1]?.trim().replace(/^["']|["']$/g, "") || "";
++process.env.NEXT_PUBLIC_SUPABASE_URL = get("NEXT_PUBLIC_SUPABASE_URL") || get("SUPABASE_URL");
++process.env.SUPABASE_SERVICE_ROLE_KEY = get("SUPABASE_SERVICE_ROLE_KEY");
++process.env.ADMIN_EMAILS = "";
++
++const mod = await import("../src/lib/pawz-auth.ts");
++const admin = mod.getSupabaseAdmin();
++const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
++const owner = data.users.find((u) => u.email === "allaboutpawz901@gmail.com");
++const resolved = await mod.resolvePortalUser(owner.id);
++console.log("resolved:", resolved.role, "/", resolved.membershipRole);
++const token = mod.signSession(resolved);
++
++const base = "http://localhost:3000";
++const noCookie = await fetch(`${base}/api/admin/settings`);
++const withCookie = await fetch(`${base}/api/admin/settings`, { headers: { cookie: `pawz_session=${token}` } });
++console.log("GET /api/admin/settings  no-cookie:", noCookie.status, "| pawz_session-admin:", withCookie.status);
++const body = await withCookie.json().catch(() => null);
++console.log("with-cookie body keys:", body ? Object.keys(body).slice(0, 5) : "(none)");
+diff --git a/src/lib/admin/gate.ts b/src/lib/admin/gate.ts
+index 34a644c..854c764 100644
+--- a/src/lib/admin/gate.ts
++++ b/src/lib/admin/gate.ts
+@@ -1,18 +1,45 @@
+ import { NextResponse } from "next/server"
++import { cookies } from "next/headers"
+ import { isAdmin } from "@/lib/auth/server"
++import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/pawz-auth"
+ 
+ // Gate for the admin data APIs (/api/admin/*).
+ //
+ // Access is granted when EITHER:
+ //   1. the caller is signed in via Supabase Auth and passes isAdmin()
+ //      (ADMIN_EMAILS restricts to specific addresses when set), or
+-//   2. ALLOW_OPEN_ADMIN_API=1 is set in the environment — a local
++//   2. the caller carries the server-signed portal session cookie
++//      (pawz_session, HMAC-SHA256 with the service-role key) resolving to
++//      an admin — this is the session a GOOGLE sign-in receives: the OAuth
++//      callback hosts its own cookie and never creates Supabase SSR
++//      cookies, so without this path every /api/admin/* call after Google
++//      sign-in returned 401. The same ADMIN_EMAILS restriction applies, and
++//      the HMAC verification is server-side (unforgeable without the key), or
++//   3. ALLOW_OPEN_ADMIN_API=1 is set in the environment — a local
+ //      development convenience flag (.env is gitignored, so it never
+ //      reaches production).
++async function isPortalAdmin(): Promise<boolean> {
++  try {
++    const token = (await cookies()).get(SESSION_COOKIE_NAME)?.value
++    const payload = verifySessionToken(token)
++    if (!payload) return false
++    if (payload.role !== "admin" || payload.scope !== "admin") return false
++    const list = (process.env.ADMIN_EMAILS || "")
++      .split(",")
++      .map((e) => e.trim().toLowerCase())
++      .filter(Boolean)
++    if (list.length > 0 && !list.includes((payload.email || "").toLowerCase())) return false
++    return true
++  } catch {
++    return false
++  }
++}
++
+ export async function requireAdminApi(): Promise<NextResponse | null> {
+   if (process.env.ALLOW_OPEN_ADMIN_API === "1") return null
+   try {
+     if (await isAdmin()) return null
++    if (await isPortalAdmin()) return null
+     return NextResponse.json({ error: "Admin sign-in required." }, { status: 401 })
+   } catch (e) {
+     return NextResponse.json(
+-- 
+2.47.3
+
