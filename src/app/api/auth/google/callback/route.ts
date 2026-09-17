@@ -118,6 +118,7 @@ export async function GET(req: NextRequest) {
   //    destination, and the redirect_uri the flow started with.
   const stateRow = await consumeOAuthState(state);
   if (!stateRow) {
+    console.warn("[auth/google/callback] bounce: state invalid/expired/replayed");
     return door("customer");
   }
   const portal = stateRow.portal;
@@ -127,6 +128,7 @@ export async function GET(req: NextRequest) {
   const autoFlow = stateRow.redirectTo === "AUTO";
 
   if (googleError || !code) {
+    console.warn(`[auth/google/callback] bounce: googleError=${googleError || "none"} code=${code ? "present" : "absent"} portal=${portal}`);
     // User backed out at Google, or Google returned nothing — back to the
     // sign-in page, clean.
     return door(portal);
@@ -140,12 +142,14 @@ export async function GET(req: NextRequest) {
     const cookieValue = (await cookies()).get(OAUTH_BROWSER_COOKIE)?.value;
     const hash = hashBrowserBinding(cookieValue);
     if (!hash || hash !== stateRow.browserHash) {
+      console.warn(`[auth/google/callback] bounce: browser-binding mismatch (login-CSRF guard) portal=${portal}`);
       return door(portal);
     }
   }
 
   const admin = getSupabaseAdmin();
   if (!admin) {
+    console.warn("[auth/google/callback] bounce: Supabase admin client unavailable (SUPABASE_URL/SERVICE_KEY missing)");
     return door(portal);
   }
 
@@ -156,8 +160,9 @@ export async function GET(req: NextRequest) {
   const redirectUri =
     stateRow.redirectUri ||
     `${(req.nextUrl.origin || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "")}${GOOGLE_CALLBACK_PATH}`;
-  const { profile } = await exchangeGoogleCode(code, redirectUri);
+  const { profile, error: exchangeError } = await exchangeGoogleCode(code, redirectUri);
   if (!profile) {
+    console.warn(`[auth/google/callback] bounce: Google code exchange failed portal=${portal} — ${exchangeError || "unknown"}`);
     return door(portal);
   }
 
@@ -165,7 +170,8 @@ export async function GET(req: NextRequest) {
   let authUser: any = null;
   try {
     authUser = await findAuthUserByEmail(admin, profile.email);
-  } catch {
+  } catch (e) {
+    console.warn(`[auth/google/callback] bounce: findAuthUserByEmail threw portal=${portal} email=${profile.email} — ${e?.message || e}`);
     return door(portal);
   }
 
@@ -181,6 +187,7 @@ export async function GET(req: NextRequest) {
         .filter(Boolean)
         .includes(profile.email);
       if (!declaredAdmin) {
+        console.warn(`[auth/google/callback] bounce: salon gate — email not in ADMIN_EMAILS and not in auth.users: ${profile.email}`);
         return gate(portal, profile.email);
       }
       const { data: created } = await admin.auth.admin.createUser({
@@ -195,10 +202,12 @@ export async function GET(req: NextRequest) {
         },
       });
       if (!created?.user) {
+        console.warn(`[auth/google/callback] bounce: ADMIN_EMAILS bootstrap createUser failed for ${profile.email}`);
         return door(portal);
       }
       authUser = created.user;
     } else if (portal === "groomer" || portal === "frontdesk" || portal === "admin") {
+      console.warn(`[auth/google/callback] bounce: staff door rejected unknown email ${profile.email} (portal=${portal})`);
       // Staff doors REJECT unknown emails (accounts must be
       // admin-provisioned first) — the same salon gate.
       return gate(portal, profile.email);
@@ -216,6 +225,7 @@ export async function GET(req: NextRequest) {
         },
       });
       if (!created?.user) {
+        console.warn(`[auth/google/callback] bounce: customer-door createUser failed for ${profile.email}`);
         return door(portal);
       }
       // Provision the customer records so the customer scope resolves.
@@ -257,8 +267,12 @@ export async function GET(req: NextRequest) {
   }
 
   // 5. Resolve who this is (server-side only — never trusted from client).
-  const resolved: ResolvedPortalUser | null = await resolvePortalUser(authUser.id).catch(() => null);
+  const resolved: ResolvedPortalUser | null = await resolvePortalUser(authUser.id).catch((e) => {
+    console.warn(`[auth/google/callback] resolvePortalUser threw for ${authUser.id} — ${e?.message || e}`);
+    return null;
+  });
   if (!resolved) {
+    console.warn(`[auth/google/callback] bounce: resolvePortalUser returned null for authUserId=${authUser.id} email=${profile.email}`);
     return door(portal);
   }
 
@@ -274,8 +288,10 @@ export async function GET(req: NextRequest) {
 
   const validation = validatePortalAccess(portal, resolved);
   if (!validation.ok) {
+    console.warn(`[auth/google/callback] bounce: validatePortalAccess denied portal=${portal} role=${resolved.role} scope=${resolved.scope} — ${validation.error}`);
     return door(portal);
   }
 
+  console.info(`[auth/google/callback] OK: ${profile.email} → ${stateRow.redirectTo} (role=${resolved.role} scope=${resolved.scope})`);
   return redirectToPath(stateRow.redirectTo);
 }

@@ -303,12 +303,35 @@ export async function resolvePortalUser(authUserId: string): Promise<ResolvedPor
     }
   } catch { /* table may not exist */ }
 
-  // 3. Staff table (fallback employee signal)
+  // 3. Staff table (fallback employee signal). EMAIL IS THE ASSOCIATION KEY:
+  // when a staff row exists for this email but its userId is NULL or points
+  // at a stale auth id (user re-created in auth.users, row provisioned
+  // earlier), the email match associates the sign-in with the salon record
+  // and the link self-heals — the sign-in NEVER bounces for a provisioning
+  // row that is merely out of date.
   try {
     const { data: staff } = await admin.from("staff").select("name, role").eq("userId", authUserId).limit(1);
-    if (staff && staff.length > 0) {
-      const staffRole = String((staff[0] as any).role || "").toLowerCase();
-      const name = (staff[0] as any).name || nameFromMeta;
+    let staffRow = staff && staff.length > 0 ? (staff[0] as any) : null;
+    if (!staffRow && email) {
+      const { data: byEmail } = await admin
+        .from("staff")
+        .select("id, name, role, userId")
+        .ilike("email", email)
+        .not("email", "is", null)
+        .limit(1);
+      if (byEmail && byEmail.length > 0) {
+        staffRow = byEmail[0] as any;
+        // Self-heal: bind the row to the signing-in auth user (stale or NULL).
+        if (staffRow.userId !== authUserId) {
+          try {
+            await admin.from("staff").update({ userId: authUserId }).eq("id", staffRow.id);
+          } catch { /* heal is best-effort; resolution proceeds */ }
+        }
+      }
+    }
+    if (staffRow) {
+      const staffRole = String(staffRow.role || "").toLowerCase();
+      const name = staffRow.name || nameFromMeta;
       if (FRONTDESK_ROLES.includes(staffRole)) {
         return { authUserId, email, name, role: "admin", avatarUrl, scope: "employee", stationName: "Front Desk — Intake & Concierge", membershipRole: staffRole };
       }
@@ -331,11 +354,31 @@ export async function resolvePortalUser(authUserId: string): Promise<ResolvedPor
     }
   } catch { /* table may not exist */ }
 
-  // 5. Customers linked by userId
+  // 5. Customers linked by userId — with the same email-based self-heal as
+  // staff: an existing customer row whose userId is NULL (created at
+  // checkout/walk-in before the account existed) is associated by email and
+  // the link is repaired on this sign-in.
   try {
     const { data: customers } = await admin.from("customers").select("firstName, lastName").eq("userId", authUserId).limit(1);
-    if (customers && customers.length > 0) {
-      const c = customers[0] as any;
+    let customerRow = customers && customers.length > 0 ? (customers[0] as any) : null;
+    if (!customerRow && email) {
+      const { data: byEmail } = await admin
+        .from("customers")
+        .select("id, firstName, lastName, userId")
+        .ilike("email", email)
+        .not("email", "is", null)
+        .limit(1);
+      if (byEmail && byEmail.length > 0) {
+        customerRow = byEmail[0] as any;
+        if (!customerRow.userId) {
+          try {
+            await admin.from("customers").update({ userId: authUserId }).eq("id", customerRow.id);
+          } catch { /* heal is best-effort */ }
+        }
+      }
+    }
+    if (customerRow) {
+      const c = customerRow;
       const name = `${c.firstName || ""} ${c.lastName || ""}`.trim() || nameFromMeta;
       return { authUserId, email, name, role: "customer", avatarUrl, scope: "customer", membershipRole: "customer" };
     }
@@ -726,6 +769,36 @@ export async function exchangeGoogleCode(code: string, redirectUri: string): Pro
 }
 
 export async function findAuthUserByEmail(admin: SupabaseClient, email: string) {
+  // Primary path: O(1) RPC against auth.users (migration 0008). This is the
+  // reliable lookup — the paginated listUsers call below is capped at 4000
+  // users and is rate-limited, so on a busy tenant it silently returned null
+  // for an existing user and the callback bounced them to the door.
+  try {
+    const { data, error } = await admin
+      .rpc("get_auth_user_by_email", { p_email: email });
+    if (error) {
+      console.error("[pawz-auth] get_auth_user_by_email RPC error:", error.message);
+    } else if (data && data.length > 0) {
+      const row = data[0] as any;
+      return {
+        id: row.id,
+        email: row.email,
+        user_metadata: row.raw_user_meta_data || {},
+        identities: [],
+        created_at: row.created_at,
+        last_sign_in_at: row.last_sign_in_at,
+      } as any;
+    }
+    // RPC resolved cleanly with no rows → genuinely no user. Skip the
+    // paginated fallback (it would return null too).
+    if (!error) return null;
+  } catch (e: any) {
+    console.error("[pawz-auth] get_auth_user_by_email RPC threw:", e?.message || e);
+  }
+
+  // Fallback: paginated listUsers (only if the RPC is missing — e.g. the
+  // migration hasn't been applied yet on this environment). Capped at 4000
+  // users; the RPC above is the real fix.
   let page = 1;
   for (;;) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
