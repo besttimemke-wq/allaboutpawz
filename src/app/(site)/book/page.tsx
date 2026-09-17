@@ -2,6 +2,7 @@ import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { BookingEntryCard } from "@/components/site/islands/booking-entry-cards"
+import { SITE_URL } from "@/lib/site-url"
 // The nine appointment-wizard steps — what happens on the flow page.
 const BOOKING_STEPS = [
   { n: "01", title: "YOUR NAME", body: "Tell us who's bringing the pup in." },
@@ -26,6 +27,7 @@ const CONSULT_STEPS = [
 export const metadata = {
   title: "Book an Appointment | All About Pawz",
   description: "Book a grooming appointment or request a free consultation in one simple flow — nine quick steps and we take care of the rest.",
+  alternates: { canonical: `${SITE_URL}/book` },
 }
 
 export default function BookPage() {

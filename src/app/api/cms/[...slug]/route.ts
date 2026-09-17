@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { repo, type CmsResource } from "@/lib/repo"
 import { sendBookingConfirmation, sendConsultationRequest } from "@/lib/email"
+import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 
 const RESOURCES = new Set<CmsResource>([
   "services", "products", "gallery", "packages", "addons", "faqs",
@@ -70,6 +71,30 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
     sendBookingConfirmation(rec as any).catch((e) => console.error("[email] booking notify failed:", e.message))
   } else if (resource === "consultations") {
     sendConsultationRequest(rec as any).catch((e) => console.error("[email] consultation notify failed:", e.message))
+
+    // Authoritative generate_lead — the consultation was actually submitted
+    // and persisted (server-side, independent of cookie consent). Fail-safe:
+    // neither helper ever throws; the wrap is belt-and-braces so analytics
+    // can NEVER fail the submission response.
+    try {
+      const c: any = rec
+      const props: Record<string, unknown> = {
+        lead_type: "consultation",
+        currency: "USD",
+        value: 0,
+      }
+      if (c?.email) props.email = c.email
+      if (c?.breed) props.breed = c.breed
+      if (c?.dogName) props.dog_name = c.dogName
+      await captureServerEvent({ event: "generate_lead", distinctId: c?.email || undefined, properties: props })
+      await logAnalyticsEvent({
+        event: "generate_lead",
+        data: props,
+        page: "/book/consultation",
+        value: 0,
+        currency: "USD",
+      })
+    } catch { /* analytics must never fail the submission */ }
   }
 
   return NextResponse.json(rec, { status: 201 })

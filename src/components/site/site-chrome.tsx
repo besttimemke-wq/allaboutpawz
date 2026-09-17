@@ -275,8 +275,8 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
           >
             Cookie Preferences
           </button>
-          <a href="#" className="text-gold hover:underline">Terms of Service</a>
-          <a href="#" className="text-gold hover:underline">Investor Information</a>
+          <Link href="/policies/terms-of-service" className="text-gold hover:underline">Terms of Service</Link>
+          <Link href="/contact" className="text-gold hover:underline">Investor Information</Link>
         </div>
       </div>
     </footer>

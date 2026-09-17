@@ -18,6 +18,7 @@ export const CONSENT_BOOT_SCRIPT = `(function(){try{
 window.dataLayer=window.dataLayer||[];
 function gtag(){dataLayer.push(arguments);}
 window.__pawzGtag=gtag;
+window.gtag=window.gtag||gtag;
 window.__pawzConsent=null;
 gtag('consent','default',{
   ad_storage:'denied',

@@ -7,7 +7,7 @@ import {
   Dog, CreditCard, Sparkle, Camera, Spinner,
 } from "@phosphor-icons/react"
 import { useWizard, type BookingType } from "@/lib/wizard/wizard-store"
-import { track } from "@/lib/analytics"
+import { track, identifyViewer } from "@/lib/analytics"
 
 // ---------------------------------------------------------------------------
 // Types — everything the wizard needs comes from server-side props.
@@ -78,10 +78,14 @@ export function BookingWizardV2({
     const params = new URLSearchParams(window.location.search)
     if (params.get("success") === "booking") {
       setSuccess("booking")
+      // The real booking id rides back on the success_url the checkout
+      // route appends (?booking_id=…) — use it as the transaction_id; fall
+      // back to the store's bookingId when absent (older sessions).
+      const bookingIdParam = params.get("booking_id")
       // GA4 purchase + book_appointment — the $25 appointment deposit was
       // paid on Stripe and the visitor is back on the confirmation view.
       track.purchase(
-        s.bookingId || `booking-${Date.now()}`,
+        bookingIdParam || s.bookingId || `booking-${Date.now()}`,
         [{ item_id: "appointment-deposit", item_name: "Appointment Deposit", item_category: "booking", price: 25, quantity: 1 }],
         25,
       )
@@ -93,11 +97,15 @@ export function BookingWizardV2({
         deposit: 25,
         currency: "USD",
       })
+      // Stitch the funnel identity in PostHog — the same email the
+      // server-side captures use as distinct_id.
+      identifyViewer(s.email)
     }
     if (params.get("success") === "consultation") {
       setSuccess("consultation")
       // GA4 generate_lead — the consultation request is a salon lead.
       track.generateLead("consultation", { breed: selectedBreed?.name })
+      identifyViewer(s.email)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -265,8 +273,14 @@ export function BookingWizardV2({
         })
       } else {
         // Appointment → Stripe checkout for $25 deposit
-        // GA4 add_payment_info + begin_checkout (booking leg) — the visitor
-        // chose to pay the deposit; fired right before the Stripe redirect.
+        // GA4 begin_checkout (booking leg) — the visitor is entering the
+        // deposit payment leg; fired just before add_payment_info.
+        track.beginCheckout(
+          [{ item_id: "booking_deposit", item_name: "Grooming Deposit — All About Pawz", price: 25, quantity: 1 }],
+          "booking",
+        )
+        // GA4 add_payment_info — the visitor chose to pay the deposit;
+        // fired right before the Stripe redirect.
         track.addPaymentInfo(
           [{ item_id: "appointment-deposit", item_name: "Appointment Deposit", item_category: "booking", price: 25, quantity: 1 }],
         )

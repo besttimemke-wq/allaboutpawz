@@ -13,6 +13,9 @@ import { repo } from "@/lib/repo"
 export const metadata = {
   title: "Your Bag — All About Pawz Shop",
   description: "Review your bag, compare products side by side, and check out when you're ready.",
+  // Cart pages are personal, transient, and worthless in search — keep them
+  // out of the index while still following links out (noindex, follow).
+  robots: { index: false, follow: true },
 }
 
 export default async function BagPage() {
@@ -40,6 +43,10 @@ export default async function BagPage() {
     <>
       <PageHeader n="06" label="SHOP" />
       <section className="marble bg-cream px-8 pb-14 pt-12 lg:px-12">
+        {/* Server-rendered h1 — the bag's visual design carries no heading,
+          but every page needs exactly one h1; screen-reader-only so the
+          design is untouched. */}
+        <h1 className="sr-only">Your Bag — All About Pawz Boutique</h1>
         <BagClient products={visible} ratings={ratings} />
       </section>
     </>

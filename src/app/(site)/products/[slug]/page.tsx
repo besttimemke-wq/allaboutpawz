@@ -4,8 +4,9 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { PawPrint } from "lucide-react"
 import { repo } from "@/lib/repo"
-import { getNavTree, flattenNav, findByRawIdNav } from "@/lib/shop/catalog"
+import { getNavTree, flattenNav, findByRawIdNav, parsePriceToCents } from "@/lib/shop/catalog"
 import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
+import { SITE_URL } from "@/lib/site-url"
 
 // ---------------------------------------------------------------------------
 // Product detail — /products/[slug]
@@ -30,6 +31,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return {
     title: `${product.name} — All About Pawz Shop`,
     description: product.shortDescription || product.description || product.name,
+    alternates: { canonical: `${SITE_URL}/products/${slug}` },
   }
 }
 
@@ -125,6 +127,63 @@ export default async function ProductPage({ params }: Params) {
 
   const freeOf = hasText(product.ingredients) ? parseFreeOf(product.ingredients) : null
   const specs = hasText(product.specs) ? specRows(product.specs) : []
+
+  // ---- Structured data (server-rendered) ----
+  const canonicalUrl = `${SITE_URL}/products/${slug}`
+  // Absolute image URL (product images are usually absolute CDN/storage
+  // URLs; relative paths resolve against the site domain).
+  const productImage = hasText(product.image)
+    ? String(product.image).startsWith("/")
+      ? `${SITE_URL}${product.image}`
+      : String(product.image)
+    : undefined
+  const priceCents = parsePriceToCents(product.price)
+  const productJsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.shortDescription || product.description || product.name,
+    url: canonicalUrl,
+  }
+  if (productImage) productJsonLd.image = productImage
+  if (priceCents != null) {
+    productJsonLd.offers = {
+      "@type": "Offer",
+      price: priceCents / 100,
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: canonicalUrl,
+    }
+  }
+  if (reviews.length > 0) {
+    productJsonLd.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: Math.round(avg * 10) / 10,
+      reviewCount: reviews.length,
+    }
+  }
+  // Breadcrumb trail mirrors the visible breadcrumb: Home → Shop → category
+  // chain (when known) → product.
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "Shop", item: `${SITE_URL}/shop` },
+      ...chain.map((c, i) => ({
+        "@type": "ListItem",
+        position: i + 3,
+        name: c.name,
+        item: c.path.startsWith("/") ? `${SITE_URL}${c.path}` : c.path,
+      })),
+      {
+        "@type": "ListItem",
+        position: chain.length + 3,
+        name: product.name,
+        item: canonicalUrl,
+      },
+    ],
+  }
 
   return (
     <>
@@ -400,6 +459,18 @@ export default async function ProductPage({ params }: Params) {
           </div>
         </section>
       )}
+
+      {/* Structured data — Product (price, availability, rating rollup) and
+          the breadcrumb trail, server-rendered from the same records the page
+          displays. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
     </>
   )
 }
@@ -407,7 +478,9 @@ export default async function ProductPage({ params }: Params) {
 function DetailBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 gap-4 py-9 lg:grid-cols-[220px_1fr]">
-      <p className="eyebrow lg:pt-1">{label}</p>
+      {/* Section label is a real h2 — the .eyebrow utility fully specifies
+          font/size/tracking/color, so the rendering is unchanged. */}
+      <h2 className="eyebrow lg:pt-1">{label}</h2>
       <div>{children}</div>
     </div>
   )

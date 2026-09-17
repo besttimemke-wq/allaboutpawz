@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { repo } from "@/lib/repo"
 import { withPg, TENANT_ID } from "@/lib/crm/enterprise"
+import { requireAdminApi } from "@/lib/admin/gate"
 
 // GET /api/analytics/revenue?period=week|month|quarter
 // Returns daily revenue data for the dashboard chart.
@@ -18,6 +19,11 @@ async function ledgerPayments(): Promise<{ createdAt: string; amount: number }[]
 }
 
 export async function GET(req: NextRequest) {
+  // Admin gate — real revenue aggregates must never leak to the public.
+  // Same gate (and response shape) as /api/analytics/events GET.
+  const gate = await requireAdminApi()
+  if (gate) return gate
+
   const { searchParams } = new URL(req.url)
   const period = searchParams.get("period") || "week"
 

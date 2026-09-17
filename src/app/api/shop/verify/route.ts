@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
+import { parseMoney } from "@/lib/crm/enterprise"
+import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 
 // GET /api/shop/verify?session_id=cs_test_…
 //
@@ -64,6 +66,41 @@ export async function GET(req: NextRequest) {
           summary: `Order ${orderId.slice(0, 8)}… paid via Stripe (${session.id.slice(0, 14)}…)`,
         })
       } catch { /* ignore */ }
+
+      // Authoritative purchase analytics — ONLY on the call where the order
+      // actually transitions to PAID (the condition above). When the webhook
+      // already ran, paymentStatus is PAID on entry and no event fires here —
+      // this is the natural dedupe between the two authoritative paths.
+      // Fail-safe: neither helper ever throws; the wrap is belt-and-braces
+      // so analytics can NEVER fail the verify response.
+      try {
+        const value = parseMoney(order?.total || order?.subtotal || session.amount_total)
+        const items = ((await repo.list("order_items").catch(() => [])) as any[])
+          .filter((it: any) => it.orderId === orderId)
+          .map((it: any) => ({
+            item_id: it.productId,
+            item_name: it.name,
+            price: parseMoney(it.unitPrice),
+            quantity: Number(it.quantity) || 1,
+          }))
+        const distinctId = session.customer_details?.email || session.customer_email || order?.email || undefined
+        const props = {
+          transaction_id: `PAY-${String(orderId).slice(0, 8).toUpperCase()}`,
+          value,
+          currency: "USD",
+          items,
+          order_id: orderId,
+          checkout_flow: "shop",
+        }
+        await captureServerEvent({ event: "purchase", distinctId, properties: props })
+        await logAnalyticsEvent({
+          event: "purchase",
+          data: props,
+          page: "/shop",
+          value,
+          currency: "USD",
+        })
+      } catch { /* analytics must never fail verification */ }
     }
 
     return NextResponse.json({

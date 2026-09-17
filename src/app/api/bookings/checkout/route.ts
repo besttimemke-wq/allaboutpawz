@@ -4,6 +4,7 @@ import { repo } from "@/lib/repo"
 import { sendEmail } from "@/lib/email"
 import { callbackBase } from "@/lib/site-url"
 import { syncCrmAppointment, writeCommercePayment, withPg } from "@/lib/crm/enterprise"
+import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 
 const salonNotifyTo = "notifications@confirmation.aapawz.com"
 
@@ -191,6 +192,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ bookingId: booking?.id, type: "consultation", url: `${callbackBase(req)}/book/consultation?success=consultation` })
   }
 
+  // 5b. Authoritative funnel event — the appointment booking exists in
+  //     PAYMENT_PENDING awaiting the $25 deposit (server-side, independent
+  //     of cookie consent). Fail-safe: neither helper ever throws; the wrap
+  //     is belt-and-braces so analytics can NEVER break checkout.
+  try {
+    const props = {
+      status: "PAYMENT_PENDING",
+      booking_id: booking?.id || null,
+      service: serviceName || service || null,
+      dog_name: dogName || null,
+      flow: "appointment",
+    }
+    await logAnalyticsEvent({ event: "booking_created", data: props, page: "/book/appointment" })
+    if (email) {
+      await captureServerEvent({ event: "booking_created", distinctId: email, properties: props })
+    }
+  } catch { /* analytics must never break checkout */ }
+
   // 6. Create Stripe Checkout Session for the $25 deposit
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({
@@ -209,7 +228,11 @@ export async function POST(req: NextRequest) {
         },
         quantity: 1,
       }],
-      success_url: `${origin}/book/appointment?success=booking`,
+      // The real booking id rides back on the success return so the client
+      // can use it as the purchase transaction_id.
+      success_url: booking?.id
+        ? `${origin}/book/appointment?success=booking&booking_id=${booking.id}`
+        : `${origin}/book/appointment?success=booking`,
       cancel_url: `${origin}/book?cancelled=1`,
       metadata: {
         bookingId: booking?.id || "",

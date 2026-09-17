@@ -1,10 +1,12 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { WizardLoader } from "@/components/site/islands/wizard-loader"
+import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
   title: "Request a Consultation | All About Pawz",
   description: "Request a free consultation — tell us about your pup and we'll reach out to plan the first groom together.",
+  alternates: { canonical: `${SITE_URL}/book/consultation` },
 }
 
 export default function ConsultationWizardPage() {

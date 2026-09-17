@@ -3,10 +3,12 @@ import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
 import { ServicesAccordion } from "@/components/site/islands/services-accordion"
+import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
   title: "Dog Grooming Services | All About Pawz",
   description: "Grooming packages, baths, spa treatments, and nail & paw care — gentle dog grooming tailored to your pup. Book a package today.",
+  alternates: { canonical: `${SITE_URL}/services` },
 }
 
 export default function ServicesPage() {

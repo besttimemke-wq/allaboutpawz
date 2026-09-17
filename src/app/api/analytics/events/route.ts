@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withPg } from "@/lib/crm/enterprise"
 import { requireAdminApi } from "@/lib/admin/gate"
+import { insertAnalyticsEventRow } from "@/lib/analytics-server"
 
 // ---------------------------------------------------------------------------
 // /api/analytics/events — the salon's OWN custom analytics event log
@@ -53,15 +54,13 @@ export async function POST(req: NextRequest) {
 
     if (rows.length === 0) return NextResponse.json({ ok: true, inserted: 0 })
 
+    // Shared insert helper (src/lib/analytics-server.ts) — the exact same
+    // INSERT the server-side logAnalyticsEvent() performs, so beacon rows
+    // and authoritative server rows are written identically.
     const inserted = await withPg(async (client) => {
       let n = 0
       for (const r of rows) {
-        await client.query(
-          `INSERT INTO public.analytics_events
-             (event_name, event_data, page_path, session_id, value, currency)
-           VALUES ($1, $2::jsonb, $3, $4, $5, $6)`,
-          [r.event_name, JSON.stringify(r.event_data), r.page_path, r.session_id, r.value, r.currency],
-        )
+        await insertAnalyticsEventRow(client, r)
         n++
       }
       return n

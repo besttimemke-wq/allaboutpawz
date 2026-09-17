@@ -19,7 +19,8 @@ export type ConsentCategories = {
   essential: true;
   /** Functional & User Preferences — pet profile prefs, locale, theme. */
   functional: boolean;
-  /** Performance & Analytics — Google Analytics 4, Cloudflare Web Insights. */
+  /** Performance & Analytics — Google Analytics 4, Google Tag Manager,
+   *  PostHog, Microsoft Clarity. */
   analytics: boolean;
 };
 

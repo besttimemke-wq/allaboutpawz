@@ -2,10 +2,12 @@ import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { ProcessSteps } from "@/components/site/islands/process-steps"
+import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
   title: "Our Grooming Process | All About Pawz",
   description: "Five simple steps from booking to pick-up — see how All About Pawz makes every groom calm, gentle, and stress-free for your pup.",
+  alternates: { canonical: `${SITE_URL}/process` },
 }
 
 const PILLARS = [

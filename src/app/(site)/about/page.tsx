@@ -2,10 +2,12 @@ import Link from "next/link"
 import { PawGlyph } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
+import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
   title: "About Us | All About Pawz Dog Grooming",
   description: "Meet Bree and the All About Pawz team — exceptional dog grooming built on thoughtful care, comfort, and family-level service.",
+  alternates: { canonical: `${SITE_URL}/about` },
 }
 
 export default function AboutPage() {
@@ -63,7 +65,9 @@ export default function AboutPage() {
         <div className="relative min-h-[300px]">
           <img src="/About/about-owner.png" alt="Bree, founder of All About Pawz dog grooming, with a small dog at her grooming table in the salon" width={1376} height={768} className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 via-ink/45 to-transparent px-8 pb-7 pt-16 lg:px-10">
-            <p className="script text-[24px] text-gold-light">A message from our founder</p>
+            {/* Real h2 — the .script utility carries the font/color, so the
+                rendering is identical. */}
+            <h2 className="script text-[24px] text-gold-light">A message from our founder</h2>
             <p className="mt-2 max-w-[440px] text-[12.5px] leading-[1.8] text-on-dark">
               At All About Pawz, we provide exceptional grooming in a safe, loving environment. Every pup is treated like our own, and every pet parent is welcomed like family.
             </p>

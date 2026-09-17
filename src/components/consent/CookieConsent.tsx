@@ -58,6 +58,14 @@ function persistConsent(cats: ConsentCategories, preferredId?: string): ConsentR
     "path=/",
     "SameSite=Lax",
   ].join("; ") + secure;
+  // Keep the live window state in sync so consent-gated loaders (PostHog,
+  // Clarity, the analytics fan-out) see the new choice immediately — not
+  // just after a reload.
+  window.__pawzConsent = {
+    essential: true,
+    functional: cats.functional,
+    analytics: cats.analytics,
+  };
   // Notify the GA4 / Consent Mode loader (and anything else listening).
   window.dispatchEvent(new CustomEvent("pawz:consent-changed", { detail: cats }));
   return record;
@@ -109,7 +117,7 @@ const CATEGORIES: CategoryDef[] = [
     description:
       "Helps us analyze aggregate visitor interactions, bounce rates, page load metrics, and checkout flow drop-offs to improve server response times and user flow. All data is aggregated and anonymized.",
     meta: [
-      { label: "Telemetry Partners", value: "Google Analytics 4 · Cloudflare Web Insights" },
+      { label: "Telemetry Partners", value: "Google Analytics 4 · Google Tag Manager · PostHog · Microsoft Clarity" },
       { label: "Duration", value: "13 months" },
     ],
   },
@@ -224,7 +232,7 @@ function ConsentCenter({
   const [draft, setDraft] = useState<ConsentCategories>(initial);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Esc closes without saving; focus starts inside the dialog.
+  // Esc AND backdrop click close without saving; focus starts inside the dialog.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -238,13 +246,17 @@ function ConsentCenter({
     setDraft((d) => (key === "essential" ? d : { ...d, [key]: value }));
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-end justify-center bg-ink/60 backdrop-blur-[2px] sm:items-center sm:px-6">
+    <div
+      className="fixed inset-0 z-[95] flex items-end justify-center bg-ink/60 backdrop-blur-[2px] sm:items-center sm:px-6"
+      onClick={onClose}
+    >
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-label="Cookie and privacy preferences"
         tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
         className="consent-rise flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-gold/40 bg-cream shadow-[0_24px_60px_-12px_rgba(26,20,10,0.5)] outline-none sm:max-h-[88dvh]"
       >
         {/* Header */}

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 import { getNavTree, flattenNav, getProducts, getMerchCollections } from "@/lib/shop/catalog"
+import { getResource } from "@/lib/site-data"
 
 // Public site routes + the canonical shop category routes and product pages
 // (resolved from SQL at generation time — the same server resolver the pages
@@ -63,6 +64,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   } catch {
     // Data layer unavailable — static routes only.
+  }
+
+  // Policy pages (/policies/[slug]) — the same rows + slugify the policy
+  // page resolves with (title → slug, e.g. "TERMS OF SERVICE" →
+  // "terms-of-service"), so every policy the admin publishes is listed.
+  // Fail-safe: static routes survive even if the data call fails.
+  try {
+    const policies = (await getResource<{ id: string; title: string }>("policies")) || []
+    const seen = new Set<string>()
+    for (const p of policies) {
+      const slug = p.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+      if (!slug || seen.has(slug)) continue
+      seen.add(slug)
+      entries.push({
+        url: `${base}/policies/${slug}`,
+        lastModified: now,
+        changeFrequency: "yearly",
+        priority: 0.3,
+      })
+    }
+  } catch {
+    // Policies unavailable — the rest of the sitemap stands.
   }
 
   return entries

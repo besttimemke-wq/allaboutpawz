@@ -2,10 +2,12 @@ import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { AddonsGrid, PackageCards } from "@/components/site/islands/pricing-islands"
+import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
   title: "Grooming Packages & Pricing | All About Pawz",
   description: "Transparent pricing by dog size — Bath & Brush, Full Groom, and Deluxe Spa packages plus add-ons. Book your pup's experience today.",
+  alternates: { canonical: `${SITE_URL}/pricing` },
 }
 
 // Note: SIZES and PACKAGE_META moved into the pricing-islands (client)

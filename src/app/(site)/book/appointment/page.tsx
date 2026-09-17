@@ -1,10 +1,12 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { WizardLoader } from "@/components/site/islands/wizard-loader"
+import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
   title: "Book an Appointment | All About Pawz",
   description: "Reserve your pup's grooming visit — nine quick steps, about two minutes, secured with a $25 deposit.",
+  alternates: { canonical: `${SITE_URL}/book/appointment` },
 }
 
 export default function AppointmentWizardPage() {

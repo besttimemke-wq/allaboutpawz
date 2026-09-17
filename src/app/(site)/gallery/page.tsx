@@ -1,6 +1,14 @@
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { GalleryGrid } from "@/components/site/islands/gallery-grid"
+import { SITE_URL } from "@/lib/site-url"
+
+export const metadata = {
+  title: "Grooming Gallery | All About Pawz",
+  description:
+    "Real pups, real grooms — browse before-and-afters straight from the All About Pawz salon floor and see what a luxury groom looks like.",
+  alternates: { canonical: `${SITE_URL}/gallery` },
+}
 
 export default function GalleryPage() {
   // CSR architecture: static shell; the grid fetches its photos after paint.

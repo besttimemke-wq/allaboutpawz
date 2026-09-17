@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/site/site-chrome"
 import { Plp } from "@/components/site/shop/plp"
 import { CheckoutIsland } from "@/components/site/shop/checkout-island"
 import { TrustStrip } from "@/components/site/shop/shared"
+import { SITE_URL } from "@/lib/site-url"
 
 // ---------------------------------------------------------------------------
 // /shop — the shop-all product listing page. Server-rendered on request:
@@ -13,6 +14,14 @@ import { TrustStrip } from "@/components/site/shop/shared"
 // client islands embedded in the server page; the checkout wizard mounts
 // only when a checkout is in flight (?checkout=…).
 // ---------------------------------------------------------------------------
+
+export const metadata = {
+  title: "Shop the Pawz Boutique | All About Pawz",
+  description:
+    "Groomer-curated dog shampoos, conditioners, colognes, tools, and accessories — hand-selected by All About Pawz groomers for coat health, comfort, and style.",
+  // Filter/sort query variants consolidate onto the canonical listing URL.
+  alternates: { canonical: `${SITE_URL}/shop` },
+}
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>

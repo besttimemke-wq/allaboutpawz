@@ -7,7 +7,7 @@ import {
   Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle,
 } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
-import { track, priceToDollars } from "@/lib/analytics"
+import { track, priceToDollars, identifyViewer } from "@/lib/analytics"
 
 // ---------------------------------------------------------------------------
 // CheckoutIsland — the shop checkout flow, mounted on the SSR shop page.
@@ -58,6 +58,9 @@ export function CheckoutIsland() {
         quantity: i.quantity,
       })),
     )
+    // Stitch the funnel identity in PostHog — the same email the
+    // server-side captures use as distinct_id.
+    identifyViewer(s.email)
   }, [view, searchParams, s.items])
 
   // GA4 begin_checkout — fires when the checkout wizard is entered.

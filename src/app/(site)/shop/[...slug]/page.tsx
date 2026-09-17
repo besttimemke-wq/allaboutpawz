@@ -18,6 +18,7 @@ import {
   MERCH_META,
   type MerchKey,
 } from "@/lib/shop/catalog"
+import { SITE_URL } from "@/lib/site-url"
 
 // ---------------------------------------------------------------------------
 // /shop/[...slug] — the server-rendered category system (three templates):
@@ -44,7 +45,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params
   const merch = merchKey(slug[0])
   if (merch) {
-    return { title: `${MERCH_META[merch].displayName} — All About Pawz Shop` }
+    return {
+      title: `${MERCH_META[merch].displayName} — All About Pawz Shop`,
+      description: MERCH_META[merch].blurb,
+      alternates: { canonical: `${SITE_URL}/shop/${merch}` },
+    }
   }
   const resolved = await resolveCategory(slug || [])
   if (!resolved) return { title: "Shop — All About Pawz" }
@@ -55,12 +60,33 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       resolved.node.children.length > 0
         ? `Shop ${resolved.node.displayName} and ${resolved.node.count} curated products at All About Pawz.`
         : `Shop ${resolved.node.displayName} for dogs — groomer-approved quality from All About Pawz.`,
+    // Filter/sort query variants consolidate onto the canonical category URL.
+    alternates: { canonical: `${SITE_URL}${resolved.node.path}` },
   }
 }
 
 function merchKey(seg: string | undefined): MerchKey | null {
   if (seg === "new-arrivals" || seg === "sale") return seg
   return null
+}
+
+// BreadcrumbList structured data — Home → Shop → the trail the visible
+// breadcrumb shows for this category (or merchandising collection).
+function breadcrumbJsonLd(trail: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "Shop", item: `${SITE_URL}/shop` },
+      ...trail.map((c, i) => ({
+        "@type": "ListItem",
+        position: i + 3,
+        name: c.name,
+        item: `${SITE_URL}${c.path}`,
+      })),
+    ],
+  }
 }
 
 export default async function CategoryPage({ params, searchParams }: PageProps) {
@@ -73,6 +99,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const merch = merchKey(segments[0])
   if (merch && segments.length === 1) {
     const meta = MERCH_META[merch]
+    const merchTrail = [{ name: meta.displayName, path: `/shop/${merch}` }]
     return (
       <>
         <PageHeader n="06" label={`SHOP / ${meta.displayName.toUpperCase()}`} />
@@ -88,6 +115,10 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
           <Plp scope={{ kind: "merch", merch, title: meta.displayName, blurb: meta.blurb }} searchParams={sp} />
         </section>
         <TrustStrip />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(merchTrail)) }}
+        />
       </>
     )
   }
@@ -110,6 +141,13 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   }
 
   const { node, chain, parentNode, siblings } = resolved
+  const categoryTrail = chain.map((c) => ({ name: c.displayName, path: c.path }))
+  const categoryBreadcrumbScript = (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(categoryTrail)) }}
+    />
+  )
 
   // ================= Template 1: parent landing =================
   if (node.level === 0) {
@@ -129,6 +167,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
         />
         <ProductRail title="NEW ARRIVALS" products={newArrivals} viewAllHref="/shop/new-arrivals" />
         <TrustStrip />
+        {categoryBreadcrumbScript}
       </>
     )
   }
@@ -147,6 +186,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
           <Plp scope={{ kind: "category", node }} searchParams={sp} />
         </section>
         <TrustStrip />
+        {categoryBreadcrumbScript}
       </>
     )
   }
@@ -179,6 +219,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
         <Plp scope={{ kind: "category", node }} searchParams={sp} />
       </section>
       <TrustStrip />
+      {categoryBreadcrumbScript}
     </>
   )
 }

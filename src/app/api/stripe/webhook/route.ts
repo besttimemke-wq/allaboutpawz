@@ -5,6 +5,7 @@ import { fulfillOrderFromSession } from "@/app/api/checkout/route"
 import { sendBookingConfirmation, sendPaymentReceipt } from "@/lib/email"
 import { enrollCustomer } from "@/lib/auth/enroll-customer"
 import { syncCrmAppointment, writeCommercePayment, withPg, platformAudit, TENANT_ID, parseMoney } from "@/lib/crm/enterprise"
+import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 
 // The owner's escrow registry + payment ledger — all money events land in HIS
 // tables (never a parallel payments row):
@@ -94,6 +95,11 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Confirm the booking
+        //    (pre-update state captured first — a replayed Stripe delivery
+        //    sees the booking already CONFIRMED + DEPOSIT_PAID and skips the
+        //    analytics below, keeping authoritative events replay-safe)
+        const alreadyDepositPaid =
+          booking?.status === "CONFIRMED" && booking?.paymentStatus === "DEPOSIT_PAID"
         if (bookingId) {
           await repo.update("bookings", bookingId, {
             status: "CONFIRMED",
@@ -103,6 +109,58 @@ export async function POST(req: NextRequest) {
           booking = booking
             ? { ...booking, status: "CONFIRMED", paymentStatus: "DEPOSIT_PAID", stripePaymentIntentId: paymentIntentId }
             : booking
+        }
+
+        // 2b. Authoritative analytics — the moment of truth: the deposit
+        //     actually cleared (server-side, independent of cookie consent
+        //     and of the thank-you page). purchase + booking_confirmed go to
+        //     PostHog and the analytics_events log. Fail-safe by contract:
+        //     neither helper ever throws, and the wrap is belt-and-braces so
+        //     analytics can NEVER fail the payment flow.
+        if (bookingId && !alreadyDepositPaid) {
+          try {
+            const distinctId =
+              booking?.email || customer?.email || session.customer_details?.email || undefined
+            const txnId = `PAY-${String(bookingId).slice(0, 8).toUpperCase()}`
+            const purchaseProps = {
+              transaction_id: txnId,
+              value: 25,
+              currency: "USD",
+              items: [
+                {
+                  item_id: "booking_deposit",
+                  item_name: `Grooming Deposit — ${booking?.dogName || booking?.service || "All About Pawz"}`,
+                  price: 25,
+                  quantity: 1,
+                },
+              ],
+              booking_id: bookingId,
+              service: booking?.service || null,
+              dog_name: booking?.dogName || null,
+              appointment_date: booking?.date || null,
+              appointment_time: booking?.time || null,
+              checkout_flow: "booking",
+            }
+            await captureServerEvent({ event: "purchase", distinctId, properties: purchaseProps })
+            await logAnalyticsEvent({
+              event: "purchase",
+              data: purchaseProps,
+              page: "/book/appointment",
+              value: 25,
+              currency: "USD",
+            })
+            const confirmedProps = {
+              booking_id: bookingId,
+              service: booking?.service || null,
+              dog_name: booking?.dogName || null,
+              date: booking?.date || null,
+              time: booking?.time || null,
+              deposit: 25,
+              currency: "USD",
+            }
+            await captureServerEvent({ event: "booking_confirmed", distinctId, properties: confirmedProps })
+            await logAnalyticsEvent({ event: "booking_confirmed", data: confirmedProps, page: "/book/appointment" })
+          } catch { /* analytics must never fail the payment flow */ }
         }
 
         // 3. The payment ledger — commerce_payments (find-or-create by the
@@ -208,8 +266,15 @@ export async function POST(req: NextRequest) {
         } catch { /* ignore */ }
       } else {
         // Product order
-        await fulfillOrderFromSession(session)
         const orderId = session.metadata?.orderId
+        // Pre-fulfillment state — the natural replay dedupe for the analytics
+        // below (a replayed delivery sees the order already PAID → no event).
+        let alreadyPaid = false
+        try {
+          const before = orderId ? await repo.get("orders" as any, orderId) : null
+          alreadyPaid = before?.paymentStatus === "PAID"
+        } catch { /* ignore */ }
+        await fulfillOrderFromSession(session)
 
         // 1. Auto-enroll the buyer FIRST — single login created after money
         //    moved, exact-email join, invite email sent by Supabase. The
@@ -260,6 +325,46 @@ export async function POST(req: NextRequest) {
         } catch (e: any) {
           console.error("[webhook] order payment row failed:", e.message)
         }
+
+        // 3. Authoritative purchase analytics — fires only on the delivery
+        //    that actually flipped the order to PAID (replays are deduped by
+        //    the pre-fulfillment state above; when the /api/shop/verify route
+        //    ran first, this branch never fires because the order is already
+        //    PAID). Fail-safe: neither helper ever throws; the wrap is
+        //    belt-and-braces so analytics can NEVER fail fulfillment.
+        try {
+          if (!alreadyPaid && orderId) {
+            const order = await repo.get("orders" as any, orderId)
+            // Mirror the commerce_payments ledger exactly: parseMoney of the
+            // order total/subtotal display price → dollars.
+            const value = parseMoney(order?.total || order?.subtotal || session.amount_total)
+            const items = ((await repo.list("order_items" as any).catch(() => [])) as any[])
+              .filter((it: any) => it.orderId === orderId)
+              .map((it: any) => ({
+                item_id: it.productId,
+                item_name: it.name,
+                price: parseMoney(it.unitPrice),
+                quantity: Number(it.quantity) || 1,
+              }))
+            const distinctId = session.customer_details?.email || order?.email || undefined
+            const props = {
+              transaction_id: `PAY-${String(orderId).slice(0, 8).toUpperCase()}`,
+              value,
+              currency: "USD",
+              items,
+              order_id: orderId,
+              checkout_flow: "shop",
+            }
+            await captureServerEvent({ event: "purchase", distinctId, properties: props })
+            await logAnalyticsEvent({
+              event: "purchase",
+              data: props,
+              page: "/shop",
+              value,
+              currency: "USD",
+            })
+          }
+        } catch { /* analytics must never fail fulfillment */ }
       }
     } else if (event.type === "payment_intent.payment_failed") {
       const intent = event.data.object as Stripe.PaymentIntent

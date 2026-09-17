@@ -4,15 +4,52 @@ import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { FaqAccordion } from "@/components/site/islands/faq-accordion"
 import { PolicyBoxes } from "@/components/site/islands/policy-boxes"
+import { getResource } from "@/lib/site-data"
+import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
   title: "FAQ & Policies | All About Pawz",
   description: "Answers to the questions pet parents ask most — appointments, vaccines, matted coats, and the salon policies that keep every pup safe.",
+  alternates: { canonical: `${SITE_URL}/faq` },
 }
 
-export default function FaqPage() {
-  // CSR architecture: static shell; policy boxes and the accordion fetch
-  // their content client-side after paint.
+type Faq = { id: string; question: string; answer: string }
+
+export default async function FaqPage() {
+  // The accordion fetches its rows client-side after paint; the page reads
+  // the SAME rows server-side (fail-safe — the static shell always renders)
+  // to (1) seed the accordion so the questions land in the initial HTML for
+  // crawlers and (2) emit FAQPage structured data.
+  let faqs: Faq[] = []
+  try {
+    faqs = (await getResource<Faq>("faqs")) || []
+  } catch {
+    faqs = []
+  }
+
+  // Structured data: one entry per unique question (the live table currently
+  // holds each FAQ twice from a double seed — duplicated Question entities
+  // are noise for rich results; when the rows are deduped, this mirrors the
+  // page 1:1 automatically).
+  const seen = new Set<string>()
+  const uniqueFaqs = faqs.filter((f) => {
+    if (!f.question || !f.answer || seen.has(f.question)) return false
+    seen.add(f.question)
+    return true
+  })
+  const faqJsonLd =
+    uniqueFaqs.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: uniqueFaqs.map((f) => ({
+            "@type": "Question",
+            name: f.question,
+            acceptedAnswer: { "@type": "Answer", text: f.answer },
+          })),
+        }
+      : null
+
   return (
     <>
       <PageHeader n="11" label="FAQ / POLICIES" />
@@ -62,9 +99,18 @@ export default function FaqPage() {
           />
         </div>
         <div className="min-w-0">
-          <FaqAccordion />
+          <FaqAccordion initialFaqs={faqs} />
         </div>
       </section>
+
+      {/* FAQPage structured data — server-rendered from the same rows the
+          accordion shows; omitted entirely if the data layer is unavailable. */}
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
     </>
   )
 }

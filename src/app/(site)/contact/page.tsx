@@ -4,6 +4,8 @@ import { HeroCtas } from "@/components/site/hero-ctas"
 import { ContactForm } from "@/components/site/islands/contact-form"
 import { ContactDetails, SocialLinks } from "@/components/site/islands/contact-details"
 import { Reveal } from "@/components/site/islands/reveal"
+import { getSettings } from "@/lib/site-data"
+import { SITE_URL } from "@/lib/site-url"
 
 // Black band under the hero — exact copy of the homepage services band
 // structure: left title column + 4 centered items with numbered gold
@@ -30,12 +32,57 @@ const CONTACT_POINTS = [
 export const metadata = {
   title: "Contact Us | All About Pawz",
   description: "Questions about services, packages, or your pup's coat? Reach All About Pawz by phone, email, or a visit to the salon — we respond personally.",
+  alternates: { canonical: `${SITE_URL}/contact` },
 }
 
-export default function ContactPage() {
+export default async function ContactPage() {
   // CSR architecture: static shell; the essentials (address, phone, email,
   // hours) render instantly with fallbacks and swap in the admin-published
   // values when they arrive.
+  //
+  // Structured data: the page reads the SAME settings server-side (fail-safe
+  // — the LocalBusiness schema degrades gracefully if the data layer is
+  // unavailable) and mirrors exactly what the essentials section shows.
+  let s: Record<string, string> = {}
+  try {
+    s = await getSettings()
+  } catch {
+    s = {}
+  }
+
+  const addressLine1 = s.addressLine1 || "1428 Maple Grove Avenue"
+  const addressLine2 = s.addressLine2 || "Suite 4, Riverbend, IL 60614"
+  const phone = s.phone || "901-800-7182"
+
+  // "Memphis, TN 38122" → city / state / zip (anything unparsable stays a
+  // single street-address string).
+  const cityStateZip = addressLine2.match(/^(.*),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/)
+  const sameAs = [s.instagram, s.facebook].filter(
+    (u): u is string => typeof u === "string" && /^https?:\/\//.test(u),
+  )
+
+  const localBusinessJsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "PetGroomer",
+    name: "All About Pawz",
+    url: SITE_URL,
+    image: `${SITE_URL}/assets/paw.png`,
+    telephone: phone,
+    priceRange: "$$",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: addressLine1,
+      ...(cityStateZip
+        ? {
+            addressLocality: cityStateZip[1],
+            addressRegion: cityStateZip[2],
+            postalCode: cityStateZip[3],
+          }
+        : { addressLocality: addressLine2 }),
+    },
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+  }
+
   return (
     <>
       <PageHeader n="10" label="CONTACT" />
@@ -99,6 +146,13 @@ export default function ContactPage() {
           <ContactForm />
         </div>
       </section>
+
+      {/* LocalBusiness (PetGroomer) structured data — server-rendered from
+          the same settings the essentials section displays. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessJsonLd) }}
+      />
     </>
   )
 }

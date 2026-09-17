@@ -58,14 +58,20 @@ export function ProcessSteps() {
         return (
           <li key={s.n} className="relative grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(320px,0.82fr)_minmax(0,1fr)] lg:gap-10">
             {/* The 1–5 list — number, title, and descriptor stay in place.
-                Click anywhere on the row (plus rotates to ×) to reveal its card. */}
-            <button
-              type="button"
-              onClick={() => toggle(i)}
-              aria-expanded={isOn}
-              aria-controls={panelId}
-              className="relative flex w-full items-start gap-5 text-left"
-            >
+                Click anywhere on the row (plus rotates to ×) to reveal its card.
+                The step title is a real h3 (a heading must never live inside a
+                <button>): a transparent full-row overlay button carries the
+                exact same interaction, labeled by the h3 via
+                aria-labelledby; z-20 keeps it above the numbered circle. */}
+            <div className="relative flex w-full items-start gap-5 text-left">
+              <button
+                type="button"
+                onClick={() => toggle(i)}
+                aria-expanded={isOn}
+                aria-controls={panelId}
+                aria-labelledby={`step-title-${s.n}`}
+                className="absolute inset-0 z-20"
+              />
               <span
                 className={`relative z-10 flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-full border text-[10px] font-bold transition-colors duration-300 ${
                   isOn ? "border-gold-deep bg-gold-deep text-cream" : "border-gold-deep bg-cream text-gold-deep"
@@ -74,7 +80,12 @@ export function ProcessSteps() {
                 {s.n}
               </span>
               <span className="min-w-0 flex-1 pt-1">
-                <span className="block text-[11px] font-bold tracking-[0.14em] text-ink">{s.title}</span>
+                {/* type-body pins the body font — h1–h4 default to the display
+                    serif via the base layer, and the title has always rendered
+                    in Lato — so the visuals are unchanged. */}
+                <h3 id={`step-title-${s.n}`} className="type-body block text-[11px] font-bold tracking-[0.14em] text-ink">
+                  {s.title}
+                </h3>
                 <span className="mt-1.5 block max-w-[330px] text-[12px] leading-[1.7] text-ink-soft">{s.body}</span>
               </span>
               <span
@@ -84,7 +95,7 @@ export function ProcessSteps() {
               >
                 <Plus className={`h-3.5 w-3.5 transition-transform duration-300 ${isOn ? "rotate-45" : ""}`} strokeWidth={2} />
               </span>
-            </button>
+            </div>
 
             {/* Card slot — to the RIGHT of the number (left-to-right reading).
                 The card slides in from the left, aligned with that number. */}

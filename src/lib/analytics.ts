@@ -2,24 +2,29 @@
 // All About Pawz — Analytics tracking library (client-side).
 //
 // One typed API (`track`) that fans every booking + ecommerce event out to:
-//   1. `gtag('event', …)`          → GA4 property G-7EVNS33CKD (direct tag)
+//   1. `gtag('event', …)`          → GA4 property G-7EVNS33CKD (Google tag,
+//      installed statically in <head> per Google's official snippet)
 //   2. `dataLayer.push({event, …})` → Google Tag Manager container
 //      GTM-WT35373V (standard GTM/GA4 ecommerce dataLayer schema — any tag
 //      configured inside the container can consume it)
 //   3. `navigator.sendBeacon('/api/analytics/events')` → the salon's OWN
 //      custom analytics (analytics_events table in Supabase, readable from
 //      the admin portal)
+//   4. `posthog.capture(…)`        → PostHog product analytics (autocapture,
+//      funnels, dashboards — the SDK is only initialized after consent)
 //
-// Consent: events are mirrored to GA4 / GTM / the server ONLY while the
+// Consent: events are mirrored to GA4 / PostHog / the server ONLY while the
 // visitor granted the "Performance & Analytics" cookie category. While
-// denied, nothing leaves the browser (dataLayer stays in-memory and inert
-// because neither the GTM container nor the GA4 tag is loaded).
+// denied, nothing leaves the browser: Consent Mode v2 keeps gtag.js
+// cookie-less and hit-less, PostHog is never initialized, and the beacon is
+// skipped (the dataLayer stays in-memory and inert for GTM until it loads).
 //
 // Event names follow the GA4 recommended-event schema so they map natively
 // in the Google console (Monetization / Ecommerce / Funnel reports) — with
 // Pawz-specific custom events for the booking funnel.
 // ---------------------------------------------------------------------------
 
+import posthog from "posthog-js";
 import { readConsentCookie } from "@/lib/consent";
 
 export const CURRENCY = "USD";
@@ -46,8 +51,6 @@ declare global {
   interface Window {
     dataLayer?: unknown[];
     __pawzGtag?: (...args: unknown[]) => void;
-    __pawzGa4Loaded?: boolean;
-    __pawzGtmLoaded?: boolean;
   }
 }
 
@@ -101,7 +104,13 @@ function dispatch(event: string, params: EcommerceParams = {}): void {
       window.__pawzGtag("event", event, params);
     }
 
-    // 3. Custom analytics mirror — the salon's own event log in Supabase.
+    // 3. PostHog product analytics — the SDK is only initialized after
+    //    analytics consent (see app/providers.tsx).
+    if (granted && posthog.__loaded) {
+      posthog.capture(event, { ...params, $current_url: window.location.href });
+    }
+
+    // 4. Custom analytics mirror — the salon's own event log in Supabase.
     if (granted && typeof navigator !== "undefined" && navigator.sendBeacon) {
       const payload = JSON.stringify({
         event,
@@ -250,3 +259,19 @@ export const track = {
     dispatch(`pawz_${event}`, params);
   },
 };
+
+/**
+ * Identify the visitor to PostHog once we legitimately know who they are
+ * (they submitted their email in the booking or checkout flow). Consent-
+ * gated; server-side captures use the same email as distinct_id, so the
+ * client identity stitches the whole funnel together in PostHog.
+ */
+export function identifyViewer(email: string | null | undefined): void {
+  try {
+    if (typeof window === "undefined" || !email) return;
+    if (!analyticsGranted()) return;
+    if (posthog.__loaded) posthog.identify(email);
+  } catch {
+    /* never fatal */
+  }
+}

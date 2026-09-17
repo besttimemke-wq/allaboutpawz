@@ -5,6 +5,7 @@ import { TopUtilityBar } from "@/components/site/site-chrome"
 import { HomeHeroCopy, HomeHeroSubtitle, HomeTestimonial } from "@/components/site/islands/home-islands"
 import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
+import { SITE_URL } from "@/lib/site-url"
 
 const STEPS = [
   { Icon: CalendarDays, title: "BOOK ONLINE", body: ["Choose your", "service & time."] },
@@ -16,6 +17,7 @@ const STEPS = [
 export const metadata = {
   title: "Luxury Dog Grooming & Spa | All About Pawz",
   description: "All About Pawz delivers spa-level dog grooming — breed-specific haircuts, baths, and nail care in a calm, luxury salon.",
+  alternates: { canonical: `${SITE_URL}/` },
 }
 
 export default function HomePage() {

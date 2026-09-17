@@ -246,6 +246,12 @@
   font-weight: 400;
   line-height: 1.2;
 }
+/* Explicit body-font utility — headings (h1–h4) default to the display font
+   via the base layer, so non-heading text that becomes a heading (or lives
+   inside one) needs this to keep rendering in Lato. */
+@utility type-body {
+  font-family: var(--font-body);
+}
 @utility btn-gold {
   display: inline-flex;
   align-items: center;
