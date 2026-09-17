@@ -7,6 +7,8 @@ import { Sidebar } from '@/components/pawz/Sidebar';
 import { Header } from '@/components/pawz/Header';
 import { QuickActionModals } from '@/components/pawz/Modals/QuickActionModals';
 import { ModuleNav } from '@/components/pawz/_shared/ModuleNav';
+import { PortalShellSkeleton } from '@/components/pawz/_shared/PortalShellSkeleton';
+import { useSessionQuery } from '@/lib/hooks/useSessionQuery';
 import { cn } from '@/lib/utils';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -52,61 +54,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return unsub;
   }, []);
 
-  // Auth gate — the SERVER session (pawz_session cookie) is the single
-  // source of truth. On mount we reconcile: a stale persisted user from a
-  // previous sign-in on this browser is replaced by the server's answer
-  // BEFORE any role redirect fires (prevents wrong-portal bounces), and no
-  // server session at all clears the store and sends the visitor to the
-  // Admin door, never the public site.
-  const [sessionChecked, setSessionChecked] = useState(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!hasHydrated) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/auth/portal-session');
-        const data = await res.json();
-        if (cancelled) return;
-        if (data?.user) {
-          useAppStore.getState().setUser(data.user);
-        } else {
-          useAppStore.getState().setUser(null);
-          router.replace('/admin-login');
-          return;
-        }
-      } catch {
-        // network hiccup — fall back to the persisted store below
-      }
-      if (!cancelled) setSessionChecked(true);
-    })();
-    return () => { cancelled = true; };
-  }, [hasHydrated, router]);
+  // Auth gate — STALE-WHILE-REVALIDATE. The persisted user (localStorage)
+  // paints the shell INSTANTLY; the server session (/api/auth/portal-session,
+  // pawz_session cookie) is the single source of truth and reconciles in the
+  // background: a stale cached user is replaced by the server's answer, and
+  // no server session at all sends the visitor to the Admin door — never the
+  // public site. The shell NEVER waits on the network: only a first visit
+  // with no cached user shows the static skeleton frame while the one check
+  // runs.
+  const session = useSessionQuery((serverUser) => {
+    if (serverUser) {
+      useAppStore.getState().setUser(serverUser);
+    } else {
+      useAppStore.getState().setUser(null);
+      router.replace('/admin-login');
+    }
+  });
 
   // Scope enforcement — only after the server session has spoken.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!hasHydrated || !sessionChecked) return;
-    if (!currentUser) {
+    if (!session.isResolved) return;
+    const user = session.user;
+    if (!user) {
       router.replace('/admin-login');
       return;
     }
-    if (currentUser.role === 'groomer') {
+    if (user.role === 'groomer') {
       router.replace('/groomer/dashboard');
       return;
     }
-    if (currentUser.role === 'customer') {
+    if (user.role === 'customer') {
       router.replace('/customer/dashboard');
       return;
     }
-  }, [hasHydrated, sessionChecked, currentUser, router]);
+  }, [session.isResolved, session.user, router]);
 
   if (!hasHydrated || !currentUser || currentUser.role !== 'admin') {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
+    return <PortalShellSkeleton />;
   }
 
   const generateId = (prefix: string) => `${prefix}-${Math.random().toString(36).substring(2, 9)}`;

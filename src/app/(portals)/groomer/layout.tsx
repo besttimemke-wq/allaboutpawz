@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { Sidebar } from '@/components/pawz/Sidebar';
 import { Header } from '@/components/pawz/Header';
+import { PortalShellSkeleton } from '@/components/pawz/_shared/PortalShellSkeleton';
+import { useSessionQuery } from '@/lib/hooks/useSessionQuery';
 import { cn } from '@/lib/utils';
 import type { DawgNavSection } from '@/lib/types';
 import {
@@ -39,61 +41,40 @@ export default function GroomerLayout({ children }: { children: React.ReactNode 
     return unsub;
   }, []);
 
-  // Auth gate — the SERVER session (pawz_session cookie) is the single
-  // source of truth. On mount we reconcile: a stale persisted user from a
-  // previous sign-in on this browser is replaced by the server's answer
-  // BEFORE any role redirect fires (prevents wrong-portal bounces), and no
-  // server session at all clears the store and sends the visitor to the
-  // Groomer door, never the public site.
-  const [sessionChecked, setSessionChecked] = useState(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!hasHydrated) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/auth/portal-session');
-        const data = await res.json();
-        if (cancelled) return;
-        if (data?.user) {
-          useAppStore.getState().setUser(data.user);
-        } else {
-          useAppStore.getState().setUser(null);
-          router.replace('/access-groomer');
-          return;
-        }
-      } catch {
-        // network hiccup — fall back to the persisted store below
-      }
-      if (!cancelled) setSessionChecked(true);
-    })();
-    return () => { cancelled = true; };
-  }, [hasHydrated, router]);
+  // Auth gate — STALE-WHILE-REVALIDATE. The persisted user paints the shell
+  // INSTANTLY; the server session is the source of truth and reconciles in
+  // the background. No full-screen spinner — only a first visit with no
+  // cached user shows the static skeleton frame.
+  const session = useSessionQuery((serverUser) => {
+    if (serverUser) {
+      useAppStore.getState().setUser(serverUser);
+    } else {
+      useAppStore.getState().setUser(null);
+      router.replace('/access-groomer');
+    }
+  });
 
   // Scope enforcement — only after the server session has spoken.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!hasHydrated || !sessionChecked) return;
-    if (!currentUser) {
+    if (!session.isResolved) return;
+    const user = session.user;
+    if (!user) {
       router.replace('/access-groomer');
       return;
     }
-    if (currentUser.role === 'admin') {
+    if (user.role === 'admin') {
       router.replace('/admin/dashboard');
       return;
     }
-    if (currentUser.role === 'customer') {
+    if (user.role === 'customer') {
       router.replace('/customer/dashboard');
       return;
     }
-  }, [hasHydrated, sessionChecked, currentUser, router]);
+  }, [session.isResolved, session.user, router]);
 
   if (!hasHydrated || !currentUser || currentUser.role !== 'groomer') {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
+    return <PortalShellSkeleton />;
   }
 
   const navigate = (section: DawgNavSection) => {

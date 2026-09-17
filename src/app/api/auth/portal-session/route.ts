@@ -16,7 +16,18 @@ import { createServerSupabase } from "@/lib/auth/server";
 // is a cache; this cookie-backed endpoint is the source of truth). Prefers
 // the pawz_session cookie; falls back to the Supabase SSR session so users
 // who signed in through the site's own flows still resolve.
+//
+// NEVER cached: the answer is a function of the request's cookie, so it is
+// served with Cache-Control: no-store. (A heuristically-cached logged-out
+// answer previously survived sign-in in the browser HTTP cache and bounced
+// the user back to the door — this header is what kills that.)
 // ============================================================================
+
+function sessionJson(body: Record<string, unknown>): NextResponse {
+  const res = NextResponse.json(body);
+  res.headers.set("Cache-Control", "no-store, max-age=0");
+  return res;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,7 +37,7 @@ export async function GET(req: NextRequest) {
     const payload = verifySessionToken(token);
     if (payload) {
       const user = sessionFromPayload(payload);
-      return NextResponse.json({
+      return sessionJson({
         user: {
           id: user.authUserId,
           name: user.name,
@@ -45,7 +56,7 @@ export async function GET(req: NextRequest) {
       if (session?.user?.id) {
         const resolved: ResolvedPortalUser | null = await resolvePortalUser(session.user.id);
         if (resolved) {
-          return NextResponse.json({
+          return sessionJson({
             user: {
               id: resolved.authUserId,
               name: resolved.name,
@@ -59,9 +70,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ user: null });
+    return sessionJson({ user: null });
   } catch (err: any) {
     console.error("[GET /api/auth/portal-session]", err);
-    return NextResponse.json({ user: null });
+    return sessionJson({ user: null });
   }
 }

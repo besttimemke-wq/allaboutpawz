@@ -1,10 +1,18 @@
 import { Montserrat, Hanken_Grotesk } from "next/font/google";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 
 // ============================================================================
 // (portals) route-group layout — shared chrome for the All About Pawz portals
 // (admin OS, groomer station, customer portal) and the five bifurcated auth
 // pages. Loads the portal fonts and applies the scoped .pawz-theme token set
 // so the public website's root tokens are never touched.
+//
+// The layout itself stays a SERVER component (fonts compile statically, the
+// shell is static HTML). The QueryProvider is the one client boundary: it
+// gives every portal page the client-side data layer (stale-while-revalidate
+// queries against the /api routes) so no render path ever waits on the
+// database — cached data paints instantly, fresh data arrives in the
+// background.
 // ============================================================================
 
 /* Montserrat Medium — sidebar + topbar (--font-bar) */
@@ -32,7 +40,7 @@ export default function PortalsLayout({
 }>) {
   return (
     <div className={`pawz-theme ${montserrat.variable} ${hankenGrotesk.variable}`}>
-      {children}
+      <QueryProvider>{children}</QueryProvider>
     </div>
   );
 }
