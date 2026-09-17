@@ -1610,3 +1610,21 @@ Stage Summary:
 - CMS: already online.
 - Path forward: user pastes the two (three) env values → restart dev → admin door goes live → agent-browser E2E re-verify.
 - Backup branches (backup/local-line-6385773, backup-before-pull-20260917-105022) will be deleted on user's word — per "NO BACKUP THIS IS LIVE".
+
+---
+Task ID: fix-owner-google-signin-20260917
+Agent: Super Z (main)
+Task: Owner reported — Google authorize completes but redirect returns to the login page instead of the portal; existing Supabase email user not associated. ("your agent lied to you" — the sandbox .env diagnosis was real for the sandbox but NOT the production failure.)
+
+Work Log:
+- Inspected live Supabase (scripts/inspect-auth-association.mjs): 2 auth users; owner staff rows ("Super Admin (Owner)"/owner, "Sunny Avington"/admin) pointed at STALE auth id e5cb b496… while the real auth user is 7ea0339e…; owner customer row unlinked; RPC get_auth_user_by_email missing
+- Reproduced the exact callback decision path (scripts/simulate-callback-path.mjs): owner resolved customer/unprovisioned → validatePortalAccess('admin') rejected → bounce to door. Root cause confirmed.
+- DATA REPAIR (live now, scripts/repair-staff-links.mjs): staff.userId e5cb b496… → 7ea0339e… (2 rows), tenant_memberships owner row created, customers linked for both users
+- APPLIED supabase/migrations/0008_get_auth_user_by_email.sql to live DB via session pooler (scripts/apply-migration-0008.mjs) — RPC was in the repo but never applied; callback was falling back to paginated listUsers
+- CODE (committed): resolvePortalUser self-heals staff/customers links BY EMAIL on sign-in (stale/NULL userId re-binds, best-effort) — same-email sign-ins associate forever
+- CODE (committed): requireAdminApi accepts the portal pawz_session admin cookie (Google sign-in never creates Supabase SSR cookies; admin settings/users/deposits APIs were 401 after Google login). Verified: no-cookie 401 → portal-admin 200 with settings data
+- POST-FIX SIMULATION: allaboutpawz901@gmail.com → role=admin/scope=admin/membershipRole=owner → validatePortalAccess('admin') ok → /admin/dashboard; besttimemke@gmail.com unchanged (groomer → /groomer/dashboard)
+
+Stage Summary:
+- Owner Google sign-in now lands in the admin portal: data + RPC are LIVE in the shared Supabase project immediately; code self-heal + gate fix committed locally (02baf1b, then gate commit)
+- GitHub push pending: no credentials in this sandbox (upstream-pawz remote is plain HTTPS, no gh CLI/token) — needs GITHUB_TOKEN from owner or an owner-side push
