@@ -14,6 +14,10 @@
 //   • $pageleave         — engagement time per page
 //
 // Env: NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN + NEXT_PUBLIC_POSTHOG_HOST (.env).
+// The project token is a PUBLIC value (PostHog ships it in the client bundle
+// by design — the PostHog wizard writes it directly into the code), so it is
+// hardcoded as the DEFAULT: PostHog initializes on every deployment with
+// zero environment configuration. The env var still overrides it.
 // ---------------------------------------------------------------------------
 
 import { Suspense, useEffect } from "react";
@@ -23,7 +27,7 @@ import posthog from "posthog-js";
 import { useAnalyticsConsent } from "@/components/analytics/use-analytics-consent";
 import { isPortalPath } from "@/lib/portal-paths";
 
-const POSTHOG_TOKEN = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+const POSTHOG_TOKEN = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN || "phc_BfUNT4MQ9WUkySrvSszn3jN4nLiyT7BpCKqJwXgzNeft";
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
 
 /** Sends one $pageview per app-router view (PostHog's documented pattern). */

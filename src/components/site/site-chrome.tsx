@@ -276,6 +276,10 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
             Cookie Preferences
           </button>
           <Link href="/policies/terms-of-service" className="text-gold hover:underline">Terms of Service</Link>
+          {/* HTML sitemap — every public page in one place for visitors (and
+              crawlers get the machine version at /sitemap.xml, declared in
+              robots.txt). */}
+          <Link href="/sitemap" className="text-gold hover:underline">Sitemap</Link>
           <Link href="/contact" className="text-gold hover:underline">Investor Information</Link>
         </div>
       </div>
