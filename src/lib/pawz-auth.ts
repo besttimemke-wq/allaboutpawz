@@ -547,14 +547,51 @@ export function sessionFromPayload(p: SessionPayload): ResolvedPortalUser {
   };
 }
 
-export function sessionCookieOptions() {
+export function sessionCookieOptions(reqHost?: string | null) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
+    ...cookieDomainForHost(reqHost),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Apex ↔ www cookie continuity (THE production sign-in killer, fixed)
+// ---------------------------------------------------------------------------
+// The registered Google redirect URI is the APEX (https://aapawz.com/...),
+// but the platform 308-redirects the apex to https://www.aapawz.com — so a
+// flow that starts on one host always finishes on the other. Host-only
+// cookies (no Domain attribute) set by the initiator on the apex were
+// INVISIBLE to the callback on www: the browser-binding guard failed, and
+// the callback silently bounced the owner back to the login page after they
+// had authorized at Google (oauth_states row consumed, no google_sub linked —
+// 2026-09-17 11:53 UTC production incident).
+//
+// Fix: on the salon's own hosts, issue auth cookies with Domain=.aapawz.com
+// so they are shared across apex and www. On every other host (localhost,
+// sandbox previews) NO domain is emitted — a Domain that is not a suffix of
+// the current host is rejected by the browser, so this stays safe everywhere.
+const SITE_COOKIE_DOMAIN = ".aapawz.com";
+
+export function cookieDomainForHost(reqHost?: string | null): { domain?: string } {
+  const host = (reqHost || "").split(":")[0].trim().toLowerCase();
+  if (host === "aapawz.com" || host.endsWith(".aapawz.com")) {
+    return { domain: SITE_COOKIE_DOMAIN };
+  }
+  return {};
+}
+
+/** Best-effort public host of the current request, for cookie domainning.
+ *  Prefers X-Forwarded-Host (the real browser host behind any gateway),
+ *  falls back to the URL-level host. */
+export function requestHost(req: { headers: { get(name: string): string | null }; nextUrl?: { host: string } }): string | null {
+  const xfh = req.headers.get("x-forwarded-host");
+  if (xfh) return xfh.split(",")[0].trim().toLowerCase() || null;
+  if (req.nextUrl?.host) return req.nextUrl.host.toLowerCase();
+  return null;
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME;

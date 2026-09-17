@@ -15,6 +15,7 @@ import {
   isPreviewOrigin,
   OAUTH_BROWSER_COOKIE,
   peekOAuthState,
+  requestHost,
   resolvePortalUser,
   sessionCookieOptions,
   SESSION_COOKIE_NAME,
@@ -170,7 +171,7 @@ export async function GET(req: NextRequest) {
   let authUser: any = null;
   try {
     authUser = await findAuthUserByEmail(admin, profile.email);
-  } catch (e) {
+  } catch (e: any) {
     console.warn(`[auth/google/callback] bounce: findAuthUserByEmail threw portal=${portal} email=${profile.email} — ${e?.message || e}`);
     return door(portal);
   }
@@ -277,10 +278,12 @@ export async function GET(req: NextRequest) {
   }
 
   // 6. Set the session cookie and redirect (relative) so the browser stays on
-  //    the origin it is on. AUTO (the repo's flow): the DATABASE decides the
-  //    destination — no door validation, route by the resolved salon record.
+  //    the origin it is on. The cookie carries Domain=.aapawz.com on the
+  //    salon's own hosts so the session is visible on BOTH apex and www —
+  //    the callback itself may be serving on www after the platform's
+  //    apex→www 308 (see cookieDomainForHost in pawz-auth).
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions());
+  cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions(requestHost(req)));
 
   if (autoFlow) {
     return redirectToPath(autoDestination(resolved));

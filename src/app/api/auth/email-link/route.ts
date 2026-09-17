@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import {
   PORTALS,
   ResolvedPortalUser,
+  requestHost,
   resolvePortalUser,
   sessionCookieOptions,
   SESSION_COOKIE_NAME,
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     // Issue the portal session cookie.
     const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions());
+    cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions(requestHost(req)));
 
     // Invite = first password; reset = new password. Both continue from
     // the set-password page, then land at the user's portal.

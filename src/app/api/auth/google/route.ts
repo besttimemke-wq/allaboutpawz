@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   PORTALS,
   PortalId,
+  cookieDomainForHost,
   createOAuthState,
   googleAuthUrl,
   googleCallbackUri,
@@ -132,12 +133,26 @@ export async function GET(req: NextRequest) {
   }
 
   const res = NextResponse.redirect(googleAuthUrl(state, redirectUri));
+  // Cookie domain: on the salon's own hosts (aapawz.com / www.aapawz.com)
+  // the binding cookie must survive the platform's apex→www 308 — the
+  // registered Google callback is the apex, so a flow that starts on either
+  // host always finishes on the other. Host-only cookies broke that handoff
+  // and silently bounced the sign-in (see cookieDomainForHost). Host-only
+  // everywhere else (localhost, previews).
+  const bindingHost = (() => {
+    try {
+      return new URL(origin).host;
+    } catch {
+      return null;
+    }
+  })();
   res.cookies.set(OAUTH_BROWSER_COOKIE, binding.value, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 15 * 60,
+    ...cookieDomainForHost(bindingHost),
   });
   return res;
 }

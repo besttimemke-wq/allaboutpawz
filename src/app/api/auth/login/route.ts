@@ -4,6 +4,7 @@ import {
   PORTALS,
   PortalId,
   autoDestination,
+  requestHost,
   resolvePortalUser,
   sessionCookieOptions,
   SESSION_COOKIE_NAME,
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
     // 4. Issue the portal session cookie + destination. No portal → the
     //    repo's rule: route by the resolved salon record. Door flow → the
     //    door's destination, with the same-site ?redirect= override.
-    cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions());
+    cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions(requestHost(req)));
 
     let redirectTo = autoDestination(resolved);
     if (portal) {
