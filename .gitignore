@@ -57,8 +57,31 @@ server.log
 /tool-results/
 .zscripts/dev.pid
 *.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.keystore
+secrets/
+.secrets/
 .env*
 .env.backup
+.envrc
+.env.local
+*.cookie
+credentials.json
+service-account*.json
+gcloud-*.json
+*token*.txt
+*token*.json
+gh-token*
+GITHUB_TOKEN
+.npmrc
+.pypirc
+.netrc
+.aws/
+.ssh/
 
 # owner pasted screenshots/uploads — local only
 /upload/
