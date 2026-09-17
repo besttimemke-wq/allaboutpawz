@@ -1543,3 +1543,21 @@ Stage Summary:
 - VLM re-review of the new banner: X "clearly visible and easy to find … no significant visibility concerns remain".
 - lint: 0 errors (45→44 fixable warnings, pre-existing); dev.log clean (all routes 200); robots.txt + 45-URL sitemap.xml still serving.
 - GitHub repo now holds the complete, verified, secrets-free project history (75 commits, main = 86690d1 + this worklog commit).
+
+---
+Task ID: 70
+Agent: main (Z.ai Code)
+Task: Owner frustration audit — "why do I have to do tasks multiple times, none of the analytics have been set up" + GA4 stream details pasted (Stream URL aapawz.com, G-7EVNS33CKD) + "where is the route for sitemap, why isn't it in the bottom rail of the footer".
+
+Work Log:
+- ROOT-CAUSED THE COMPLAINT (not a code gap — a deploy-config gap): Vercel HAD auto-redeployed from yesterday's push (consent system + og-image live on aapawz.com proved it), but the analytics IDs were env-gated (NEXT_PUBLIC_GA4_MEASUREMENT_ID etc.) and Vercel has none of those env vars set → GA4 gtag.js never rendered, GTM container never rendered (only the hardcoded noscript iframe), PostHog never initialized, Clarity (which fires via a GTM tag) therefore never fired. Production had effectively ZERO analytics while the sandbox had them all — exactly what the owner experienced.
+- FIX — public IDs hardcoded as code DEFAULTS (env still overrides): GA4 G-7EVNS33CKD + GTM GTM-WT35373V in src/app/layout.tsx; the public PostHog project token (the one the owner's wizard command installs — PostHog ships it in the client bundle by design) in src/app/providers.tsx with the us.i.posthog.com host. These are public values, not secrets (Google's own snippet ships the measurement ID in plain text); they now fire on every deployment with zero configuration.
+- FOOTER SITEMAP: added "Sitemap" to the footer bottom legal rail (site-chrome.tsx) → new HTML sitemap page at /sitemap ((site) route group, PageHeader n=12, four LinkColumns: THE SALON / BOOKING / BOUTIQUE / POLICIES; shop categories + policies resolve dynamically via the same resolvers the XML sitemap uses, with fail-safe fallbacks; robots noindex+follow so the utility page stays out of SERPs while its links pass discovery signal).
+- ROUTE CONFLICT SOLVED: creating app/(site)/sitemap/page.tsx while app/sitemap.ts existed broke the WHOLE app (Next.js 500: "Conflicting page and metadata at /sitemap"). Fix: moved XML generation from the metadata convention to an explicit app/sitemap.xml/route.ts handler (same URL, same 45 entries, application/xml content type, 1h revalidation, Cache-Control public max-age=3600); robots.txt Sitemap declaration unchanged.
+- Repo hygiene: upload/ (owner pasted screenshots + old SQL dumps) untracked and gitignored — local only, per the established sanitized-export practice.
+
+Stage Summary:
+- PRODUCTION END-TO-END VERIFIED (agent-browser on https://aapawz.com, cookies cleared → ACCEPT ALL): GA4 collect hit 204 with tid=G-7EVNS33CKD & gcs=G100; GTM container live (gtm.js/dom/load + google_tag_manager); PostHog initialized (posthogLoaded=true, config fetched from us-assets.i.posthog.com); Clarity collecting (POST k.clarity.ms/collect 204 — fires via the owner's GTM tag, no double-load since NEXT_PUBLIC_CLARITY_ID stays empty); dataLayer carries pawz_consent_update + pawz_cookie_inventory.
+- PRODUCTION ROUTES: /sitemap 200 (all four sections render), /sitemap.xml 200 application/xml with 45 URLs, robots.txt Sitemap line intact, footer bottom rail shows © · Privacy Policy · Cookie Preferences · Terms of Service · Sitemap · Investor Information.
+- SANDBOX REGRESSIONS CLEAN: banner + 40px X still work after cookie clear; /access-frontdesk still shows no cookie statement; lint 0 errors; dev.log clean.
+- Pushed: main = 2884d57 on GitHub; Vercel auto-redeployed and the live checks above ran against it.
