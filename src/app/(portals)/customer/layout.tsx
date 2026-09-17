@@ -8,26 +8,13 @@ import { Header } from '@/components/pawz/Header';
 import { PortalShellSkeleton } from '@/components/pawz/_shared/PortalShellSkeleton';
 import { useSessionQuery } from '@/lib/hooks/useSessionQuery';
 import { cn } from '@/lib/utils';
-import type { DawgNavSection } from '@/lib/types';
-import {
-  LayoutGrid, Calendar, PawPrint, FileText, MessageSquare, ShoppingBag,
-} from 'lucide-react';
 
-// Customer-specific sidebar nav groups
-const customerNavGroups = [
-  {
-    category: 'PET PARENT',
-    categoryDefaultSection: 'dashboard' as DawgNavSection,
-    items: [
-      { id: 'dashboard' as DawgNavSection, label: 'Parent Dashboard', icon: LayoutGrid },
-      { id: 'appointments' as DawgNavSection, label: 'Appointments', icon: Calendar },
-      { id: 'pets' as DawgNavSection, label: 'My Pets', icon: PawPrint },
-      { id: 'orders' as DawgNavSection, label: 'My Orders', icon: ShoppingBag },
-      { id: 'invoices' as DawgNavSection, label: 'Billing', icon: FileText },
-      { id: 'messages' as DawgNavSection, label: 'Messages', icon: MessageSquare },
-    ],
-  },
-];
+// ============================================================================
+// Customer portal layout — its OWN sidebar identity (PET PARENT).
+// The variant="customer" Sidebar renders only the customer's nav groups
+// (dashboard, appointments, my pets, my orders, billing, messages) — no CRM /
+// ORDERS / ACCOUNTING business nav bleeding in from the admin shell.
+// ============================================================================
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -78,7 +65,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     return <PortalShellSkeleton />;
   }
 
-  const navigate = (section: DawgNavSection) => {
+  const navigate = (section: any) => {
     setActiveSection(section);
     router.push(`/customer/${section === 'dashboard' ? 'dashboard' : section}`);
   };
@@ -95,6 +82,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
         locationsList={locations}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={toggleSidebar}
+        variant="customer"
       />
 
       <main className={cn(
@@ -110,6 +98,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           activeSection={activeSection}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebarCollapse={toggleSidebar}
+          showPillars={false}
           onSignOut={() => {
             fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
             setUser(null);
@@ -122,25 +111,6 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
         />
 
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-background">
-          <nav className="flex items-center gap-1 px-4 py-1.5 border-b border-border bg-card overflow-x-auto custom-scrollbar">
-            {customerNavGroups[0].items.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeSection === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => navigate(item.id)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-2.5 h-7 text-[12px] font-medium transition-colors cursor-pointer whitespace-nowrap',
-                    isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <Icon className="size-3.5 shrink-0" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
           {children}
         </div>
       </main>

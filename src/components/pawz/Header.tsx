@@ -51,6 +51,10 @@ interface HeaderProps {
   selectedLocation?: string;
   onSelectLocation?: (loc: string) => void;
   locationsList?: string[];
+  /** Render the admin OS pillar pills (CRM / Orders / Accounting). Only the
+   *  admin OS shows these — customer, groomer, front desk and LMS portals
+   *  pass false so business nav never leaks into their chrome. */
+  showPillars?: boolean;
 }
 
 type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING';
@@ -76,6 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
   selectedLocation,
   onSelectLocation,
   locationsList,
+  showPillars = true,
 }) => {
   const getPillarFromSection = (section: DawgNavSection): PillarType => {
     switch (section) {
@@ -354,26 +359,29 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Sub-nav — pillar pills only (sub-routes are icons on the page itself) */}
-      <div className="h-10 px-3 sm:px-4 flex items-center gap-1 overflow-x-auto custom-scrollbar bg-topbar text-topbar-foreground">
-        {pillars.map((pillar) => {
-          const isSelected = activePillar === pillar.id;
-          return (
-            <button
-              key={pillar.id}
-              onClick={() => onNavigateSection(pillarDefaultSection[pillar.id])}
-              className={cn(
-                'rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer',
-                isSelected
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-topbar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
-              )}
-            >
-              {pillar.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Sub-nav — admin OS pillar pills only. Non-admin portals render no
+          pill row at all (dedicated portal identity — no business nav). */}
+      {showPillars && (
+        <div className="h-10 px-3 sm:px-4 flex items-center gap-1 overflow-x-auto custom-scrollbar bg-topbar text-topbar-foreground">
+          {pillars.map((pillar) => {
+            const isSelected = activePillar === pillar.id;
+            return (
+              <button
+                key={pillar.id}
+                onClick={() => onNavigateSection(pillarDefaultSection[pillar.id])}
+                className={cn(
+                  'rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer',
+                  isSelected
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-topbar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                )}
+              >
+                {pillar.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </header>
   );
 };

@@ -104,6 +104,13 @@ export async function GET(req: NextRequest) {
     return redirectToPath(PORTALS[portal].door);
   }
 
+  // Front desk is EMAIL/PASSWORD ONLY (owner's spec §6): the door offers no
+  // Google button and the initiator refuses Google flows claiming this
+  // portal — the browser simply lands back on the front desk door, clean.
+  if (portal === "frontdesk" && !PORTALS.frontdesk.google) {
+    return redirectToPath(PORTALS.frontdesk.door);
+  }
+
   const origin = realOrigin(req);
   const directUri = googleCallbackUri(origin);
 

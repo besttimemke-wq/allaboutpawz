@@ -45,6 +45,8 @@ export async function GET(req: NextRequest) {
           role: user.role,
           stationName: user.stationName,
           avatarUrl: user.avatarUrl,
+          membershipRole: user.membershipRole,
+          scope: user.scope,
         },
       });
     }
@@ -64,6 +66,8 @@ export async function GET(req: NextRequest) {
               role: resolved.role,
               stationName: resolved.stationName,
               avatarUrl: resolved.avatarUrl,
+              membershipRole: resolved.membershipRole,
+              scope: resolved.scope,
             },
           });
         }

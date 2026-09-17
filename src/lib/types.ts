@@ -32,7 +32,17 @@ export type PawzNavSection =
   | 'documents'
   | 'communications'
   | 'marketing'
-  | 'settings';
+  | 'settings'
+  // FRONT DESK
+  | 'check-in'
+  | 'phone-messages'
+  // LMS / LEARN
+  | 'my-learning'
+  | 'course-catalog'
+  | 'in-progress'
+  | 'completed'
+  | 'certificates'
+  | 'resources';
 
 export type DawgNavSection = PawzNavSection;
 
@@ -211,6 +221,13 @@ export interface AuthUser {
   role: UserRole;
   avatarUrl?: string;
   stationName?: string;
+  /** raw membership role from tenant_memberships/staff — e.g. owner | admin |
+   *  manager | groomer | front_desk | staff. Carried so the front desk portal
+   *  can distinguish a front desk employee (role='admin', membershipRole=
+   *  'front_desk') from a real admin (membershipRole='owner'/'admin'). */
+  membershipRole?: string;
+  /** admin | employee | customer — the resolved access scope. */
+  scope?: 'admin' | 'employee' | 'customer';
 }
 
 export interface CustomerFullProfile {

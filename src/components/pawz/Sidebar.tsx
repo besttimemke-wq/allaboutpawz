@@ -17,7 +17,6 @@ import {
   Package,
   BarChart3,
   Settings,
-  MapPin,
   ChevronDown,
   Plus,
   X,
@@ -30,6 +29,18 @@ import {
   BookOpen,
   Scale,
   CalendarRange,
+  ShoppingBag,
+  MessageSquare,
+  Scissors,
+  ClipboardCheck,
+  Phone,
+  PhoneCall,
+  GraduationCap,
+  Library,
+  PlayCircle,
+  Award,
+  FolderOpen,
+  UserCheck,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -38,6 +49,28 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+
+// ============================================================================
+// Portal-aware Sidebar.
+//
+// Each of the five doors gets its OWN sidebar identity — no shared "Service
+// Portal" label and no admin business nav bleeding into the customer or
+// groomer rail. The variant decides which nav groups render and the brand
+// subtitle shown in the header.
+//
+//   admin      — the full OS: CRM / ORDERS / ACCOUNTING (the only place these
+//                sections belong — groomers and customers never see them)
+//   customer   — PET PARENT: dashboard, appointments, my pets, my orders,
+//                billing, messages
+//   groomer    — GROOMER STATION: station dashboard, assigned appointments,
+//                shifts, handling notes, style records
+//   frontdesk  — FRONT DESK: desk dashboard, check-in, today's appointments,
+//                customers, pets, quick POS, schedule, phone messages
+//   lms        — LEARNING CENTER: my learning, catalog, in progress,
+//                completed, certificates, resources
+// ============================================================================
+
+export type SidebarVariant = 'admin' | 'customer' | 'groomer' | 'frontdesk' | 'lms';
 
 interface SidebarProps {
   activeSection: DawgNavSection;
@@ -49,6 +82,8 @@ interface SidebarProps {
   locationsList?: LocationItem[];
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  /** Which door's sidebar to render. Defaults to 'admin' for backward compat. */
+  variant?: SidebarVariant;
 }
 
 interface NavGroup {
@@ -62,6 +97,137 @@ interface NavGroup {
   }[];
 }
 
+interface VariantConfig {
+  /** Brand subtitle shown under "All About Pawz" in the sidebar header. */
+  subtitle: string;
+  groups: NavGroup[];
+}
+
+const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
+  admin: {
+    subtitle: 'Admin OS',
+    groups: [
+      {
+        category: 'CRM',
+        categoryDefaultSection: 'dashboard',
+        items: [
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
+          { id: 'customers', label: 'Customers', icon: Users },
+          { id: 'pets', label: 'Pets & Patients', icon: PawPrint },
+          { id: 'appointments', label: 'Appointments', icon: Calendar },
+          { id: 'grooming-records', label: 'Grooming Records', icon: FileText },
+          { id: 'calendar', label: 'Full Calendar', icon: CalendarRange },
+          { id: 'services', label: 'Services & Pricing', icon: Tag },
+          { id: 'staff', label: 'Staff & Groomers', icon: Users },
+          { id: 'schedule', label: 'Schedule & Shifts', icon: CalendarClock },
+        ],
+      },
+      {
+        category: 'ORDERS',
+        categoryDefaultSection: 'orders',
+        items: [
+          { id: 'orders', label: 'Orders & POS', icon: Receipt },
+          { id: 'order-details', label: 'Order Details', icon: FileSearch },
+          { id: 'inventory', label: 'Products & Inventory', icon: Package },
+          { id: 'shipping', label: 'Shipping Station', icon: Truck },
+          { id: 'returns', label: 'Returns & RMA', icon: ArrowDownLeft },
+          { id: 'purchase-orders', label: 'Purchase Orders', icon: Inbox },
+        ],
+      },
+      {
+        category: 'ACCOUNTING',
+        categoryDefaultSection: 'books',
+        items: [
+          { id: 'books', label: 'Books & Records', icon: BookOpen },
+          { id: 'invoices', label: 'Invoices & Sales', icon: FileText },
+          { id: 'payments', label: 'Payments & Register', icon: CreditCard },
+          { id: 'deposits', label: 'Deposits & Escrow', icon: Coins },
+          { id: 'refunds', label: 'Refunds & Disputes', icon: RotateCcw },
+          { id: 'gift-cards', label: 'Gift Cards & Credits', icon: Gift },
+          { id: 'payroll', label: 'Payroll & Commissions', icon: Users },
+          { id: 'taxes', label: 'Taxes & Compliance', icon: Scale },
+          { id: 'reports', label: 'Financial Reports', icon: BarChart3 },
+          { id: 'financial-settings', label: 'Financial Settings', icon: Settings },
+          { id: 'stripe-connections', label: 'Stripe Connections', icon: Terminal },
+        ],
+      },
+    ],
+  },
+
+  customer: {
+    subtitle: 'Pet Parent Portal',
+    groups: [
+      {
+        category: 'PET PARENT',
+        categoryDefaultSection: 'dashboard',
+        items: [
+          { id: 'dashboard', label: 'Parent Dashboard', icon: LayoutGrid },
+          { id: 'appointments', label: 'Appointments', icon: Calendar },
+          { id: 'pets', label: 'My Pets', icon: PawPrint },
+          { id: 'orders', label: 'My Orders', icon: ShoppingBag },
+          { id: 'invoices', label: 'Billing & Invoices', icon: FileText },
+          { id: 'messages', label: 'Messages', icon: MessageSquare },
+        ],
+      },
+    ],
+  },
+
+  groomer: {
+    subtitle: 'Groomer Station',
+    groups: [
+      {
+        category: 'GROOMER STATION',
+        categoryDefaultSection: 'dashboard',
+        items: [
+          { id: 'dashboard', label: 'Station Dashboard', icon: LayoutGrid },
+          { id: 'appointments', label: 'Assigned Appointments', icon: Calendar },
+          { id: 'schedule', label: 'My Shifts', icon: CalendarClock },
+          { id: 'grooming-records', label: 'Handling Notes', icon: FileText },
+          { id: 'pets', label: 'Style Records', icon: Scissors },
+        ],
+      },
+    ],
+  },
+
+  frontdesk: {
+    subtitle: 'Front Desk',
+    groups: [
+      {
+        category: 'FRONT DESK',
+        categoryDefaultSection: 'dashboard',
+        items: [
+          { id: 'dashboard', label: 'Desk Dashboard', icon: LayoutGrid },
+          { id: 'check-in', label: 'Check-In / Walk-In', icon: UserCheck },
+          { id: 'appointments', label: "Today's Appointments", icon: ClipboardCheck },
+          { id: 'customers', label: 'Customers', icon: Users },
+          { id: 'pets', label: 'Pets & Patients', icon: PawPrint },
+          { id: 'orders', label: 'Quick POS', icon: Receipt },
+          { id: 'schedule', label: 'Schedule & Shifts', icon: CalendarClock },
+          { id: 'phone-messages', label: 'Phone Messages', icon: Phone },
+        ],
+      },
+    ],
+  },
+
+  lms: {
+    subtitle: 'Learning Center',
+    groups: [
+      {
+        category: 'LEARN',
+        categoryDefaultSection: 'my-learning',
+        items: [
+          { id: 'my-learning', label: 'My Learning', icon: GraduationCap },
+          { id: 'course-catalog', label: 'Course Catalog', icon: Library },
+          { id: 'in-progress', label: 'In Progress', icon: PlayCircle },
+          { id: 'completed', label: 'Completed', icon: Award },
+          { id: 'certificates', label: 'Certificates', icon: Award },
+          { id: 'resources', label: 'Resources', icon: FolderOpen },
+        ],
+      },
+    ],
+  },
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   activeSection,
   onSelectSection,
@@ -72,6 +238,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   locationsList,
   isCollapsed = false,
   onToggleCollapse,
+  variant = 'admin',
 }) => {
   const [showLocationMenu, setShowLocationMenu] = React.useState(false);
 
@@ -86,52 +253,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? locationsList.map((l) => l.name)
       : fallbackLocations;
 
-  const navGroups: NavGroup[] = [
-    {
-      category: 'CRM',
-      categoryDefaultSection: 'dashboard',
-      items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-        { id: 'customers', label: 'Customers', icon: Users },
-        { id: 'pets', label: 'Pets & Patients', icon: PawPrint },
-        { id: 'appointments', label: 'Appointments', icon: Calendar },
-        { id: 'grooming-records', label: 'Grooming Records', icon: FileText },
-        { id: 'calendar', label: 'Full Calendar', icon: CalendarRange },
-        { id: 'services', label: 'Services & Pricing', icon: Tag },
-        { id: 'staff', label: 'Staff & Groomers', icon: Users },
-        { id: 'schedule', label: 'Schedule & Shifts', icon: CalendarClock },
-      ],
-    },
-    {
-      category: 'ORDERS',
-      categoryDefaultSection: 'orders',
-      items: [
-        { id: 'orders', label: 'Orders & POS', icon: Receipt },
-        { id: 'order-details', label: 'Order Details', icon: FileSearch },
-        { id: 'inventory', label: 'Products & Inventory', icon: Package },
-        { id: 'shipping', label: 'Shipping Station', icon: Truck },
-        { id: 'returns', label: 'Returns & RMA', icon: ArrowDownLeft },
-        { id: 'purchase-orders', label: 'Purchase Orders', icon: Inbox },
-      ],
-    },
-    {
-      category: 'ACCOUNTING',
-      categoryDefaultSection: 'books',
-      items: [
-        { id: 'books', label: 'Books & Records', icon: BookOpen },
-        { id: 'invoices', label: 'Invoices & Sales', icon: FileText },
-        { id: 'payments', label: 'Payments & Register', icon: CreditCard },
-        { id: 'deposits', label: 'Deposits & Escrow', icon: Coins },
-        { id: 'refunds', label: 'Refunds & Disputes', icon: RotateCcw },
-        { id: 'gift-cards', label: 'Gift Cards & Credits', icon: Gift },
-        { id: 'payroll', label: 'Payroll & Commissions', icon: Users },
-        { id: 'taxes', label: 'Taxes & Compliance', icon: Scale },
-        { id: 'reports', label: 'Financial Reports', icon: BarChart3 },
-        { id: 'financial-settings', label: 'Financial Settings', icon: Settings },
-        { id: 'stripe-connections', label: 'Stripe Connections', icon: Terminal },
-      ],
-    },
-  ];
+  const config = VARIANT_CONFIG[variant];
+  const navGroups = config.groups;
 
   const navButtonClass = (isActive: boolean) =>
     cn(
@@ -160,7 +283,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             isCollapsed ? 'lg:w-16' : 'lg:w-64'
           )}
         >
-          {/* Brand Header — sticky at top */}
+          {/* Brand Header — sticky at top. Subtitle is per-variant so each
+              door has its own identity (not the generic "Service Portal"). */}
           <div
             className={cn(
               'sticky top-0 z-10 flex items-center justify-between flex-shrink-0 bg-sidebar/95 backdrop-blur-sm',
@@ -177,7 +301,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     All About Pawz
                   </h1>
                   <p className="mt-1 text-[10px] font-medium text-sidebar-foreground/60">
-                    Service Portal
+                    {config.subtitle}
                   </p>
                 </div>
               )}
@@ -192,7 +316,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* Navigation Groups List */}
+          {/* Navigation Groups List — only the current variant's groups.
+              This is the actual fix: customer and groomer never see CRM /
+              ORDERS / ACCOUNTING nav. */}
           <nav className="custom-scrollbar flex-1 overflow-y-hidden py-2 text-sidebar-foreground">
             {navGroups.map((group, gIdx) => (
               <div key={gIdx} className="space-y-0.5">

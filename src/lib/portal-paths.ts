@@ -22,12 +22,13 @@ const PORTAL_PREFIXES = [
   "/admin-login",
   "/groomer", // groomer station
   "/customer", // customer portal
+  "/frontdesk", // front desk portal
+  "/learn", // LMS / learning center portal (+ /learn/sign-in door)
   "/access-customer", // bifurcated portal entry screens
   "/access-groomer",
   "/access-frontdesk",
   "/account",
   "/auth", // OAuth callback / set-password
-  "/learn", // staff learn sign-in
   "/api", // never a rendered page — listed for safety
 ] as const;
 

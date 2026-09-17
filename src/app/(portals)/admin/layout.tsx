@@ -175,6 +175,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         locationsList={locations}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={toggleSidebar}
+        variant="admin"
       />
 
       <main className={cn(

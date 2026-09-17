@@ -233,16 +233,35 @@ export async function enrollCustomer(opts: {
   }
 
   // ---------------------------------------------------------------- 4. domain side effects
-  //    purchase -> attach the salon record to the order when one exists
-  //    (the salon customer buying online = the "both CRMs" case). A
-  //    product-only buyer keeps orders.customerId NULL — they exist solely
-  //    in Orders CRM, identified by the order's own email.
-  if (opts.source === "purchase" && opts.referenceId && customer) {
+  //    purchase -> upsert order_customers (the shop-side record, migration
+  //    0009). This IS the Orders-CRM customer row. Its nullable auth_user_id
+  //    is back-linked to the single login by exact email match — the join key
+  //    the owner's spec calls for (§3). A product-only buyer gets a row here
+  //    with auth_user_id NULL until they sign up; when they do, this same
+  //    row is linked (no duplicate). Also attaches the salon record to the
+  //    order when one exists (the salon customer buying online = the "both
+  //    CRMs" case).
+  if (opts.source === "purchase") {
     await withPg(async (client) => {
+      // Upsert the order_customers row by (tenant, email) — idempotent on
+      // Stripe event retries (the unique index covers this).
       await client.query(
-        `UPDATE public.orders SET "customerId" = $1 WHERE id = $2 AND ("customerId" IS NULL OR "customerId" = '')`,
-        [customer!.id, opts.referenceId!],
+        `INSERT INTO public.order_customers (tenant_id, auth_user_id, email, updated_at)
+         VALUES ($1, $2::uuid, $3, now())
+         ON CONFLICT (tenant_id, lower(email))
+         DO UPDATE SET auth_user_id = COALESCE(EXCLUDED.auth_user_id, order_customers.auth_user_id),
+                       updated_at = now()
+         RETURNING id::text`,
+        [TENANT_ID, authUser.id, email],
       )
+      // Attach the salon record to the order when one exists (the salon
+      // customer buying online = the "both CRMs" case).
+      if (opts.referenceId && customer) {
+        await client.query(
+          `UPDATE public.orders SET "customerId" = $1 WHERE id = $2 AND ("customerId" IS NULL OR "customerId" = '')`,
+          [customer!.id, opts.referenceId!],
+        )
+      }
     })
   }
   //    booking / walkin -> bookings.customerId is already set by the wizard /

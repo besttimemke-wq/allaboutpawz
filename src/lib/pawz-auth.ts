@@ -26,9 +26,9 @@ export interface PortalDefinition {
 export const PORTALS: Record<PortalId, PortalDefinition> = {
   customer: { id: "customer", door: "/access-customer", destination: "/customer/dashboard", google: true },
   groomer: { id: "groomer", door: "/access-groomer", destination: "/groomer/dashboard", google: true },
-  frontdesk: { id: "frontdesk", door: "/access-frontdesk", destination: "/admin/dashboard", google: true },
+  frontdesk: { id: "frontdesk", door: "/access-frontdesk", destination: "/frontdesk/dashboard", google: false },
   admin: { id: "admin", door: "/admin-login", destination: "/admin/dashboard", google: true },
-  lms: { id: "lms", door: "/learn/sign-in", destination: "/customer/dashboard", google: true },
+  lms: { id: "lms", door: "/learn/sign-in", destination: "/learn/dashboard", google: true },
 };
 
 // ---------------------------------------------------------------------------
@@ -408,8 +408,9 @@ export interface PortalValidationResult {
  *  "DB is source of truth" — the destination comes from the resolved salon
  *  identity, never from the door, a URL param, or anything the user picked. */
 export function autoDestination(user: ResolvedPortalUser): string {
+  // Front desk employees get their OWN portal now (not the admin dashboard).
+  if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) return "/frontdesk/dashboard";
   if (user.scope === "admin") return "/admin/dashboard";
-  if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) return "/admin/dashboard";
   if (user.scope === "employee") return "/groomer/dashboard";
   return "/customer/dashboard";
 }
@@ -461,10 +462,13 @@ export function validatePortalAccess(portal: PortalId, user: ResolvedPortalUser)
       return { ok: false, error: "This email is a staff account. Use the staff sign-in pages." };
     }
     case "lms": {
-      // LMS is self-serve within managed accounts — customers AND staff.
+      // LMS is self-serve within managed accounts — customers AND staff land
+      // on the Learning Center dashboard. Each signed-in role gets its own
+      // sidebar identity inside the /learn portal.
       if (user.role === "customer") return { ok: true, user, redirectTo: def.destination };
-      if (user.scope === "employee" && user.role === "groomer") return { ok: true, user, redirectTo: "/groomer/dashboard" };
-      if (user.scope === "admin") return { ok: true, user, redirectTo: "/admin/dashboard" };
+      if (user.scope === "employee" && user.role === "groomer") return { ok: true, user, redirectTo: def.destination };
+      if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) return { ok: true, user, redirectTo: def.destination };
+      if (user.scope === "admin") return { ok: true, user, redirectTo: def.destination };
       return { ok: false, error: "No account found for this email." };
     }
   }
@@ -493,6 +497,10 @@ export interface SessionPayload {
   stationName?: string;
   avatarUrl?: string;
   scope: string;
+  /** raw membership role — owner | admin | platform_admin | manager |
+   *  groomer | front_desk | staff | customer. Carried so the front desk
+   *  portal can identify a front desk employee (vs a real admin). */
+  membershipRole?: string;
   exp: number; // epoch seconds
 }
 
@@ -505,6 +513,7 @@ export function signSession(user: ResolvedPortalUser): string {
     stationName: user.stationName,
     avatarUrl: user.avatarUrl,
     scope: user.scope,
+    membershipRole: user.membershipRole,
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
   };
   const body = b64url(JSON.stringify(payload));
@@ -544,6 +553,7 @@ export function sessionFromPayload(p: SessionPayload): ResolvedPortalUser {
     stationName: p.stationName,
     avatarUrl: p.avatarUrl,
     scope: (p.scope as any) || "customer",
+    membershipRole: p.membershipRole,
   };
 }
 
