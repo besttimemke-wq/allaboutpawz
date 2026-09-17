@@ -1753,3 +1753,24 @@ Stage Summary:
 - Auth now matches the owner's spec end-to-end: one Google client, one callback, signed single-use server-side state with browser binding, per-portal linking rules (create for customer/lms, REJECT for groomer/frontdesk/admin, link-by-email otherwise), DB-resolved routing, portal-scoped session endpoints.
 - enrollCustomer + Stripe webhook ($25 deposit, metadata-typed, idempotent) were already spec-complete; no changes needed there.
 - Push to upstream-pawz/main still blocked (no GitHub credentials in this workspace) — production gets all of this on the next push.
+
+---
+Task ID: GitHub-Push-20260917-2205
+Agent: main
+Task: Push the local main branch to https://github.com/besttimemke-wq/allaboutpawz.git using the owner-provided PAT, with mandatory secret hygiene: (1) gitignore all secret patterns, (2) never log the PAT anywhere, (3) verify zero token leakage after push.
+
+Work Log:
+- Pre-flight scan: confirmed .env is gitignored (matches .gitignore:60:.env*), no actual secret values tracked in repo (only source files with "auth"/"password" in their names), remote upstream-pawz already pointed at the target repo URL.
+- Hardened .gitignore with comprehensive secret patterns: *.key, *.p12, *.pfx, *.cer, *.crt, *.keystore, secrets/, .secrets/, .envrc, .env.local, *.cookie, credentials.json, service-account*.json, gcloud-*.json, *token*.txt, *token*.json, gh-token*, GITHUB_TOKEN, .npmrc, .pypirc, .netrc, .aws/, .ssh/. Committed as fb2aec6.
+- Verified all patterns work via `git check-ignore -v` for .env, .env.local, secrets/, credentials.json, gh-token.txt, .npmrc.
+- Scanned all tracked files for actual PAT patterns (ghp_[A-Za-z0-9]{20+}, github_pat_, sk-…, AKIA…): zero real tokens found. The single "ghp_" mention already in worklog.md is a documentation reference to the prefix, not a real token. The [REDACTED:aws_access_key] hits in skills/design templates are placeholder text, not real AWS keys.
+- PUSH: 13 commits (fb2aec6..a206e76 lineage) pushed to upstream-pawz/main using a one-shot URL `https://x-access-token:<PAT>@github.com/...` — the PAT was used ONLY inside this single transient push command, never written to any file, git config, environment, or commit.
+- POST-PUSH VERIFICATION: `git remote -v` shows the stored remote URL is still the clean `https://github.com/besttimemke-wq/allaboutpawz.git` (no embedded credentials). `grep -rl` for the literal PAT string and `x-access-token` across the entire .git/ directory: ZERO occurrences. `git ls-remote` confirms remote main HEAD = fb2aec6 = local main HEAD.
+- `git fetch upstream-pawz` updated the local tracking ref; `git rev-list --count` confirms 0 commits ahead, 0 commits behind — local and remote are perfectly in sync.
+
+Stage Summary:
+- 13 commits successfully pushed to https://github.com/besttimemke-wq/allaboutpawz.git (main: a206e76 → fb2aec6).
+- Secret hygiene: .gitignore hardened with 23 new patterns covering keys, certs, env variants, cloud creds, and package-manager auth files. All existing local secrets remain untracked.
+- Zero token leakage: the PAT was used transiently in a single push command only; post-push scan of .git/ found 0 occurrences of the token string and 0 occurrences of the x-access-token marker. Remote URL config remains the clean, credential-free form.
+- Local main and upstream-pawz/main are in perfect sync (0 ahead, 0 behind).
+- Unresolved issues: none. Repo is in a clean, pushed, secret-safe state.
