@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { CONSENT_BOOT_SCRIPT } from "@/components/consent/consent-boot";
+import { CookieConsent } from "@/components/consent/CookieConsent";
+import { GoogleAnalytics } from "@/components/consent/GoogleAnalytics";
 
 export const metadata: Metadata = {
   title: "All About Pawz | Luxury Dog Grooming & Spa",
@@ -38,6 +41,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Cookie consent boot — MUST run before first paint and before any
+            tag fires: sets Google Consent Mode v2 defaults (all optional
+            cookies denied) and restores a saved choice from the
+            pawz_cookie_consent cookie so returning visitors see no banner. */}
+        <script dangerouslySetInnerHTML={{ __html: CONSENT_BOOT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: DESKTOP_MODE_PHONE_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -49,6 +57,10 @@ export default function RootLayout({
       <body className="antialiased">
         {children}
         <Toaster />
+        {/* Cookie consent: load-time banner + Consent Management Center */}
+        <CookieConsent />
+        {/* Consent-gated GA4 loader + cookie collector → Google console */}
+        <GoogleAnalytics />
       </body>
     </html>
   );

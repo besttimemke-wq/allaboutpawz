@@ -595,3 +595,43 @@ input, textarea, select { font-family: var(--font-body); }
   margin-right: 8px;
   vertical-align: middle;
 }
+
+/* ---------------------------------------------------------------------------
+   Cookie consent overlay — entrance motion + dialog scrollbar.
+   Scoped by class so nothing leaks into other surfaces.
+--------------------------------------------------------------------------- */
+@keyframes pawz-consent-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.consent-rise {
+  animation: pawz-consent-rise 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .consent-rise {
+    animation: none;
+  }
+}
+.consent-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) var(--cream-deep);
+}
+.consent-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.consent-scroll::-webkit-scrollbar-track {
+  background: var(--cream-deep);
+}
+.consent-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--gold-deep) 70%, transparent);
+  border-radius: 9999px;
+}
+.consent-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-deep);
+}

@@ -20,6 +20,35 @@ async function getPolicy(slug: string) {
   return policies.find((p) => policySlug(p.title) === slug)
 }
 
+// Built-in fallback so the privacy/cookie links from the consent system
+// never 404 — applies until the owner publishes their own "Privacy Policy"
+// from the admin portal (the DB row then takes precedence).
+const BUILTIN_PRIVACY = {
+  id: "builtin-privacy-policy",
+  title: "Privacy Policy",
+  body: [
+    "All About Pawz LLC (“we”, “us”) operates aapawz.com. This policy explains what data we collect, the cookies we set, and the choices you control. It applies alongside our salon booking, retail, and customer portal services.",
+    "",
+    "COOKIE CATEGORIES",
+    "On your first visit, a consent banner lets you Accept All Cookies, Reject Non-Essential, or Customize Preferences category by category in our Consent Management Center. You can change your choice anytime via the Cookie Preferences link in the site footer. Your decision is stored in a first-party consent cookie (pawz_cookie_consent) that never contains anything except your category choices, the time of the choice, and a random consent ID such as A4P-8B92-F1C3.",
+    "",
+    "1. Strictly Necessary & Essential — always active. Used for authentication, secure appointment booking, payment gateway tokenization, fraud detection, and keeping your session active. Typical tokens include session and CSRF protections and payment identifiers. Lifetime: session to 1 year. These cannot be disabled because the site cannot function securely without them.",
+    "",
+    "2. Functional & User Preferences — optional. Remembers personalization such as your selected groomer and breed preferences, preferred stylist, locale defaults, and interface state. Lifetime: up to 6 months.",
+    "",
+    "3. Performance & Analytics — optional. Aggregated, anonymized measurement of page performance and booking-flow drop-off via Google Analytics 4 and Cloudflare Web Insights. Lifetime: up to 13 months. Until you grant this category, our Google tag stays in Google Consent Mode v2 “denied” state — no analytics cookies (such as _ga) are created and no analytics hits are stored. Granting it loads the Google Analytics tag, which then sets its own cookies under Google's policies.",
+    "",
+    "YOUR CHOICES AND RIGHTS",
+    "Because we use Google Consent Mode v2, your consent signals are communicated to Google directly, and GA4 stores nothing about you while analytics consent is denied. Under GDPR (EU) and CCPA (California) you may access, correct, export, or delete personal data we hold about you, withdraw consent at any time (Cookie Preferences in the footer), and lodge a complaint with your supervisory authority. Requests: help@aapawz.com.",
+    "",
+    "DATA WE HOLD AND RETENTION",
+    "Account data (name, email), pet profiles, appointment history, and order records are retained while your account is active and for the period required by tax and consumer-protection law. Passwords are stored only as verified credentials we never see. We never sell personal data, and no advertising or cross-site tracking cookies are used on this site.",
+    "",
+    "CONTACT",
+    "All About Pawz LLC · Memphis, TN · help@aapawz.com",
+  ].join("\n"),
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const policy = await getPolicy(slug)
@@ -31,7 +60,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PolicyPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const policy = await getPolicy(slug)
+  const policy = (await getPolicy(slug)) ?? (slug === "privacy-policy" ? BUILTIN_PRIVACY : null)
   if (!policy) notFound()
 
   const others = ((await getResource<Policy>("policies")) || []).filter((p) => p.id !== policy.id)

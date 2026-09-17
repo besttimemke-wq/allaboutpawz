@@ -264,7 +264,17 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
         </div>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 border-t border-gold/15 pt-5 text-[10.5px] text-on-dark-muted">
           <p>{settings.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
-          <a href="#" className="text-gold hover:underline">Privacy Policy</a>
+          <Link href="/policies/privacy-policy" className="text-gold hover:underline">Privacy Policy</Link>
+          {/* Re-opens the Consent Management Center anytime (GDPR/CCPA: the
+              visitor must be able to change their cookie choice as easily as
+              they gave it). */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("pawz:open-cookie-preferences"))}
+            className="text-gold hover:underline"
+          >
+            Cookie Preferences
+          </button>
           <a href="#" className="text-gold hover:underline">Terms of Service</a>
           <a href="#" className="text-gold hover:underline">Investor Information</a>
         </div>

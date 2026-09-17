@@ -1395,3 +1395,26 @@ Stage Summary:
 - The owner's architecture is in place: static shell, client-side SWR queries, API routes, zero render paths waiting on the database. The session layer is now exactly the pattern he pasted: instant from cache, revalidated in the background, server-authoritative.
 - The reload-logout mystery (a real part of today's "running in circles") is root-caused and dead: React Query v5 placeholder-success semantics + a cacheable session endpoint. Both fixed.
 - Google OAuth works in this preview with his one console entry; production (aapawz.com) still needs the current build deployed on its registered callback for the permanent zero-console relay.
+
+---
+Task ID: 67
+Agent: Z.ai Code (main)
+Task: Cookie consent system per user's two mockups — load-time banner, Consent Management Center dialog, and a script that collects cookies and feeds them into the Google console (Consent Mode v2 / GA4).
+
+Work Log:
+- Read both uploaded mockups with VLM (banner + consent center) and extracted exact copy, category structure, and metadata rows.
+- Created src/lib/consent.ts — consent model (essential/functional/analytics), pawz_cookie_consent cookie codec (URL-encoded JSON, 180 days, SameSite=Lax, Secure-on-https), Consent Mode v2 signal mapping (toConsentMode).
+- Created src/components/consent/consent-boot.ts — inline <head> script that runs before paint: bootstraps dataLayer + gtag stub, sets Consent Mode v2 defaults (all optional denied), restores saved consent from the cookie (no banner flash for returning visitors; exposes window.__pawzConsent).
+- Created src/components/consent/CookieConsent.tsx — Banner ("We Value Your Privacy & Tailored Care", GDPR/CCPA + 256-BIT SSL badges, CUSTOMIZE / REJECT NON-ESSENTIAL / ACCEPT ALL; X = reject non-essential) and Consent Management Center dialog (jurisdiction bar, 3 numbered categories with locked-essential toggle, Key Tokens / Duration / Telemetry Partners metadata, Reject Non-Essential / Enable All / Save Custom Choices / Accept All Cookies, Consent ID like A4P-658C-656A). Hydration-gated via useSyncExternalStore (codebase idiom); footer re-opens via window event pawz:open-cookie-preferences; toast feedback on save.
+- Created src/components/consent/GoogleAnalytics.tsx — the "collect cookies → Google console" script: on every consent decision it (1) calls gtag('consent','update',…) so GA4/Google Ads read the signals natively, (2) pushes pawz_consent_update + pawz_cookie_inventory dataLayer events (collected document.cookie with session/csrf/oauth/token values masked), (3) injects the GA4 gtag.js tag ONLY after analytics is granted and only when NEXT_PUBLIC_GA4_MEASUREMENT_ID is set, (4) sends page_view on app-router navigation.
+- Wired root layout (boot script in <head>, CookieConsent + GoogleAnalytics in body), added NEXT_PUBLIC_GA4_MEASUREMENT_ID= (empty until owner pastes GA4 id) to .env, appended consent-rise/consent-scroll CSS to globals.css.
+- Footer: Privacy Policy → /policies/privacy-policy + new Cookie Preferences button that re-opens the center.
+- Added built-in Privacy & Cookie Policy fallback for the privacy-policy slug in policies/[slug]/page.tsx (only used when no DB row exists — the owner's DB row takes precedence).
+- Updated the owner's existing DB Privacy Policy COOKIES paragraph via Supabase PATCH to accurately describe the three consent categories + Consent Mode v2 (old text said "only minimal cookies").
+- Fixed lint errors (set-state-in-effect → useSyncExternalStore gate; ref-during-render → lazy useState; memoization → plain function; unescaped quotes in policy strings → typographic quotes).
+
+Stage Summary:
+- Browser-verified end to end (agent-browser): banner on first load (public site + portals); center opens with locked essential + functional on + analytics off; toggling analytics then Save Custom Choices wrote the cookie and flipped Consent Mode analytics_storage granted→denied correctly on a later change; ACCEPT ALL saves all-true + toast; X saves essential-only; reload restores consent pre-paint with no banner; footer Cookie Preferences re-opens center with the SAME Consent ID; GA4 gtag.js correctly NOT injected (no measurement id configured yet); zero console/page errors; mobile 390px banner + center fit; privacy policy page renders live-updated cookie paragraph.
+- dataLayer verified: consent default (all denied) → consent update (mapped states) → pawz_cookie_inventory event with consent + cookie names (sensitive values masked).
+- Lint: 0 errors (44 pre-existing warnings in unrelated files).
+- To activate GA4 in the Google console: paste the measurement id into NEXT_PUBLIC_GA4_MEASUREMENT_ID in .env and restart; consent signals then flow into GA4/Google Ads reporting automatically.
