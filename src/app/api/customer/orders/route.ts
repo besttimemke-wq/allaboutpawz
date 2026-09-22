@@ -44,8 +44,8 @@ export async function GET() {
     }
 
     const [orders, items] = await Promise.all([
-      repo.list("orders").catch(() => []),
-      repo.list("order_items").catch(() => []),
+      repo.list("commerce_orders").catch(() => []),
+      repo.list("commerce_order_items").catch(() => []),
     ]);
 
     const mine = (orders as any[])

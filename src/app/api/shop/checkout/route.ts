@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     // ------------------------------------------------------------------
     // 1. Server-side product + price verification
     // ------------------------------------------------------------------
-    const products = (await repo.list("products")) as any[]
+    const products = (await repo.list("commerce_products")) as any[]
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
     const orderItems: { productId: string; name: string; quantity: number; unitPrice: string }[] = []
     let subtotalCents = 0

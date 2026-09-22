@@ -20,7 +20,7 @@ import { SITE_URL } from "@/lib/site-url"
 type Params = { params: Promise<{ slug: string }> }
 
 async function loadProduct(slug: string) {
-  const products = await repo.list("products")
+  const products = await repo.list("commerce_products")
   return products.find((p: any) => p.slug === slug && p.visible) || null
 }
 
@@ -83,7 +83,7 @@ export default async function ProductPage({ params }: Params) {
 
   const [allReviews, allProducts, tree] = await Promise.all([
     repo.list("product_reviews"),
-    repo.list("products"),
+    repo.list("commerce_products"),
     getNavTree(),
   ])
   const reviews = (allReviews as any[])

@@ -20,7 +20,7 @@ export const metadata = {
 
 export default async function BagPage() {
   const [products, reviews] = await Promise.all([
-    repo.list("products"),
+    repo.list("commerce_products"),
     repo.list("product_reviews"),
   ])
 

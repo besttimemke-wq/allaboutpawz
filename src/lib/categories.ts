@@ -78,7 +78,7 @@ export type CategoryTree = {
 export async function getCategoryTree(): Promise<CategoryTree> {
   const [rows, products] = await Promise.all([
     repo.list("pet_product_categories"),
-    repo.list("products"),
+    repo.list("commerce_products"),
   ])
   if (!rows.length) return { ready: false, categories: [], flat: [] }
 

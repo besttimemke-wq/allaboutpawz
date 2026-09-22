@@ -41,7 +41,7 @@ const getRaw = cache(async () => {
   const [catRows, productRows, reviewRows, filterRows, filterValueRows, mappingRows] =
     await Promise.all([
       repo.list("pet_product_categories"),
-      repo.list("products"),
+      repo.list("commerce_products"),
       repo.list("product_reviews"),
       repo.list("pet_product_filters"),
       repo.list("pet_product_filter_values"),
@@ -93,7 +93,7 @@ export const getProducts = cache(async (): Promise<ShopProduct[]> => {
         shortDescription: p.shortDescription ?? null,
         description: p.description ?? null,
         createdAt: p.createdAt ?? null,
-        order: p.order ?? 99,
+        order: p.sort_order ?? 99,
         featured: p.featured === true,
         rating,
         isNew: badge.includes("new") || (created > 0 && now - created < 60 * 24 * 3600 * 1000),
@@ -535,7 +535,7 @@ export async function queryProducts(q: ProductQuery): Promise<ProductQueryResult
       case "newest":
         return (
           new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime() ||
-          (a.order ?? 99) - (b.order ?? 99)
+          (a.sort_order ?? 99) - (b.sort_order ?? 99)
         )
       case "price-asc":
         return (a.priceCents ?? Infinity) - (b.priceCents ?? Infinity)
@@ -545,11 +545,11 @@ export async function queryProducts(q: ProductQuery): Promise<ProductQueryResult
         return (
           b.rating.count - a.rating.count ||
           b.rating.avg - a.rating.avg ||
-          (a.order ?? 99) - (b.order ?? 99)
+          (a.sort_order ?? 99) - (b.sort_order ?? 99)
         )
       default: {
         const rank = (p: ShopProduct) => (p.isBestseller ? 0 : 1)
-        return rank(a) - rank(b) || (a.order ?? 99) - (b.order ?? 99)
+        return rank(a) - rank(b) || (a.sort_order ?? 99) - (b.sort_order ?? 99)
       }
     }
   })
