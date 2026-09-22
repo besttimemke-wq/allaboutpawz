@@ -133,20 +133,14 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
           { id: 'orders', label: 'Orders & POS', icon: Receipt },
           { id: 'order-details', label: 'Order Details', icon: FileSearch },
           { id: 'inventory', label: 'Products & Inventory', icon: Package },
-          { id: 'shipping', label: 'Shipping Station', icon: Truck },
-          { id: 'returns', label: 'Returns & RMA', icon: ArrowDownLeft },
-          { id: 'purchase-orders', label: 'Purchase Orders', icon: Inbox },
-        ],
-      },
-      {
-        category: 'CATALOG',
-        categoryDefaultSection: 'products',
-        items: [
           { id: 'products', label: 'Products', icon: Boxes },
           { id: 'categories', label: 'Categories', icon: Tags },
           { id: 'brands', label: 'Brands', icon: Tag },
           { id: 'filters', label: 'Filters', icon: Filter },
           { id: 'promotions', label: 'Promotions', icon: Percent },
+          { id: 'shipping', label: 'Shipping Station', icon: Truck },
+          { id: 'returns', label: 'Returns & RMA', icon: ArrowDownLeft },
+          { id: 'purchase-orders', label: 'Purchase Orders', icon: Inbox },
         ],
       },
       {

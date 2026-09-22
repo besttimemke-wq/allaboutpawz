@@ -25,17 +25,15 @@ const moduleGroups: Record<string, { id: DawgNavSection; label: string; icon: Re
   ORDERS: [
     { id: 'orders', label: 'Orders', icon: Receipt },
     { id: 'order-details', label: 'Details', icon: FileSearch },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'shipping', label: 'Shipping', icon: Truck },
-    { id: 'returns', label: 'Returns', icon: ArrowDownLeft },
-    { id: 'purchase-orders', label: 'POs', icon: Inbox },
-  ],
-  CATALOG: [
+    { id: 'inventory', label: 'Products & Inv', icon: Package },
     { id: 'products', label: 'Products', icon: Boxes },
     { id: 'categories', label: 'Categories', icon: Tags },
     { id: 'brands', label: 'Brands', icon: Tag },
     { id: 'filters', label: 'Filters', icon: Filter },
     { id: 'promotions', label: 'Promotions', icon: Percent },
+    { id: 'shipping', label: 'Shipping', icon: Truck },
+    { id: 'returns', label: 'Returns', icon: ArrowDownLeft },
+    { id: 'purchase-orders', label: 'POs', icon: Inbox },
   ],
   ACCOUNTING: [
     { id: 'books', label: 'Books', icon: BookOpen },

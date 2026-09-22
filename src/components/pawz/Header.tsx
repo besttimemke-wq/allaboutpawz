@@ -57,7 +57,7 @@ interface HeaderProps {
   showPillars?: boolean;
 }
 
-type PillarType = 'CRM' | 'ORDERS' | 'CATALOG' | 'ACCOUNTING';
+type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING';
 
 interface SubRouteItem {
   id: DawgNavSection;
@@ -97,16 +97,15 @@ export const Header: React.FC<HeaderProps> = ({
       case 'orders':
       case 'order-details':
       case 'inventory':
-      case 'shipping':
-      case 'returns':
-      case 'purchase-orders':
-        return 'ORDERS';
       case 'products':
       case 'categories':
       case 'brands':
       case 'filters':
       case 'promotions':
-        return 'CATALOG';
+      case 'shipping':
+      case 'returns':
+      case 'purchase-orders':
+        return 'ORDERS';
       case 'books':
       case 'invoices':
       case 'payments':
@@ -141,17 +140,15 @@ export const Header: React.FC<HeaderProps> = ({
     ORDERS: [
       { id: 'orders', label: 'Orders & POS' },
       { id: 'order-details', label: 'Order Details' },
-      { id: 'inventory', label: 'Inventory' },
-      { id: 'shipping', label: 'Shipping' },
-      { id: 'returns', label: 'Returns' },
-      { id: 'purchase-orders', label: 'Purchase Orders' },
-    ],
-    CATALOG: [
+      { id: 'inventory', label: 'Products & Inventory' },
       { id: 'products', label: 'Products' },
       { id: 'categories', label: 'Categories' },
       { id: 'brands', label: 'Brands' },
       { id: 'filters', label: 'Filters' },
       { id: 'promotions', label: 'Promotions' },
+      { id: 'shipping', label: 'Shipping' },
+      { id: 'returns', label: 'Returns' },
+      { id: 'purchase-orders', label: 'Purchase Orders' },
     ],
     ACCOUNTING: [
       { id: 'books', label: 'Books & Records' },
@@ -171,14 +168,12 @@ export const Header: React.FC<HeaderProps> = ({
   const pillarDefaultSection: Record<PillarType, DawgNavSection> = {
     CRM: 'dashboard',
     ORDERS: 'orders',
-    CATALOG: 'products',
     ACCOUNTING: 'books',
   };
 
   const pillars: { id: PillarType; label: string }[] = [
     { id: 'CRM', label: 'CRM' },
     { id: 'ORDERS', label: 'Orders' },
-    { id: 'CATALOG', label: 'Catalog' },
     { id: 'ACCOUNTING', label: 'Accounting' },
   ];
 
