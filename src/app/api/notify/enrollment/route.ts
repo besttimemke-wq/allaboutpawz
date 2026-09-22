@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "All About Pawz Academy <noreply@aapawz.com>",
+        from: "All About Pawz Academy <notifications@confirmation.aapawz.com>",
         to: [managementEmail],
         subject: `New Enrollment: ${name || email}`,
         html: `
