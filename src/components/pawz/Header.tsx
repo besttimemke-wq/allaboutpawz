@@ -59,7 +59,7 @@ interface HeaderProps {
   showPillars?: boolean;
 }
 
-type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING';
+type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING' | 'LEARN';
 
 interface SubRouteItem {
   id: DawgNavSection;
@@ -121,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'stripe-connections':
         return 'ACCOUNTING';
       default:
-        return 'CRM';
+        return 'LEARN';
     }
   };
 
@@ -160,18 +160,23 @@ export const Header: React.FC<HeaderProps> = ({
       { id: 'financial-settings', label: 'Financial Settings' },
       { id: 'stripe-connections', label: 'Stripe' },
     ],
+    LEARN: [
+      { id: 'dashboard', label: 'Academy Home' },
+    ],
   };
 
   const pillarDefaultSection: Record<PillarType, DawgNavSection> = {
     CRM: 'dashboard',
     ORDERS: 'orders',
     ACCOUNTING: 'books',
+    LEARN: 'dashboard',
   };
 
   const pillars: { id: PillarType; label: string }[] = [
     { id: 'CRM', label: 'CRM' },
     { id: 'ORDERS', label: 'Orders' },
     { id: 'ACCOUNTING', label: 'Accounting' },
+    { id: 'LEARN', label: 'Learn' },
   ];
 
   const activeSubRoute = subRoutesByPillar[activePillar]?.find(
@@ -396,10 +401,19 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="h-10 px-3 sm:px-4 flex items-center justify-end gap-1 overflow-x-auto custom-scrollbar bg-background border-b border-border">
           {pillars.map((pillar) => {
             const isSelected = activePillar === pillar.id;
+            // LEARN pill navigates to /learn (the academy) — it's a separate
+            // app surface, not an admin sub-section.
+            const handleClick = () => {
+              if (pillar.id === 'LEARN') {
+                window.location.href = '/learn';
+              } else {
+                onNavigateSection(pillarDefaultSection[pillar.id]);
+              }
+            };
             return (
               <button
                 key={pillar.id}
-                onClick={() => onNavigateSection(pillarDefaultSection[pillar.id])}
+                onClick={handleClick}
                 className={cn(
                   'rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer',
                   isSelected
