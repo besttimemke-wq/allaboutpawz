@@ -27,7 +27,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
 
-  const payload: Record<string, any> = { ...body, updated_at: new Date().toISOString() }
+  // pet_product_categories has NO created_at/updated_at columns (verified
+  // against the live schema). Strip them + read-only fields.
+  const payload: Record<string, any> = { ...body }
   if ("parent_id" in payload) {
     payload.parent_id =
       payload.parent_id === "" || payload.parent_id === null ? null : Number(payload.parent_id)
@@ -35,9 +37,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if ("sort_order" in payload) payload.sort_order = Number(payload.sort_order)
   if ("featured_in_mega_menu" in payload) payload.featured_in_mega_menu = !!payload.featured_in_mega_menu
   if ("is_active" in payload) payload.is_active = payload.is_active !== false
-  // Read-only fields.
   delete payload.id
   delete payload.created_at
+  delete payload.updated_at
 
   try {
     const updated = await repo.update("pet_product_categories", id, payload)

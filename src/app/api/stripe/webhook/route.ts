@@ -187,15 +187,17 @@ export async function POST(request: NextRequest) {
             }
 
             // Log the fulfillment lifecycle event (commerce_fulfillment_events).
+            // NOTE: order_id has a FK to erp_orders (not commerce_orders), so
+            // we set order_id=NULL and put the commerce_orders id in the payload.
             try {
               await supabase.from("commerce_fulfillment_events").insert({
                 id: crypto.randomUUID(),
                 tenant_id: TENANT_ID,
-                order_id: existing.id,
+                order_id: null,
                 event_type: "order_placed",
                 old_status: null,
                 new_status: "pending",
-                payload: { stripe_session_id: session?.id, flow_type: "shop" },
+                payload: { stripe_session_id: session?.id, flow_type: "shop", commerce_order_id: existing.id },
               })
             } catch (evErr: any) {
               console.error("[stripe/webhook] fulfillment event insert failed (non-fatal):", evErr?.message)

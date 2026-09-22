@@ -175,24 +175,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ------------------------------------------------------------------
-    // 3b. Legacy orders + order_items (camelCase — for the existing
-    //     /api/admin/orders + OrdersView that reads from the legacy table).
+    // 3b. Legacy orders table was removed in the enterprise migration
+    // (the live schema has commerce_orders only). commerce_orders from 3a
+    // is the single source of truth. Skip the legacy write entirely.
     // ------------------------------------------------------------------
-    const order = (await repo.create("orders", {
-      customerId: customer?.id || null,
-      status: "PAYMENT_PENDING",
-      paymentStatus: "UNPAID",
-      subtotal: fmt(subtotalCents),
-      email: String(email).toLowerCase(),
-      deliveryMethod: isPickup ? "pickup" : "ship",
-      shippingAddress,
-      ...(notes ? { notes: String(notes).slice(0, 500) } : {}),
-    })) as any
-    if (order?.id) {
-      for (const oi of orderItems) {
-        await repo.create("order_items", { orderId: order.id, ...oi })
-      }
-    }
+    const order = { id: commerceOrder?.id || commerceOrderId } as any
 
     // ------------------------------------------------------------------
     // 4. Stripe Checkout Session — metadata.flow_type='shop' so the webhook
@@ -236,21 +223,18 @@ export async function POST(req: NextRequest) {
       cancel_url: `${origin}/shop?checkout=cancel`,
     })
 
-    // Persist the Stripe session id back onto both order rows.
+    // Persist the Stripe session id back onto the commerce_orders row.
     if (commerceOrder?.id) {
       await repo.update("commerce_orders", commerceOrder.id, {
         stripe_checkout_id: session.id,
       } as any)
-    }
-    if (order?.id) {
-      await repo.update("orders", order.id, { stripeCheckoutSessionId: session.id } as any)
     }
 
     // Activity log (non-fatal)
     try {
       await repo.create("activity_log", {
         entity: "order",
-        entityId: order?.id || commerceOrder?.id || "",
+        entityId: commerceOrder?.id || commerceOrderId,
         action: "order_placed",
         summary: `Order placed — ${orderItems.length} item(s), ${fmt(subtotalCents)} (${isPickup ? "pickup" : "shipping"})`,
       })
@@ -259,7 +243,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       url: session.url,
       sessionId: session.id,
-      orderId: order?.id,
+      orderId: commerceOrder?.id || commerceOrderId,
       commerceOrderId: commerceOrder?.id || commerceOrderId,
     })
   } catch (e: any) {

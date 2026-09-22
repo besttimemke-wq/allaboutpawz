@@ -64,6 +64,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "name (or slug) is required" }, { status: 400 })
   }
 
+  // pet_product_categories has NO created_at/updated_at columns (verified
+  // against the live schema). Only send columns the table actually has.
   const payload: Record<string, any> = {
     name: body.name,
     slug,
@@ -75,11 +77,10 @@ export async function POST(req: NextRequest) {
     seo_title: body.seo_title ?? null,
     seo_description: body.seo_description ?? null,
     is_active: body.is_active !== false,
-    created_at: now,
-    updated_at: now,
   }
   if (id !== undefined) payload.id = id
   if (body.source_url) payload.source_url = body.source_url
+  void now // (timestamps not on this table)
 
   try {
     const created = await repo.create("pet_product_categories", payload)

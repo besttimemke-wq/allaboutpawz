@@ -114,20 +114,22 @@ export async function applyUspsTrackingToOrder(
       updated_at: new Date().toISOString(),
     } as any)) as any
 
-    // 3. INSERT a fulfillment event (the chronological status history the
-    //    owner's schema prescribes). Non-fatal.
+    // 3. INSERT a fulfillment event (the chronological status history).
+    //    NOTE: commerce_fulfillment_events.order_id has a FK to erp_orders
+    //    (not commerce_orders), so we set order_id=NULL and put the
+    //    commerce_orders id in the payload. Non-fatal.
     await withPg(async (client) => {
       await client.query(
         `INSERT INTO public.commerce_fulfillment_events
            (tenant_id, order_id, event_type, old_status, new_status, payload)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+         VALUES ($1, NULL, $2, $3, $4, $5)`,
         [
           tenant,
-          orderId,
           result.isDelivered ? "delivered" : "tracking_updated",
           oldStatus,
           newStatus,
           JSON.stringify({
+            commerce_order_id: orderId,
             carrier: "USPS",
             tracking_number: trackingNumber,
             tracking_status: result.status,

@@ -3,18 +3,23 @@ import { requireAdminApi } from "@/lib/admin/gate"
 import { withPg, TENANT_ID } from "@/lib/crm/enterprise"
 
 // ============================================================================
-// GET /api/admin/orders — read-only list of real shop orders (the table the
-// Stripe shop checkout + booking deposit flow write into). Replaces the
-// hardcoded mock array in OrdersView.
+// GET /api/admin/orders — admin-gated list of REAL shop orders.
 //
-// Tables:
-//   orders        (id, email, customerId, status, paymentStatus,
-//                 fulfillment_status, subtotal, deliveryMethod, notes,
-//                 stripeCheckoutSessionId, stripePaymentIntentId, carrier,
-//                 tracking_number, createdAt, updatedAt, tenant_id)
-//   order_items    (id, orderId, name, quantity, unitPrice, productId, ...)
-//   customers      (firstName, lastName, email — for the customer join)
+// Reads from commerce_orders (the snake_case table the Stripe webhook +
+// shop checkout write into), joined with commerce_order_items.
+//
+// Query params:
+//   ?status=pending|processing|shipped|delivered|cancelled  (fulfillment_status)
+//   ?payment=paid|unpaid                                    (payment_status)
+//
+// Returns: { orders: [{ id, email, status, paymentStatus, fulfillmentStatus,
+//                       subtotal, totalAmount, deliveryMethod, shippingAddress,
+//                       trackingNumber, carrier, trackingStatus, notes,
+//                       createdAt, items: [...] }] }
 // ============================================================================
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const gate = await requireAdminApi()
@@ -22,29 +27,42 @@ export async function GET(req: NextRequest) {
 
   const tenant = TENANT_ID()
   const status = req.nextUrl.searchParams.get("status") || ""
+  const payment = req.nextUrl.searchParams.get("payment") || ""
 
   const rows = await withPg(async (client) => {
     const listRes = await client.query(
       `SELECT
-         o.id::text, o.email, o.status, o."paymentStatus", o."fulfillment_status",
-         regexp_replace(o.subtotal::text, '[^0-9.]', '', 'g')::numeric::text AS subtotal,
-         o.currency, o."deliveryMethod",
-         o.notes, o.carrier, o.tracking_number,
-         o."stripeCheckoutSessionId", o."stripePaymentIntentId",
-         o."customerId"::text AS customer_id,
-         o."createdAt"::text AS created_at,
-         o."updatedAt"::text AS updated_at,
-         c."firstName" AS customer_first_name,
-         c."lastName" AS customer_last_name,
-         (SELECT COUNT(*)::int FROM public.order_items WHERE "orderId" = o.id) AS item_count,
-         (SELECT COALESCE(SUM(regexp_replace("unitPrice"::text, '[^0-9.]', '', 'g')::numeric * quantity), 0)::numeric::text
-            FROM public.order_items WHERE "orderId" = o.id) AS items_total
-       FROM public.orders o
-       LEFT JOIN public.customers c ON o."customerId" = c.id
-       WHERE o.tenant_id = $1 ${status ? `AND o.status = $2` : ""}
-       ORDER BY o."createdAt" DESC NULLS LAST
+         o.id::text AS id,
+         o.email,
+         o.customer_email,
+         o.customer_id::text AS customer_id,
+         o.status,
+         o.payment_status,
+         o.fulfillment_status,
+         o.fulfillment_method,
+         o.subtotal,
+         o.total_amount,
+         o.shipping_address,
+         o.notes,
+         o.tracking_number,
+         o.carrier,
+         o.tracking_status,
+         o.coupon_id::text AS coupon_id,
+         o.stripe_checkout_id,
+         o.stripe_payment_intent_id,
+         o.created_at::text AS created_at,
+         o.updated_at::text AS updated_at,
+         c.first_name AS customer_first_name,
+         c.last_name AS customer_last_name,
+         (SELECT count(*)::int FROM public.commerce_order_items WHERE order_id::text = o.id::text) AS item_count
+       FROM public.commerce_orders o
+       LEFT JOIN public.crm_customers c ON o.customer_id::text = c.id::text
+       WHERE o.tenant_id = $1
+         ${status ? `AND o.fulfillment_status = $2` : ""}
+         ${payment ? `AND o.payment_status = $${status ? 3 : 2}` : ""}
+       ORDER BY o.created_at DESC NULLS LAST
        LIMIT 200;`,
-      status ? [tenant, status] : [tenant],
+      status && payment ? [tenant, status, payment] : status ? [tenant, status] : payment ? [tenant, payment] : [tenant],
     )
 
     const ids = listRes.rows.map((r: any) => r.id)
@@ -52,54 +70,54 @@ export async function GET(req: NextRequest) {
     if (ids.length > 0) {
       const itemsRes = await client.query(
         `SELECT
-           oi."orderId"::text AS order_id,
-           oi.id::text AS id, oi.name, oi.quantity,
-           regexp_replace(oi."unitPrice"::text, '[^0-9.]', '', 'g')::numeric::text AS unit_price,
-           oi."productId"::text AS product_id
-         FROM public.order_items oi
-         WHERE oi.tenant_id = $1 AND oi."orderId"::text = ANY($2::text[])
-         ORDER BY oi."createdAt" ASC;`,
-        [tenant, ids],
+           oi.id::text AS id,
+           oi.order_id::text AS order_id,
+           oi.product_id::text AS product_id,
+           oi.name,
+           oi.quantity,
+           oi.unit_price
+         FROM public.commerce_order_items oi
+         WHERE oi.order_id::text = ANY($1::text[])`,
+        [ids],
       )
       for (const it of itemsRes.rows) {
         const arr = itemsByOrder.get(it.order_id) || []
         arr.push({
-          id: it.id, name: it.name,
+          id: it.id,
+          productId: it.product_id,
+          name: it.name,
           quantity: Number(it.quantity) || 1,
-          unitPrice: Number(it.unit_price) || 0,
-          productId: it.product_id || null,
+          unitPrice: it.unit_price,
         })
         itemsByOrder.set(it.order_id, arr)
       }
     }
 
-    return listRes.rows.map((r: any) => {
-      const customerName = [r.customer_first_name, r.customer_last_name].filter(Boolean).join(" ").trim() || r.email || "Guest"
-      return {
-        id: r.id,
-        email: r.email,
-        customerName,
-        customerId: r.customer_id || null,
-        status: r.status,
-        paymentStatus: r.paymentStatus,
-        fulfillmentStatus: r.fulfillment_status,
-        subtotal: Number(r.subtotal) || 0,
-        itemsTotal: Number(r.items_total) || 0,
-        currency: r.currency || "USD",
-        deliveryMethod: r.deliveryMethod || null,
-        notes: r.notes || null,
-        carrier: r.carrier || null,
-        trackingNumber: r.tracking_number || null,
-        stripeCheckoutSessionId: r.stripeCheckoutSessionId || null,
-        stripePaymentIntentId: r.stripePaymentIntentId || null,
-        itemCount: Number(r.item_count) || 0,
-        items: itemsByOrder.get(r.id) || [],
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-      }
-    })
+    return listRes.rows.map((r: any) => ({
+      id: r.id,
+      email: r.email || r.customer_email,
+      customerId: r.customer_id,
+      customerName: [r.customer_first_name, r.customer_last_name].filter(Boolean).join(" ") || null,
+      status: r.status,
+      paymentStatus: r.payment_status,
+      fulfillmentStatus: r.fulfillment_status,
+      fulfillmentMethod: r.fulfillment_method,
+      subtotal: r.subtotal,
+      totalAmount: r.total_amount,
+      shippingAddress: r.shipping_address,
+      notes: r.notes,
+      trackingNumber: r.tracking_number,
+      carrier: r.carrier,
+      trackingStatus: r.tracking_status,
+      couponId: r.coupon_id,
+      stripeCheckoutSessionId: r.stripe_checkout_id,
+      stripePaymentIntentId: r.stripe_payment_intent_id,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      itemCount: r.item_count || 0,
+      items: itemsByOrder.get(r.id) || [],
+    }))
   })
 
-  if (rows === null) return NextResponse.json({ error: "Database connection not configured." }, { status: 500 })
-  return NextResponse.json({ orders: rows })
+  return NextResponse.json({ orders: rows || [] })
 }
