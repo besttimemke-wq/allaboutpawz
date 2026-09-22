@@ -250,6 +250,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   variant = 'admin',
 }) => {
   const [showLocationMenu, setShowLocationMenu] = React.useState(false);
+  // Collapsible category state — each parent (CRM / ORDERS / ACCOUNTING / …)
+  // can be expanded/collapsed so the sidebar never runs off the bottom.
+  // Default: all expanded. When collapsed, only the header shows.
+  const [collapsedCategories, setCollapsedCategories] = React.useState<Set<string>>(new Set());
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
 
   const fallbackLocations = [
     'All About Pawz – Main Location',
@@ -327,28 +340,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Navigation Groups List — only the current variant's groups.
               This is the actual fix: customer and groomer never see CRM /
-              ORDERS / ACCOUNTING nav. */}
-          <nav className="custom-scrollbar flex-1 overflow-y-hidden py-2 text-sidebar-foreground">
-            {navGroups.map((group, gIdx) => (
+              ORDERS / ACCOUNTING nav.
+              overflow-y-auto so the sidebar scrolls when there are too many
+              items (never runs off the bottom). Each parent category is
+              collapsible — click the header to toggle its children. */}
+          <nav className="custom-scrollbar flex-1 overflow-y-auto py-2 text-sidebar-foreground">
+            {navGroups.map((group, gIdx) => {
+              const isCatCollapsed = group.category ? collapsedCategories.has(group.category) : false;
+              return (
               <div key={gIdx} className="space-y-0.5">
                 {group.category && !isCollapsed && (
                   <div className="px-3 pt-3 pb-1">
                     <button
-                      onClick={() => {
-                        if (group.categoryDefaultSection) {
-                          onSelectSection(group.categoryDefaultSection);
-                          onCloseMobile();
-                        }
-                      }}
-                      className="font-bar text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground/80 cursor-pointer text-left"
+                      onClick={() => toggleCategory(group.category!)}
+                      className="flex w-full items-center justify-between font-bar text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground/80 cursor-pointer text-left"
                     >
-                      {group.category}
+                      <span>{group.category}</span>
+                      <ChevronDown
+                        className={cn(
+                          'h-3 w-3 transition-transform duration-200 text-sidebar-foreground/40',
+                          isCatCollapsed && '-rotate-90',
+                        )}
+                        strokeWidth={2.5}
+                      />
                     </button>
                   </div>
                 )}
                 {isCollapsed && gIdx > 0 && (
                   <div className="divider-hair mx-3 my-2 h-px" />
                 )}
+                {!isCatCollapsed && (
                 <ul className="space-y-0.5 px-2">
                   {group.items.map((item) => {
                     const Icon = item.icon;
@@ -397,8 +418,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     );
                   })}
                 </ul>
+                )}
               </div>
-            ))}
+              );
+            })}
           </nav>
         </aside>
       </TooltipProvider>
