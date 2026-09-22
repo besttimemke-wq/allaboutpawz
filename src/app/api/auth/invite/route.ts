@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
+import { sendPortalInvite } from "@/lib/email"
 
 // POST /api/auth/invite
 // Creates a Supabase Auth user, sends a magic link invitation email,
 // links them to a CRM customer or staff record,
 // and creates a Stripe customer if role is "customer".
+//
+// Email delivery: tries Resend first (via sendPortalInvite — audit-trailed
+// through email_messages). If Resend is not configured (RESEND_API_KEY
+// missing), the call returns { ok: false } but the invite does NOT fail —
+// Supabase's built-in mailer may still send its own invitation email
+// (depending on your project's Auth > Email settings), so we log a warning
+// and continue.
 
 const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL)!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -60,8 +68,9 @@ export async function POST(req: NextRequest) {
 
     userId = newUser.user.id
 
-    // 3. Send invitation magic link
-    const { error: linkError } = await supabase.auth.admin.generateLink({
+    // 3. Send invitation magic link via Supabase (always — generates the
+    //    signed action_link we'll deliver through Resend).
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: "invite",
       email,
     })
@@ -69,6 +78,26 @@ export async function POST(req: NextRequest) {
     if (linkError) {
       console.error("[auth/invite] magic link failed:", linkError.message)
       // User is created — invite can be resent
+    }
+
+    // 3b. Deliver the invite via Resend (audit-trailed). The action_link is
+    //     the signed magic-link URL Supabase generated above. If Resend is
+    //     not configured, log a warning but do NOT fail the invite —
+    //     Supabase's own mailer may still send.
+    const actionLink = (linkData as any)?.properties?.action_link
+    if (actionLink) {
+      const result = await sendPortalInvite({
+        to: email,
+        actionLink,
+        role,
+        firstName,
+        lastName,
+      }).catch((e: any) => ({ ok: false, error: e?.message || String(e) }))
+      if (result && !result.ok) {
+        console.warn(`[auth/invite] Resend delivery did not succeed for ${email}: ${result.error || "unknown"}. Supabase's built-in mailer may still send.`)
+      }
+    } else {
+      console.warn(`[auth/invite] No action_link returned from Supabase for ${email}; skipping Resend delivery.`)
     }
   }
 

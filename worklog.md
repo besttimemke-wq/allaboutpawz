@@ -391,3 +391,170 @@ Stage Summary:
 - OnboardingFlow step 6 (Review) redesigned with clean card layout, ink borders, no brown/green hovers.
 - OnboardingFlow step 7 (Complete) redesigned with polished centered celebration layout, derived pathway name, and a BLACK "Go to Classroom" button.
 - 0 lint errors. 0 tsc errors in modified files. All LMS routes return HTTP 200.
+
+---
+Task ID: ecom-migration
+Agent: main
+Task: SQL migration — commerce tracking fields + commerce_brands + mega-menu cols + CRM identity sync trigger.
+
+Work Log:
+- Read existing live schema (commerce_orders had 17 cols, commerce_products had 27 cols, commerce_brands did not exist).
+- Wrote supabase/migrations/0013_commerce_tracking_brands_and_crm_trigger.sql with idempotent ALTER ADD COLUMN IF NOT EXISTS statements.
+- Applied via direct PG connection (SUPABASE_SESSION_POOLER, IPv4-first DNS).
+- commerce_orders now has tracking_status, coupon_id, payment_status, email, subtotal (tracking_number + carrier already existed).
+- commerce_brands created with id, tenant_id, name, slug UNIQUE, logo_url, description, is_active, sort_order, timestamps.
+- commerce_products gained brand_id (uuid), visible (bool), stock (int).
+- pet_product_categories gained hero_image, promo_blurb, sort_order, featured_in_mega_menu, seo_title, seo_description, is_active.
+- handle_crm_to_auth_sync() function + trigger_crm_sync on crm_customers — uses REAL column names (crm_customer_id, acct_customer_id) on platform_customer_identity_links (NOT the spec's non-existent shop_customer_id).
+- Seeded one default brand: PawLuxury (slug=pawluxury).
+
+Stage Summary:
+- Migration is live. commerce_orders, commerce_order_items, commerce_brands, commerce_products, pet_product_categories, and the CRM trigger are all in place. Subagents can now build admin CRUD + checkout/fulfillment + storefront on top of this schema.
+
+---
+Task ID: enterprise-catalog
+Agent: main
+Task: Wire the storefront + admin + checkout to the REAL normalized enterprise schema (erp_products + erp_product_skus + commerce_catalog_items + commerce_prices + commerce_product_media + erp_inventory_movements).
+
+Work Log:
+- Audited the live schema: confirmed erp_products (27 cols), erp_product_skus (18), erp_product_variants (8), commerce_prices (10), commerce_product_media (8), commerce_carts (16), commerce_cart_lines (12), commerce_checkout_sessions (11), commerce_fulfillment_events (9), commerce_shipping_labels (11), commerce_customer_accounts (11), commerce_customer_addresses (16), commerce_promotions (15), commerce_coupons (10), commerce_catalog_items (21), commerce_categories (12), erp_inventory_movements (20) all exist. The flat commerce_products (30 cols) was the ONLY table with data (8 rows); every normalized table was empty.
+- Wrote scripts/seed-enterprise-catalog.mjs — seeds commerce_price_lists (RETAIL), erp_warehouses (MAIN), commerce_order_channels (WEB), then migrates all 8 commerce_products into the normalized schema: erp_products (base info + metadata) → erp_product_skus (sku + unit_price) → commerce_catalog_items (ecommerce_enabled=true) → commerce_prices (price + compare_at_price on the RETAIL price list) → commerce_product_media (is_primary image) → erp_inventory_movements (opening stock). Ran it: 8/8 products migrated, all 6 normalized tables now have 8 rows each.
+- Wrote src/lib/enterprise/catalog.ts — the read/write layer:
+  * listCatalogProducts() — single SQL query with JOINs across commerce_catalog_items + erp_products + erp_product_skus + commerce_prices + commerce_product_media + erp_inventory_movements (stock rollup). Returns a unified CatalogProduct shape.
+  * getCatalogProductBySlug(slug) / getCatalogProductById(id) — single-product lookups.
+  * createCatalogProduct(input) — transactional write across all 6 tables (erp_products + sku + catalog_item + price + media + opening stock movement).
+  * updateCatalogProduct(id, patch) — updates the right subset of tables.
+  * deleteCatalogProduct(id) — cascading delete across all tables.
+  * adjustInventory(skuId, delta, movementType) — the ONLY way stock changes (writes erp_inventory_movements).
+  * decrementInventoryForCartItems(cartItems, sourceId) — called by the Stripe webhook to decrement stock via 'sale' movements (NOT flat column updates).
+- Refactored src/lib/shop/catalog.ts (storefront) — getProducts() now calls listCatalogProducts() instead of repo.list("commerce_products"). Maps CatalogProduct → ShopProduct (same shape the PLP/PDP/cart already consume). Pricing flows from commerce_prices (priceCents + compareAtPriceCents + isOnSale).
+- Refactored src/app/(site)/products/[slug]/page.tsx (PDP) — loadProduct() now calls getCatalogProductBySlug(). Related products + pricing all read from the enterprise layer.
+- Refactored src/app/(site)/shop/bag/page.tsx — reads from listCatalogProducts() instead of the flat table.
+- Refactored /api/admin/products (route.ts + [id]/route.ts) — POST/PATCH/DELETE now use createCatalogProduct / updateCatalogProduct / deleteCatalogProduct (writes across all 6 normalized tables). GET returns the unified CatalogProduct shape with brand_name/brand_slug joined.
+- Refactored /api/shop/checkout/route.ts — server-side price verification now reads from listCatalogProducts() (enterprise catalog) instead of repo.list("commerce_products"). The cart_items metadata carries the commerce_catalog_items.id (uuid) as productId.
+- Refactored /api/shop/cart/route.ts — coupon verifier now reads from listCatalogProducts() for line-item pricing.
+- Refactored /api/stripe/webhook/route.ts — inventory decrement now calls decrementInventoryForCartItems() (writes erp_inventory_movements with movement_type='sale', negative quantity) instead of updating flat commerce_products columns. Also INSERTs a commerce_fulfillment_events row (event_type='order_placed', old_status=null, new_status='pending') so the order lifecycle is logged chronologically.
+- Upgraded src/lib/shipping/usps.ts — applyUspsTrackingToOrder() now ALSO: (a) loads the current order to record old_status, (b) UPDATEs commerce_orders, (c) INSERTs a commerce_fulfillment_events row (event_type='tracking_updated' or 'delivered', old_status → new_status, payload with carrier/tracking/summary), (d) UPSERTs a commerce_shipping_labels row (carrier='USPS', tracking_number), (e) revalidates /admin/orders + /customer/orders. This satisfies the owner's requirement: "Status history must be logged chronologically in commerce_fulfillment_events" + "Store generated label data in commerce_shipping_labels" + "Upon USPS delivery confirmation, the system must automatically update the fulfillment event status."
+- Fixed src/lib/types.ts — added the missing DawgNavSection union type (33 nav section ids) that every admin page + pawz component imports. This unblocked all admin page compilation.
+- Fixed src/lib/shop/catalog.ts — sort references changed from `sort_order` (flat-table field) to `order` (ShopProduct field).
+
+Stage Summary:
+- Files created: scripts/seed-enterprise-catalog.mjs, src/lib/enterprise/catalog.ts.
+- Files modified: src/lib/shop/catalog.ts, src/app/(site)/products/[slug]/page.tsx, src/app/(site)/shop/bag/page.tsx, src/app/api/admin/products/route.ts, src/app/api/admin/products/[id]/route.ts, src/app/api/shop/checkout/route.ts, src/app/api/shop/cart/route.ts, src/app/api/stripe/webhook/route.ts, src/lib/shipping/usps.ts, src/lib/types.ts.
+- The storefront PLP (/shop), PDP (/products/[slug]), and bag (/shop/bag) now read exclusively from the normalized enterprise schema. The flat commerce_products table is no longer the source of truth.
+- The admin products API writes across all 6 normalized tables on create/update/delete.
+- The Stripe webhook decrements inventory via erp_inventory_movements (movement_type='sale') and logs commerce_fulfillment_events.
+- The USPS tracking helper logs fulfillment events + upserts shipping labels on every lookup.
+- Lint: 0 errors. All routes return 200. The 8 migrated products render on the storefront with correct pricing, stock, and media from the real schema.
+
+---
+Task ID: ecom-promotions
+Agent: full-stack-developer
+Task: Promotions & coupons admin (commerce_promotions + commerce_coupons CRUD)
+
+Work Log:
+- Read worklog.md (latest entries: enterprise-catalog, ecom-migration) to confirm the normalized enterprise schema is live and the storefront + admin products API now read/write the real normalized tables.
+- Read src/lib/enterprise/catalog.ts to learn the withPg + TENANT_ID() pattern + revalidateShopPaths() helper. Read src/lib/admin/gate.ts to confirm requireAdminApi() gates every admin route. Read src/app/api/admin/products/route.ts + [id]/route.ts to learn the admin CRUD route pattern (runtime="nodejs", dynamic="force-dynamic", gate-first, JSON body parse, revalidateShop() after mutations).
+- Inspected the live commerce_promotions + commerce_coupons schema via direct PG connection (information_schema.columns). Discovered that the task brief's "15 cols including created_at, updated_at" was inaccurate — the live tables have NO created_at / updated_at columns:
+  * commerce_promotions (15 cols): id, tenant_id, code, name, promotion_type, value, minimum_subtotal, maximum_discount, start_at, end_at, usage_limit, usage_count, active, rules, actions
+  * commerce_coupons (10 cols): id, tenant_id, promotion_id, code, customer_id, usage_limit, usage_count, status, valid_from, valid_to
+- Also confirmed via pg_constraint that commerce_coupons.promotion_id → commerce_promotions is ON DELETE NO ACTION (NOT cascade). So deletePromotion() must UPDATE commerce_coupons SET promotion_id = NULL before DELETE — otherwise the FK constraint blocks the delete.
+- Created src/lib/enterprise/promotions.ts — the data layer:
+  * Exports types: Promotion, Coupon, PromotionInput, CouponInput, CouponValidation, PromotionType.
+  * listPromotions() — SELECT with LEFT JOIN on commerce_coupons for coupon_count, ordered by start_at DESC NULLS LAST, name ASC, code ASC (no created_at available).
+  * getPromotion(id) — single promotion by id.
+  * createPromotion(input) — INSERT with RETURNING id, then re-fetch via getPromotion for the full row.
+  * updatePromotion(id, patch) — UPDATE with COALESCE/CASE per column (handles NULLs vs SET). No updated_at reference (column doesn't exist).
+  * deletePromotion(id) — BEGIN/COMMIT transaction: UPDATE commerce_coupons SET promotion_id = NULL WHERE promotion_id = $id (preserves coupon history), then DELETE FROM commerce_promotions. ROLLBACK on error.
+  * listCoupons(promotionId?) — SELECT with LEFT JOIN LATERAL on commerce_promotions for the embedded promotion object, filtered by tenant + optional promotion_id. Ordered by valid_from DESC NULLS LAST, code ASC.
+  * getCoupon(id) — single coupon by id.
+  * createCoupon(input) — INSERT with RETURNING id, then re-fetch via getCoupon.
+  * updateCoupon(id, patch) — UPDATE with COALESCE/CASE per column. No updated_at reference.
+  * deleteCoupon(id) — simple DELETE.
+  * validateCoupon(code, subtotal) — the CANONICAL coupon validator. Looks up commerce_coupons by UPPER(code) + tenant_id. Validates: status==='active' AND valid_from (null|<=now) AND valid_to (null|>=now) AND usage_limit (null|usage_count<limit). Then loads the full commerce_promotions row and validates: active===true AND start_at (null|<=now) AND end_at (null|>=now) AND usage_limit (null|usage_count<limit) AND minimum_subtotal (subtotal >= minimum). Then computes discount: percent_off → subtotal*(value/100); amount_off → min(value, subtotal); bogo → returns valid=true with discount=0 (cart layer handles the BOGO math). Caps discount to maximum_discount if set. Returns { valid, discount, message?, promotion, coupon }.
+  * rowToPromotion / rowToCoupon normalizers + safeJson() helper for jsonb columns.
+  * revalidateShopPaths() — revalidates /shop, /shop/[...slug], /shop/bag, /products/[slug], / after every mutation.
+  * Default tenant_id is 00000000-0000-0000-0000-000000000001 via TENANT_ID().
+- Created src/app/api/admin/promotions/route.ts — admin-gated GET (listPromotions) + POST (createPromotion). Validates code + name + promotion_type (must be one of percent_off/amount_off/bogo). Coerces $-prefixed dollar strings → numbers, ISO date strings → ISO timestamps. Calls revalidateShop() after create.
+- Created src/app/api/admin/promotions/[id]/route.ts — admin-gated PATCH (updatePromotion) + DELETE (deletePromotion). PATCH only sets fields present in the body; DELETE returns 404 if not found. Both call revalidateShop().
+- Created src/app/api/admin/coupons/route.ts — admin-gated GET (listCoupons, optional ?promotionId= filter) + POST (createCoupon).
+- Created src/app/api/admin/coupons/[id]/route.ts — admin-gated PATCH (updateCoupon) + DELETE (deleteCoupon).
+- Created src/app/(portals)/admin/promotions/page.tsx — client component:
+  * Loads promotions on mount via /api/admin/promotions; auto-selects the first promotion so the Coupons section filters to it.
+  * Re-loads coupons whenever selectedPromoId changes (via useCallback + useEffect dep).
+  * Promotions table: code (clickable → selects that promotion's coupons), name, type (percent_off/amount_off/bogo badge with Percent or Ticket icon), value (smart-formatted: % for percent_off, $ for amount_off, "BOGO" for bogo), active toggle, usage (count/limit), date range (start_at → end_at), coupon count, edit/delete actions.
+  * Coupons table: code (mono font), promotion (linked code + name), status badge, usage (count/limit), valid date range, edit/delete actions.
+  * "Add Promotion" button opens a modal form: code, name, promotion_type dropdown (Percent Off / Amount Off / Buy One Get One), value (with contextual $ or % label), minimum_subtotal, maximum_discount, start_at (date), end_at (date), usage_limit, active checkbox.
+  * "Add Coupon" button opens a modal form: code (with "Generate" button that creates a PAWZ-XXXXXX random code), promotion_id dropdown (lists all promotions or "stand-alone coupon"), valid_from, valid_to, usage_limit, status dropdown.
+  * Visual style matches the existing admin pages: bg-ink text-white primary buttons, border-border/bg-muted surfaces, text-2xl font-semibold tracking-tight page title, green/red badges for active/inactive, lucide-react icons (Plus, Pencil, Trash2, Ticket, Percent, Loader2, Copy, Check). NO indigo or blue.
+- Wired the new 'promotions' nav item into the admin chrome:
+  * src/components/pawz/Sidebar.tsx — added Percent to the lucide-react import; added { id: 'promotions', label: 'Promotions', icon: Percent } to the CATALOG group (next to Products/Categories/Brands/Filters).
+  * src/components/pawz/Header.tsx — added 'promotions' to getPillarFromSection()'s CATALOG case + { id: 'promotions', label: 'Promotions' } to subRoutesByPillar.CATALOG.
+  * src/components/pawz/_shared/ModuleNav.tsx — added Percent to the lucide-react import; added { id: 'promotions', label: 'Promotions', icon: Percent } to the CATALOG module group.
+  * src/lib/types.ts already had 'promotions' in the DawgNavSection union (per the task brief). No type change needed.
+- Did NOT touch /api/shop/cart/route.ts (per the task brief: the existing inline coupon verifier stays).
+- Ran `bun run lint` — 0 errors, 46 warnings (all pre-existing unused eslint-disable directives in unrelated files: pawz/settings/screens/*, site/islands/booking-wizard-v2.tsx, site/pet-card.tsx, lib/hooks/useSessionQuery.ts). NONE of my new files produce any lint errors or warnings.
+- Ran `bunx tsc --noEmit` (with NODE_OPTIONS="--max-old-space-size=1024" to avoid OOM) — 0 errors in any of my new deliverable files (lib/enterprise/promotions.ts, the 4 API routes, the admin page). Pre-existing tsc errors in pawz/Sidebar.tsx and pawz/Header.tsx (missing 'AuthUser' / 'LocationItem' exports from @/lib/types, and frontdesk/lms nav ids like 'check-in', 'phone-messages', 'my-learning' not in DawgNavSection) are NOT mine to fix — confirmed via git stash that they exist on the unmodified main branch.
+- Verified HTTP routes end-to-end:
+  * GET /api/admin/promotions → 401 (admin auth required, no session in curl) — route compiles cleanly.
+  * GET /api/admin/coupons → 401 — route compiles cleanly.
+  * GET /admin/promotions → 200 — admin page renders successfully.
+- Ran a direct-PG smoke test (test-promo-full.mjs) against the live DB that exercised every SQL query my data layer uses:
+  * INSERT promotion ✓
+  * INSERT coupon (FK to promotion) ✓
+  * listPromotions SQL (with coupon count LEFT JOIN + new ORDER BY) ✓
+  * UPDATE promotion (no updated_at reference) ✓
+  * UPDATE coupon (no updated_at reference) ✓
+  * DELETE promotion (clears coupon FK first because ON DELETE NO ACTION) ✓
+  * DELETE coupon ✓
+  * listCoupons SQL (LATERAL JOIN + new ORDER BY) ✓
+  * validateCoupon SQL pattern (UPPER(code) lookup + LATERAL JOIN to promotion) ✓
+  All 9 queries passed; cleaned up smoke-test rows afterward.
+
+Stage Summary:
+- Files created (6):
+  * src/lib/enterprise/promotions.ts — data layer (Promotion + Coupon types, listPromotions/getPromotion/createPromotion/updatePromotion/deletePromotion, listCoupons/getCoupon/createCoupon/updateCoupon/deleteCoupon, validateCoupon canonical validator).
+  * src/app/api/admin/promotions/route.ts — admin-gated GET (list) + POST (create).
+  * src/app/api/admin/promotions/[id]/route.ts — admin-gated PATCH (update) + DELETE.
+  * src/app/api/admin/coupons/route.ts — admin-gated GET (list, optional ?promotionId= filter) + POST (create).
+  * src/app/api/admin/coupons/[id]/route.ts — admin-gated PATCH (update) + DELETE.
+  * src/app/(portals)/admin/promotions/page.tsx — client component with promotions table + coupons table + modal forms for create/edit on both.
+
+- Files modified (3):
+  * src/components/pawz/Sidebar.tsx — added Percent import + 'promotions' item in the CATALOG group.
+  * src/components/pawz/Header.tsx — added 'promotions' to the CATALOG pillar's getPillarFromSection case + subRoutes list.
+  * src/components/pawz/_shared/ModuleNav.tsx — added Percent import + 'promotions' item in the CATALOG module group.
+
+- Verification:
+  * Lint: 0 errors, 46 warnings (all pre-existing in unrelated files; none in any of my deliverable files).
+  * tsc: 0 errors in any new deliverable file. Pre-existing tsc errors in Sidebar.tsx/Header.tsx (missing AuthUser/LocationItem exports, frontdesk/lms nav ids not in DawgNavSection) confirmed present on unmodified main branch — not mine to fix.
+  * HTTP smoke: /api/admin/promotions → 401 (correct gate), /api/admin/coupons → 401 (correct gate), /admin/promotions → 200 (page renders).
+  * SQL smoke: 9/9 queries pass against the live DB.
+  * Schema note: discovered during smoke testing that commerce_promotions + commerce_coupons have NO created_at/updated_at columns (task brief was inaccurate). Removed all references to those columns from the data layer + types. Promotions now ordered by start_at DESC NULLS LAST, name ASC, code ASC; coupons ordered by valid_from DESC NULLS LAST, code ASC.
+  * FK note: commerce_coupons.promotion_id → commerce_promotions is ON DELETE NO ACTION (NOT cascade). deletePromotion() runs UPDATE commerce_coupons SET promotion_id = NULL WHERE promotion_id = $id before DELETE so the FK constraint doesn't block — preserves coupon history for analytics.
+
+---
+Task ID: ecom-customer-accounts
+Agent: main
+Task: Customer account management (commerce_customer_accounts + commerce_customer_addresses + crm_customers)
+
+Work Log:
+- Wrote src/lib/enterprise/customer.ts — the data layer using withPg + TENANT_ID pattern:
+  * getCustomerByEmail(email) — looks up crm_customers by lower(email).
+  * getCustomerAccount(customerId) / ensureCustomerAccount(customerId) — find-or-create on commerce_customer_accounts.
+  * updateCustomerProfile(customerId, patch) — updates first_name/last_name/phone/mobile_phone on crm_customers.
+  * updateCustomerAccount(customerId, patch) — updates tax_exempt/tax_exemption_number/credit_limit on commerce_customer_accounts.
+  * listCustomerAddresses(customerId) — lists addresses sorted by is_default DESC, created_at DESC.
+  * createCustomerAddress(customerId, input) — INSERT with transactional is_default handling (unsets other defaults first).
+  * updateCustomerAddress(addressId, customerId, patch) — UPDATE with ownership check + is_default handling.
+  * deleteCustomerAddress(addressId, customerId) — DELETE with last-address protection (returns 409 if it's the only address).
+  * getCustomerStats(email) — returns { totalSpent, orderCount, inTransit, latestStatus } from commerce_orders.
+- Wrote /api/customer/account/route.ts — GET returns { profile, account }; PATCH updates profile + account fields. Uses the same pawz_session cookie auth pattern as /api/customer/orders.
+- Wrote /api/customer/addresses/route.ts — GET lists; POST creates.
+- Wrote /api/customer/addresses/[id]/route.ts — PATCH updates; DELETE removes (with last-address protection).
+- The customer dashboard (src/app/(portals)/customer/dashboard/page.tsx) was extended (by the subagent before it timed out) to add an Account Overview card (fetches /api/customer/account, shows profile + tax status + edit modal) and a Saved Addresses card (fetches /api/customer/addresses, lists with is_default badge, add/edit/delete actions).
+
+Stage Summary:
+- Files created: src/lib/enterprise/customer.ts, src/app/api/customer/account/route.ts, src/app/api/customer/addresses/route.ts, src/app/api/customer/addresses/[id]/route.ts.
+- Files modified: src/app/(portals)/customer/dashboard/page.tsx (added Account Overview + Saved Addresses sections).
+- All routes return correct status codes (401 without session, 200 with). Lint clean. 0 tsc errors in enterprise files.

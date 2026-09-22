@@ -11,8 +11,25 @@ export type ShopProduct = {
   id: string
   name: string
   slug: string
+  /** Active display price formatted as a string ("$30.00"). Falls back to base
+   *  price when not on sale; equals the sale price when on sale. Backward-compat
+   *  alias for {@link displayPrice}. */
   price: string
+  /** Active display price in cents. Backward-compat alias for
+   *  {@link displayPriceCents}. */
   priceCents: number | null
+  /** Original list price parsed from `base_price`, in cents. */
+  basePriceCents: number | null
+  /** Promotional price parsed from `sale_price`, in cents. Null when no
+   *  sale price is set or it can't be parsed. */
+  salePriceCents: number | null
+  /** Compare-at reference price parsed from `compare_at_price`, in cents. */
+  compareAtPriceCents: number | null
+  /** The active storefront price in cents — `salePriceCents` when on sale,
+   *  otherwise `basePriceCents`. Null when neither parses. */
+  displayPriceCents: number | null
+  /** Formatted active storefront price ("$30.00"). */
+  displayPrice: string | null
   image: string | null
   alt: string | null
   badge: string | null
@@ -27,6 +44,7 @@ export type ShopProduct = {
   rating: Rating
   isNew: boolean
   isBestseller: boolean
+  /** True when `sale_price` < `base_price` OR `compare_at_price` > `base_price`. */
   isOnSale: boolean
 }
 
@@ -45,6 +63,14 @@ export type NavCategory = {
   rawIds: number[]
   children: NavCategory[]
   parentKey: string | null
+  /** Promo blurb aggregated from the raw SQL nodes folded into this node
+   *  (migration 0013). Null when none is set. */
+  promoBlurb?: string | null
+  /** True when any raw SQL node folded into this node has
+   *  `featured_in_mega_menu = true` (migration 0013). */
+  featuredInMegaMenu?: boolean
+  /** Hero image aggregated from the raw SQL nodes folded into this node. */
+  heroImage?: string | null
 }
 
 export type FilterOption = { value: string; label: string; count: number }

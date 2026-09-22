@@ -41,6 +41,10 @@ import {
   Award,
   FolderOpen,
   UserCheck,
+  Tags,
+  Filter,
+  Boxes,
+  Percent,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -132,6 +136,17 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
           { id: 'shipping', label: 'Shipping Station', icon: Truck },
           { id: 'returns', label: 'Returns & RMA', icon: ArrowDownLeft },
           { id: 'purchase-orders', label: 'Purchase Orders', icon: Inbox },
+        ],
+      },
+      {
+        category: 'CATALOG',
+        categoryDefaultSection: 'products',
+        items: [
+          { id: 'products', label: 'Products', icon: Boxes },
+          { id: 'categories', label: 'Categories', icon: Tags },
+          { id: 'brands', label: 'Brands', icon: Tag },
+          { id: 'filters', label: 'Filters', icon: Filter },
+          { id: 'promotions', label: 'Promotions', icon: Percent },
         ],
       },
       {

@@ -5,6 +5,7 @@ import {
   Tag, CalendarClock, Receipt, FileSearch, Package, Truck,
   ArrowDownLeft, Inbox, BookOpen, CreditCard, Coins, RotateCcw,
   Gift, Scale, BarChart3, Terminal,
+  Tags, Filter, Boxes, Percent,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DawgNavSection } from '@/lib/types';
@@ -28,6 +29,13 @@ const moduleGroups: Record<string, { id: DawgNavSection; label: string; icon: Re
     { id: 'shipping', label: 'Shipping', icon: Truck },
     { id: 'returns', label: 'Returns', icon: ArrowDownLeft },
     { id: 'purchase-orders', label: 'POs', icon: Inbox },
+  ],
+  CATALOG: [
+    { id: 'products', label: 'Products', icon: Boxes },
+    { id: 'categories', label: 'Categories', icon: Tags },
+    { id: 'brands', label: 'Brands', icon: Tag },
+    { id: 'filters', label: 'Filters', icon: Filter },
+    { id: 'promotions', label: 'Promotions', icon: Percent },
   ],
   ACCOUNTING: [
     { id: 'books', label: 'Books', icon: BookOpen },

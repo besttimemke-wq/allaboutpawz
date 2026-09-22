@@ -1,3 +1,43 @@
+// ---------------------------------------------------------------------------
+// DawgNavSection — the union of every admin/customer/groomer/frontdesk sidebar
+// section id. Kept here (the shared types module) so every portal page +
+// component imports the same union. Adding a new admin route? add its id here.
+// ---------------------------------------------------------------------------
+export type DawgNavSection =
+  | "dashboard"
+  | "customers"
+  | "pets"
+  | "appointments"
+  | "grooming-records"
+  | "calendar"
+  | "services"
+  | "staff"
+  | "schedule"
+  | "orders"
+  | "order-details"
+  | "inventory"
+  | "shipping"
+  | "returns"
+  | "purchase-orders"
+  | "products"
+  | "categories"
+  | "brands"
+  | "filters"
+  | "promotions"
+  | "books"
+  | "invoices"
+  | "payments"
+  | "deposits"
+  | "refunds"
+  | "gift-cards"
+  | "payroll"
+  | "taxes"
+  | "reports"
+  | "financial-settings"
+  | "stripe-connections"
+  | "settings"
+  | "messages"
+
 export type Area = {
   area: string;
   statute: string;

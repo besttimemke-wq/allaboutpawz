@@ -13,7 +13,9 @@ export type Row = Record<string, any>
 export type CmsResource =
   | "services" | "commerce_products" | "gallery" | "packages" | "addons"
   | "faqs" | "policies" | "testimonials" | "bookings" | "consultations" | "messages"
-  | "commerce_orders" | "commerce_order_items" | "customers" | "dogs" | "activity_log" | "dog_breeds"
+  | "commerce_orders" | "commerce_order_items" | "commerce_coupons" | "commerce_promotions" | "commerce_brands"
+  | "orders" | "order_items" | "products"
+  | "customers" | "dogs" | "activity_log" | "dog_breeds"
   | "staff" | "haircut_styles"
   | "coat_types" | "coat_textures" | "coat_lengths" | "coat_conditions" | "shedding_levels"
   | "clip_lengths" | "body_styles" | "leg_styles" | "face_styles" | "head_styles"
@@ -41,6 +43,12 @@ const TABLE: Record<CmsResource, string> = {
   messages: "contact_messages",
   commerce_orders: "commerce_orders",
   commerce_order_items: "commerce_order_items",
+  commerce_coupons: "commerce_coupons",
+  commerce_promotions: "commerce_promotions",
+  commerce_brands: "commerce_brands",
+  orders: "orders",
+  order_items: "order_items",
+  products: "commerce_products",
   customers: "customers",
   dogs: "dogs",
   activity_log: "activity_log",
@@ -72,12 +80,26 @@ const TABLE: Record<CmsResource, string> = {
 }
 
 // Explicit PostgREST order overrides for tables that have no createdAt column.
+// NOTE: the live Supabase tables use snake_case created_at — the repo's
+// default `createdAt.desc` would 400 against these. Each snake_case table
+// needs an explicit override here.
 const CUSTOM_ORDER: Partial<Record<CmsResource, string>> = {
   commerce_products: "sort_order.asc",
+  commerce_orders: "created_at.desc",
+  commerce_order_items: "created_at.asc",
+  // commerce_coupons / commerce_promotions have NO created_at — order by
+  // their unique code so the list is deterministic.
+  commerce_coupons: "code.asc",
+  commerce_promotions: "code.asc",
   pet_product_categories: "id.asc",
   pet_product_filters: "display_order.asc,id.asc",
   pet_product_filter_values: "display_order.asc,id.asc",
   pet_category_filters: "display_order.asc",
+  commerce_brands: "sort_order.asc,name.asc",
+  // Legacy camelCase tables — order by their actual camelCase column.
+  orders: '"createdAt".desc',
+  order_items: '"createdAt".asc',
+  products: "sort_order.asc",
 }
 
 const ORDERED = new Set<CmsResource>([

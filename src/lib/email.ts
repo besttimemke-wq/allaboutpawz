@@ -224,3 +224,66 @@ function consultationHtml(name: string, summary: string) {
 function consultationSalonHtml(name: string, summary: string, email: string, phone: string) {
   return `<!doctype html><html><body style="font-family:sans-serif;max-width:560px;margin:auto;color:#1a1a1a"><h2 style="color:#9a7b3c">New consultation request — ${name}</h2><div style="background:#f6f6f6;border-left:3px solid #9a7b3c;padding:12px;margin:12px 0">${summary}</div><p style="font-size:13px">Email: ${email || "—"}<br/>Phone: ${phone || "—"}</p></body></html>`
 }
+
+// ---- Portal invite (Resend) ----------------------------------------------
+// Used by /api/auth/invite to deliver the Supabase magic-link invitation
+// via Resend instead of Supabase's built-in mailer. The action_link is the
+// signed URL Supabase generates — clicking it sets the user's password and
+// lands them in the portal.
+export function inviteHtml(opts: {
+  actionLink: string
+  role: string
+  firstName?: string | null
+  lastName?: string | null
+}): string {
+  const fullName = [opts.firstName, opts.lastName].filter(Boolean).join(" ").trim()
+  const greet = fullName ? `Hi ${fullName},` : "Hi there,"
+  const roleLine = opts.role
+    ? `<p style="margin:8px 0 0;color:#555;font-size:14px">You've been invited to join the All About Pawz portal as <strong style="color:#9a7b3c;text-transform:capitalize">${escapeHtml(opts.role)}</strong>.</p>`
+    : `<p style="margin:8px 0 0;color:#555;font-size:14px">You've been invited to join the All About Pawz portal.</p>`
+  return `<!doctype html><html><body style="font-family:Georgia,'Playfair Display',serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
+<p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Portal Invitation</p>
+<h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">${greet}</h1>
+<p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
+${roleLine}
+<p style="margin:16px 0">Click the button below to accept your invitation and set up your password. This link is single-use and expires in 24 hours.</p>
+<a href="${escapeHtml(opts.actionLink)}" style="display:inline-block;background:#1a1a1a;color:#faf7f2;padding:14px 32px;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:0.14em;font-family:sans-serif;text-transform:uppercase;border-radius:4px">Accept Invite &amp; Set Password</a>
+<p style="margin:24px 0 8px;font-size:12px;color:#666">If the button above doesn't work, copy and paste this link into your browser:</p>
+<p style="font-size:11px;color:#9a7b3c;word-break:break-all">${escapeHtml(opts.actionLink)}</p>
+<hr style="border:none;border-top:1px solid #e0d6bf;margin:24px 0"/>
+<p style="font-size:11px;color:#999">If you weren't expecting this invitation, you can safely ignore this email.</p>
+</body></html>`
+}
+
+function escapeHtml(s: string): string {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+// Convenience wrapper — builds the invite HTML and dispatches through the
+// audit-trailed sendEmail() pipeline. Safe to call even when RESEND_API_KEY
+// is not set: the audit row is still written and the caller can fall back
+// to Supabase's own mailer.
+export async function sendPortalInvite(opts: {
+  to: string
+  actionLink: string
+  role: string
+  firstName?: string | null
+  lastName?: string | null
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  return sendEmail({
+    to: opts.to,
+    template: "portal_invite",
+    subject: "Your portal invite — All About Pawz",
+    html: inviteHtml({
+      actionLink: opts.actionLink,
+      role: opts.role,
+      firstName: opts.firstName,
+      lastName: opts.lastName,
+    }),
+  })
+}

@@ -20,6 +20,15 @@ export type CategoryNode = {
   parentId: number | null
   productCount: number
   children: CategoryNode[]
+  /** New mega-menu fields (migration 0013). Optional so older callers (and
+   *  fixtures with no data) keep type-checking. */
+  heroImage?: string | null
+  promoBlurb?: string | null
+  sortOrder?: number | null
+  featuredInMegaMenu?: boolean | null
+  seoTitle?: string | null
+  seoDescription?: string | null
+  isActive?: boolean | null
 }
 
 export type FilterValue = {
@@ -51,6 +60,13 @@ function buildTree(rows: Row[], counts: Map<number, number>): CategoryNode[] {
       parentId: r.parent_id ?? null,
       productCount: counts.get(r.id) || 0,
       children: [],
+      heroImage: r.hero_image ?? null,
+      promoBlurb: r.promo_blurb ?? null,
+      sortOrder: r.sort_order ?? null,
+      featuredInMegaMenu: r.featured_in_mega_menu ?? null,
+      seoTitle: r.seo_title ?? null,
+      seoDescription: r.seo_description ?? null,
+      isActive: r.is_active ?? null,
     })
   }
   const roots: CategoryNode[] = []
@@ -95,6 +111,13 @@ export async function getCategoryTree(): Promise<CategoryTree> {
   const flat = rows.map((r) => ({
     id: r.id, name: r.name, slug: r.slug, parentId: r.parent_id ?? null,
     productCount: 0, children: [],
+    heroImage: r.hero_image ?? null,
+    promoBlurb: r.promo_blurb ?? null,
+    sortOrder: r.sort_order ?? null,
+    featuredInMegaMenu: r.featured_in_mega_menu ?? null,
+    seoTitle: r.seo_title ?? null,
+    seoDescription: r.seo_description ?? null,
+    isActive: r.is_active ?? null,
   }))
   // Re-apply rolled-up counts to flat rows for cheap lookups.
   const rolled = new Map<number, number>()
