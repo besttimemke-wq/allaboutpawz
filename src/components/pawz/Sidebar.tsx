@@ -8,6 +8,7 @@ import {
   Users,
   Calendar,
   CreditCard,
+  Repeat,
   FileText,
   Coins,
   RotateCcw,
@@ -153,6 +154,14 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
           { id: 'reports', label: 'Financial Reports', icon: BarChart3 },
           { id: 'financial-settings', label: 'Financial Settings', icon: Settings },
           { id: 'stripe-connections', label: 'Stripe Connections', icon: Terminal },
+        ],
+      },
+      {
+        category: 'POS',
+        categoryDefaultSection: 'pos',
+        items: [
+          { id: 'pos', label: 'Cloud Register', icon: CreditCard },
+          { id: 'subscriptions', label: 'Subscriptions', icon: Repeat },
         ],
       },
     ],

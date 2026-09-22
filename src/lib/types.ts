@@ -37,6 +37,8 @@ export type DawgNavSection =
   | "stripe-connections"
   | "settings"
   | "messages"
+  | "pos"
+  | "subscriptions"
 
 export type Area = {
   area: string;

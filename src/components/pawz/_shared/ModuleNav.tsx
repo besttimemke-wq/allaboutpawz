@@ -3,7 +3,7 @@
 import {
   LayoutGrid, Users, PawPrint, Calendar, FileText, CalendarRange,
   Tag, CalendarClock, Receipt, FileSearch, Package, Truck,
-  ArrowDownLeft, Inbox, BookOpen, CreditCard, Coins, RotateCcw,
+  ArrowDownLeft, Inbox, BookOpen, CreditCard, Repeat, Coins, RotateCcw,
   Gift, Scale, BarChart3, Terminal,
   Tags, Filter, Boxes, Percent,
 } from 'lucide-react';
@@ -41,6 +41,10 @@ const moduleGroups: Record<string, { id: DawgNavSection; label: string; icon: Re
     { id: 'taxes', label: 'Taxes', icon: Scale },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'stripe-connections', label: 'Stripe', icon: Terminal },
+  ],
+  POS: [
+    { id: 'pos', label: 'Register', icon: CreditCard },
+    { id: 'subscriptions', label: 'Subs', icon: Repeat },
   ],
 };
 

@@ -59,7 +59,7 @@ interface HeaderProps {
   showPillars?: boolean;
 }
 
-type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING' | 'LEARN';
+type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING' | 'LEARN' | 'POS';
 
 interface SubRouteItem {
   id: DawgNavSection;
@@ -120,6 +120,9 @@ export const Header: React.FC<HeaderProps> = ({
       case 'financial-settings':
       case 'stripe-connections':
         return 'ACCOUNTING';
+      case 'pos':
+      case 'subscriptions':
+        return 'POS';
       default:
         return 'LEARN';
     }
@@ -163,6 +166,10 @@ export const Header: React.FC<HeaderProps> = ({
     LEARN: [
       { id: 'dashboard', label: 'Academy Home' },
     ],
+    POS: [
+      { id: 'pos', label: 'Register' },
+      { id: 'subscriptions', label: 'Subscriptions' },
+    ],
   };
 
   const pillarDefaultSection: Record<PillarType, DawgNavSection> = {
@@ -170,12 +177,14 @@ export const Header: React.FC<HeaderProps> = ({
     ORDERS: 'orders',
     ACCOUNTING: 'books',
     LEARN: 'dashboard',
+    POS: 'pos',
   };
 
   const pillars: { id: PillarType; label: string }[] = [
     { id: 'CRM', label: 'CRM' },
     { id: 'ORDERS', label: 'Orders' },
     { id: 'ACCOUNTING', label: 'Accounting' },
+    { id: 'POS', label: 'POS' },
     { id: 'LEARN', label: 'Learn' },
   ];
 
