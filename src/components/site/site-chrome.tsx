@@ -8,7 +8,6 @@ import {
 } from "lucide-react"
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
-import { MegaMenu } from "./mega-menu"
 import { useCart } from "@/lib/wizard/cart-store"
 
 function TikTok({ className = "" }: { className?: string }) {
@@ -135,21 +134,8 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
             <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
             BOOK APPOINTMENT
           </Link>
-          {/* Augment — don't replace — the mobile menu with the shop
-              categories accordion (the desktop equivalent is the sticky
-              MegaMenu bar that sits below the sidebar top). */}
-          <div className="mt-2">
-            <MegaMenu variant="accordion" />
-          </div>
         </nav>
       )}
-      {/* Desktop mega menu strip — sticky so it stays reachable while the
-          customer scrolls the catalog. Sits to the right of the fixed sidebar
-          (lg:pl-[232px]) and matches the main content's left edge. The
-          MegaMenu component owns its own border + background. */}
-      <div className="sticky top-0 z-30 hidden lg:block lg:pl-[232px]">
-        <MegaMenu variant="bar" />
-      </div>
       <main className="lg:pl-[232px]">{children}</main>
       {/* Every page — including home — gets the same centered footer */}
       <SiteFooter settings={s} />
