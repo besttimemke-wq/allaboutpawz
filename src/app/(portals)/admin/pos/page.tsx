@@ -50,6 +50,7 @@ export default function PosPage() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [showPayment, setShowPayment] = useState(false);
   const [showOpenDrawer, setShowOpenDrawer] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [openingCash, setOpeningCash] = useState('100.00');
   const [busy, setBusy] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
@@ -272,6 +273,9 @@ export default function PosPage() {
             <button onClick={load} className="p-2.5 rounded-lg border border-border hover:bg-muted cursor-pointer" title="Refresh">
               <RefreshCw className="size-4 text-muted-foreground" />
             </button>
+            <button onClick={() => setShowQuickAdd(true)} className="px-3 py-2.5 rounded-lg bg-ink text-white text-[12px] font-semibold hover:opacity-90 cursor-pointer flex items-center gap-1.5" title="Quick add item">
+              <Plus className="size-4" /> Add Item
+            </button>
           </div>
         </div>
 
@@ -469,6 +473,26 @@ export default function PosPage() {
           </div>
         </div>
       )}
+
+      {/* Quick Add Item modal — cashier creates a new item on the fly */}
+      {showQuickAdd && (
+        <QuickAddItem
+          onClose={() => setShowQuickAdd(false)}
+          onCreated={(item) => {
+            // Add the new item to the cart immediately
+            setCart((prev) => {
+              const key = `product-${item.id}`;
+              return [...prev, {
+                key, catalogItemId: item.id, description: item.name,
+                quantity: 1, unitPrice: item.price, discountAmount: 0,
+                itemType: 'product' as const,
+              }];
+            });
+            setShowQuickAdd(false);
+            load(); // refresh catalog
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -663,6 +687,96 @@ function PaymentDrawer({
             disabled={busy || !selectedMethod}
             className="flex-1 py-2.5 bg-ink text-white rounded-lg text-[13px] font-semibold hover:opacity-90 disabled:opacity-60 cursor-pointer">
             {busy ? 'Processing…' : remaining > 0.01 ? 'Complete (Split)' : 'Complete Sale'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Quick Add Item — create a new catalog item from the register ----
+function QuickAddItem({ onClose, onCreated }: {
+  onClose: () => void;
+  onCreated: (item: { id: string; name: string; price: number }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [ecoEnabled, setEcoEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const create = async () => {
+    if (!name.trim() || !price) { setError('Name and price required'); return; }
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          base_price: Number(price),
+          pos_enabled: true,
+          ecommerce_enabled: ecoEnabled,
+          short_description: 'Quick-add from POS register',
+          inventory_count: 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed'); setBusy(false); return; }
+      onCreated({ id: data.product.id, name: data.product.name, price: data.product.priceCents / 100 });
+    } catch { setError('Failed'); setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90 p-4">
+      <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[16px] font-semibold flex items-center gap-2">
+            <Plus className="size-4" /> Quick Add Item
+          </h3>
+          <button onClick={onClose} className="p-1 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer">
+            <X className="size-5" />
+          </button>
+        </div>
+        <p className="text-[12px] text-muted-foreground">
+          Create a new item to sell right now. It'll be added to the cart + the catalog.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-[11px] font-medium text-foreground mb-1">Item Name</label>
+            <input
+              type="text" value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Oatmeal Shampoo (new arrival)"
+              className="w-full border border-border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-ink"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-foreground mb-1">Price ($)</label>
+            <div className="relative">
+              <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <input
+                type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
+                placeholder="0.00"
+                className="w-full border border-border rounded-lg pl-8 pr-3 py-2 text-[13px] focus:outline-none focus:border-ink"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-[12px] text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox" checked={ecoEnabled} onChange={(e) => setEcoEnabled(e.target.checked)}
+              className="rounded border-border"
+            />
+            Also sell on the website (storefront)
+          </label>
+        </div>
+        {error && <p className="text-[12px] text-destructive text-center">{error}</p>}
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2.5 border border-border rounded-lg text-[13px] font-semibold hover:bg-muted cursor-pointer">
+            Cancel
+          </button>
+          <button onClick={create} disabled={busy}
+            className="flex-1 py-2.5 bg-ink text-white rounded-lg text-[13px] font-semibold hover:opacity-90 disabled:opacity-60 cursor-pointer">
+            {busy ? 'Creating…' : 'Add to Cart'}
           </button>
         </div>
       </div>
