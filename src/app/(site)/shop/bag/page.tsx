@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/site/site-chrome"
+import { ShopNavBar } from "@/components/site/islands/shop-nav-bar"
 import { BagClient, type BagProduct, type BagRating } from "@/components/site/islands/bag-client"
 import { repo } from "@/lib/repo"
 import { listCatalogProducts } from "@/lib/enterprise/catalog"
@@ -66,6 +67,7 @@ export default async function BagPage() {
   return (
     <>
       <PageHeader n="06" label="SHOP" />
+      <ShopNavBar />
       <section className="marble bg-cream px-8 pb-14 pt-12 lg:px-12">
         <h1 className="sr-only">Your Bag — All About Pawz Boutique</h1>
         <BagClient products={visible} ratings={ratings} />

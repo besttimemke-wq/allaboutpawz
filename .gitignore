@@ -51,4 +51,22 @@ prompt
 
 server.log
 # Skills directory
-/skills/.env.local
+/skills/.zscripts/
+
+# local secrets & workspace artifacts — NEVER commit
+/tool-results/
+.zscripts/dev.pid
+*.pem
+.env*
+.env.backup
+
+# owner pasted screenshots/uploads — local only
+/upload/
+
+# --- runtime logs (all variants) ---
+dev.log*
+dev-keeper.log
+nohup.out
+
+# --- agent session artifacts (may capture file contents incl. secrets) ---
+agent-ctx/
