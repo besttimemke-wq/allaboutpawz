@@ -208,10 +208,20 @@ export async function GET(req: NextRequest) {
         }
         authUser = created.user;
       } else if (portal === "customer" || portal === "lms") {
-        // Auto-provision customers + learners (they're signing in for the
-        // first time via Google — not pre-provisioned by an admin).
-        const { data: created } = await admin.auth.admin.createUser({
+        // Auto-provision customers + learners. Uses enrollCustomer so the
+        // user lands in ALL the tables the admin panel reads from:
+        // auth.users + crm_customers + portal_customer_accounts + customers.
+        const { enrollCustomer } = await import("@/lib/auth/enroll-customer")
+        const enrolled = await enrollCustomer({
           email: profile.email,
+          source: "walkin",
+        })
+        if (!enrolled.ok || !enrolled.authUserId) {
+          console.warn(`[auth/google/callback] bounce: enrollCustomer failed for ${profile.email} — ${enrolled.error}`)
+          return door(portal)
+        }
+        // Link the Google identity to the auth user.
+        const { data: created } = await admin.auth.admin.updateUserById(enrolled.authUserId, {
           email_confirm: true,
           user_metadata: {
             full_name: profile.name || profile.email.split("@")[0],
@@ -220,48 +230,24 @@ export async function GET(req: NextRequest) {
             google_sub: profile.sub,
             google_linked: true,
           },
-        });
+        })
         if (!created?.user) {
-          console.warn(`[auth/google/callback] bounce: ${portal}-door createUser failed for ${profile.email}`);
-          return door(portal);
-        }
-        // Provision the customer record so resolvePortalUser finds them.
-        if (portal === "customer") {
-          const nameParts = (profile.name || profile.email.split("@")[0]).split(" ");
-          try {
-            const { data: existingCustomer } = await admin
-              .from("customers")
-              .select("id")
-              .eq("email", profile.email)
-              .limit(1);
-            if (!existingCustomer || existingCustomer.length === 0) {
-              await admin.from("customers").insert({
-                firstName: nameParts[0] || "",
-                lastName: nameParts.slice(1).join(" ") || "",
-                email: profile.email,
-                customerStatus: "ACTIVE",
-                userId: created.user.id,
-              });
-            } else {
-              await admin.from("customers").update({ userId: created.user.id }).eq("id", (existingCustomer[0] as any).id);
-            }
-          } catch {
-            // Customer row provisioning is best-effort; the auth user exists.
-          }
+          console.warn(`[auth/google/callback] bounce: updateUserById failed for ${profile.email}`)
+          return door(portal)
         }
         // For LMS learners, assign the learner role so resolvePortalUser finds them.
         if (portal === "lms") {
           try {
             await admin.rpc("assign_lms_role", {
               p_tenant_id: process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001",
-              p_user_id: created.user.id,
+              p_user_id: enrolled.authUserId,
               p_role: "learner",
-            });
+            })
           } catch {
             // Role assignment is best-effort.
           }
         }
-        authUser = created.user;
+        authUser = created.user
       } else {
         // admin/groomer/frontdesk doors — salon gate rejects unknown emails.
         console.warn(`[auth/google/callback] bounce: salon gate — email not in ADMIN_EMAILS and not in auth.users: ${profile.email} (portal=${portal})`);
