@@ -178,35 +178,95 @@ export async function GET(req: NextRequest) {
 
   if (!authUser) {
     if (autoFlow) {
-      // THE REPO'S SALON GATE — unknown emails are REJECTED, no public
-      // self-registration. Clients are created at checkout, booking, or
-      // walk-in; staff are admin-provisioned. The single carve-out:
-      // owner-declared ADMIN_EMAILS bootstrap the owner's own account.
+      // AUTO flow: resolve role from DB. For admin/groomer/frontdesk doors,
+      // the salon gate rejects unknown emails (staff must be admin-provisioned).
+      // For customer/lms doors, auto-provision the account (the user is
+      // signing in for the first time — e.g. at checkout, booking, or
+      // enrollment — and we want them to land in their portal, not bounce).
       const declaredAdmin = (process.env.ADMIN_EMAILS || "")
         .split(",")
         .map((e) => e.trim().toLowerCase())
         .filter(Boolean)
         .includes(profile.email);
-      if (!declaredAdmin) {
-        console.warn(`[auth/google/callback] bounce: salon gate — email not in ADMIN_EMAILS and not in auth.users: ${profile.email}`);
+
+      if (declaredAdmin) {
+        // Bootstrap the owner's account.
+        const { data: created } = await admin.auth.admin.createUser({
+          email: profile.email,
+          email_confirm: true,
+          user_metadata: {
+            full_name: profile.name || profile.email.split("@")[0],
+            avatar_url: profile.picture,
+            role: "admin",
+            google_sub: profile.sub,
+            google_linked: true,
+          },
+        });
+        if (!created?.user) {
+          console.warn(`[auth/google/callback] bounce: ADMIN_EMAILS bootstrap createUser failed for ${profile.email}`);
+          return door(portal);
+        }
+        authUser = created.user;
+      } else if (portal === "customer" || portal === "lms") {
+        // Auto-provision customers + learners (they're signing in for the
+        // first time via Google — not pre-provisioned by an admin).
+        const { data: created } = await admin.auth.admin.createUser({
+          email: profile.email,
+          email_confirm: true,
+          user_metadata: {
+            full_name: profile.name || profile.email.split("@")[0],
+            avatar_url: profile.picture,
+            role: portal === "lms" ? "learner" : "customer",
+            google_sub: profile.sub,
+            google_linked: true,
+          },
+        });
+        if (!created?.user) {
+          console.warn(`[auth/google/callback] bounce: ${portal}-door createUser failed for ${profile.email}`);
+          return door(portal);
+        }
+        // Provision the customer record so resolvePortalUser finds them.
+        if (portal === "customer") {
+          const nameParts = (profile.name || profile.email.split("@")[0]).split(" ");
+          try {
+            const { data: existingCustomer } = await admin
+              .from("customers")
+              .select("id")
+              .eq("email", profile.email)
+              .limit(1);
+            if (!existingCustomer || existingCustomer.length === 0) {
+              await admin.from("customers").insert({
+                firstName: nameParts[0] || "",
+                lastName: nameParts.slice(1).join(" ") || "",
+                email: profile.email,
+                customerStatus: "ACTIVE",
+                userId: created.user.id,
+              });
+            } else {
+              await admin.from("customers").update({ userId: created.user.id }).eq("id", (existingCustomer[0] as any).id);
+            }
+          } catch {
+            // Customer row provisioning is best-effort; the auth user exists.
+          }
+        }
+        // For LMS learners, assign the learner role so resolvePortalUser finds them.
+        if (portal === "lms") {
+          try {
+            await admin.rpc("assign_lms_role", {
+              p_tenant_id: process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001",
+              p_user_id: created.user.id,
+              p_role: "learner",
+            });
+          } catch {
+            // Role assignment is best-effort.
+          }
+        }
+        authUser = created.user;
+      } else {
+        // admin/groomer/frontdesk doors — salon gate rejects unknown emails.
+        console.warn(`[auth/google/callback] bounce: salon gate — email not in ADMIN_EMAILS and not in auth.users: ${profile.email} (portal=${portal})`);
         return gate(portal, profile.email);
       }
-      const { data: created } = await admin.auth.admin.createUser({
-        email: profile.email,
-        email_confirm: true,
-        user_metadata: {
-          full_name: profile.name || profile.email.split("@")[0],
-          avatar_url: profile.picture,
-          role: "admin",
-          google_sub: profile.sub,
-          google_linked: true,
-        },
-      });
-      if (!created?.user) {
-        console.warn(`[auth/google/callback] bounce: ADMIN_EMAILS bootstrap createUser failed for ${profile.email}`);
-        return door(portal);
-      }
-      authUser = created.user;
     } else if (portal === "groomer" || portal === "frontdesk" || portal === "admin") {
       console.warn(`[auth/google/callback] bounce: staff door rejected unknown email ${profile.email} (portal=${portal})`);
       // Staff doors REJECT unknown emails (accounts must be
