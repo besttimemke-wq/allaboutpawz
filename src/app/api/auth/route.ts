@@ -54,6 +54,26 @@ export async function POST(req: NextRequest) {
 
     // Google sign-in
     if (provider === "google") {
+      // If the caller asked for the REAL Google OAuth flow (portal:'lms'),
+      // redirect to /api/auth/google which starts the real OAuth dance.
+      // The callback lands the user in /learn/classroom (the LMS portal
+      // destination from PORTALS.lms.destination).
+      if (body.portal === "lms") {
+        const state = crypto.randomUUID()
+        const origin = req.nextUrl.origin
+        // Store the portal in a cookie so the Google callback knows where
+        // to send the user after auth.
+        const redirectRes = NextResponse.json({
+          url: `${origin}/api/auth/google?portal=lms`,
+        })
+        redirectRes.cookies.set("pawz_oauth_portal", "lms", {
+          httpOnly: true, sameSite: "lax", maxAge: 600, path: "/",
+        })
+        return redirectRes
+      }
+
+      // Legacy fallback: create/lookup a demo learner (used by the old
+      // sign-in form that didn't go through real Google OAuth).
       if (supabase) {
         // Create auth user if needed
         const { data: existing } = await supabase.auth.admin.listUsers()

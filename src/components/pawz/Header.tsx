@@ -141,11 +141,6 @@ export const Header: React.FC<HeaderProps> = ({
       { id: 'orders', label: 'Orders & POS' },
       { id: 'order-details', label: 'Order Details' },
       { id: 'inventory', label: 'Products & Inventory' },
-      { id: 'products', label: 'Products' },
-      { id: 'categories', label: 'Categories' },
-      { id: 'brands', label: 'Brands' },
-      { id: 'filters', label: 'Filters' },
-      { id: 'promotions', label: 'Promotions' },
       { id: 'shipping', label: 'Shipping' },
       { id: 'returns', label: 'Returns' },
       { id: 'purchase-orders', label: 'Purchase Orders' },
@@ -256,12 +251,17 @@ export const Header: React.FC<HeaderProps> = ({
             <Search className="size-4" />
           </button>
 
-          {/* Date display */}
-          <div className="hidden md:flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent h-9 px-3 text-[13px] text-foreground transition-colors duration-150">
+          {/* Date display — clicking navigates to the calendar page */}
+          <button
+            onClick={() => onNavigateSection('calendar')}
+            className="hidden md:flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent h-9 px-3 text-[13px] text-foreground transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Open calendar"
+            title="Open calendar"
+          >
             <Calendar className="size-3.5 text-muted-foreground" />
             <span className="text-[13px]">{currentDate}</span>
             <ChevronDown className="size-3.5 text-muted-foreground" />
-          </div>
+          </button>
 
           <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
@@ -370,9 +370,11 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Sub-nav — admin OS pillar pills only. Non-admin portals render no
-          pill row at all (dedicated portal identity — no business nav). */}
+          pill row at all (dedicated portal identity — no business nav).
+          White background with gray pills for better contrast against the
+          gray top bar above. Pills sit directly under the search bar. */}
       {showPillars && (
-        <div className="h-10 px-3 sm:px-4 flex items-center gap-1 overflow-x-auto custom-scrollbar bg-topbar text-topbar-foreground">
+        <div className="h-10 px-3 sm:px-4 flex items-center gap-1 overflow-x-auto custom-scrollbar bg-background border-b border-border">
           {pillars.map((pillar) => {
             const isSelected = activePillar === pillar.id;
             return (
@@ -382,8 +384,8 @@ export const Header: React.FC<HeaderProps> = ({
                 className={cn(
                   'rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer',
                   isSelected
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-topbar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                 )}
               >
                 {pillar.label}

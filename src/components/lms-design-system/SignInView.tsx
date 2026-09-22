@@ -64,23 +64,31 @@ export function SignInView() {
     setErrorMessage('');
 
     try {
+      // Use the REAL Google OAuth flow (same as admin/customer portals).
+      // POST /api/auth with provider:'google' returns a redirect URL to
+      // accounts.google.com. The browser follows it, Google authenticates
+      // the user, and the callback lands them in the LMS portal.
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider: 'google',
-          email: 'google.student@leashed.edu',
-          name: 'Google Scholar',
+          portal: 'lms',
         }),
       });
 
-      if (res.ok) {
-        router.push('/learn/classroom');
-      } else {
-        router.push('/learn/classroom');
+      const data = await res.json().catch(() => null);
+      if (data?.url) {
+        // Real Google OAuth — redirect to accounts.google.com
+        window.location.href = data.url;
+        return;
       }
-    } catch {
+
+      // Fallback: if the API didn't return a URL, go to the classroom
+      // (the /api/auth route may have created a demo session).
       router.push('/learn/classroom');
+    } catch {
+      setErrorMessage('Could not start Google sign-in. Please try again.');
     } finally {
       setIsGoogleLoading(false);
     }
