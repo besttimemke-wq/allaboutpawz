@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, X, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, X, CheckCircle2, AlertCircle as AlertCircleIcon } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { createClient } from '@/lib/auth/client';
 import type { PortalId } from '@/lib/pawz-auth';
@@ -124,7 +124,7 @@ export function EmailPasswordForm({
         </div>
 
         <div className="flex justify-end pt-1.5">
-          <ForgotPasswordLink defaultEmail={email} />
+          <ForgotPasswordLink defaultEmail={email} portal={portal} />
         </div>
       </div>
 
@@ -178,30 +178,126 @@ function AlertCircle() {
 // confirmation state shows for any address so it never reveals which emails
 // exist. Self-contained: trigger link + modal.
 // ---------------------------------------------------------------------------
-function ForgotPasswordLink({ defaultEmail }: { defaultEmail: string }) {
+function ForgotPasswordLink({ defaultEmail, portal }: { defaultEmail: string; portal: PortalId }) {
+  const router = useRouter();
+  // 3-step OTP recovery flow — no email links, no redirect URLs needed.
+  // Step 1: enter email → Supabase sends a 6-digit code
+  // Step 2: enter the 6-digit code → verifyOtp({ type: 'recovery' })
+  // Step 3: enter a new password → updateUser({ password })
+  // Then redirect to the portal the user was trying to reach.
   const [open, setOpen] = useState(false);
-  const [sentEmail, setSentEmail] = useState('');
-  const [sending, setSending] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const email = String(new FormData(e.currentTarget).get('email') || '').trim();
-    if (!email || sending) return;
-    setSending(true);
+  const portalPath: Record<PortalId, string> = {
+    admin: '/admin/dashboard',
+    customer: '/customer/dashboard',
+    frontdesk: '/frontdesk/dashboard',
+    groomer: '/groomer/dashboard',
+    lms: '/learn/classroom',
+  };
+
+  const close = () => {
+    setOpen(false);
+    // Reset for next time
+    setTimeout(() => {
+      setStep(1);
+      setEmail('');
+      setCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setError(null);
+      setBusy(false);
+    }, 200);
+  };
+
+  // Step 1: send the recovery email (Supabase sends a 6-digit OTP code).
+  const sendCode = async (emailValue: string) => {
+    const em = String(emailValue || '').trim().toLowerCase();
+    if (!em || busy) return;
+    setBusy(true);
+    setError(null);
     try {
       const supabase = createClient();
-      try {
-        await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/set-password`,
-        });
-      } catch {
-        await supabase.auth.resetPasswordForEmail(email);
+      const { error: err } = await supabase.auth.resetPasswordForEmail(em, {
+        redirectTo: `${window.location.origin}/auth/set-password`,
+      });
+      if (err) {
+        setError(err.message || 'Could not send recovery code. Please try again.');
+        setBusy(false);
+        return;
       }
-      setSentEmail(email);
+      setEmail(em);
+      setStep(2);
     } catch {
-      // keep the form open so the user can retry
+      setError('Could not send recovery code. Please try again.');
     } finally {
-      setSending(false);
+      setBusy(false);
+    }
+  };
+
+  // Step 2: verify the 6-digit code Supabase sent.
+  const verifyCode = async (e?: any) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (!code || code.length !== 6 || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'recovery',
+      });
+      if (err) {
+        setError(err.message || 'Invalid or expired code. Please try again.');
+        setBusy(false);
+        return;
+      }
+      // Code verified — user now has a session. Move to password entry.
+      setStep(3);
+    } catch {
+      setError('Invalid or expired code. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Step 3: set the new password (user already has a session from step 2).
+  const submitNewPassword = async (e?: any) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (busy) return;
+    if (newPassword.length < 8) {
+      setError('Choose a password with at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('The two passwords do not match.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.auth.updateUser({ password: newPassword });
+      if (err) {
+        setError(err.message || 'Could not save the password. Please try again.');
+        setBusy(false);
+        return;
+      }
+      // Password set — redirect to the portal the user was trying to reach.
+      close();
+      router.push(portalPath[portal] || '/');
+    } catch {
+      setError('Could not save the password. Please try again.');
+      setBusy(false);
     }
   };
 
@@ -219,12 +315,11 @@ function ForgotPasswordLink({ defaultEmail }: { defaultEmail: string }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-sm bg-card rounded-2xl shadow-2xl border border-border p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Reset Your Password</h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                {step === 1 ? 'Reset Your Password' : step === 2 ? 'Enter the Code' : 'Set New Password'}
+              </h3>
               <button
-                onClick={() => {
-                  setOpen(false);
-                  setSentEmail('');
-                }}
+                onClick={close}
                 className="text-muted-foreground/70 hover:text-foreground p-1 rounded-lg"
                 aria-label="Close"
               >
@@ -232,43 +327,128 @@ function ForgotPasswordLink({ defaultEmail }: { defaultEmail: string }) {
               </button>
             </div>
 
-            {sentEmail ? (
-              <div className="space-y-3 text-center py-2">
-                <CheckCircle2 className="w-10 h-10 text-success mx-auto" />
-                <p className="text-[13px] text-foreground">
-                  Password reset link sent to <strong>{sentEmail}</strong>. Please check your inbox.
-                </p>
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    setSentEmail('');
-                  }}
-                  className="w-full py-2 bg-card text-white text-[13px] font-semibold rounded-lg mt-2 cursor-pointer"
-                >
-                  Return to Login
-                </button>
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 text-[10px] font-medium tracking-wider uppercase text-muted-foreground">
+              <span className={step >= 1 ? 'text-foreground' : ''}>1 · Email</span>
+              <span className="text-muted-foreground/40">→</span>
+              <span className={step >= 2 ? 'text-foreground' : ''}>2 · Code</span>
+              <span className="text-muted-foreground/40">→</span>
+              <span className={step >= 3 ? 'text-foreground' : ''}>3 · Password</span>
+            </div>
+
+            {error && (
+              <div className="p-2.5 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-2 text-[12px] text-destructive">
+                <AlertCircleIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                <span className="leading-snug">{error}</span>
               </div>
-            ) : (
-              <form onSubmit={submit} className="space-y-3">
+            )}
+
+            {/* STEP 1: Enter email */}
+            {step === 1 && (
+              <div className="space-y-3">
                 <p className="text-[13px] text-muted-foreground">
-                  Enter your registered email and we will send you a password recovery link.
+                  Enter your registered email and we'll send you a 6-digit verification code.
                 </p>
                 <input
                   type="email"
-                  name="email"
+                  name="otp-email"
                   required
                   defaultValue={defaultEmail}
                   placeholder="Enter your email"
                   className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-border"
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const form = e.currentTarget.closest('div'); const inp = form?.querySelector('input[type=email]') as HTMLInputElement; if (inp) sendCode(inp.value); } }}
                 />
                 <button
-                  type="submit"
-                  disabled={sending}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => { const inp = document.querySelector('input[name=otp-email]') as HTMLInputElement; if (inp) sendCode(inp.value); }}
                   className="w-full py-2.5 bg-black hover:bg-card text-white font-semibold text-[13px] rounded-lg transition cursor-pointer disabled:opacity-60"
                 >
-                  {sending ? 'Sending…' : 'Send Reset Link'}
+                  {busy ? 'Sending…' : 'Send Recovery Code'}
                 </button>
-              </form>
+              </div>
+            )}
+
+            {/* STEP 2: Enter the 6-digit code */}
+            {step === 2 && (
+              <div className="space-y-3">
+                <p className="text-[13px] text-muted-foreground">
+                  We sent a 6-digit code to <strong className="text-foreground">{email}</strong>.
+                  Enter it below to verify your identity.
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); verifyCode(e as any); } }}
+                  placeholder="000000"
+                  className="w-full border border-border rounded-lg px-3 py-3 text-center text-[20px] font-mono tracking-[0.5em] text-foreground focus:outline-none focus:border-border"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  disabled={busy || code.length !== 6}
+                  onClick={() => verifyCode({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
+                  className="w-full py-2.5 bg-black hover:bg-card text-white font-semibold text-[13px] rounded-lg transition cursor-pointer disabled:opacity-60"
+                >
+                  {busy ? 'Verifying…' : 'Verify Code'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setStep(1); setCode(''); setError(null); }}
+                  className="w-full text-[12px] text-muted-foreground hover:text-foreground transition cursor-pointer"
+                >
+                  ← Use a different email
+                </button>
+              </div>
+            )}
+
+            {/* STEP 3: Set new password (user has a session from step 2) */}
+            {step === 3 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-[12px] text-success">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Identity verified. Choose your new password.</span>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-normal text-foreground mb-1">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-border"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-normal text-foreground mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-[13px] text-foreground focus:outline-none focus:border-border"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitNewPassword({ preventDefault: () => {}, stopPropagation: () => {} } as any); } }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => submitNewPassword({ preventDefault: () => {}, stopPropagation: () => {} } as any)}
+                  className="w-full py-2.5 bg-black hover:bg-card text-white font-semibold text-[13px] rounded-lg transition cursor-pointer disabled:opacity-60"
+                >
+                  {busy ? 'Saving…' : 'Set Password & Sign In'}
+                </button>
+              </div>
             )}
           </div>
         </div>
