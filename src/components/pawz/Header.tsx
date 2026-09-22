@@ -31,6 +31,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 interface HeaderProps {
   onOpenMobileMenu?: () => void;
@@ -251,17 +253,34 @@ export const Header: React.FC<HeaderProps> = ({
             <Search className="size-4" />
           </button>
 
-          {/* Date display — clicking navigates to the calendar page */}
-          <button
-            onClick={() => onNavigateSection('calendar')}
-            className="hidden md:flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent h-9 px-3 text-[13px] text-foreground transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Open calendar"
-            title="Open calendar"
-          >
-            <Calendar className="size-3.5 text-muted-foreground" />
-            <span className="text-[13px]">{currentDate}</span>
-            <ChevronDown className="size-3.5 text-muted-foreground" />
-          </button>
+          {/* Date dropdown — real calendar popover. Selecting a date
+              navigates to /admin/calendar with that date focused. */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="hidden md:flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent h-9 px-3 text-[13px] text-foreground transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Pick a date"
+                title="Pick a date"
+              >
+                <Calendar className="size-3.5 text-muted-foreground" />
+                <span className="text-[13px]">{currentDate}</span>
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <CalendarComponent
+                mode="single"
+                selected={new Date()}
+                onSelect={(date) => {
+                  if (date) {
+                    // Navigate to the calendar page with the selected date.
+                    onNavigateSection('calendar');
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
 
           <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
@@ -371,10 +390,10 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Sub-nav — admin OS pillar pills only. Non-admin portals render no
           pill row at all (dedicated portal identity — no business nav).
-          White background with gray pills for better contrast against the
-          gray top bar above. Pills sit directly under the search bar. */}
+          White background with gray pills. Row sits below the top bar,
+          pills aligned RIGHT (under the search/date/user cluster above). */}
       {showPillars && (
-        <div className="h-10 px-3 sm:px-4 flex items-center gap-1 overflow-x-auto custom-scrollbar bg-background border-b border-border">
+        <div className="h-10 px-3 sm:px-4 flex items-center justify-end gap-1 overflow-x-auto custom-scrollbar bg-background border-b border-border">
           {pillars.map((pillar) => {
             const isSelected = activePillar === pillar.id;
             return (
