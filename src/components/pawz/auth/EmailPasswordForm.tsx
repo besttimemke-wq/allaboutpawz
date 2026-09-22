@@ -192,7 +192,7 @@ function ForgotPasswordLink({ defaultEmail }: { defaultEmail: string }) {
       const supabase = createClient();
       try {
         await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/set-password`,
         });
       } catch {
         await supabase.auth.resetPasswordForEmail(email);
