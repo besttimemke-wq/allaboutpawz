@@ -29,7 +29,7 @@ export type CmsResource =
 
 const TABLE: Record<CmsResource, string> = {
   services: "services",
-  products: "products",
+  products: "commerce_products",
   gallery: "gallery_photos",
   packages: "pricing_packages",
   addons: "add_ons",
@@ -186,7 +186,7 @@ export const repo: Repo = {
     }
     const [services, products, gallery, packages, addons, faqs, policies,
       testimonials, bookings, consultations, messages, newsletter] = await Promise.all([
-      sb<Row[]>("services?select=id"), sb<Row[]>("products?select=id"),
+      sb<Row[]>("services?select=id"), sb<Row[]>("commerce_products?select=id"),
       sb<Row[]>("gallery_photos?select=id"), sb<Row[]>("pricing_packages?select=id"),
       sb<Row[]>("add_ons?select=id"), sb<Row[]>("faqs?select=id"),
       sb<Row[]>("policies?select=id"), sb<Row[]>("testimonials?select=id"),
