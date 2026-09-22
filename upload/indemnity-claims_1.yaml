@@ -1,0 +1,1110 @@
+openapi: 3.0.3
+info:
+  title: Customer Indemnity Claims API
+  description: |
+    **Contact Us:** [USPS API Support](https://emailus.usps.com/s/usps-APIs) | [Terms of Service](https://about.usps.com/termsofuse.htm)
+
+    USPS has a process to submit an indemnity claim for packages that were lost, damaged, or missing pieces and was covered by insurance.
+
+    The Bulk Claims API allows you to submit domestic insurance claims in bulk.
+
+    The API provides an electronic method for mailers to submit in large quantities the detailed information required for a successful
+    bulk upload on each tracking number. The successful bulk upload details and status can be viewed on the Bulk Claims application.
+
+    For information on requirements for Mailer IDs (MID), please see [Publication 199](http://postalpro.usps.com/pub199).
+
+    ---
+
+    **NOTE:** For Bulk Claims Request, consumers must submit at least 500 and up to 5,000 claims in a single request.
+
+    ---
+
+  version: 3.0.0
+
+servers:
+  - url: https://apis.usps.com/indemnity-claims/v3
+    description: Production Environment Endpoint
+  - url: https://apis-tem.usps.com/indemnity-claims/v3
+    description: Testing Environment Endpoint
+tags:
+  - name: Resources
+
+# Security requirement defined globally here.  May be overridden by any path or method.
+security:
+  - oauth2: [indemnity-claims]
+
+paths:
+  /claims:
+    post:
+      summary: Bulk Claims Request
+      description: At least 500 and up to 5,000 claims may be submitted in one single request.
+      tags:
+        - Resources
+      operationId: post-indemnity-claims
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkClaimsRequest"
+            examples:
+              simpleClaimsSubmittal:
+                $ref: "#/components/examples/ClaimSubmittal"
+      responses:
+        "207":
+          description: |
+            Multi-Status
+
+            The HTTP 207 Multi-Status successful response status code indicates a mixture of responses.
+            The message body contains an aggregate block of individual status codes, one per sub-operation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkClaimsResponse"
+              examples:
+                simpleClaimsResponse:
+                  $ref: "#/components/examples/ClaimResponse"
+        "400":
+          description: Bad request. There is an error in the received request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                ClaimErrorResponse:
+                  $ref: "#/components/examples/ClaimErrorResponse"
+                ClaimErrorRecipientResponse:
+                  $ref: "#/components/examples/ClaimErrorRecipientResponse"
+                Generic400ErrorResponse:
+                  $ref: "#/components/examples/Generic400ErrorResponse"
+        "401":
+          description: Unauthorized request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard401ErrorResponse:
+                  $ref: "#/components/examples/Standard401ErrorResponse"
+        "403":
+          description: Access is denied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard403ErrorResponse:
+                  $ref: "#/components/examples/Standard403ErrorResponse"
+        "429":
+          description: Too many requests. Too many requests have been received from client in a short amount of time.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard429ErrorResponse:
+                  $ref: "#/components/examples/Standard429ErrorResponse"
+        "503":
+          description: Service is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard503ErrorResponse:
+                  $ref: "#/components/examples/Standard503ErrorResponse"
+        default:
+          description: Other unanticipated errors that may occur.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+
+  /restricted-mids:
+    post:
+      summary: Update the list of MIDs to be blocked
+      description: One or more MIDs may be updated in one single request based on home CRID.
+      tags:
+        - Resources
+      operationId: create-update-delete-restricted-mids
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestrictedMIDsBulkRequest"
+            examples:
+              RestrictedMIDsGeneralRequest:
+                $ref: "#/components/examples/RestrictedMIDsGeneralRequest"
+              RestrictedMIDsDeleteRequest:
+                $ref: "#/components/examples/RestrictedMIDsDeleteRequest"
+      responses:
+        "207":
+          description: |
+            Multi-Status
+
+            The HTTP 207 Multi-Status successful response status code indicates a mixture of responses.
+            The message body contains an aggregate block of individual status codes, one per sub-operation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestrictedMIDsBulkResponse"
+              examples:
+                RestrictedMIDsBulkResponse:
+                  $ref: "#/components/examples/RestrictedMIDsBulkResponse"
+                RestrictedMIDsDeleteBulkResponse:
+                  $ref: "#/components/examples/RestrictedMIDsDeleteBulkResponse"
+        "400":
+          description: Bad request. There is an error in the received request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestrictedMIDsErrorMessage"
+              examples:
+                RestrictedMIDsRejectedErrorResponse:
+                  $ref: "#/components/examples/RestrictedMIDsRejectedErrorResponse"
+                Generic400ErrorResponse:
+                  $ref: "#/components/examples/Generic400ErrorResponse"
+        "401":
+          description: Unauthorized request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard401ErrorResponse:
+                  $ref: "#/components/examples/Standard401ErrorResponse"
+        "403":
+          description: Access is denied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard403ErrorResponse:
+                  $ref: "#/components/examples/Standard403ErrorResponse"
+        "429":
+          description: Too many requests. Too many requests have been received from client in a short amount of time.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard429ErrorResponse:
+                  $ref: "#/components/examples/Standard429ErrorResponse"
+        "503":
+          description: Service is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard503ErrorResponse:
+                  $ref: "#/components/examples/Standard503ErrorResponse"
+        default:
+          description: Other unanticipated errors that may occur.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+    get:
+      summary: Get the list of all MIDs
+      description: Get all the restricted MIDs based on the home CRID.
+      tags:
+        - Resources
+      operationId: get-restricted-mids
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestrictedMIDsGetResponse"
+              examples:
+                RestrictedMIDsGetResponse:
+                  $ref: "#/components/examples/RestrictedMIDsGetResponse"
+        "401":
+          description: Unauthorized request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard401ErrorResponse:
+                  $ref: "#/components/examples/Standard401ErrorResponse"
+        "403":
+          description: Access is denied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard403ErrorResponse:
+                  $ref: "#/components/examples/Standard403ErrorResponse"
+        "429":
+          description: Too many requests. Too many requests have been received from client in a short amount of time.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard429ErrorResponse:
+                  $ref: "#/components/examples/Standard429ErrorResponse"
+        "503":
+          description: Service is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+              examples:
+                Standard503ErrorResponse:
+                  $ref: "#/components/examples/Standard503ErrorResponse"
+        default:
+          description: Other unanticipated errors that may occur.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorMessage"
+
+components:
+  schemas:
+    JSONBatchRequest:
+      title: Standard JSON Batch Request
+      description: |
+        A JSON Batch Request allows the client to batch multiple API requests into a single HTTP request.
+        The batch request contains an array of individual requests, each with its own method, URL, headers, and body.
+        The server processes each individual request and returns a corresponding response for each one in a JSON Batch Response.
+      type: object
+      properties:
+        requests:
+          type: array
+          description: The list of individual requests to be processed in the batch. Each request must specify the HTTP method and URL, and can optionally include headers and a body.
+          minItems: 1
+          items:
+            type: object
+            required: [id, method, url]
+            properties:
+              id:
+                description: |
+                  Required. String. A correlation value to associate individual responses with requests.
+                  Must be unique in the batch, otherwise, the batch request fails with a 400 error code.
+                type: string
+                format: alphanumeric
+                minLength: 1
+                maxLength: 25
+                example: "1"
+                default: "1"
+              dependsOn:
+                description: |
+                  You can specify the requests in the batch to be executed in a specified order by using the dependsOn property. This property is an array of strings that references the id of a different individual request.
+                type: array
+                minItems: 0
+                items:
+                  type: string
+                  format: alphanumeric
+              method:
+                description: Required. The HTTP method supported for the request specified in url.
+                type: string
+                format: http-method
+              url:
+                description: |
+                  Required. The relative resource URL for the individual request. Therefore, while the absolute URL is https://graph.microsoft.com/v1.0/users, this url is /users.
+                type: string
+                format: uri-reference
+              headers:
+                description: |
+                  Optional but required when the body is specified. A JSON object with the key/value pair for the headers. For example, when the ConsistencyLevel header is required, this property is represented as "headers": {"ConsistencyLevel": "eventual"}. When the body is supplied, a Content-Type header must be included
+                type: object
+              body:
+                type: object
+                description: |
+                  Optional payload for the request.
+
+                  Might be a JSON object or a base64 URL-encoded value, for example, when the body is an image. When a body is included with the request, the headers object must contain a value for Content-Type.
+            additionalProperties: false
+
+    JSONBatchResponse:
+      title: Standard JSON Batch Response
+      description: |
+        A JSON Batch Response contains an array of individual responses corresponding to each request in the JSON Batch Request.
+        Each response includes the HTTP status code, headers, and body for the corresponding request.
+      type: object
+      properties:
+        responses:
+          type: array
+          description: The list of individual responses corresponding to each request in the batch. Each response includes the HTTP status code, headers, and body for the corresponding request.
+          minItems: 1
+          items:
+            type: object
+            required: [id, status]
+            properties:
+              id:
+                description: |
+                  Required. String. A correlation value to associate individual responses with requests.
+                  Must be unique in the batch, otherwise, the batch request fails with a 400 error code.
+                type: string
+                format: alphanumeric
+                minLength: 1
+                maxLength: 25
+                example: "1"
+                default: "1"
+              status:
+                description: The HTTP status code (e.g., 200, 404).
+                type: integer
+              headers:
+                description: |
+                  Optional but required when the body is specified. A JSON object with the key/value pair for the headers. For example, when the ConsistencyLevel header is required, this property is represented as "headers": {"ConsistencyLevel": "eventual"}. When the body is supplied, a Content-Type header must be included
+                type: object
+              body:
+                description: The actual response data from the sub-request.
+                type: object
+            additionalProperties: false
+
+    ErrorMessage:
+      title: Error
+      description: Standard error message response.
+      type: object
+      properties:
+        apiVersion:
+          type: string
+          description: The version of the API that was used and that raised the error.
+          format: uri-reference
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+      additionalProperties: true
+
+    ErrorDetail:
+      title: Error Detail
+      description: The details of the error that occurred.
+      type: object
+      properties:
+        code:
+          type: string
+          description: The error status code that has been returned in response to the request.
+          format: name
+          minLength: 5
+          maxLength: 50
+        message:
+          type: string
+          description: A human-readable message describing the error.
+          format: sentence
+          minLength: 1
+          maxLength: 255
+      additionalProperties: true
+
+    RestrictedMIDsErrorMessage:
+      title: Restricted MIDs Error
+      description: Error message response for restricted MIDs update.
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/ErrorMessage"
+        - type: object
+          properties:
+            error:
+              description: The details of the error that occurred when updating restricted MIDs.
+              type: object
+              properties:
+                MID:
+                  type: string
+                  description: The Mailer Identifier (MID) related to the error, if applicable.
+                  pattern: ^(?:[0-8]\d{5}|9\d{8})$
+                  example: "923456789"
+
+    BulkClaimsRequest:
+      title: Bulk Claims Request
+      description: Bulk request to submit at least 500 and up to 5,000 claims. Each request in the batch corresponds to a single claim submittal.
+      type: object
+      required: [requests, claimReason, recipients]
+      properties:
+        claimReason:
+          description: The reason for the claim being submitted.
+          type: string
+          enum:
+            - DAMAGED
+            - LOST
+            - MISSING_CONTENTS
+        recipients:
+          description: The list of recipients for the claim.
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: "#/components/schemas/Recipient"
+        requests:
+          description: The list of individual requests to be processed in the batch. Each request must specify the HTTP method and URL, and can optionally include headers and a body. Each request corresponds to a single claim submittal.
+          type: array
+          minItems: 500
+          maxItems: 5000
+          items:
+            type: object
+            required: [id, method, body]
+            properties:
+              id:
+                description: |
+                  Required. String. A correlation value to associate individual responses with requests.
+                  Must be unique in the batch, otherwise, the batch request fails with a 400 error code.
+                type: string
+                format: alphanumeric
+                minLength: 1
+                maxLength: 25
+                example: "1"
+                default: "1"
+              method:
+                description: Required. The HTTP method supported for the request specified in url. For claim submittals, only POST is allowed.
+                type: string
+                format: http-method
+                enum:
+                  - POST
+                default: POST
+              url:
+                type: string
+                description: The relative URL for the API endpoint.
+                format: uri-reference
+                default: /
+              headers:
+                description: |
+                  Optional but required when the body is specified. A JSON object with the key/value pair for the headers. For example, when the ConsistencyLevel header is required, this property is represented as "headers": {"ConsistencyLevel": "eventual"}. When the body is supplied, a Content-Type header must be included
+                type: object
+              body:
+                $ref: "#/components/schemas/ClaimSubmittal"
+            additionalProperties: false
+      additionalProperties: false
+
+    BulkClaimsResponse:
+      title: Bulk Claims Response
+      description: Bulk response for at least 500 and up to 5,000 claims submitted. Each response corresponds to a claim submittal in the request and indicates the status of that claim.
+      type: object
+      properties:
+        claimReason:
+          description: The overall reason for the claims being submitted.
+          readOnly: true
+          type: string
+          enum:
+            - DAMAGED
+            - LOST
+            - MISSING_CONTENTS
+        recipients:
+          description: Notification recipients; only one recipient is accepted.
+          readOnly: true
+          type: array
+          items:
+            $ref: "#/components/schemas/Recipient"
+          minItems: 1
+          maxItems: 1
+        responses:
+          description: |
+            The list of individual responses corresponding to each claim submittal in the request.
+            Each response includes the HTTP status code, headers, and body for the corresponding claim submittal.
+          readOnly: true
+          type: array
+          minItems: 500
+          maxItems: 5000
+          items:
+            type: object
+            required: [id, status]
+            properties:
+              id:
+                description: |
+                  Required. String. A correlation value to associate individual responses with requests.
+                  Must be unique in the batch, otherwise, the batch request fails with a 400 error code.
+                readOnly: true
+                type: string
+                format: alphanumeric
+                minLength: 1
+                maxLength: 25
+                example: "1"
+                default: "1"
+              status:
+                readOnly: true
+                type: integer
+                description: The HTTP status code (e.g., 200, 404).
+                enum:
+                  - 200
+                  - 201
+                  - 400
+                  - 404
+                  - 500
+                  - 503
+                example: 201
+              headers:
+                description: |
+                  Optional but required when the body is specified. A JSON object with the key/value pair for the headers. For example, when the ConsistencyLevel header is required, this property is represented as "headers": {"ConsistencyLevel": "eventual"}. When the body is supplied, a Content-Type header must be included
+                readOnly: true
+                type: object
+              body:
+                description: The actual response data from the claim submittal.
+                readOnly: true
+                oneOf:
+                  - $ref: "#/components/schemas/ClaimResponse"
+                  - $ref: "#/components/schemas/ErrorMessage"
+            additionalProperties: false
+      additionalProperties: false
+
+    ClaimSubmittal:
+      title: Claim Submittal
+      description: The claim to be submitted.
+      type: object
+      required:
+        - trackingNumber
+        - shippingDate
+        - serviceType
+        - addressee
+        - amountRequested
+        - merchandise
+      properties:
+        trackingNumber:
+          description: The tracking number for the shipment.
+          type: string
+          minLength: 22
+          maxLength: 34
+          pattern: ^9[2-5]\d{20}(?:\d{4}){0,3}$
+          example: "9200112345678901234512"
+        shippingDate:
+          description: The date that the item was shipped, "yyyy-MM-dd".
+          type: string
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          example: "2026-05-15"
+        serviceType:
+          description: |
+            3-character service type code.
+
+            - NUI = Insured
+            - XME = Priority Mail Express
+          type: string
+          enum:
+            - NUI
+            - XME
+        addressee:
+          description: The addressee of the claim.
+          type: object
+          properties:
+            firstName:
+              description: The first name of the addressee.
+              type: string
+              minLength: 1
+              maxLength: 25
+              format: name
+            lastName:
+              description: The last name of the addressee.
+              type: string
+              format: name
+              minLength: 1
+              maxLength: 25
+            companyName:
+              description: The company name of the addressee.
+              type: string
+              format: name
+              minLength: 1
+              maxLength: 50
+          additionalProperties: false
+        amountRequested:
+          description: |
+            The amount requested for the claim.
+            Must be the sum of ``amountRequested`` from the merchandise array.
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 9999.99
+        merchandise:
+          description: The list of merchandise items for the claim.
+          type: array
+          items:
+            $ref: "#/components/schemas/Merchandise"
+          minItems: 1
+      additionalProperties: false
+
+    ClaimResponse:
+      title: Claim Response
+      description: The state of the claim subsequent to submittal.
+      allOf:
+        - type: object
+          properties:
+            status:
+              description: The current status of the claim.
+              readOnly: true
+              type: string
+              enum:
+                - ACCEPTED
+              default: ACCEPTED
+        - $ref: "#/components/schemas/ClaimSubmittal"
+      additionalProperties: false
+
+    Merchandise:
+      title: Merchandise
+      description: Merchandise details.
+      type: object
+      required:
+        - category
+        - amountRequested
+      properties:
+        category:
+          type: string
+          description: The category for the merchandise.
+          enum:
+            - CASH_CERTIFICATE
+            - JEWELRY
+            - CLOTHING_HOME_PRODUCTS
+            - ARTS_CRAFTS
+            - MEDIA_MUSIC_VIDEO
+            - ELECTRONICS
+            - COMPUTERS
+            - COLLECTIBLES
+            - SPORTS_EQUIPMENT
+            - LIQUOR_WINE
+            - ANIMALS
+            - FIREARM
+            - HAZARDOUS_MATERIAL
+            - EVENT_TICKETS
+            - OTHER
+          example: OTHER
+        amountRequested:
+          description: The amount requested for this merchandise item in US dollars.
+          type: number
+          format: double
+          minimum: 0.01
+          maximum: 9999.99
+      additionalProperties: false
+
+    Recipient:
+      title: Recipient
+      description: Recipient to notify.
+      type: object
+      required:
+        - companyName
+        - email
+      properties:
+        companyName:
+          description: The official name of the company.
+          type: string
+          format: name
+          minLength: 1
+          maxLength: 50
+        email:
+          description: The email address of the recipient.
+          type: string
+          pattern: "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,}$"
+          format: email
+          maxLength: 50
+      additionalProperties: false
+
+    RestrictedMIDsBulkRequest:
+      title: Restricted MIDs Bulk Request
+      description: Bulk request to update the list of MIDs to be blocked. Each request in the batch corresponds to an update for a single MID.
+      type: object
+      properties:
+        requests:
+          description: The list of requests to update restricted MIDs. Each request must specify the MID and whether it should be blocked or allowed.
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [id, method]
+            properties:
+              id:
+                description: |
+                  Required. String. A correlation value to associate individual responses with requests.
+                  Must be unique in the batch, otherwise, the batch request fails with a 400 error code.
+                type: string
+                format: alphanumeric
+                minLength: 1
+                maxLength: 25
+                example: "1"
+                default: "1"
+              method:
+                description: Required. The HTTP method supported for the request specified in url. For updating restricted MIDs, only POST, PUT, and DELETE are allowed.
+                type: string
+                format: http-method
+                enum:
+                  - POST
+                  - PUT
+                  - DELETE
+                example: POST
+              url:
+                description: The relative URL for the API endpoint. Indicates the Mailer ID (MID) in the request.
+                type: string
+                pattern: ^/(?:[0-8]\d{5}|9\d{8})$
+                default: "/123456"
+              headers:
+                description: |
+                  Optional but required when the body is specified. A JSON object with the key/value pair for the headers. For example, when the ConsistencyLevel header is required, this property is represented as "headers": {"ConsistencyLevel": "eventual"}. When the body is supplied, a Content-Type header must be included
+                type: object
+              body:
+                $ref: "#/components/schemas/RestrictedMID"
+            additionalProperties: false
+      additionalProperties: false
+
+    RestrictedMIDsBulkResponse:
+      title: Restricted MIDs Bulk Response
+      description: Bulk response for one or more restricted MID updates submitted. Each response corresponds to a restricted MID update in the request and indicates the status of that update.
+      type: object
+      properties:
+        responses:
+          description: The list of responses corresponding to each restricted MID update in the request.
+          readOnly: true
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [id, status]
+            properties:
+              id:
+                description: |
+                  Required. String. A correlation value to associate individual responses with requests.
+                  Must be unique in the batch, otherwise, the batch request fails with a 400 error code.
+                readOnly: true
+                type: string
+                format: alphanumeric
+                minLength: 1
+                maxLength: 25
+                example: "1"
+                default: "1"
+              status:
+                readOnly: true
+                type: integer
+                description: The HTTP status code (e.g., 200, 404).
+                enum:
+                  - 200
+                  - 201
+                  - 400
+                  - 404
+                  - 500
+                  - 503
+                example: 201
+              headers:
+                description: An object containing one or more header name and value pairs.
+                readOnly: true
+                type: object
+              body:
+                description: The actual response data from the sub-request.
+                readOnly: true
+                oneOf:
+                  - $ref: "#/components/schemas/RestrictedMIDsResponse"
+                  - $ref: "#/components/schemas/ErrorMessage"
+            additionalProperties: false
+      additionalProperties: false
+
+    RestrictedMIDsGetResponse:
+      title: Restricted MIDs Response (GET)
+      description: The list of restricted MIDs returned in the response.
+      type: array
+      minItems: 0
+      items:
+        $ref: "#/components/schemas/RestrictedMIDFull"
+
+    RestrictedMIDFull:
+      title: Restricted MID Response (Full)
+      description: Response for restricted MID get request, which includes the MID and whether it is restricted.
+      allOf:
+        - $ref: "#/components/schemas/RestrictedMID"
+        - type: object
+          properties:
+            MID:
+              description: |
+                The Mailer Identifier (MID). A field within the Intelligent Mail barcode
+                that is used to identify mailers. MIDs are assigned by the USPS to a
+                Mail Owner, Mailing Agent or other service providers who request them.
+              type: string
+              pattern: ^(?:[0-8]\d{5}|9\d{8})$
+              example: "923456789"
+
+    RestrictedMIDsResponse:
+      title: Restricted MIDs Response
+      description: Response for restricted MIDs get request.
+      type: array
+      items:
+        $ref: "#/components/schemas/RestrictedMIDFull"
+      minItems: 0
+
+    RestrictedMID:
+      title: Restricted MID
+      description: MID restriction
+      type: object
+      required:
+        - restriction
+      properties:
+        restriction:
+          description: Whether the MID is restricted.
+          type: boolean
+      additionalProperties: true
+
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: |
+        The specified APIs accept a self-contained access token formatted as a JSON Web Token. The relative path to the OAuth2 version 3 API which supplies this access token is provided below for reference.
+
+        See the environment-specific server paths and append either relative path defined here to complete the URL.
+      flows:
+        clientCredentials:
+          tokenUrl: /oauth2/v3/token
+          scopes:
+            indemnity-claims: Authorized Access to Claims Resources
+        authorizationCode:
+          authorizationUrl: /oauth2/v3/authorize
+          tokenUrl: /oauth2/v3/token
+          scopes:
+            indemnity-claims: Authorized Access to Claims Resources
+
+  examples:
+    RestrictedMIDsDeleteRequest:
+      summary: Delete two restricted MIDs from being blocked.
+      value:
+        {
+          "requests":
+            [
+              { "id": "1", "method": "DELETE", "url": "/123456" },
+              { "id": "2", "method": "DELETE", "url": "/987654321" }
+            ]
+        }
+    RestrictedMIDsGeneralRequest:
+      summary: Example of potential mixed requests.
+      value:
+        {
+          "requests":
+            [
+              {
+                "id": "1",
+                "method": "POST",
+                "url": "/923456789",
+                "headers": { "Content-Type": "application/json" },
+                "body": { "restriction": true }
+              },
+              {
+                "id": "2",
+                "method": "PUT",
+                "url": "/987654321",
+                "headers": { "Content-Type": "application/json" },
+                "body": { "restriction": false }
+              },
+              { "id": "3", "method": "DELETE", "url": "/123456" }
+            ]
+        }
+    RestrictedMIDsRejectedErrorResponse:
+      summary: Request to update restricted MID rejected.
+      value:
+        {
+          "responses":
+            [
+              {
+                "id": "1",
+                "status": 400,
+                "headers": { "Content-Type": "application/json" },
+                "body":
+                  {
+                    "apiVersion": "indemnity-claims/v3/restricted-mids",
+                    "error":
+                      {
+                        "code": "NOT_FOUND",
+                        "MID": "987654",
+                        "message": "MID not found"
+                      }
+                  }
+              }
+            ]
+        }
+
+    ClaimSubmittal:
+      summary: Sample claim submittal.
+      value:
+        {
+          "claimReason": "DAMAGED",
+          "recipients":
+            [{ "companyName": "Acme Corp", "email": "claims@acme.corp" }],
+          "requests":
+            [
+              {
+                "id": "1",
+                "method": "POST",
+                "url": "/",
+                "headers": { "Content-Type": "application/json" },
+                "body":
+                  {
+                    "trackingNumber": "9400100000000000000000000000000001",
+                    "shippingDate": "2026-05-15",
+                    "serviceType": "NUI",
+                    "addressee":
+                      {
+                        "firstName": "John",
+                        "lastName": "Doe",
+                        "companyName": "ACME Corporation"
+                      },
+                    "amountRequested": 125.5,
+                    "merchandise":
+                      [
+                        {
+                          "category": "CASH_CERTIFICATE",
+                          "amountRequested": 25.25
+                        },
+                        { "category": "JEWELRY", "amountRequested": 100.25 }
+                      ]
+                  }
+              }
+            ]
+        }
+    ClaimResponse:
+      summary: Sample claim response for a successful claim submittal.
+      value:
+        {
+          "claimReason": "DAMAGED",
+          "recipients":
+            [{ "companyName": "Acme Corp", "email": "claims@acme.corp" }],
+          "responses":
+            [
+              {
+                "id": "1",
+                "status": 201,
+                "headers": { "Content-Type": "application/json" },
+                "body":
+                  {
+                    "status": "ACCEPTED",
+                    "trackingNumber": "9400100000000000000000000000000001",
+                    "shippingDate": "2026-05-15",
+                    "serviceType": "NUI",
+                    "addressee":
+                      {
+                        "firstName": "John",
+                        "lastName": "Doe",
+                        "companyName": "ACME Corporation"
+                      },
+                    "amountRequested": 125.5,
+                    "merchandise":
+                      [
+                        {
+                          "category": "CASH_CERTIFICATE",
+                          "amountRequested": 25.25
+                        },
+                        { "category": "JEWELRY", "amountRequested": 100.25 }
+                      ]
+                  }
+              }
+            ]
+        }
+    ClaimErrorResponse:
+      summary: Sample claim response for a rejected claim submittal (bad addressee).
+      value:
+        {
+          "apiVersion": "indemnity-claims/v3/claims",
+          "error":
+            {
+              "code": "BAD_REQUEST",
+              "message": "addressee: Either the combination of firstName and lastName, or the companyName is required"
+            }
+        }
+    ClaimErrorRecipientResponse:
+      summary: Sample claim response for a rejected claim submittal (missing recipient).
+      value:
+        {
+          "apiVersion": "indemnity-claims/v3/claims",
+          "error":
+            {
+              "code": "BAD_REQUEST",
+              "message": "recipients: recipients must contain at least 1 item"
+            }
+        }
+
+    RestrictedMIDsGetResponse:
+      summary: Sample response for GET request to retrieve restricted MIDs.
+      value:
+        [
+          { "MID": "923456789", "restriction": false },
+          { "MID": "246789", "restriction": true }
+        ]
+    RestrictedMIDsBulkResponse:
+      summary: Example response for bulk request.
+      value:
+        {
+          "responses":
+            [
+              {
+                "id": "1",
+                "status": 201,
+                "body": { "MID": "923456789", "restriction": true }
+              },
+              {
+                "id": "2",
+                "status": 200,
+                "body": { "MID": "987654321", "restriction": false }
+              },
+              {
+                "id": "3",
+                "status": 400,
+                "headers": { "Content-Type": "application/json" },
+                "body":
+                  {
+                    "apiVersion": "indemnity-claims/v3/restricted-mids",
+                    "error":
+                      {
+                        "code": "NOT_FOUND",
+                        "MID": "123456",
+                        "message": "MID not found"
+                      }
+                  }
+              }
+            ]
+        }
+    RestrictedMIDsDeleteBulkResponse:
+      summary: Example response for deleting two restricted MIDs.
+      value:
+        {
+          "responses":
+            [{ "id": "1", "status": 200 }, { "id": "2", "status": 200 }]
+        }
+
+    Generic400ErrorResponse:
+      summary: Sample error response for a generic 400 error.
+      value:
+        {
+          "apiVersion": "indemnity-claims/v3",
+          "error":
+            {
+              "code": "BAD_REQUEST",
+              "message": "Human readable message describing the error"
+            }
+        }
+    Standard401ErrorResponse:
+      summary: Sample error response for a generic 401 error.
+      value:
+        {
+          "apiVersion": "indemnity-claims/v3",
+          "error":
+            {
+              "code": "UNAUTHORIZED",
+              "message": "Your token is invalid. Please provide a valid access token with the appropriate scopes and try again."
+            }
+        }
+    Standard403ErrorResponse:
+      summary: Sample error response for a generic 403 error.
+      value:
+        {
+          "apiVersion": "indemnity-claims/v3",
+          "error":
+            {
+              "code": "FORBIDDEN",
+              "message": "You are not authorized to access this resource. Please provide a valid access token with the appropriate scopes and try again."
+            }
+        }
+    Standard429ErrorResponse:
+      summary: Sample error response for a generic 429 error.
+      value:
+        {
+          "apiVersion": "indemnity-claims/v3",
+          "error":
+            {
+              "code": "TOO_MANY_REQUESTS",
+              "message": "You have exceeded the rate limit for this resource. Please try again later."
+            }
+        }
+    Standard503ErrorResponse:
+      summary: Sample error response for a generic 503 error.
+      value:
+        {
+          "apiVersion": "indemnity-claims/v3",
+          "error":
+            {
+              "code": "SERVICE_UNAVAILABLE",
+              "message": "The service is currently unavailable. Please try again later."
+            }
+        }

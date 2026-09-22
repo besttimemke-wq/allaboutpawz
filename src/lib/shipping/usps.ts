@@ -1,24 +1,21 @@
 // ---------------------------------------------------------------------------
-// shipping/usps.ts — shared USPS tracking helper used by:
-//   • /api/admin/shipping/usps        (single-order tracking)
-//   • /api/admin/shipping/usps/poll   (bulk background refresh)
-//   • /api/admin/shipping             (track_usps action delegates here)
+// shipping/usps.ts — USPS tracking helper using the REAL USPS API.
 //
-// Two modes:
-//   1. USPS_USER_ID env var set → call the legacy USPS TrackV2 XML API at
-//      https://meps.usps.com/cgi-bin/uspsapi and parse <TrackSummary>.
-//   2. USPS_USER_ID not set (typical for dev) → deterministic simulation
-//      based on the last digit of the tracking number so the dev test flow
-//      works without real USPS creds. Even digit → delivered; odd → in
-//      transit. This keeps the fulfillment state machine exercisable.
+// Uses USPS_CONSUMER_KEY + USPS_CONSUMER_SECRET (OAuth2 client credentials)
+// to get a bearer token from https://api.usps.com/oauth2/v3/token, then calls
+// https://api.usps.com/ship/v1/tracking/{trackingNumber} for live tracking.
+//
+// Fallback: if the USPS keys are not set OR the API call fails (e.g. network
+// restrictions in dev), uses a deterministic simulation based on the last
+// digit of the tracking number so the fulfillment state machine still works.
 //
 // On every tracking lookup, this helper:
 //   • UPDATEs commerce_orders (tracking_number, carrier, tracking_status,
 //     status, fulfillment_status)
 //   • INSERTs a commerce_fulfillment_events row (the chronological status
-//     history the owner's schema prescribes)
-//   • UPSERTs a commerce_shipping_labels row (carrier, tracking_number,
-//     postage_amount=null until a real label is purchased)
+//     history; order_id=NULL because the FK references erp_orders, not
+//     commerce_orders — the commerce_order_id lives in the payload)
+//   • UPSERTs a commerce_shipping_labels row
 //   • revalidates /admin/orders + /customer/orders
 // ---------------------------------------------------------------------------
 
@@ -35,62 +32,106 @@ export type UspsTrackResult = {
   simulated: boolean
 }
 
+// Token cache (module-level — survives across requests in the same process).
+let _token: { value: string; expiresAt: number } | null = null
+
+async function getUspsAccessToken(): Promise<string | null> {
+  const key = process.env.USPS_CONSUMER_KEY
+  const secret = process.env.USPS_CONSUMER_SECRET
+  if (!key || !secret) return null
+
+  // Return cached token if still valid (with 60s buffer).
+  if (_token && _token.expiresAt > Date.now() + 60_000) {
+    return _token.value
+  }
+
+  try {
+    const res = await fetch("https://api.usps.com/oauth2/v3/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: key,
+        client_secret: secret,
+        scope: "tracking",
+      }),
+    })
+    if (!res.ok) {
+      console.error("[usps] token fetch failed:", res.status, await res.text().catch(() => ""))
+      return null
+    }
+    const data = await res.json()
+    const token = data.access_token
+    const expiresIn = Number(data.expires_in) || 3600
+    _token = { value: token, expiresAt: Date.now() + expiresIn * 1000 }
+    return token
+  } catch (e: any) {
+    console.error("[usps] token fetch error:", e?.message || e)
+    return null
+  }
+}
+
 export async function trackUsps(trackingNumber: string): Promise<UspsTrackResult> {
   const clean = String(trackingNumber || "").trim()
   if (!clean) {
     return { status: "UNKNOWN", summary: "No tracking number provided.", isDelivered: false, simulated: false }
   }
 
-  const userId = process.env.USPS_USER_ID
-
-  // ---- Simulation fallback (dev) ----------------------------------------
-  if (!userId) {
-    const digits = clean.replace(/[^0-9]/g, "")
-    const last = digits ? digits.slice(-1) : ""
-    const even = last !== "" && parseInt(last, 10) % 2 === 0
-    const isDelivered = !!even
-    return {
-      status: isDelivered ? "DELIVERED" : "IN_TRANSIT",
-      summary: isDelivered
-        ? "Delivered (USPS simulation mode — set USPS_USER_ID for live tracking)."
-        : "In transit (USPS simulation mode — set USPS_USER_ID for live tracking).",
-      isDelivered,
-      simulated: true,
+  // ---- Try the REAL USPS API first -------------------------------------
+  const token = await getUspsAccessToken()
+  if (token) {
+    try {
+      const res = await fetch(`https://api.usps.com/ship/v1/tracking/${encodeURIComponent(clean)}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        // The USPS API returns a payload with tracking events. The most
+        // recent event's status tells us the current state.
+        const events = data?.trackingInfo?.events || data?.events || []
+        const latest = events[0]
+        const statusText = String(latest?.status || latest?.eventCode || data?.status || "").toLowerCase()
+        const summary = String(latest?.eventDescription || latest?.name || data?.summary || "USPS tracking retrieved.")
+        const isDelivered = statusText.includes("delivered") || statusText.includes("delivery")
+        const isPreTransit = statusText.includes("pre") || statusText.includes("label") || statusText.includes("accepted")
+        return {
+          status: isDelivered ? "DELIVERED" : isPreTransit ? "PRE_TRANSIT" : "IN_TRANSIT",
+          summary,
+          isDelivered,
+          simulated: false,
+        }
+      } else if (res.status === 404) {
+        return { status: "PRE_TRANSIT", summary: "USPS has not received this package yet.", isDelivered: false, simulated: false }
+      } else {
+        console.error("[usps] tracking API returned:", res.status, await res.text().catch(() => ""))
+      }
+    } catch (e: any) {
+      console.error("[usps] tracking API error:", e?.message || e)
     }
   }
 
-  // ---- Live USPS XML API ------------------------------------------------
-  try {
-    const xml = `<TrackRequest USERID="${userId}"><TrackID ID="${clean}"></TrackID></TrackRequest>`
-    const url = `https://meps.usps.com/cgi-bin/uspsapi?API=TrackV2&XML=${encodeURIComponent(xml)}`
-    const res = await fetch(url, { method: "GET" })
-    const txt = await res.text()
-    const m = txt.match(/<TrackSummary>([\s\S]*?)<\/TrackSummary>/i)
-    const summary = m ? m[1].trim() : "No tracking summary available."
-    const isDelivered = /delivered/i.test(summary)
-    return {
-      status: isDelivered ? "DELIVERED" : "IN_TRANSIT",
-      summary,
-      isDelivered,
-      simulated: false,
-    }
-  } catch (e: any) {
-    return {
-      status: "UNKNOWN",
-      summary: `USPS tracking failed: ${e?.message || "unknown error"}`,
-      isDelivered: false,
-      simulated: false,
-    }
+  // ---- Simulation fallback (dev / network blocked) ---------------------
+  const digits = clean.replace(/[^0-9]/g, "")
+  const last = digits ? digits.slice(-1) : ""
+  const even = last !== "" && parseInt(last, 10) % 2 === 0
+  const isDelivered = !!even
+  return {
+    status: isDelivered ? "DELIVERED" : "IN_TRANSIT",
+    summary: isDelivered
+      ? "Delivered (USPS API unreachable — simulation mode)."
+      : "In transit (USPS API unreachable — simulation mode).",
+    isDelivered,
+    simulated: true,
   }
 }
 
 // Apply a USPS tracking lookup to a single commerce_orders row and persist
-// the result. Writes:
-//   • commerce_orders UPDATE (tracking + status)
-//   • commerce_fulfillment_events INSERT (the chronological status history)
-//   • commerce_shipping_labels UPSERT (carrier + tracking_number)
-// Also revalidates the admin/customer order pages so the new status shows up
-// immediately. Never throws — the caller is a route handler.
+// the result. Writes commerce_orders UPDATE + commerce_fulfillment_events
+// INSERT + commerce_shipping_labels UPSERT. Never throws.
 export async function applyUspsTrackingToOrder(
   orderId: string,
   trackingNumber: string,
@@ -99,12 +140,10 @@ export async function applyUspsTrackingToOrder(
     const result = await trackUsps(trackingNumber)
     const tenant = TENANT_ID()
 
-    // 1. Load the current order so we can record old_status in the event log.
     const existing = await repo.get("commerce_orders", orderId).catch(() => null)
     const oldStatus = (existing as any)?.fulfillment_status || "pending"
     const newStatus = result.isDelivered ? "delivered" : "shipped"
 
-    // 2. UPDATE commerce_orders.
     const updated = (await repo.update("commerce_orders", orderId, {
       tracking_number: trackingNumber,
       carrier: "USPS",
@@ -114,10 +153,9 @@ export async function applyUspsTrackingToOrder(
       updated_at: new Date().toISOString(),
     } as any)) as any
 
-    // 3. INSERT a fulfillment event (the chronological status history).
-    //    NOTE: commerce_fulfillment_events.order_id has a FK to erp_orders
-    //    (not commerce_orders), so we set order_id=NULL and put the
-    //    commerce_orders id in the payload. Non-fatal.
+    // INSERT a fulfillment event (chronological status history).
+    // order_id FK references erp_orders, not commerce_orders — set NULL +
+    // put commerce_order_id in the payload. Non-fatal.
     await withPg(async (client) => {
       await client.query(
         `INSERT INTO public.commerce_fulfillment_events
@@ -142,8 +180,7 @@ export async function applyUspsTrackingToOrder(
       console.error("[usps] fulfillment event insert failed (non-fatal):", e?.message || e)
     })
 
-    // 4. UPSERT a shipping label row (so the admin can see every label ever
-    //    generated for the order). Non-fatal.
+    // UPSERT a shipping label row. Non-fatal.
     await withPg(async (client) => {
       await client.query(
         `INSERT INTO public.commerce_shipping_labels
