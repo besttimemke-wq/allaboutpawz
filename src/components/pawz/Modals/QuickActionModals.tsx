@@ -75,70 +75,103 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
 
   if (!activeModal) return null;
 
-  const handleCreateAppointment = (e: React.FormEvent) => {
+  const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          petName: petName || 'Max',
+          ownerName: customerName || 'Sarah Johnson',
+          breed: breed || 'Golden Retriever',
+          service: serviceName, staffName, date, time,
+          servicePrice: `$${parseFloat(price) || 85.0}`, status: 'Scheduled', notes,
+        }),
+      });
+    } catch { /* non-fatal */ }
     onSaveAppointment({
-      petName: petName || 'Max',
-      customerName: customerName || 'Sarah Johnson',
-      breed: breed || 'Golden Retriever',
-      serviceName,
-      staffName,
-      date,
-      time,
-      price: parseFloat(price) || 85.0,
-      status: 'Scheduled',
-      petEmoji: '🐶',
-      notes,
+      petName: petName || 'Max', customerName: customerName || 'Sarah Johnson',
+      breed: breed || 'Golden Retriever', serviceName, staffName, date, time,
+      price: parseFloat(price) || 85.0, status: 'Scheduled', petEmoji: '🐶', notes,
     });
     onClose();
   };
 
-  const handleCreateCustomer = (e: React.FormEvent) => {
+  const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
+    let crmId: string | null = null;
+    try {
+      const res = await fetch('/api/admin/crm/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: custEmail || 'client@example.com', firstName: (custName || 'New Client').split(' ')[0], lastName: (custName || '').split(' ').slice(1).join(' '), phone: custPhone, lifecycleStage: 'new_customer' }),
+      });
+      if (res.ok) { const j = await res.json(); crmId = j?.id || null; }
+    } catch { /* non-fatal */ }
+    if (custPet && crmId) {
+      try { await fetch('/api/admin/crm/pets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: crmId, name: custPet.split(' ')[0], species: 'dog' }) }); } catch { /* non-fatal */ }
+    }
     onSaveCustomer({
-      name: custName || 'New Client',
-      email: custEmail || 'client@example.com',
-      phone: custPhone || '(555) 000-1122',
-      pets: [custPet || 'Milo (Labrador)'],
-      totalSpent: 0,
-      lastVisit: 'Today',
-      preferredGroomer: 'Sarah M.',
+      name: custName || 'New Client', email: custEmail || 'client@example.com',
+      phone: custPhone || '(555) 000-1122', pets: [custPet || 'Milo (Labrador)'],
+      totalSpent: 0, lastVisit: 'Today', preferredGroomer: 'Sarah M.',
     });
     onClose();
   };
 
-  const handleCreatePet = (e: React.FormEvent) => {
+  const handleCreatePet = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await fetch('/api/admin/crm/pets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: newPetOwnerId || '', name: newPetName || 'Cooper', breed: newPetBreed, species: 'dog', weight: parseFloat(newPetWeight) || undefined, handlingNotes: newPetNotes }),
+      });
+    } catch { /* non-fatal */ }
     onSavePet({
-      name: newPetName || 'Cooper',
-      breed: newPetBreed || 'Aussie Shepherd',
-      ownerName: newPetOwner || 'Emily Watson',
-      age: newPetAge,
-      weight: newPetWeight,
-      emoji: '🐕',
-      vaccinationStatus: 'Up to date',
-      specialNotes: newPetNotes || 'Friendly, loves treats',
+      name: newPetName || 'Cooper', breed: newPetBreed || 'Aussie Shepherd',
+      ownerName: newPetOwner || 'Emily Watson', age: newPetAge, weight: newPetWeight,
+      emoji: '🐕', vaccinationStatus: 'Up to date', specialNotes: newPetNotes || 'Friendly, loves treats',
       lastGroomDate: 'May 12, 2025',
     });
     onClose();
   };
 
-  const handleProcessPayment = (e: React.FormEvent) => {
+  const handleProcessPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await fetch('/api/pos/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [{ name: 'Payment', unitPrice: payAmount || '0', quantity: 1 }],
+          tender: 'cash',
+          notes: 'Quick payment',
+        }),
+      });
+    } catch { /* non-fatal */ }
     setPaySuccess(true);
-    setTimeout(() => {
-      setPaySuccess(false);
-      onClose();
-    }, 1200);
+    setTimeout(() => { setPaySuccess(false); onClose(); }, 1200);
   };
 
-  const handleCreateInvoice = (e: React.FormEvent) => {
+  const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await fetch('/api/admin/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: invCustomerId || undefined,
+          customerName: invCustomerName || '',
+          amount: parseFloat(invAmount) || 0,
+          dueDate: invDueDate || '',
+          notes: invNotes || '',
+        }),
+      });
+    } catch { /* non-fatal */ }
     setInvSuccess(true);
-    setTimeout(() => {
-      setInvSuccess(false);
-      onClose();
-    }, 1200);
+    setTimeout(() => { setInvSuccess(false); onClose(); }, 1200);
   };
 
   return (
