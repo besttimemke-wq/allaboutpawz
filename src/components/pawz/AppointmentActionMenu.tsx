@@ -3,7 +3,7 @@
 import React from 'react';
 import { AppointmentItem } from '@/lib/types';
 import {
-  Eye, Edit3, Calendar as CalendarIcon, Sparkles, Check, Clock,
+  Eye, Edit3, Sparkles, Check, Clock,
   CheckCircle2, CreditCard, Send, FileText, Printer, Copy,
   XCircle, UserMinus, Trash2, CheckCheck, X
 } from 'lucide-react';
@@ -30,28 +30,27 @@ export const AppointmentActionMenu: React.FC<AppointmentActionMenuProps> = ({
       items: [
         { key: 'confirm', label: 'Confirm', icon: Check, color: 'text-primary' },
         { key: 'check-in', label: 'Check In', icon: Clock, color: 'text-primary' },
-        { key: 'start', label: 'Start Service', icon: CheckCircle2, color: 'text-primary' },
-        { key: 'complete', label: 'Complete', icon: CheckCheck, color: 'text-success' },
+        { key: 'mark-in-progress', label: 'Start Service', icon: CheckCircle2, color: 'text-primary' },
+        { key: 'mark-complete', label: 'Complete', icon: CheckCheck, color: 'text-success' },
         { key: 'no-show', label: 'No Show', icon: UserMinus, color: 'text-warning' },
       ],
     },
     {
       label: 'Edit',
       items: [
-        { key: 'view', label: 'View Details', icon: Eye, color: 'text-foreground' },
-        { key: 'edit', label: 'Edit Details', icon: Edit3, color: 'text-foreground' },
-        { key: 'reschedule', label: 'Reschedule', icon: CalendarIcon, color: 'text-foreground' },
-        { key: 'addons', label: 'Add / Edit Add-ons', icon: Sparkles, color: 'text-foreground' },
+        { key: 'view-details', label: 'View Customer Profile', icon: Eye, color: 'text-foreground' },
+        { key: 'edit', label: 'Edit Details & Reschedule', icon: Edit3, color: 'text-foreground' },
+        { key: 'add-on', label: 'Add / Edit Add-ons', icon: Sparkles, color: 'text-foreground' },
         { key: 'duplicate', label: 'Duplicate', icon: Copy, color: 'text-foreground' },
       ],
     },
     {
       label: 'Billing & Comms',
       items: [
-        { key: 'charge', label: 'Charge Payment', icon: CreditCard, color: 'text-foreground' },
-        { key: 'message', label: 'Send Message', icon: Send, color: 'text-foreground' },
-        { key: 'note', label: 'Add Note', icon: FileText, color: 'text-foreground' },
-        { key: 'print', label: 'Print Receipt', icon: Printer, color: 'text-foreground' },
+        { key: 'take-payment', label: 'Charge Payment', icon: CreditCard, color: 'text-foreground' },
+        { key: 'send-message', label: 'Send Message', icon: Send, color: 'text-foreground' },
+        { key: 'add-note', label: 'Add Note', icon: FileText, color: 'text-foreground' },
+        { key: 'print-sheet', label: 'Print Receipt', icon: Printer, color: 'text-foreground' },
       ],
     },
     {

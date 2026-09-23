@@ -351,7 +351,10 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   // Action Menu Dispatcher
   const handleActionClick = (actionKey: string, appt: AppointmentItem) => {
     setActiveActionMenuId(null);
-    if (actionKey === 'check-in') {
+    if (actionKey === 'confirm') {
+      updateAppointmentStatus(appt.id, 'Confirmed');
+      showToast(`✓ Appointment confirmed for ${appt.petName}.`);
+    } else if (actionKey === 'check-in') {
       updateAppointmentStatus(appt.id, 'Checked In');
       showToast(`✓ ${appt.petName} checked in successfully!`);
     } else if (actionKey === 'mark-in-progress') {
@@ -360,6 +363,9 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
     } else if (actionKey === 'mark-complete') {
       updateAppointmentStatus(appt.id, 'Completed');
       showToast(`🎉 Appointment completed for ${appt.petName}! Ready for pickup.`);
+    } else if (actionKey === 'view-details') {
+      // Open the customer profile for this appointment's customer
+      onSelectAppointment?.(appt);
     } else if (actionKey === 'duplicate') {
       nextIdRef.current += 1;
       const copy: AppointmentItem = {
