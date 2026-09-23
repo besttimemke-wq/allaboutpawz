@@ -39,7 +39,7 @@ export const AppointmentActionMenu: React.FC<AppointmentActionMenuProps> = ({
 
   return (
     <div 
-      className="absolute top-8 right-2 w-56 bg-card rounded-2xl shadow-2xl border border-border py-2.5 z-40 divide-y divide-border font-sans animate-in fade-in zoom-in-95"
+      className="fixed top-16 right-4 w-56 bg-card rounded-2xl shadow-2xl border border-border py-2.5 z-[60] divide-y divide-border font-sans animate-in fade-in zoom-in-95"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Top Sub-Tabs within dropdown matching Screen 2 / Image 2 */}

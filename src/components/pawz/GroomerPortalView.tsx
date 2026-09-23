@@ -32,7 +32,6 @@ import {
   UserCheck
 } from 'lucide-react';
 import { GroomerAppointmentItem, AuthUser } from '@/lib/types';
-import { INITIAL_GROOMER_APPOINTMENTS } from '@/lib/dawg-mock-data';
 import { useEffect } from 'react';
 
 interface GroomerPortalViewProps {
@@ -57,7 +56,7 @@ export const GroomerPortalView: React.FC<GroomerPortalViewProps> = ({
   const [showDateDropdown, setShowDateDropdown] = useState(false);
 
   // Appointments & active pet state
-  const [appointments, setAppointments] = useState<GroomerAppointmentItem[]>(INITIAL_GROOMER_APPOINTMENTS);
+  const [appointments, setAppointments] = useState<GroomerAppointmentItem[]>([]);
 
   useEffect(() => {
     fetch('/api/bookings?limit=50').then((r) => r.ok ? r.json() : null).then((data) => {
