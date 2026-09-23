@@ -2983,7 +2983,20 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
           appointment={apptToReschedule}
           isOpen={true}
           onClose={() => setApptToReschedule(null)}
-          onReschedule={(newDate, newTime) => {
+          onReschedule={async (newDate, newTime) => {
+            // Persist to the DB via the bookings API
+            try {
+              await fetch('/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: apptToReschedule.id,
+                  date: newDate,
+                  time: newTime,
+                  status: 'RESCHEDULED',
+                }),
+              });
+            } catch (err) { console.error('[CRM reschedule failed]', err); }
             setAppointmentsList(prev =>
               prev.map(a => (a.id === apptToReschedule.id ? { ...a, date: newDate, time: newTime } : a))
             );
