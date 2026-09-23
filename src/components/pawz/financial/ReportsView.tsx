@@ -19,8 +19,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigateSection }) =
       // Reports view shows aggregates — disputes come from payments with status != succeeded
     }).catch(() => {});
   }, []);
-    { id: 'DISP-398', client: 'Theresa May', date: '2025-04-28', amount: 125.00, reason: 'Duplicate transaction claim', status: 'WON', deadline: '2025-05-12' },
-  ]);
 
   const [selectedDispute, setSelectedDispute] = useState<string | null>('DISP-401');
   const [responseEvidence, setResponseEvidence] = useState('');
