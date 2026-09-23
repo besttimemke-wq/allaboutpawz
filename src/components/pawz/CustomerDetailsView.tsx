@@ -479,7 +479,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
           service: r.serviceName || 'Grooming',
           groomer: r.groomer || '—',
           duration: r.durationMinutes ? `${r.durationMinutes} min` : '—',
-          notes: r.cutDetails || r.notes ?? '',
+          notes: r.cutDetails ?? r.notes ?? '',
           amount: r.amount || 0,
           status: r.status || 'Paid',
         })));

@@ -20,6 +20,7 @@ const lato = Lato({
 
 const greatVibes = Great_Vibes({
   subsets: ["latin"],
+  weight: ["400"],
   variable: "--font-script",
   display: "swap",
 });
