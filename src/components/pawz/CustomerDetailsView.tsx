@@ -434,14 +434,9 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
   };
 
   /* ------------------- ACTIONS: 2. PETS ------------------- */
-  const handleSetPrimaryPet = (petId: string) => {
-    setProfile(prev => ({
-      ...prev,
-      pets: (prev.pets || []).map(p => ({
-        ...p,
-        isPrimary: p.id === petId,
-      })),
-    }));
+  const handleSetPrimaryPet = async (petId: string) => {
+    try { await fetch(`/api/admin/crm/pets/${encodeURIComponent(petId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isPrimary: true }) }); } catch { /* non-fatal */ }
+    setProfile(prev => ({ ...prev, pets: (prev.pets || []).map(p => ({ ...p, isPrimary: p.id === petId })) }));
     const targetPet = (profile.pets || []).find(p => p.id === petId);
     showToast(`Marked ${targetPet?.name || 'Pet'} as primary/default for booking.`);
   };
@@ -534,10 +529,9 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
   };
 
   /* ------------------- ACTIONS: 6. DOCUMENTS ------------------- */
-  const handleVerifyDocument = (docId: string) => {
-    setDocumentsList(prev =>
-      prev.map(d => (d.id === docId ? { ...d, status: 'Valid (Verified)' } : d))
-    );
+  const handleVerifyDocument = async (docId: string) => {
+    try { await fetch(`/api/admin/crm/documents/${encodeURIComponent(docId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'approved' }) }); } catch { /* non-fatal */ }
+    setDocumentsList(prev => prev.map(d => (d.id === docId ? { ...d, status: 'Valid (Verified)' } : d)));
     showToast('Document marked as verified by staff.');
   };
 
