@@ -161,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
       { id: 'subscriptions', label: 'Subscriptions' },
     ],
     LEARN: [
-      { id: 'dashboard', label: 'Academy Home' },
+      { id: 'dashboard', label: 'Academy Overview' },
     ],
   };
 
@@ -379,11 +379,10 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="h-10 px-3 sm:px-4 flex items-center justify-end gap-1 overflow-x-auto custom-scrollbar bg-background border-b border-border">
           {pillars.map((pillar) => {
             const isSelected = activePillar === pillar.id;
-            // LEARN pill navigates to /learn (the academy) — it's a separate
-            // app surface, not an admin sub-section.
             const handleClick = () => {
               if (pillar.id === 'LEARN') {
-                window.location.href = '/learn';
+                // LMS admin lives at /learn/admin/* — not /admin/*
+                window.location.href = '/learn/admin/architect';
               } else {
                 onNavigateSection(pillarDefaultSection[pillar.id]);
               }
