@@ -42,6 +42,7 @@ import {
 interface AppointmentsViewProps {
   appointments?: AppointmentItem[];
   onAddAppointment?: () => void;
+  onSelectAppointment?: (appt: AppointmentItem) => void;
   onUpdateStatus?: (id: string, newStatus: AppointmentItem['status']) => void;
 }
 
@@ -61,6 +62,7 @@ type ViewMode = 'list' | 'kanban' | 'timeline' | 'calendar' | 'grid';
 export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   appointments: initialPropAppointments,
   onAddAppointment: propOnAddAppointment,
+  onSelectAppointment,
   onUpdateStatus: propOnUpdateStatus,
 }) => {
   const nextIdRef = useRef(1000);
