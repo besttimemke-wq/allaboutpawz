@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DawgNavSection,
   KPIMetric,
@@ -164,16 +164,6 @@ const STAFF_SLOT_STYLES: Record<string, string> = {
   blocked: 'bg-muted-foreground',
 };
 
-const REVENUE_DATA = [
-  { day: 'Mon', amount: 4200 },
-  { day: 'Tue', amount: 4800 },
-  { day: 'Wed', amount: 6200 },
-  { day: 'Thu', amount: 5900 },
-  { day: 'Fri', amount: 8400 },
-  { day: 'Sat', amount: 6900 },
-  { day: 'Sun', amount: 5400 },
-];
-
 const REVENUE_PERIODS = ['This Week', 'This Month', 'Quarter'] as const;
 type RevenuePeriod = (typeof REVENUE_PERIODS)[number];
 
@@ -230,6 +220,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onToggleAppointmentStatus,
 }) => {
   const [revenuePeriod, setRevenuePeriod] = useState<RevenuePeriod>('This Week');
+  const [revenueData, setRevenueData] = useState([
+    { day: 'Mon', amount: 0 }, { day: 'Tue', amount: 0 }, { day: 'Wed', amount: 0 },
+    { day: 'Thu', amount: 0 }, { day: 'Fri', amount: 0 }, { day: 'Sat', amount: 0 }, { day: 'Sun', amount: 0 },
+  ]);
+  useEffect(() => {
+    fetch('/api/admin/orders?limit=200').then((r) => r.ok ? r.json() : null).then((data) => {
+      if (!data?.orders) return;
+      const dayMap: Record<string, number> = {};
+      for (const o of data.orders) {
+        if (o.status !== 'COMPLETED') continue;
+        const d = new Date(o.createdAt || o.created_at);
+        const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+        dayMap[day] = (dayMap[day] || 0) + (parseFloat(String(o.subtotal||'0').replace(/[^0-9.]/g,''))||0);
+      }
+      const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+      setRevenueData(days.map(day => ({ day, amount: Math.round(dayMap[day] || 0) })));
+    }).catch(() => {});
+  }, []);
 
   const cycleRevenuePeriod = () => {
     const idx = REVENUE_PERIODS.indexOf(revenuePeriod);
@@ -502,7 +510,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={REVENUE_DATA}
+                  data={revenueData}
                   margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
                 >
                   <defs>

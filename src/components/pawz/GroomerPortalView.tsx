@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { GroomerAppointmentItem, AuthUser } from '@/lib/types';
 import { INITIAL_GROOMER_APPOINTMENTS } from '@/lib/dawg-mock-data';
+import { useEffect } from 'react';
 
 interface GroomerPortalViewProps {
   currentUser: AuthUser;
@@ -57,6 +58,17 @@ export const GroomerPortalView: React.FC<GroomerPortalViewProps> = ({
 
   // Appointments & active pet state
   const [appointments, setAppointments] = useState<GroomerAppointmentItem[]>(INITIAL_GROOMER_APPOINTMENTS);
+
+  useEffect(() => {
+    fetch('/api/bookings?limit=50').then((r) => r.ok ? r.json() : null).then((data) => {
+      if (!data?.appointments) return;
+      const mapped: GroomerAppointmentItem[] = data.appointments.map((a: any) => ({
+        id: a.id, time: a.time || '—', petName: a.petName || '—', owner: a.customerName || '—',
+        service: a.serviceName || '—', breed: a.breed || '—', status: a.status || 'Scheduled', notes: a.notes || '',
+      }));
+      if (mapped.length > 0) setAppointments(mapped);
+    }).catch(() => {});
+  }, []);
   const [selectedPetId, setSelectedPetId] = useState<string>('g-appt-1');
 
   // Quick Action Modal states

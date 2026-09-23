@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { INVENTORY_PRODUCTS } from '@/lib/dawg-mock-data';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Plus, Check, Search, Package, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,9 +16,14 @@ export const InventoryView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  const allItems = INVENTORY_PRODUCTS.map((item) => {
-    const currentStock = item.stock ?? item.inStock ?? 0;
-    const minStock = item.minStock ?? item.reorderPoint ?? 5;
+  const [items, setItems] = useState<any[]>([]);
+  useEffect(() => {
+    fetch('/api/admin/products?limit=500').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.products) setItems(d.products); }).catch(() => {});
+  }, []);
+
+  const allItems = items.map((item) => {
+    const currentStock = item.stock ?? 0;
+    const minStock = 5;
     const isLow = currentStock <= minStock;
     return { ...item, currentStock, minStock, isLow };
   });
