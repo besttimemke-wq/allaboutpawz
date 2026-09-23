@@ -1,0 +1,650 @@
+     1→"use client"
+     2→
+     3→import { useEffect, useMemo, useRef, useState } from "react"
+     4→import { useSearchParams } from "next/navigation"
+     5→import {
+     6→  Check, ArrowLeft, ArrowRight, ShoppingBag, Plus, Minus, X, Trash,
+     7→  Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle,
+     8→} from "@phosphor-icons/react"
+     9→import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
+    10→import { track, priceToDollars, identifyViewer } from "@/lib/analytics"
+    11→
+    12→// ---------------------------------------------------------------------------
+    13→// CheckoutIsland — the shop checkout flow, mounted on the SSR shop page.
+    14→//
+    15→// Flow (mirrors the booking wizard):
+    16→//   Catalog → BAG (step 1) → CONTACT (step 2) → SHIPPING/PICKUP (step 3)
+    17→//   → REVIEW & PAY (step 4) → Stripe Checkout redirect → success screen.
+    18→//
+    19→// Activation is URL-driven (the bag page hands off with ?checkout=1; Stripe
+    20→// returns with ?checkout=success|cancel), so the SSR product grid stays the
+    21→// default view and the wizard takes over only when a checkout is in flight.
+    22→// ---------------------------------------------------------------------------
+    23→
+    24→export function CheckoutIsland() {
+    25→  const s = useCart()
+    26→  // Activation is URL-driven and derived during render (no effect state):
+    27→  // the bag page hands off with ?checkout=1; Stripe returns with
+    28→  // ?checkout=success|cancel. The wizard takes over only when in flight.
+    29→  const searchParams = useSearchParams()
+    30→  const checkoutParam = searchParams.get("checkout")
+    31→  const [view, setView] = useState<"catalog" | "checkout" | "success">(
+    32→    checkoutParam === "success" ? "success" : checkoutParam === "1" ? "checkout" : "catalog",
+    33→  )
+    34→  const [notice, setNotice] = useState<string | null>(
+    35→    checkoutParam === "cancel"
+    36→      ? "Checkout cancelled — your bag is saved whenever you're ready."
+    37→      : null,
+    38→  )
+    39→  const [verify, setVerify] = useState<"checking" | "paid" | "pending" | null>(
+    40→    checkoutParam === "success" ? (searchParams.get("session_id") ? "checking" : "paid") : null,
+    41→  )
+    42→
+    43→  // GA4 purchase — fires once on the Stripe success return, with the bag
+    44→  // contents still in localStorage (the reset only happens when the visitor
+    45→  // clicks CONTINUE SHOPPING) and the Stripe session id as transaction_id.
+    46→  const purchaseSent = useRef(false)
+    47→  useEffect(() => {
+    48→    if (purchaseSent.current || view !== "success") return
+    49→    purchaseSent.current = true
+    50→    const sessionId = searchParams.get("session_id")
+    51→    track.purchase(
+    52→      sessionId || `shop-${Date.now()}`,
+    53→      s.items.map((i) => ({
+    54→        item_id: i.productId,
+    55→        item_name: i.name,
+    56→        item_category: i.category ?? undefined,
+    57→        price: priceToDollars(i.price),
+    58→        quantity: i.quantity,
+    59→      })),
+    60→    )
+    61→    // Stitch the funnel identity in PostHog — the same email the
+    62→    // server-side captures use as distinct_id.
+    63→    identifyViewer(s.email)
+    64→  }, [view, searchParams, s.items])
+    65→
+    66→  // GA4 begin_checkout — fires when the checkout wizard is entered.
+    67→  const checkoutStarted = useRef(false)
+    68→  useEffect(() => {
+    69→    if (checkoutStarted.current || view !== "checkout" || s.items.length === 0) return
+    70→    checkoutStarted.current = true
+    71→    track.beginCheckout(
+    72→      s.items.map((i) => ({
+    73→        item_id: i.productId,
+    74→        item_name: i.name,
+    75→        item_category: i.category ?? undefined,
+    76→        price: priceToDollars(i.price),
+    77→        quantity: i.quantity,
+    78→      })),
+    79→      "shop",
+    80→    )
+    81→  }, [view, s.items])
+    82→
+    83→  // Side effects only: verify payment with Stripe + scrub the URL so a
+    84→  // refresh doesn't re-trigger the flow.
+    85→  useEffect(() => {
+    86→    if (typeof window === "undefined" || !checkoutParam) return
+    87→    if (checkoutParam === "success") {
+    88→      s.patch({ step: 0 })
+    89→      const sessionId = searchParams.get("session_id")
+    90→      if (sessionId) {
+    91→        fetch(`/api/shop/verify?session_id=${encodeURIComponent(sessionId)}`)
+    92→          .then((r) => r.json())
+    93→          .then((d) => setVerify(d.paid ? "paid" : "pending"))
+    94→          .catch(() => setVerify("pending"))
+    95→      }
+    96→    } else if (checkoutParam === "1") {
+    97→      s.setStep(1)
+    98→    }
+    99→    window.history.replaceState({}, "", "/shop")
+   100→    // Activation params are read once on mount.
+   101→     
+   102→  }, [])
+   103→
+   104→  if (view === "success") {
+   105→    return (
+   106→      <div className="border border-gold/30 bg-card p-10 text-center">
+   107→        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gold-deep">
+   108→          <Check size={32} weight="bold" className="text-cream" />
+   109→        </div>
+   110→        <h2 className="mt-4 font-display text-[28px] text-ink">Order Received</h2>
+   111→        <p className="script mt-2 text-[24px]">From Pawz to PAWfection</p>
+   112→        <p className="mx-auto mt-4 max-w-md text-[13px] leading-relaxed text-ink-soft">
+   113→          {verify === "paid"
+   114→            ? "Thank you — your payment was received and your order is confirmed. A receipt email is on its way."
+   115→            : verify === "checking"
+   116→              ? "Confirming your payment with Stripe…"
+   117→              : "We've received your order and are confirming your payment. You'll get a receipt by email shortly."}
+   118→        </p>
+   119→        <div className="mt-6 flex justify-center gap-3">
+   120→          <a href="/shop" className="btn-gold" onClick={() => { s.reset(); setView("catalog") }}>CONTINUE SHOPPING</a>
+   121→          <a href="/book" className="btn-ghost">BOOK A GROOM</a>
+   122→        </div>
+   123→      </div>
+   124→    )
+   125→  }
+   126→
+   127→  if (view === "checkout") {
+   128→    return (
+   129→      <div>
+   130→        {notice && (
+   131→          <p className="mb-4 border border-gold/30 bg-cream-deep px-4 py-2 text-[12px] text-gold-deep">{notice}</p>
+   132→        )}
+   133→        <CheckoutWizard onExit={() => { s.setStep(0); setView("catalog") }} />
+   134→      </div>
+   135→    )
+   136→  }
+   137→
+   138→  return notice ? (
+   139→    <p className="mb-4 border border-gold/30 bg-cream-deep px-4 py-2 text-[12px] text-gold-deep">{notice}</p>
+   140→  ) : null
+   141→}
+   142→
+   143→// ===========================================================================
+   144→// Checkout wizard — 4 steps, same chrome as the booking wizard
+   145→// ===========================================================================
+   146→
+   147→function CheckoutWizard({ onExit }: { onExit: () => void }) {
+   148→  const s = useCart()
+   149→  const [submitting, setSubmitting] = useState(false)
+   150→  const [redirecting, setRedirecting] = useState(false)
+   151→  const [apiError, setApiError] = useState<string | null>(null)
+   152→
+   153→  const subtotalCents = useMemo(
+   154→    () => s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0),
+   155→    [s.items],
+   156→  )
+   157→
+   158→  const stepLabels = ["Bag", "Contact", "Delivery", "Review"]
+   159→
+   160→  const canNext = useMemo(() => {
+   161→    switch (s.step) {
+   162→      case 1: return s.items.length > 0
+   163→      case 2:
+   164→        return !!s.firstName.trim() && !!s.lastName.trim()
+   165→          && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email.trim())
+   166→          && s.phone.trim().length >= 7
+   167→      case 3:
+   168→        return s.deliveryMethod === "pickup"
+   169→          ? true
+   170→          : !!s.address.trim() && !!s.city.trim() && !!s.state.trim() && s.postalCode.trim().length >= 5
+   171→      case 4: return true
+   172→      default: return false
+   173→    }
+   174→  }, [s.step, s.items.length, s.firstName, s.lastName, s.email, s.phone,
+   175→      s.deliveryMethod, s.address, s.city, s.state, s.postalCode])
+   176→
+   177→  const onContinue = async () => {
+   178→    setApiError(null)
+   179→    if (!canNext) return
+   180→
+   181→    // GA4 add_shipping_info — fires when the delivery step is completed
+   182→    // (step 3 = Shipping / Pickup choice).
+   183→    if (s.step === 3) {
+   184→      track.addShippingInfo(
+   185→        s.items.map((i) => ({
+   186→          item_id: i.productId,
+   187→          item_name: i.name,
+   188→          item_category: i.category ?? undefined,
+   189→          price: priceToDollars(i.price),
+   190→          quantity: i.quantity,
+   191→        })),
+   192→        s.deliveryMethod,
+   193→      )
+   194→    }
+   195→
+   196→    // No customer record is created here — checkout proceeds as a guest.
+   197→    // The salon-side (customers) record is only created by the booking
+   198→    // wizard or an admin walk-in; a product-only buyer exists solely in
+   199→    // Orders CRM (identified by the order's own email), and the Stripe
+   200→    // webhook enrolls the login after payment actually clears.
+   201→
+   202→    s.setStep(s.step + 1)
+   203→  }
+   204→
+   205→  // ----- Final submit → Stripe Checkout -----
+   206→  const submit = async () => {
+   207→    setApiError(null)
+   208→    setSubmitting(true)
+   209→    // GA4 add_payment_info — the visitor chose to pay; fired right before the
+   210→    // Stripe redirect.
+   211→    track.addPaymentInfo(
+   212→      s.items.map((i) => ({
+   213→        item_id: i.productId,
+   214→        item_name: i.name,
+   215→        item_category: i.category ?? undefined,
+   216→        price: priceToDollars(i.price),
+   217→        quantity: i.quantity,
+   218→      })),
+   219→    )
+   220→    try {
+   221→      const res = await fetch("/api/shop/checkout", {
+   222→        method: "POST",
+   223→        headers: { "Content-Type": "application/json" },
+   224→        body: JSON.stringify({
+   225→          items: s.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+   226→          deliveryMethod: s.deliveryMethod,
+   227→          email: s.email, phone: s.phone,
+   228→          address: s.address, addressLine2: s.addressLine2,
+   229→          city: s.city, state: s.state, postalCode: s.postalCode,
+   230→          notes: s.notes,
+   231→        }),
+   232→      })
+   233→      const data = await res.json()
+   234→      if (!res.ok) {
+   235→        setApiError(data.error || "Checkout failed")
+   236→        setSubmitting(false)
+   237→        return
+   238→      }
+   239→      if (data.url) {
+   240→        setRedirecting(true)
+   241→        window.location.href = data.url
+   242→        return
+   243→      }
+   244→      setApiError("Checkout session could not be created.")
+   245→    } catch (e: unknown) {
+   246→      setApiError((e as Error).message || "Network error")
+   247→    } finally {
+   248→      setSubmitting(false)
+   249→    }
+   250→  }
+   251→
+   252→  const goBack = () => {
+   253→    setApiError(null)
+   254→    if (s.step === 1) {
+   255→      onExit()
+   256→    } else {
+   257→      s.setStep(s.step - 1)
+   258→    }
+   259→  }
+   260→
+   261→  return (
+   262→    <div className="space-y-6">
+   263→      <Stepper step={s.step} labels={stepLabels} onJump={(i) => i < s.step && s.setStep(i)} />
+   264→
+   265→      {apiError && (
+   266→        <div className="border border-red-300 bg-red-50 px-4 py-3 text-[12px] text-red-700">{apiError}</div>
+   267→      )}
+   268→
+   269→      <div className="min-h-[340px]">
+   270→        {s.step === 1 && <StepBag />}
+   271→        {s.step === 2 && <StepContact />}
+   272→        {s.step === 3 && <StepDelivery />}
+   273→        {s.step === 4 && (
+   274→          <StepReview subtotalCents={subtotalCents} submitting={submitting} redirecting={redirecting} onSubmit={submit} />
+   275→        )}
+   276→      </div>
+   277→
+   278→      {/* Nav */}
+   279→      <div className="flex items-center justify-between border-t border-gold/25 pt-5">
+   280→        <button type="button" onClick={goBack} className="btn-ghost">
+   281→          <ArrowLeft size={14} weight="bold" /> {s.step === 1 ? "Keep Shopping" : "Back"}
+   282→        </button>
+   283→        {s.step < 4 ? (
+   284→          <button
+   285→            type="button"
+   286→            onClick={onContinue}
+   287→            disabled={!canNext || submitting}
+   288→            className={`btn-gold ${!canNext || submitting ? "cursor-not-allowed opacity-40" : ""}`}
+   289→          >
+   290→            {submitting ? "Saving…" : "Continue"} <ArrowRight size={14} weight="bold" />
+   291→          </button>
+   292→        ) : null}
+   293→      </div>
+   294→    </div>
+   295→  )
+   296→}
+   297→
+   298→// ===========================================================================
+   299→// Step 1 — BAG
+   300→// ===========================================================================
+   301→
+   302→function StepBag() {
+   303→  const s = useCart()
+   304→  if (s.items.length === 0) {
+   305→    return (
+   306→      <div className={`${stepWrapCls} space-y-4 text-center`}>
+   307→        <ShoppingBag size={40} className="mx-auto text-gold/50" />
+   308→        <h2 className="font-display text-[22px] text-ink">Your bag is empty</h2>
+   309→        <p className="text-[12px] text-ink-soft">Add a few pawfection favorites to continue.</p>
+   310→      </div>
+   311→    )
+   312→  }
+   313→  return (
+   314→    <div className={`${stepWrapCls} space-y-5`}>
+   315→      <div>
+   316→        <p className="eyebrow">STEP 1 — YOUR BAG</p>
+   317→        <h2 className="mt-2 font-display text-[24px] text-ink">Review your bag</h2>
+   318→        <p className="mt-1 text-[12px] text-ink-soft">Adjust quantities or remove items before continuing.</p>
+   319→      </div>
+   320→
+   321→      <ul className="divide-y divide-gold/20 border-y border-gold/20">
+   322→        {s.items.map((i) => (
+   323→          <li key={i.productId} className="flex items-center gap-4 py-4">
+   324→            <div className="flex h-20 w-16 shrink-0 items-center justify-center overflow-hidden border border-gold/25 bg-cream-deep">
+   325→              {i.image ? (
+   326→                <img src={i.image} alt={i.alt || i.name} width={128} height={160} className="h-full w-full object-contain p-1" />
+   327→              ) : (
+   328→                <PawPrint size={20} className="text-gold/40" />
+   329→              )}
+   330→            </div>
+   331→            <div className="min-w-0 flex-1">
+   332→              <p className="truncate text-[13px] font-bold text-ink">{i.name}</p>
+   333→              <p className="mt-0.5 text-[12px] text-gold-deep">{i.price}</p>
+   334→              <div className="mt-2 inline-flex items-center border border-gold/35 bg-cream">
+   335→                <QtyBtn onClick={() => s.setQty(i.productId, i.quantity - 1)} label="Decrease quantity">
+   336→                  {i.quantity <= 1 ? <Trash size={12} /> : <Minus size={12} weight="bold" />}
+   337→                </QtyBtn>
+   338→                <span className="w-8 text-center text-[12px] font-bold text-ink">{i.quantity}</span>
+   339→                <QtyBtn onClick={() => s.setQty(i.productId, i.quantity + 1)} label="Increase quantity" disabled={i.quantity >= 10}>
+   340→                  <Plus size={12} weight="bold" />
+   341→                </QtyBtn>
+   342→              </div>
+   343→            </div>
+   344→            <div className="text-right">
+   345→              <p className="text-[13px] font-bold text-ink">
+   346→                {formatCents((parsePriceToCents(i.price) || 0) * i.quantity)}
+   347→              </p>
+   348→              <button
+   349→                type="button"
+   350→                onClick={() => s.remove(i.productId)}
+   351→                className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold tracking-[0.1em] text-ink-soft hover:text-red-600"
+   352→              >
+   353→                <X size={10} weight="bold" /> REMOVE
+   354→              </button>
+   355→            </div>
+   356→          </li>
+   357→        ))}
+   358→      </ul>
+   359→
+   360→      <div className="flex items-center justify-between">
+   361→        <p className="text-[11px] text-ink-soft">
+   362→          <Truck size={12} weight="fill" className="mr-1 inline text-gold-deep" />
+   363→          Complimentary standard shipping on every order.
+   364→        </p>
+   365→        <p className="text-[14px] font-bold text-ink">
+   366→          Subtotal <span className="text-gold-deep">{formatCents(s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0))}</span>
+   367→        </p>
+   368→      </div>
+   369→    </div>
+   370→  )
+   371→}
+   372→
+   373→function QtyBtn({ children, onClick, label, disabled }: { children: React.ReactNode; onClick: () => void; label: string; disabled?: boolean }) {
+   374→  return (
+   375→    <button
+   376→      type="button"
+   377→      aria-label={label}
+   378→      onClick={onClick}
+   379→      disabled={disabled}
+   380→      className="flex h-9 w-9 items-center justify-center text-ink transition-colors hover:bg-cream-deep hover:text-gold-deep disabled:opacity-30"
+   381→    >
+   382→      {children}
+   383→    </button>
+   384→  )
+   385→}
+   386→
+   387→// ===========================================================================
+   388→// Step 2 — CONTACT
+   389→// ===========================================================================
+   390→
+   391→function StepContact() {
+   392→  const s = useCart()
+   393→  return (
+   394→    <div className={`${stepWrapCls} space-y-5`}>
+   395→      <div>
+   396→        <p className="eyebrow">STEP 2 — CONTACT</p>
+   397→        <h2 className="mt-2 font-display text-[24px] text-ink">What is your name and contact?</h2>
+   398→        <p className="mt-1 text-[12px] text-ink-soft">We&apos;ll use this for your order confirmation and receipt.</p>
+   399→      </div>
+   400→      <div className="grid gap-4 sm:grid-cols-2">
+   401→        <Field label="FIRST NAME" required>
+   402→          <input value={s.firstName} onChange={(e) => s.patch({ firstName: e.target.value })} placeholder="Jane" className={inputCls} autoComplete="given-name" />
+   403→        </Field>
+   404→        <Field label="LAST NAME" required>
+   405→          <input value={s.lastName} onChange={(e) => s.patch({ lastName: e.target.value })} placeholder="Smith" className={inputCls} autoComplete="family-name" />
+   406→        </Field>
+   407→        <Field label="EMAIL" required>
+   408→          <input type="email" value={s.email} onChange={(e) => s.patch({ email: e.target.value })} placeholder="jane@email.com" className={inputCls} autoComplete="email" />
+   409→        </Field>
+   410→        <Field label="PHONE" required>
+   411→          <input type="tel" value={s.phone} onChange={(e) => s.patch({ phone: e.target.value })} placeholder="901-800-7182" className={inputCls} autoComplete="tel" />
+   412→        </Field>
+   413→      </div>
+   414→    </div>
+   415→  )
+   416→}
+   417→
+   418→// ===========================================================================
+   419→// Step 3 — DELIVERY (shipping or pickup)
+   420→// ===========================================================================
+   421→
+   422→function StepDelivery() {
+   423→  const s = useCart()
+   424→  const options: { value: "ship" | "pickup"; icon: typeof Truck; title: string; body: string }[] = [
+   425→    { value: "ship", icon: Truck, title: "Ship to me", body: "Complimentary standard shipping — 5–7 business days." },
+   426→    { value: "pickup", icon: Storefront, title: "Pick up in salon", body: "Ready for pickup at our Memphis salon — we'll call you when it's bagged." },
+   427→  ]
+   428→  return (
+   429→    <div className={`${stepWrapCls} space-y-5`}>
+   430→      <div>
+   431→        <p className="eyebrow">STEP 3 — DELIVERY</p>
+   432→        <h2 className="mt-2 font-display text-[24px] text-ink">How would you like your order?</h2>
+   433→      </div>
+   434→
+   435→      <div className="grid gap-3 sm:grid-cols-2">
+   436→        {options.map(({ value, icon: Icon, title, body }) => (
+   437→          <button
+   438→            key={value}
+   439→            type="button"
+   440→            onClick={() => s.patch({ deliveryMethod: value })}
+   441→            className={`flex items-start gap-4 border px-5 py-4 text-left transition-colors ${s.deliveryMethod === value ? "border-gold-deep bg-cream-deep" : "border-gold/35 bg-cream hover:border-gold-deep"}`}
+   442→          >
+   443→            <Icon size={24} weight="fill" className="mt-0.5 shrink-0 text-gold-deep" />
+   444→            <div>
+   445→              <p className="text-[13px] font-bold text-ink">{title}</p>
+   446→              <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">{body}</p>
+   447→            </div>
+   448→            {s.deliveryMethod === value && <Check size={16} weight="bold" className="ml-auto shrink-0 text-gold-deep" />}
+   449→          </button>
+   450→        ))}
+   451→      </div>
+   452→
+   453→      {s.deliveryMethod === "ship" ? (
+   454→        <section className="space-y-4">
+   455→          <h3 className={sectionHeaderCls}>Shipping Address</h3>
+   456→          <div className="grid gap-4 sm:grid-cols-2">
+   457→            <div className="sm:col-span-2">
+   458→              <Field label="STREET ADDRESS" required>
+   459→                <input value={s.address} onChange={(e) => s.patch({ address: e.target.value })} placeholder="123 Maple Grove Ave" className={inputCls} autoComplete="street-address" />
+   460→              </Field>
+   461→            </div>
+   462→            <div className="sm:col-span-2">
+   463→              <Field label="APT, SUITE, UNIT">
+   464→                <input value={s.addressLine2} onChange={(e) => s.patch({ addressLine2: e.target.value })} placeholder="Apt, Suite, Unit" className={inputCls} autoComplete="address-line2" />
+   465→              </Field>
+   466→            </div>
+   467→            <Field label="CITY" required>
+   468→              <input value={s.city} onChange={(e) => s.patch({ city: e.target.value })} placeholder="Riverbend" className={inputCls} autoComplete="address-level2" />
+   469→            </Field>
+   470→            <div className="grid grid-cols-2 gap-4">
+   471→              <Field label="STATE" required>
+   472→                <input value={s.state} onChange={(e) => s.patch({ state: e.target.value })} placeholder="IL" maxLength={2} className={`${inputCls} uppercase`} autoComplete="address-level1" />
+   473→              </Field>
+   474→              <Field label="ZIP CODE" required>
+   475→                <input value={s.postalCode} onChange={(e) => s.patch({ postalCode: e.target.value })} placeholder="60614" inputMode="numeric" className={inputCls} autoComplete="postal-code" />
+   476→              </Field>
+   477→            </div>
+   478→          </div>
+   479→        </section>
+   480→      ) : (
+   481→        <section className="space-y-4">
+   482→          <h3 className={sectionHeaderCls}>Pickup Details</h3>
+   483→          <div className="border border-gold/30 bg-cream-deep p-5">
+   484→            <p className="text-[13px] font-bold text-ink">All About Pawz — Memphis Salon</p>
+   485→            <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
+   486→              5515 Quince Rd, Memphis, TN 38119 · Open Tue–Sat 9am–6pm, Sun 10am–4pm
+   487→            </p>
+   488→            <p className="mt-3 text-[11.5px] text-ink-soft">
+   489→              <PawPrint size={12} weight="fill" className="mr-1 inline text-gold-deep" />
+   490→              No payment needed now for pickup scheduling — just complete checkout and we&apos;ll have it bagged within one business day.
+   491→            </p>
+   492→          </div>
+   493→        </section>
+   494→      )}
+   495→
+   496→      <Field label="ORDER NOTES (OPTIONAL)">
+   497→        <textarea value={s.notes} onChange={(e) => s.patch({ notes: e.target.value })} rows={3} placeholder="Anything we should know about your order…" className={inputCls} />
+   498→      </Field>
+   499→    </div>
+   500→  )
+   501→}
+   502→
+   503→// ===========================================================================
+   504→// Step 4 — REVIEW & PAY
+   505→// ===========================================================================
+   506→
+   507→function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
+   508→  subtotalCents: number
+   509→  submitting: boolean
+   510→  redirecting: boolean
+   511→  onSubmit: () => void
+   512→}) {
+   513→  const s = useCart()
+   514→  const total = subtotalCents
+   515→  return (
+   516→    <div className={`${stepWrapCls} space-y-6`}>
+   517→      <div>
+   518→        <p className="eyebrow">STEP 4 — REVIEW &amp; PAY</p>
+   519→        <h2 className="mt-2 font-display text-[24px] text-ink">One last look</h2>
+   520→        <p className="mt-1 text-[12px] text-ink-soft">You&apos;ll complete payment on Stripe&apos;s secure checkout page.</p>
+   521→      </div>
+   522→
+   523→      <div className="grid gap-6 lg:grid-cols-2">
+   524→        {/* Items */}
+   525→        <section className="space-y-3">
+   526→          <h3 className={sectionHeaderCls}>Your Items</h3>
+   527→          <ul className="divide-y divide-gold/20 border-y border-gold/20">
+   528→            {s.items.map((i) => (
+   529→              <li key={i.productId} className="flex items-center gap-3 py-3">
+   530→                <div className="h-14 w-12 shrink-0 overflow-hidden border border-gold/25 bg-cream-deep">
+   531→                  {i.image ? (
+   532→                    <img src={i.image} alt={i.alt || i.name} width={96} height={112} className="h-full w-full object-contain p-0.5" />
+   533→                  ) : null}
+   534→                </div>
+   535→                <div className="min-w-0 flex-1">
+   536→                  <p className="truncate text-[12.5px] font-bold text-ink">{i.name}</p>
+   537→                  <p className="text-[11px] text-ink-soft">Qty {i.quantity} × {i.price}</p>
+   538→                </div>
+   539→                <p className="text-[12.5px] font-bold text-gold-deep">
+   540→                  {formatCents((parsePriceToCents(i.price) || 0) * i.quantity)}
+   541→                </p>
+   542→              </li>
+   543→            ))}
+   544→          </ul>
+   545→          <div className="space-y-1.5 border-b border-gold/20 pb-3 text-[12px]">
+   546→            <div className="flex justify-between text-ink-soft"><span>Subtotal</span><span className="text-ink">{formatCents(subtotalCents)}</span></div>
+   547→            <div className="flex justify-between text-ink-soft">
+   548→              <span>{s.deliveryMethod === "ship" ? "Standard shipping" : "Pickup in salon"}</span>
+   549→              <span className="text-gold-deep">{s.deliveryMethod === "ship" ? "FREE" : "—"}</span>
+   550→            </div>
+   551→            <div className="flex justify-between border-t border-gold/20 pt-2 text-[14px] font-bold text-ink">
+   552→              <span>Total</span><span className="text-gold-deep">{formatCents(total)}</span>
+   553→            </div>
+   554→          </div>
+   555→        </section>
+   556→
+   557→        {/* Details */}
+   558→        <section className="space-y-3">
+   559→          <h3 className={sectionHeaderCls}>Your Details</h3>
+   560→          <div className="space-y-2 border border-gold/20 bg-cream-deep p-4 text-[12px]">
+   561→            <p className="text-ink-soft"><span className="font-bold text-ink">Name:</span> {s.firstName} {s.lastName}</p>
+   562→            <p className="text-ink-soft"><span className="font-bold text-ink">Email:</span> {s.email}</p>
+   563→            <p className="text-ink-soft"><span className="font-bold text-ink">Phone:</span> {s.phone}</p>
+   564→            <p className="text-ink-soft">
+   565→              <span className="font-bold text-ink">{s.deliveryMethod === "ship" ? "Ship to:" : "Pickup:"}</span>{" "}
+   566→              {s.deliveryMethod === "ship"
+   567→                ? `${s.address}${s.addressLine2 ? `, ${s.addressLine2}` : ""}, ${s.city}, ${s.state} ${s.postalCode}`
+   568→                : "All About Pawz — Memphis Salon"}
+   569→            </p>
+   570→            {s.notes && <p className="text-ink-soft"><span className="font-bold text-ink">Notes:</span> {s.notes}</p>}
+   571→          </div>
+   572→          <div className="flex items-center gap-2 border border-gold/25 bg-cream p-4 text-[11px] text-ink-soft">
+   573→            <LockKey size={16} weight="fill" className="shrink-0 text-gold-deep" />
+   574→            <p>Payments are processed securely by Stripe. Your card details never touch our servers.</p>
+   575→          </div>
+   576→        </section>
+   577→      </div>
+   578→
+   579→      <button
+   580→        type="button"
+   581→        onClick={onSubmit}
+   582→        disabled={submitting || redirecting}
+   583→        className={`btn-gold w-full text-[11px] ${submitting || redirecting ? "cursor-wait opacity-70" : ""}`}
+   584→      >
+   585→        <CreditCard size={14} weight="fill" />
+   586→        {redirecting ? "REDIRECTING TO STRIPE…" : submitting ? "CREATING SECURE ORDER…" : `PAY SECURELY — ${formatCents(total)}`}
+   587→      </button>
+   588→      <p className="text-center text-[10.5px] text-ink-soft">
+   589→        <Sparkle size={10} weight="fill" className="mr-1 inline text-gold-deep" />
+   590→        By completing checkout you&apos;ll receive an email receipt for this order.
+   591→      </p>
+   592→    </div>
+   593→  )
+   594→}
+   595→
+   596→// ===========================================================================
+   597→// Stepper bar (same design as the booking wizard)
+   598→// ===========================================================================
+   599→
+   600→function Stepper({ step, labels, onJump }: { step: number; labels: string[]; onJump: (i: number) => void }) {
+   601→  return (
+   602→    <div className="flex items-center justify-between border-b border-gold/25 pb-5">
+   603→      {labels.map((label, idx) => {
+   604→        const stepNumber = idx + 1
+   605→        const isActive = step === stepNumber
+   606→        const isDone = step > stepNumber
+   607→        const canJump = step > stepNumber
+   608→        return (
+   609→          <div key={label} className="flex flex-1 items-center">
+   610→            <button
+   611→              type="button"
+   612→              onClick={() => canJump && onJump(stepNumber)}
+   613→              disabled={!canJump}
+   614→              className={`flex flex-col items-center gap-1.5 ${canJump ? "cursor-pointer" : "cursor-default"}`}
+   615→            >
+   616→              <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-colors ${isActive ? "border-gold-deep bg-gold-deep text-cream" : isDone ? "border-gold-deep bg-gold-deep text-cream" : "border-gold/30 bg-cream text-gold-deep"}`}>
+   617→                {isDone ? <Check size={14} weight="bold" /> : stepNumber}
+   618→              </span>
+   619→              <span className={`hidden text-[8px] font-bold tracking-[0.08em] sm:block ${isActive ? "text-gold-deep" : "text-ink-soft"}`}>
+   620→                {label.toUpperCase()}
+   621→              </span>
+   622→            </button>
+   623→            {idx < labels.length - 1 && (
+   624→              <span className={`mx-1 h-px flex-1 ${step > stepNumber ? "bg-gold-deep" : "bg-gold/25"}`} />
+   625→            )}
+   626→          </div>
+   627→        )
+   628→      })}
+   629→    </div>
+   630→  )
+   631→}
+   632→
+   633→// ===========================================================================
+   634→// Shared field primitives (same design as the booking wizard)
+   635→// ===========================================================================
+   636→
+   637→const inputCls = "w-full border border-gold/35 bg-cream px-3.5 py-3 text-[14px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-deep"
+   638→const sectionHeaderCls = "text-[10px] font-bold tracking-[0.18em] text-gold-deep uppercase"
+   639→const stepWrapCls = "border border-gold/30 bg-card p-7 lg:p-10"
+   640→
+   641→function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
+   642→  return (
+   643→    <div>
+   644→      <label className={labelCls}>{label}{required && <span className="text-gold-deep"> *</span>}</label>
+   645→      {children}
+   646→    </div>
+   647→  )
+   648→}
+   649→const labelCls = "mb-1.5 block text-[9px] font-bold tracking-[0.16em] text-gold-deep"
+   650→

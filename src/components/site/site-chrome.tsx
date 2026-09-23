@@ -150,18 +150,18 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
   return (
     <aside className="marble fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream lg:flex">
       <div className="px-7 pt-8">
-        <Link href="/" className="block w-full text-center">
+        <Link href="/" className="block w-full cursor-pointer text-center">
           <PawGlyph className="mx-auto h-9 w-9 text-gold-deep" />
           <div className="mt-3 font-display text-[15px] tracking-[0.16em] text-ink">ALL ABOUT PAWZ</div>
-          <div className="mt-1.5 flex items-center justify-center gap-2">
-            <span className="h-px w-4 bg-gold/60" />
-            <span className="text-[8px] font-bold tracking-[0.3em] text-ink-soft">LUXURY GROOMING</span>
-            <span className="h-px w-4 bg-gold/60" />
-          </div>
-          <div className="script mt-3 text-[19px]">From Pawz to PAWfection</div>
         </Link>
       </div>
       <div className="mt-6 h-px bg-gold/20" />
+      <div className="px-7 pt-5">
+        <Link href="/book/appointment" className="flex w-full cursor-pointer items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
+          <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
+          BOOK APPOINTMENT
+        </Link>
+      </div>
       <nav className="relative px-7 py-6">
         <span className="absolute bottom-9 left-[42px] top-9 w-px bg-gold/25" />
         <ul className="space-y-[9px]">
@@ -169,7 +169,7 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
             const active = pathname === item.to
             return (
               <li key={item.to}>
-                <Link href={item.to} aria-current={active ? "page" : undefined} className="group relative flex items-center gap-3">
+                <Link href={item.to} aria-current={active ? "page" : undefined} className="group relative flex cursor-pointer items-center gap-3">
                   <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-gold-deep"}`}>
                     {item.n}
                   </span>
@@ -182,12 +182,6 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
           })}
         </ul>
       </nav>
-      <div className="px-6">
-        <Link href="/book/appointment" className="flex w-full items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
-          <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
-          BOOK APPOINTMENT
-        </Link>
-      </div>
       <div className="mt-7 space-y-3.5 px-7 text-[10.5px] leading-[1.55] text-ink-soft">
         <div className="flex gap-2.5">
           <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-deep" />

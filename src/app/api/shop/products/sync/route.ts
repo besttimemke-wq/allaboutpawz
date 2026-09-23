@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
   try {
     const products: Record<string, any>[] = ids
       ? (await Promise.all(ids.map((id) => repo.get("products", id)))).filter(Boolean) as Record<string, any>[]
-      : ((await repo.list("products")) as Record<string, any>[]).filter((p) => p.visible !== false)
+      : ((await repo.list("commerce_products")) as Record<string, any>[]).filter((p) => p.visible !== false)
 
     const synced: SyncedItem[] = []
     const failed: { productId: string; name: string; error: string }[] = []

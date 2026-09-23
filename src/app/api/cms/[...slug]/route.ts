@@ -178,3 +178,6 @@ export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ slug: s
   await repo.remove(resource, id)
   return NextResponse.json({ ok: true, ...(stripeCleanup ? { stripeCleanup } : {}) })
 }
+
+// ---------------------------------------------------------------------------
+

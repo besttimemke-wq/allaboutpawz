@@ -1,0 +1,867 @@
+     1→// ============================================================================
+     2→// AAPAWZ Auth System — shared backend module (single source of truth)
+     3→//
+     4→// Every auth route (/api/auth/login, /api/auth/google/start,
+     5→// /api/auth/google/callback, /api/auth/portal-session, /api/auth/logout)
+     6→// calls into this module. The frontend never branches on role inside one
+     7→// form — it only tells the server which door was used; this module decides
+     8→// who the user is and which portal they belong to.
+     9→// ============================================================================
+    10→
+    11→import { createClient, SupabaseClient } from "@supabase/supabase-js";
+    12→import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
+    13→
+    14→// ---------------------------------------------------------------------------
+    15→// Portal (door) definitions
+    16→// ---------------------------------------------------------------------------
+    17→export type PortalId = "customer" | "groomer" | "frontdesk" | "admin" | "lms";
+    18→
+    19→export interface PortalDefinition {
+    20→  id: PortalId;
+    21→  door: string; // sign-in page route
+    22→  destination: string; // default post-login destination
+    23→  google: boolean; // Google OAuth offered on this door?
+    24→}
+    25→
+    26→export const PORTALS: Record<PortalId, PortalDefinition> = {
+    27→  customer: { id: "customer", door: "/access-customer", destination: "/customer/dashboard", google: true },
+    28→  groomer: { id: "groomer", door: "/access-groomer", destination: "/groomer/dashboard", google: true },
+    29→  frontdesk: { id: "frontdesk", door: "/access-frontdesk", destination: "/frontdesk/dashboard", google: false },
+    30→  admin: { id: "admin", door: "/admin-login", destination: "/admin/dashboard", google: true },
+    31→  lms: { id: "lms", door: "/learn/sign-in", destination: "/learn/dashboard", google: true },
+    32→};
+    33→
+    34→// ---------------------------------------------------------------------------
+    35→// Google OAuth redirect-URI activation (LIVE verification — no stale lists)
+    36→// ---------------------------------------------------------------------------
+    37→// Ground truth for "is this origin activated" lives in the owner's Google
+    38→// client, NOT in this codebase. The previous hardcoded origin list was a
+    39→// second gate on top of Google's own: an origin the owner had already
+    40→// registered still bounced, because the list only changes when the code does.
+    41→// That double gate is gone. /api/auth/google/start now verifies the redirect
+    42→// URI against Google's own authorize endpoint at click time: with prompt=none,
+    43→// a REGISTERED redirect URI answers 302 back to that URI
+    44→// (error=interaction_required / a code); an UNREGISTERED one answers 302 to
+    45→// accounts.google.com/signin/oauth/error (redirect_uri_mismatch). Results are
+    46→// cached in memory — positive 5 min, negative 60 s — so a URI registered in
+    47→// the Google console takes effect within a minute, with no code or env change.
+    48→// On a probe network failure the check fails OPEN (Google renders its own
+    49→// error — the app never blocks a working flow).
+    50→//
+    51→// GOOGLE_REGISTERED_ORIGINS (comma-separated) is still honored as an
+    52→// additional skip-the-probe allowlist for deployments that want zero
+    53→// outbound calls to Google on the sign-in path.
+    54→
+    55→export const GOOGLE_CALLBACK_PATH = "/api/auth/google/callback";
+    56→
+    57→export function googleCallbackUri(origin: string): string {
+    58→  return `${origin.replace(/\/$/, "")}${GOOGLE_CALLBACK_PATH}`;
+    59→}
+    60→
+    61→/** The stable origin whose callback is registered on the Google client for
+    62→ *  every deployment of this app. Preview origins change per session and can
+    63→ *  never all be pre-registered, so their flows are routed THROUGH this
+    64→ *  registered callback and relayed back (see /api/auth/google/callback). */
+    65→export function productionRelayOrigin(): string {
+    66→  return (process.env.GOOGLE_RELAY_ORIGIN || "https://aapawz.com").replace(/\/$/, "");
+    67→}
+    68→
+    69→export function productionRelayCallbackUri(): string {
+    70→  return googleCallbackUri(productionRelayOrigin());
+    71→}
+    72→
+    73→/** The sandbox preview gateway pattern — https://preview-chat-<id>.space-z.ai.
+    74→ *  Relay targets are RESTRICTED to this pattern: it is the platform's own
+    75→ *  gateway (no attacker-controlled pages can exist on it), which is what
+    76→ *  makes relaying an authorization code back to it safe. */
+    77→export function isPreviewOrigin(origin: string): boolean {
+    78→  return /^https:\/\/preview-chat-[a-z0-9-]+\.space-z\.ai$/i.test((origin || "").replace(/\/$/, ""));
+    79→}
+    80→
+    81→const uriCache = new Map<string, { ok: boolean; at: number }>();
+    82→
+    83→/** Live check: does the Google client have this exact redirect URI registered? */
+    84→export async function redirectUriRegistered(redirectUri: string): Promise<boolean> {
+    85→  const allowlisted = (process.env.GOOGLE_REGISTERED_ORIGINS || "")
+    86→    .split(",")
+    87→    .map((s) => s.trim().replace(/\/$/, ""))
+    88→    .filter(Boolean)
+    89→    .some((o) => redirectUri === googleCallbackUri(o));
+    90→  if (allowlisted) return true;
+    91→
+    92→  const hit = uriCache.get(redirectUri);
+    93→  const ttl = hit?.ok ? 5 * 60 * 1000 : 60 * 1000;
+    94→  if (hit && Date.now() - hit.at < ttl) return hit.ok;
+    95→
+    96→  let ok = true; // fail-open — let Google itself render any error
+    97→  try {
+    98→    const probeUrl =
+    99→      "https://accounts.google.com/o/oauth2/v2/auth?" +
+   100→      new URLSearchParams({
+   101→        client_id: process.env.GOOGLE_CLIENT_ID || "",
+   102→        redirect_uri: redirectUri,
+   103→        response_type: "code",
+   104→        scope: "openid email profile",
+   105→        state: "check",
+   106→        prompt: "none",
+   107→      }).toString();
+   108→    const res = await fetch(probeUrl, { redirect: "manual", signal: AbortSignal.timeout(5000) });
+   109→    const loc = res.headers.get("location") || "";
+   110→    if (res.status === 302 && loc) ok = loc.startsWith(redirectUri);
+   111→  } catch {
+   112→    ok = true;
+   113→  }
+   114→  uriCache.set(redirectUri, { ok, at: Date.now() });
+   115→  return ok;
+   116→}
+   117→
+   118→let relayCheck: { ok: boolean; status: number | null; at: number } | null = null;
+   119→
+   120→/** Live check: is the production deployment running relay-capable callback
+   121→ *  code (GET {relay}/api/auth/google/callback?probe=relay → {relay:true})?
+   122→ *  Preview-origin flows only relay when this is true, so users are never
+   123→ *  silently signed into the wrong deployment. Fails CLOSED — an unreachable
+   124→ *  probe never routes anyone into a dead end.
+   125→ *
+   126→ *  Redirects are FOLLOWED: the registered redirect URI is the apex
+   127→ *  (https://aapawz.com/...) while the deployment may sit behind an apex→www
+   128→ *  308 — a manual-redirect probe would report "not capable" forever even
+   129→ *  after the build is deployed. The JSON + content-type check on the final
+   130→ *  response keeps the probe honest (an HTML catch-all page never passes). */
+   131→export async function productionRelayStatus(): Promise<{ ok: boolean; status: number | null }> {
+   132→  const hit = relayCheck;
+   133→  const ttl = hit?.ok ? 5 * 60 * 1000 : 60 * 1000;
+   134→  if (hit && Date.now() - hit.at < ttl) return { ok: hit.ok, status: hit.status };
+   135→
+   136→  let ok = false;
+   137→  let status: number | null = null;
+   138→  try {
+   139→    const res = await fetch(`${productionRelayCallbackUri()}?probe=relay`, {
+   140→      redirect: "follow",
+   141→      headers: { accept: "application/json" },
+   142→      signal: AbortSignal.timeout(5000),
+   143→    });
+   144→    status = res.status;
+   145→    if (res.status === 200 && (res.headers.get("content-type") || "").includes("application/json")) {
+   146→      const body = await res.json().catch(() => null);
+   147→      ok = Boolean(body && (body as any).relay === true);
+   148→    }
+   149→  } catch (e: any) {
+   150→    ok = false;
+   151→    status = null;
+   152→  }
+   153→  relayCheck = { ok, status, at: Date.now() };
+   154→  return { ok, status };
+   155→}
+   156→
+   157→/** Boolean convenience wrapper around productionRelayStatus(). */
+   158→export async function productionRelayCapable(): Promise<boolean> {
+   159→  return (await productionRelayStatus()).ok;
+   160→}
+   161→
+   162→// ---------------------------------------------------------------------------
+   163→// OAuth browser binding (login-CSRF guard)
+   164→// ---------------------------------------------------------------------------
+   165→// The start route sets a short-lived cookie in the user's browser and stores
+   166→// its hash in the state row; the callback refuses to complete without it, so
+   167→// nobody can paste a sign-in link into someone else's browser and get them
+   168→// logged into the attacker's account. SameSite=Lax survives the full
+   169→// Google → (relay) → callback top-level navigation chain.
+   170→export const OAUTH_BROWSER_COOKIE = "pawz_oauth_b";
+   171→
+   172→export function newBrowserBinding(): { value: string; hash: string } {
+   173→  const value = randomBytes(32).toString("base64url");
+   174→  return { value, hash: createHash("sha256").update(value).digest("hex") };
+   175→}
+   176→
+   177→export function hashBrowserBinding(value: string | undefined | null): string | null {
+   178→  if (!value) return null;
+   179→  return createHash("sha256").update(value).digest("hex");
+   180→}
+   181→
+   182→// The shape the portal store (Zustand) persists — mirrors lib/types AuthUser.
+   183→export type PortalRole = "admin" | "groomer" | "customer";
+   184→
+   185→export interface ResolvedPortalUser {
+   186→  authUserId: string;
+   187→  email: string;
+   188→  name: string;
+   189→  role: PortalRole;
+   190→  stationName?: string;
+   191→  avatarUrl?: string;
+   192→  scope: "admin" | "employee" | "customer";
+   193→  /** raw membership role, e.g. owner | admin | manager | groomer | front_desk | staff */
+   194→  membershipRole?: string;
+   195→}
+   196→
+   197→// ---------------------------------------------------------------------------
+   198→// Supabase clients
+   199→// ---------------------------------------------------------------------------
+   200→const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/$/, "");
+   201→const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+   202→const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+   203→
+   204→export function getSupabaseAdmin(): SupabaseClient | null {
+   205→  if (!SUPABASE_URL || !SERVICE_KEY) return null;
+   206→  return createClient(SUPABASE_URL, SERVICE_KEY, {
+   207→    auth: { autoRefreshToken: false, persistSession: false },
+   208→  });
+   209→}
+   210→
+   211→export function getSupabaseAnon(): SupabaseClient | null {
+   212→  if (!SUPABASE_URL || !ANON_KEY) return null;
+   213→  return createClient(SUPABASE_URL, ANON_KEY, {
+   214→    auth: { autoRefreshToken: false, persistSession: false },
+   215→  });
+   216→}
+   217→
+   218→export function supabaseConfigured(): boolean {
+   219→  return Boolean(SUPABASE_URL && SERVICE_KEY);
+   220→}
+   221→
+   222→// ---------------------------------------------------------------------------
+   223→// Role resolution (server-side only — the client is never trusted)
+   224→// ---------------------------------------------------------------------------
+   225→const ADMIN_ROLES = ["owner", "admin", "manager", "platform_admin"];
+   226→const GROOMER_ROLES = ["groomer", "stylist", "staff", "bather"];
+   227→const FRONTDESK_ROLES = ["front_desk", "frontdesk", "reception"];
+   228→
+   229→function rest<T = any>(client: SupabaseClient): { from: SupabaseClient["from"] } {
+   230→  return { from: client.from.bind(client) };
+   231→}
+   232→
+   233→/**
+   234→ * Resolves the portal identity of an authenticated Supabase auth user:
+   235→ * platform_admins → tenant_memberships → staff → portal_customer_accounts →
+   236→ * customers.userId → user metadata fallback.
+   237→ */
+   238→export async function resolvePortalUser(authUserId: string): Promise<ResolvedPortalUser | null> {
+   239→  const admin = getSupabaseAdmin();
+   240→  if (!admin) return null;
+   241→
+   242→  const { data: authUserData } = await admin.auth.admin.getUserById(authUserId);
+   243→  const authUser: any = authUserData?.user;
+   244→  const email = (authUser?.email || "").toLowerCase();
+   245→  if (!email) return null;
+   246→
+   247→  const nameFromMeta =
+   248→    authUser?.user_metadata?.full_name ||
+   249→    authUser?.user_metadata?.name ||
+   250→    (authUser?.user_metadata as any)?.firstName ||
+   251→    email.split("@")[0];
+   252→  const avatarUrl = authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture;
+   253→
+   254→  // 0. Owner-declared admins (ADMIN_EMAILS) — first and final word. The owner's
+   255→  //    account is an admin regardless of table state; no provisioning row can
+   256→  //    demote it, and an account created directly in Supabase by the owner
+   257→  //    still resolves as admin.
+   258→  const declaredAdmins = (process.env.ADMIN_EMAILS || "")
+   259→    .split(",")
+   260→    .map((e) => e.trim().toLowerCase())
+   261→    .filter(Boolean);
+   262→  if (declaredAdmins.includes(email)) {
+   263→    // Prefer the salon's own staff record for the display name (best-effort).
+   264→    let name = nameFromMeta;
+   265→    try {
+   266→      const { data: staffRow } = await admin.from("staff").select("name").ilike("email", email).limit(1);
+   267→      if (staffRow && staffRow.length > 0 && (staffRow[0] as any).name) name = (staffRow[0] as any).name;
+   268→    } catch { /* best-effort */ }
+   269→    return { authUserId, email, name, role: "admin", avatarUrl, scope: "admin", membershipRole: "owner" };
+   270→  }
+   271→
+   272→  // 1. Platform admins (cross-tenant super admins)
+   273→  try {
+   274→    const { data: platformAdmins } = await admin.from("platform_admins").select("user_id").eq("user_id", authUserId).limit(1);
+   275→    if (platformAdmins && platformAdmins.length > 0) {
+   276→      return { authUserId, email, name: nameFromMeta, role: "admin", avatarUrl, scope: "admin", membershipRole: "platform_admin" };
+   277→    }
+   278→  } catch { /* table may not exist */ }
+   279→
+   280→  // 2. Tenant memberships (admin / employee scopes)
+   281→  try {
+   282→    const { data: memberships } = await admin
+   283→      .from("tenant_memberships")
+   284→      .select("role, tenant_id, status")
+   285→      .eq("user_id", authUserId);
+   286→    const active = (memberships || []).find((m: any) => m.status !== "suspended") || (memberships || [])[0];
+   287→    if (active) {
+   288→      const membershipRole = String(active.role || "").toLowerCase();
+   289→      if (ADMIN_ROLES.includes(membershipRole)) {
+   290→        return { authUserId, email, name: nameFromMeta, role: "admin", avatarUrl, scope: "admin", membershipRole };
+   291→      }
+   292→      if (FRONTDESK_ROLES.includes(membershipRole)) {
+   293→        return {
+   294→          authUserId, email, name: nameFromMeta, role: "admin", avatarUrl, scope: "employee",
+   295→          stationName: "Front Desk — Intake & Concierge", membershipRole,
+   296→        };
+   297→      }
+   298→      if (GROOMER_ROLES.includes(membershipRole)) {
+   299→        return { authUserId, email, name: nameFromMeta, role: "groomer", avatarUrl, scope: "employee", membershipRole };
+   300→      }
+   301→      // Unknown staff role → employee/groomer portal by default
+   302→      return { authUserId, email, name: nameFromMeta, role: "groomer", avatarUrl, scope: "employee", membershipRole };
+   303→    }
+   304→  } catch { /* table may not exist */ }
+   305→
+   306→  // 3. Staff table (fallback employee signal). EMAIL IS THE ASSOCIATION KEY:
+   307→  // when a staff row exists for this email but its userId is NULL or points
+   308→  // at a stale auth id (user re-created in auth.users, row provisioned
+   309→  // earlier), the email match associates the sign-in with the salon record
+   310→  // and the link self-heals — the sign-in NEVER bounces for a provisioning
+   311→  // row that is merely out of date.
+   312→  try {
+   313→    const { data: staff } = await admin.from("staff").select("name, role").eq("userId", authUserId).limit(1);
+   314→    let staffRow = staff && staff.length > 0 ? (staff[0] as any) : null;
+   315→    if (!staffRow && email) {
+   316→      const { data: byEmail } = await admin
+   317→        .from("staff")
+   318→        .select("id, name, role, userId")
+   319→        .ilike("email", email)
+   320→        .not("email", "is", null)
+   321→        .limit(1);
+   322→      if (byEmail && byEmail.length > 0) {
+   323→        staffRow = byEmail[0] as any;
+   324→        // Self-heal: bind the row to the signing-in auth user (stale or NULL).
+   325→        if (staffRow.userId !== authUserId) {
+   326→          try {
+   327→            await admin.from("staff").update({ userId: authUserId }).eq("id", staffRow.id);
+   328→          } catch { /* heal is best-effort; resolution proceeds */ }
+   329→        }
+   330→      }
+   331→    }
+   332→    if (staffRow) {
+   333→      const staffRole = String(staffRow.role || "").toLowerCase();
+   334→      const name = staffRow.name || nameFromMeta;
+   335→      if (FRONTDESK_ROLES.includes(staffRole)) {
+   336→        return { authUserId, email, name, role: "admin", avatarUrl, scope: "employee", stationName: "Front Desk — Intake & Concierge", membershipRole: staffRole };
+   337→      }
+   338→      if (ADMIN_ROLES.includes(staffRole)) {
+   339→        return { authUserId, email, name, role: "admin", avatarUrl, scope: "admin", membershipRole: staffRole };
+   340→      }
+   341→      return { authUserId, email, name, role: "groomer", avatarUrl, scope: "employee", membershipRole: staffRole };
+   342→    }
+   343→  } catch { /* table may not exist */ }
+   344→
+   345→  // 4. Customer portal accounts
+   346→  try {
+   347→    const { data: accounts } = await admin
+   348→      .from("portal_customer_accounts")
+   349→      .select("auth_user_id, status")
+   350→      .eq("auth_user_id", authUserId)
+   351→      .limit(1);
+   352→    if (accounts && accounts.length > 0) {
+   353→      return { authUserId, email, name: nameFromMeta, role: "customer", avatarUrl, scope: "customer", membershipRole: "customer" };
+   354→    }
+   355→  } catch { /* table may not exist */ }
+   356→
+   357→  // 5. Customers linked by userId — with the same email-based self-heal as
+   358→  // staff: an existing customer row whose userId is NULL (created at
+   359→  // checkout/walk-in before the account existed) is associated by email and
+   360→  // the link is repaired on this sign-in.
+   361→  try {
+   362→    const { data: customers } = await admin.from("customers").select("firstName, lastName").eq("userId", authUserId).limit(1);
+   363→    let customerRow = customers && customers.length > 0 ? (customers[0] as any) : null;
+   364→    if (!customerRow && email) {
+   365→      const { data: byEmail } = await admin
+   366→        .from("customers")
+   367→        .select("id, firstName, lastName, userId")
+   368→        .ilike("email", email)
+   369→        .not("email", "is", null)
+   370→        .limit(1);
+   371→      if (byEmail && byEmail.length > 0) {
+   372→        customerRow = byEmail[0] as any;
+   373→        if (!customerRow.userId) {
+   374→          try {
+   375→            await admin.from("customers").update({ userId: authUserId }).eq("id", customerRow.id);
+   376→          } catch { /* heal is best-effort */ }
+   377→        }
+   378→      }
+   379→    }
+   380→    if (customerRow) {
+   381→      const c = customerRow;
+   382→      const name = `${c.firstName || ""} ${c.lastName || ""}`.trim() || nameFromMeta;
+   383→      return { authUserId, email, name, role: "customer", avatarUrl, scope: "customer", membershipRole: "customer" };
+   384→    }
+   385→  } catch { /* table may not exist */ }
+   386→
+   387→  // 6. Metadata fallback (never grants staff access — customers only)
+   388→  const metaRole = String(authUser?.user_metadata?.role || "").toLowerCase();
+   389→  if (metaRole === "customer") {
+   390→    return { authUserId, email, name: nameFromMeta, role: "customer", avatarUrl, scope: "customer", membershipRole: "customer" };
+   391→  }
+   392→  // Auth user with NO provisioning records at all → treat as customer only
+   393→  // for the customer/lms doors; staff doors reject them explicitly.
+   394→  return { authUserId, email, name: nameFromMeta, role: "customer", avatarUrl, scope: "customer", membershipRole: "unprovisioned" };
+   395→}
+   396→
+   397→// ---------------------------------------------------------------------------
+   398→// Portal validation — the door decides, server-side
+   399→// ---------------------------------------------------------------------------
+   400→export interface PortalValidationResult {
+   401→  ok: boolean;
+   402→  user?: ResolvedPortalUser;
+   403→  redirectTo?: string;
+   404→  error?: string;
+   405→}
+   406→
+   407→/** The ORIGINAL repo's routing rule (Serviceportals /api/auth/google):
+   408→ *  "DB is source of truth" — the destination comes from the resolved salon
+   409→ *  identity, never from the door, a URL param, or anything the user picked. */
+   410→export function autoDestination(user: ResolvedPortalUser): string {
+   411→  // Front desk employees get their OWN portal now (not the admin dashboard).
+   412→  if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) return "/frontdesk/dashboard";
+   413→  if (user.scope === "admin") return "/admin/dashboard";
+   414→  if (user.scope === "employee") return "/groomer/dashboard";
+   415→  return "/customer/dashboard";
+   416→}
+   417→
+   418→export function validatePortalAccess(portal: PortalId, user: ResolvedPortalUser): PortalValidationResult {
+   419→  const def = PORTALS[portal];
+   420→
+   421→  switch (portal) {
+   422→    case "admin": {
+   423→      if (user.scope === "admin" && user.role === "admin" && user.membershipRole !== "front_desk") {
+   424→        return { ok: true, user, redirectTo: def.destination };
+   425→      }
+   426→      if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) {
+   427→        return { ok: false, error: "This account is registered for Front Desk access. Use the Front Desk sign-in page." };
+   428→      }
+   429→      if (user.scope === "employee") {
+   430→        return { ok: false, error: "No admin account found for this email. Contact your admin." };
+   431→      }
+   432→      return { ok: false, error: "This email is registered as a customer account. Use the Customer sign-in page." };
+   433→    }
+   434→    case "groomer": {
+   435→      if (user.scope === "employee" && user.role === "groomer") {
+   436→        return { ok: true, user, redirectTo: def.destination };
+   437→      }
+   438→      if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) {
+   439→        return { ok: false, error: "This account is registered for Front Desk access. Use the Front Desk sign-in page." };
+   440→      }
+   441→      if (user.scope === "admin") {
+   442→        return { ok: false, error: "This email is an admin account. Use the Admin sign-in page." };
+   443→      }
+   444→      return { ok: false, error: "No groomer account found for this email. Contact your admin." };
+   445→    }
+   446→    case "frontdesk": {
+   447→      if (user.scope === "employee" && FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) {
+   448→        return { ok: true, user, redirectTo: def.destination };
+   449→      }
+   450→      if (user.scope === "employee") {
+   451→        return { ok: false, error: "This account is registered for the Groomer portal. Use the Groomer sign-in page." };
+   452→      }
+   453→      if (user.scope === "admin") {
+   454→        return { ok: false, error: "This email is an admin account. Use the Admin sign-in page." };
+   455→      }
+   456→      return { ok: false, error: "No front desk account found for this email. Contact your admin." };
+   457→    }
+   458→    case "customer": {
+   459→      if (user.role === "customer") {
+   460→        return { ok: true, user, redirectTo: def.destination };
+   461→      }
+   462→      return { ok: false, error: "This email is a staff account. Use the staff sign-in pages." };
+   463→    }
+   464→    case "lms": {
+   465→      // LMS is self-serve within managed accounts — customers AND staff land
+   466→      // on the Learning Center dashboard. Each signed-in role gets its own
+   467→      // sidebar identity inside the /learn portal.
+   468→      if (user.role === "customer") return { ok: true, user, redirectTo: def.destination };
+   469→      if (user.scope === "employee" && user.role === "groomer") return { ok: true, user, redirectTo: def.destination };
+   470→      if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) return { ok: true, user, redirectTo: def.destination };
+   471→      if (user.scope === "admin") return { ok: true, user, redirectTo: def.destination };
+   472→      return { ok: false, error: "No account found for this email." };
+   473→    }
+   474→  }
+   475→}
+   476→
+   477→// ---------------------------------------------------------------------------
+   478→// Signed session cookie (pawz_session)
+   479→// ---------------------------------------------------------------------------
+   480→const COOKIE_NAME = "pawz_session";
+   481→const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+   482→
+   483→function secret(): string {
+   484→  // HMAC key — the service role key never leaves the server.
+   485→  return SERVICE_KEY || "pawz-dev-secret";
+   486→}
+   487→
+   488→function b64url(input: Buffer | string): string {
+   489→  return Buffer.from(input).toString("base64url");
+   490→}
+   491→
+   492→export interface SessionPayload {
+   493→  sub: string;
+   494→  email: string;
+   495→  name: string;
+   496→  role: PortalRole;
+   497→  stationName?: string;
+   498→  avatarUrl?: string;
+   499→  scope: string;
+   500→  /** raw membership role — owner | admin | platform_admin | manager |
+   501→   *  groomer | front_desk | staff | customer. Carried so the front desk
+   502→   *  portal can identify a front desk employee (vs a real admin). */
+   503→  membershipRole?: string;
+   504→  exp: number; // epoch seconds
+   505→}
+   506→
+   507→export function signSession(user: ResolvedPortalUser): string {
+   508→  const payload: SessionPayload = {
+   509→    sub: user.authUserId,
+   510→    email: user.email,
+   511→    name: user.name,
+   512→    role: user.role,
+   513→    stationName: user.stationName,
+   514→    avatarUrl: user.avatarUrl,
+   515→    scope: user.scope,
+   516→    membershipRole: user.membershipRole,
+   517→    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
+   518→  };
+   519→  const body = b64url(JSON.stringify(payload));
+   520→  const mac = createHmac("sha256", secret()).update(body).digest("base64url");
+   521→  return `${body}.${mac}`;
+   522→}
+   523→
+   524→export function verifySessionToken(token: string | undefined | null): SessionPayload | null {
+   525→  if (!token) return null;
+   526→  const parts = token.split(".");
+   527→  if (parts.length !== 2) return null;
+   528→  const [body, mac] = parts;
+   529→  const expected = createHmac("sha256", secret()).update(body).digest("base64url");
+   530→  try {
+   531→    const a = Buffer.from(mac);
+   532→    const b = Buffer.from(expected);
+   533→    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+   534→  } catch {
+   535→    return null;
+   536→  }
+   537→  try {
+   538→    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf-8")) as SessionPayload;
+   539→    if (!payload?.sub || !payload?.exp) return null;
+   540→    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+   541→    return payload;
+   542→  } catch {
+   543→    return null;
+   544→  }
+   545→}
+   546→
+   547→export function sessionFromPayload(p: SessionPayload): ResolvedPortalUser {
+   548→  return {
+   549→    authUserId: p.sub,
+   550→    email: p.email,
+   551→    name: p.name,
+   552→    role: p.role,
+   553→    stationName: p.stationName,
+   554→    avatarUrl: p.avatarUrl,
+   555→    scope: (p.scope as any) || "customer",
+   556→    membershipRole: p.membershipRole,
+   557→  };
+   558→}
+   559→
+   560→export function sessionCookieOptions(reqHost?: string | null) {
+   561→  return {
+   562→    httpOnly: true,
+   563→    sameSite: "lax" as const,
+   564→    secure: process.env.NODE_ENV === "production",
+   565→    path: "/",
+   566→    maxAge: SESSION_TTL_SECONDS,
+   567→    ...cookieDomainForHost(reqHost),
+   568→  };
+   569→}
+   570→
+   571→// ---------------------------------------------------------------------------
+   572→// Apex ↔ www cookie continuity (THE production sign-in killer, fixed)
+   573→// ---------------------------------------------------------------------------
+   574→// The registered Google redirect URI is the APEX (https://aapawz.com/...),
+   575→// but the platform 308-redirects the apex to https://www.aapawz.com — so a
+   576→// flow that starts on one host always finishes on the other. Host-only
+   577→// cookies (no Domain attribute) set by the initiator on the apex were
+   578→// INVISIBLE to the callback on www: the browser-binding guard failed, and
+   579→// the callback silently bounced the owner back to the login page after they
+   580→// had authorized at Google (oauth_states row consumed, no google_sub linked —
+   581→// 2026-09-17 11:53 UTC production incident).
+   582→//
+   583→// Fix: on the salon's own hosts, issue auth cookies with Domain=.aapawz.com
+   584→// so they are shared across apex and www. On every other host (localhost,
+   585→// sandbox previews) NO domain is emitted — a Domain that is not a suffix of
+   586→// the current host is rejected by the browser, so this stays safe everywhere.
+   587→const SITE_COOKIE_DOMAIN = ".aapawz.com";
+   588→
+   589→export function cookieDomainForHost(reqHost?: string | null): { domain?: string } {
+   590→  const host = (reqHost || "").split(":")[0].trim().toLowerCase();
+   591→  if (host === "aapawz.com" || host.endsWith(".aapawz.com")) {
+   592→    return { domain: SITE_COOKIE_DOMAIN };
+   593→  }
+   594→  return {};
+   595→}
+   596→
+   597→/** Best-effort public host of the current request, for cookie domainning.
+   598→ *  Prefers X-Forwarded-Host (the real browser host behind any gateway),
+   599→ *  falls back to the URL-level host. */
+   600→export function requestHost(req: { headers: { get(name: string): string | null }; nextUrl?: { host: string } }): string | null {
+   601→  const xfh = req.headers.get("x-forwarded-host");
+   602→  if (xfh) return xfh.split(",")[0].trim().toLowerCase() || null;
+   603→  if (req.nextUrl?.host) return req.nextUrl.host.toLowerCase();
+   604→  return null;
+   605→}
+   606→
+   607→export const SESSION_COOKIE_NAME = COOKIE_NAME;
+   608→
+   609→// ---------------------------------------------------------------------------
+   610→// Google OAuth state (signed, server-side stored, single-use)
+   611→// ---------------------------------------------------------------------------
+   612→export interface OAuthStateRow {
+   613→  nonce: string;
+   614→  portal: PortalId;
+   615→  redirectTo: string;
+   616→  /** The redirect_uri sent to Google for THIS flow (origin carried through
+   617→   *  the signed state so the callback exchanges against the exact same URI,
+   618→   *  even when a gateway rewrites the Host header it sees). */
+   619→  redirectUri?: string | null;
+   620→  /** For relay flows: the preview origin the browser is actually on. Google
+   621→   *  sends the browser to the registered redirect_uri (production); that
+   622→   *  deployment relays it back here with the code + state untouched, and
+   623→   *  THIS origin's callback finishes the flow and hosts the session. */
+   624→  returnOrigin?: string | null;
+   625→  /** SHA-256 hex of the pawz_oauth_b cookie issued by the start route
+   626→   *  (login-CSRF binding — see OAUTH_BROWSER_COOKIE). */
+   627→  browserHash?: string | null;
+   628→  expiresAt: string; // ISO
+   629→  used: boolean;
+   630→}
+   631→
+   632→const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+   633→
+   634→export function signStateNonce(nonce: string): string {
+   635→  const mac = createHmac("sha256", secret()).update(nonce).digest("base64url");
+   636→  return `${nonce}.${mac}`;
+   637→}
+   638→
+   639→export function verifyStateSignature(state: string | null | undefined): string | null {
+   640→  if (!state) return null;
+   641→  const parts = state.split(".");
+   642→  if (parts.length !== 2) return null;
+   643→  const [nonce, mac] = parts;
+   644→  const expected = createHmac("sha256", secret()).update(nonce).digest("base64url");
+   645→  try {
+   646→    const a = Buffer.from(mac);
+   647→    const b = Buffer.from(expected);
+   648→    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+   649→    return nonce;
+   650→  } catch {
+   651→    return null;
+   652→  }
+   653→}
+   654→
+   655→/** Creates a single-use OAuth state row in public.oauth_states (service-role). */
+   656→export async function createOAuthState(
+   657→  portal: PortalId,
+   658→  redirectTo: string,
+   659→  redirectUri?: string,
+   660→  returnOrigin?: string | null,
+   661→  browserHash?: string | null,
+   662→): Promise<string | null> {
+   663→  const admin = getSupabaseAdmin();
+   664→  if (!admin) return null;
+   665→  // Housekeeping: states are single-use and short-lived; sweep rows that have
+   666→  // been dead for over a day so the table never grows unboundedly. Best-effort.
+   667→  try {
+   668→    await admin.from("oauth_states").delete().lt("expires_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+   669→  } catch { /* hygiene is best-effort */ }
+   670→  const nonce = randomBytes(32).toString("base64url");
+   671→  const expiresAt = new Date(Date.now() + OAUTH_STATE_TTL_MS).toISOString();
+   672→  const { error } = await admin
+   673→    .from("oauth_states")
+   674→    .insert({ nonce, portal, redirect_to: redirectTo, redirect_uri: redirectUri || null, return_origin: returnOrigin || null, browser_hash: browserHash || null, expires_at: expiresAt, used: false });
+   675→  if (error) {
+   676→    console.error("[pawz-auth] createOAuthState:", error.message);
+   677→    return null;
+   678→  }
+   679→  return signStateNonce(nonce);
+   680→}
+   681→
+   682→/** Maps a raw oauth_states row to the typed shape (no consumption). */
+   683→function mapStateRow(row: any): OAuthStateRow | null {
+   684→  const portal = row.portal as PortalId;
+   685→  if (!PORTALS[portal]) return null;
+   686→  return {
+   687→    nonce: row.nonce,
+   688→    portal,
+   689→    redirectTo: row.redirect_to || PORTALS[portal].destination,
+   690→    redirectUri: row.redirect_uri || null,
+   691→    returnOrigin: row.return_origin || null,
+   692→    browserHash: row.browser_hash || null,
+   693→    expiresAt: row.expires_at,
+   694→    used: Boolean(row.used),
+   695→  };
+   696→}
+   697→
+   698→const OAUTH_STATE_COLUMNS = "nonce, portal, redirect_to, redirect_uri, return_origin, browser_hash, expires_at, used";
+   699→
+   700→/** Verifies the signed state and reads its row WITHOUT consuming it — used
+   701→ *  by the callback to decide whether this flow belongs to another origin
+   702→ *  (relay) before anything is marked used. */
+   703→export async function peekOAuthState(state: string | null | undefined): Promise<OAuthStateRow | null> {
+   704→  const nonce = verifyStateSignature(state);
+   705→  if (!nonce) return null;
+   706→  const admin = getSupabaseAdmin();
+   707→  if (!admin) return null;
+   708→  const { data: rows, error } = await admin
+   709→    .from("oauth_states")
+   710→    .select(OAUTH_STATE_COLUMNS)
+   711→    .eq("nonce", nonce)
+   712→    .limit(1);
+   713→  if (error || !rows || rows.length === 0) return null;
+   714→  const row = mapStateRow(rows[0]);
+   715→  if (!row) return null;
+   716→  if (row.used) return null;
+   717→  if (new Date(row.expiresAt).getTime() < Date.now()) return null;
+   718→  return row;
+   719→}
+   720→
+   721→/** Verifies + consumes a state value. Returns the row, or null on any failure. */
+   722→export async function consumeOAuthState(state: string | null | undefined): Promise<OAuthStateRow | null> {
+   723→  const nonce = verifyStateSignature(state);
+   724→  if (!nonce) return null;
+   725→  const admin = getSupabaseAdmin();
+   726→  if (!admin) return null;
+   727→
+   728→  const { data: rows, error } = await admin
+   729→    .from("oauth_states")
+   730→    .select(OAUTH_STATE_COLUMNS)
+   731→    .eq("nonce", nonce)
+   732→    .limit(1);
+   733→  if (error || !rows || rows.length === 0) return null;
+   734→
+   735→  const row = mapStateRow(rows[0]);
+   736→  if (!row) return null;
+   737→  if (row.used) return null; // replay — reject
+   738→  if (new Date(row.expiresAt).getTime() < Date.now()) return null; // expired
+   739→
+   740→  // Mark used immediately (single-use). If the update fails, reject.
+   741→  const { error: updateError } = await admin.from("oauth_states").update({ used: true }).eq("nonce", nonce).eq("used", false);
+   742→  if (updateError) {
+   743→    // Raced with another callback — treat as replay.
+   744→    return null;
+   745→  }
+   746→
+   747→  return { ...row, used: true };
+   748→}
+   749→
+   750→// ---------------------------------------------------------------------------
+   751→// Google OAuth helpers
+   752→// ---------------------------------------------------------------------------
+   753→export function googleConfigured(): boolean {
+   754→  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+   755→}
+   756→
+   757→export function googleAuthUrl(state: string, redirectUri: string): string {
+   758→  const params = new URLSearchParams({
+   759→    client_id: process.env.GOOGLE_CLIENT_ID || "",
+   760→    redirect_uri: redirectUri,
+   761→    response_type: "code",
+   762→    scope: "openid email profile",
+   763→    access_type: "offline",
+   764→    include_granted_scopes: "true",
+   765→    prompt: "select_account",
+   766→    state,
+   767→  });
+   768→  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+   769→}
+   770→
+   771→export interface GoogleProfile {
+   772→  sub: string;
+   773→  email: string;
+   774→  name?: string;
+   775→  picture?: string;
+   776→  emailVerified?: boolean;
+   777→}
+   778→
+   779→export async function exchangeGoogleCode(code: string, redirectUri: string): Promise<{ profile: GoogleProfile | null; error?: string }> {
+   780→  try {
+   781→    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+   782→      method: "POST",
+   783→      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+   784→      body: new URLSearchParams({
+   785→        code,
+   786→        client_id: process.env.GOOGLE_CLIENT_ID || "",
+   787→        client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+   788→        redirect_uri: redirectUri,
+   789→        grant_type: "authorization_code",
+   790→      }),
+   791→    });
+   792→    const tokenData: any = await tokenRes.json();
+   793→    if (!tokenRes.ok) {
+   794→      return { profile: null, error: tokenData?.error_description || tokenData?.error || "Google token exchange failed." };
+   795→    }
+   796→    // The id_token came directly from Google's token endpoint over TLS —
+   797→    // decoding the payload (no local signature check needed) is standard.
+   798→    const idToken = tokenData.id_token as string | undefined;
+   799→    if (!idToken) return { profile: null, error: "Google response did not include an identity token." };
+   800→    const payload = JSON.parse(Buffer.from(idToken.split(".")[1], "base64url").toString("utf-8")) as any;
+   801→    if (!payload?.sub || !payload?.email) {
+   802→      return { profile: null, error: "Google identity token is missing an email." };
+   803→    }
+   804→    return {
+   805→      profile: {
+   806→        sub: String(payload.sub),
+   807→        email: String(payload.email).toLowerCase(),
+   808→        name: payload.name,
+   809→        picture: payload.picture,
+   810→        emailVerified: payload.email_verified !== false,
+   811→      },
+   812→    };
+   813→  } catch (e: any) {
+   814→    return { profile: null, error: e?.message || "Google token exchange failed." };
+   815→  }
+   816→}
+   817→
+   818→export async function findAuthUserByEmail(admin: SupabaseClient, email: string) {
+   819→  // Primary path: O(1) RPC against auth.users (migration 0008). This is the
+   820→  // reliable lookup — the paginated listUsers call below is capped at 4000
+   821→  // users and is rate-limited, so on a busy tenant it silently returned null
+   822→  // for an existing user and the callback bounced them to the door.
+   823→  try {
+   824→    const { data, error } = await admin
+   825→      .rpc("get_auth_user_by_email", { p_email: email });
+   826→    if (error) {
+   827→      console.error("[pawz-auth] get_auth_user_by_email RPC error:", error.message);
+   828→    } else if (data && data.length > 0) {
+   829→      const row = data[0] as any;
+   830→      return {
+   831→        id: row.id,
+   832→        email: row.email,
+   833→        user_metadata: row.raw_user_meta_data || {},
+   834→        identities: [],
+   835→        created_at: row.created_at,
+   836→        last_sign_in_at: row.last_sign_in_at,
+   837→      } as any;
+   838→    }
+   839→    // RPC resolved cleanly with no rows → genuinely no user. Skip the
+   840→    // paginated fallback (it would return null too).
+   841→    if (!error) return null;
+   842→  } catch (e: any) {
+   843→    console.error("[pawz-auth] get_auth_user_by_email RPC threw:", e?.message || e);
+   844→  }
+   845→
+   846→  // Fallback: paginated listUsers (only if the RPC is missing — e.g. the
+   847→  // migration hasn't been applied yet on this environment). Capped at 4000
+   848→  // users; the RPC above is the real fix.
+   849→  let page = 1;
+   850→  for (;;) {
+   851→    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+   852→    if (error) throw error;
+   853→    const users = data?.users || [];
+   854→    const found = users.find((u: any) => (u.email || "").toLowerCase() === email.toLowerCase());
+   855→    if (found) return found as any;
+   856→    if (users.length < 200 || page > 20) return null;
+   857→    page += 1;
+   858→  }
+   859→}
+   860→
+   861→export function googleIdentityLinked(user: any): boolean {
+   862→  const identities = user?.identities || [];
+   863→  if (identities.some((i: any) => i.provider === "google")) return true;
+   864→  const meta = user?.user_metadata || {};
+   865→  return Boolean(meta.google_sub);
+   866→}
+   867→

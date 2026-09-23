@@ -2,6 +2,10 @@ import "server-only"
 import { cache } from "react"
 import { repo, type Row } from "@/lib/repo"
 import {
+  listCatalogProducts,
+  type CatalogProduct,
+} from "@/lib/enterprise/catalog"
+import {
   type Rating,
   type ShopProduct,
   type NavCategory,
@@ -22,8 +26,9 @@ export * from "./types"
 // ---------------------------------------------------------------------------
 
 export function parsePriceToCents(price: unknown): number | null {
-  if (typeof price !== "string") return null
-  const m = price.replace(/[$,\s]/g, "")
+  if (price == null) return null
+  if (typeof price === "number") return Math.round(price * 100)
+  const m = String(price).replace(/[$,\s]/g, "")
   const n = Number.parseFloat(m)
   if (!Number.isFinite(n)) return null
   return Math.round(n * 100)
@@ -35,13 +40,21 @@ export function formatCents(cents: number): string {
 
 // ---------------------------------------------------------------------------
 // Raw catalog (React-cache'd per request — parallel sections share one fetch)
+//
+// Products now flow from the NORMALIZED enterprise schema
+// (erp_products + erp_product_skus + commerce_catalog_items + commerce_prices
+// + commerce_product_media + erp_inventory_movements) via
+// listCatalogProducts(). The flat commerce_products table is no longer the
+// source of truth — the owner's directive: "Do not invent flat or simplified
+// tables; wire the application directly into the existing commerce_* and
+// erp_* tables."
 // ---------------------------------------------------------------------------
 
 const getRaw = cache(async () => {
-  const [catRows, productRows, reviewRows, filterRows, filterValueRows, mappingRows] =
+  const [catRows, enterpriseProducts, reviewRows, filterRows, filterValueRows, mappingRows] =
     await Promise.all([
       repo.list("pet_product_categories"),
-      repo.list("products"),
+      listCatalogProducts(),
       repo.list("product_reviews"),
       repo.list("pet_product_filters"),
       repo.list("pet_product_filter_values"),
@@ -49,7 +62,7 @@ const getRaw = cache(async () => {
     ])
   return {
     categories: catRows,
-    products: productRows,
+    products: enterpriseProducts as unknown as Row[],
     reviews: reviewRows,
     filters: filterRows,
     filterValues: filterValueRows,
@@ -72,18 +85,40 @@ export const getProducts = cache(async (): Promise<ShopProduct[]> => {
   }
 
   const now = Date.now()
-  return (products as Row[])
-    .filter((p) => p.visible !== false && p.slug)
+  return (products as unknown as CatalogProduct[])
+    .filter((p) => p.visible && p.slug)
     .map((p) => {
       const rating = rollup.get(p.id) || { avg: 0, count: 0 }
       const created = p.createdAt ? new Date(p.createdAt).getTime() : 0
       const badge = typeof p.badge === "string" ? p.badge.toLowerCase() : ""
+
+      // ---- Pricing (from commerce_prices via the enterprise layer) ----
+      // priceCents = the active storefront price (sale price when on sale,
+      // otherwise the base price from commerce_prices.price).
+      // compareAtPriceCents = commerce_prices.compare_at_price (shown
+      // struck-through when strictly greater than the active price).
+      const basePriceCents = p.priceCents
+      const salePriceCents = p.isOnSale ? p.priceCents : null
+      const compareAtPriceCents = p.compareAtPriceCents
+      const isOnSale = p.isOnSale
+      const displayPriceCents = p.priceCents
+      const displayPrice = formatCents(p.priceCents)
+
       return {
         id: p.id,
         name: p.name,
         slug: p.slug,
-        price: p.price,
-        priceCents: parsePriceToCents(p.price),
+        // Backward-compat: existing consumers (cart-store, bag-client, PDP
+        // buybox) read `price` / `priceCents`. The catalog now resolves these
+        // to the active display price so a Sale flows end-to-end without
+        // touching every call site.
+        price: displayPrice,
+        priceCents: displayPriceCents,
+        basePriceCents,
+        salePriceCents,
+        compareAtPriceCents,
+        displayPriceCents,
+        displayPrice,
         image: p.image ?? null,
         alt: p.alt ?? p.name,
         badge: p.badge ?? null,
@@ -93,13 +128,13 @@ export const getProducts = cache(async (): Promise<ShopProduct[]> => {
         shortDescription: p.shortDescription ?? null,
         description: p.description ?? null,
         createdAt: p.createdAt ?? null,
-        order: p.order ?? 99,
+        order: p.sortOrder ?? 99,
         featured: p.featured === true,
         rating,
         isNew: badge.includes("new") || (created > 0 && now - created < 60 * 24 * 3600 * 1000),
         isBestseller:
           badge.includes("bestseller") || badge.includes("best seller") || p.featured === true,
-        isOnSale: false, // flips true when compare-at pricing lands in SQL
+        isOnSale,
       }
     })
 })
@@ -142,7 +177,19 @@ const VIRTUAL_DOG = { displayName: "Dog", slug: "dog" }
 // Customer-facing nav tree (the resolver)
 // ---------------------------------------------------------------------------
 
-type RawNode = { id: number; name: string; slug: string; parentId: number | null; children: RawNode[]; count: number }
+type RawNode = {
+  id: number
+  name: string
+  slug: string
+  parentId: number | null
+  children: RawNode[]
+  count: number
+  // Migration 0013 mega-menu fields (nullable on the SQL side).
+  heroImage?: string | null
+  promoBlurb?: string | null
+  featuredInMegaMenu?: boolean | null
+  isActive?: boolean | null
+}
 
 function buildRawTree(rows: Row[]): { roots: RawNode[]; byId: Map<number, RawNode> } {
   const nodes = new Map<number, RawNode>()
@@ -154,6 +201,10 @@ function buildRawTree(rows: Row[]): { roots: RawNode[]; byId: Map<number, RawNod
       parentId: r.parent_id ?? null,
       children: [],
       count: 0,
+      heroImage: r.hero_image ?? null,
+      promoBlurb: r.promo_blurb ?? null,
+      featuredInMegaMenu: r.featured_in_mega_menu ?? null,
+      isActive: r.is_active ?? null,
     })
   }
   const roots: RawNode[] = []
@@ -166,6 +217,19 @@ function buildRawTree(rows: Row[]): { roots: RawNode[]; byId: Map<number, RawNod
 
 function subtreeIds(n: RawNode): number[] {
   return [n.id, ...n.children.flatMap(subtreeIds)]
+}
+
+/** Depth-first flatten of a raw node + its descendants. */
+function flattenRaw(n: RawNode): RawNode[] {
+  return [n, ...n.children.flatMap(flattenRaw)]
+}
+
+/** Pick the shallowest non-empty promo blurb from a list of raw nodes. */
+function pickPromoBlurb(nodes: RawNode[]): string | null {
+  for (const n of nodes) {
+    if (typeof n.promoBlurb === "string" && n.promoBlurb.trim()) return n.promoBlurb
+  }
+  return null
 }
 
 function rollupRaw(n: RawNode, productCountByLeaf: Map<number, number>): number {
@@ -218,6 +282,7 @@ export const getNavTree = cache(async (): Promise<NavCategory[]> => {
       if (nav) children.push(nav)
     }
     const scopeIds = [raw.id, ...raw.children.flatMap(subtreeIds)]
+    const scopeRaw = [raw, ...raw.children.flatMap((c) => flattenRaw(c))]
     return {
       key,
       displayName,
@@ -227,6 +292,13 @@ export const getNavTree = cache(async (): Promise<NavCategory[]> => {
       rawIds: Array.from(new Set([...rawIds, ...scopeIds])),
       children,
       parentKey,
+      // Aggregate the migration-0013 mega-menu fields across every raw node
+      // folded into this presentation node. The promo blurb prefers the
+      // shallowest non-empty value (the node itself, then its folded
+      // ancestors); featured is true when ANY scope node carries the flag.
+      promoBlurb: pickPromoBlurb(scopeRaw),
+      featuredInMegaMenu: scopeRaw.some((n) => n.featuredInMegaMenu === true),
+      heroImage: scopeRaw.map((n) => n.heroImage).find((h) => !!h) ?? null,
     }
   }
 
@@ -267,6 +339,10 @@ export const getNavTree = cache(async (): Promise<NavCategory[]> => {
 
   const nav: NavCategory[] = []
   if (dogChildren.length > 0) {
+    // Aggregate migration-0013 mega-menu fields across every dog root's
+    // subtree so the virtual "Dog" parent carries a promo blurb / featured
+    // flag when any dog category has one set.
+    const dogScopeRaw = dogRoots.flatMap(flattenRaw)
     nav.push({
       key: VIRTUAL_DOG.slug,
       displayName: VIRTUAL_DOG.displayName,
@@ -276,6 +352,9 @@ export const getNavTree = cache(async (): Promise<NavCategory[]> => {
       rawIds: Array.from(new Set(dogRawIds)),
       children: dogChildren,
       parentKey: null,
+      promoBlurb: pickPromoBlurb(dogScopeRaw),
+      featuredInMegaMenu: dogScopeRaw.some((n) => n.featuredInMegaMenu === true),
+      heroImage: dogScopeRaw.map((n) => n.heroImage).find((h) => !!h) ?? null,
     })
   }
   // Future cat departments group under their own virtual parent the same way.

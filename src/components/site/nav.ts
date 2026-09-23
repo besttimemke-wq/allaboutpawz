@@ -1,4 +1,4 @@
-// Client-side nav model — mirrors the source site's 11 pages + an admin view.
+// Client-side nav model — the core business flow + learning as item 11.
 export const NAV = [
   { n: "01", label: "HOME", to: "/" },
   { n: "02", label: "ABOUT US", to: "/about" },
@@ -10,6 +10,7 @@ export const NAV = [
   { n: "08", label: "BOOK", to: "/book" },
   { n: "09", label: "CONTACT", to: "/contact" },
   { n: "10", label: "FAQ / POLICIES", to: "/faq" },
+  { n: "11", label: "LEARN", to: "/learn" },
 ] as const
 
 export type Route = (typeof NAV)[number]["to"] | "/admin"

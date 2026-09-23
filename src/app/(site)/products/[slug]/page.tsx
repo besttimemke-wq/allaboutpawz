@@ -4,7 +4,12 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { PawPrint } from "lucide-react"
 import { repo } from "@/lib/repo"
-import { getNavTree, flattenNav, findByRawIdNav, parsePriceToCents } from "@/lib/shop/catalog"
+import { getNavTree, flattenNav, findByRawIdNav, formatCents, type NavCategory } from "@/lib/shop/catalog"
+import {
+  getCatalogProductBySlug,
+  listCatalogProducts,
+  type CatalogProduct,
+} from "@/lib/enterprise/catalog"
 import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
 import { SITE_URL } from "@/lib/site-url"
 
@@ -15,13 +20,18 @@ import { SITE_URL } from "@/lib/site-url"
 //   warranty, the specs, and verified reviews. Breadcrumbs follow the
 //   customer-facing category hierarchy (Dog → Grooming → …), each ancestor
 //   linking to its server-rendered category page.
+//
+//   Data source: the NORMALIZED enterprise schema (erp_products +
+//   erp_product_skus + commerce_catalog_items + commerce_prices +
+//   commerce_product_media + erp_inventory_movements) via
+//   getCatalogProductBySlug(). The flat commerce_products table is no longer
+//   the source of truth.
 // ---------------------------------------------------------------------------
 
 type Params = { params: Promise<{ slug: string }> }
 
-async function loadProduct(slug: string) {
-  const products = await repo.list("products")
-  return products.find((p: any) => p.slug === slug && p.visible) || null
+async function loadProduct(slug: string): Promise<CatalogProduct | null> {
+  return getCatalogProductBySlug(slug)
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -83,7 +93,7 @@ export default async function ProductPage({ params }: Params) {
 
   const [allReviews, allProducts, tree] = await Promise.all([
     repo.list("product_reviews"),
-    repo.list("products"),
+    listCatalogProducts(),
     getNavTree(),
   ])
   const reviews = (allReviews as any[])
@@ -98,11 +108,11 @@ export default async function ProductPage({ params }: Params) {
       : 0
 
   // Related products: same category first, then fill to 4 total.
-  const others = (allProducts as any[]).filter(
+  const others = (allProducts as CatalogProduct[]).filter(
     (p) => p.id !== product.id && p.visible && p.slug,
   )
-  const inCategory = others.filter((p: any) => p.category === product.category)
-  const outCategory = others.filter((p: any) => p.category !== product.category)
+  const inCategory = others.filter((p) => p.category === product.category)
+  const outCategory = others.filter((p) => p.category !== product.category)
   const related = [...inCategory, ...outCategory].slice(0, 4)
 
   const category = product.category || "Shop"
@@ -114,19 +124,42 @@ export default async function ProductPage({ params }: Params) {
     product.categoryId != null ? findByRawIdNav(navFlat, product.categoryId) : null
   const chain: { name: string; path: string }[] = []
   if (catNode) {
-    let cursor = catNode
+    let cursor: NavCategory | null = catNode
     while (cursor) {
       chain.unshift({ name: cursor.displayName, path: cursor.path })
       const parentKey = cursor.parentKey
+      const lvl = cursor.level
       cursor =
         parentKey != null
-          ? navFlat.find((n) => n.key === parentKey && n.level === cursor!.level - 1) || null
+          ? navFlat.find((n) => n.key === parentKey && n.level === lvl - 1) || null
           : null
     }
   }
 
-  const freeOf = hasText(product.ingredients) ? parseFreeOf(product.ingredients) : null
-  const specs = hasText(product.specs) ? specRows(product.specs) : []
+  const freeOf = hasText(product.ingredients) ? parseFreeOf(product.ingredients as string) : null
+  const specs = hasText(product.specs) ? specRows(product.specs as string) : []
+
+  // ---- Pricing (from the enterprise layer — commerce_prices) ----
+  // The enterprise CatalogProduct already reconciled pricing:
+  //   priceCents          = the active storefront price (sale when on sale)
+  //   compareAtPriceCents = the struck-through reference (nullable)
+  //   isOnSale            = true when compareAtPriceCents > priceCents
+  const basePriceCents = product.priceCents
+  const compareAtPriceCents = product.compareAtPriceCents
+  const isOnSale = product.isOnSale
+  const displayPriceCents = product.priceCents
+  const displayPrice = formatCents(product.priceCents)
+  // Strikethrough reference — prefer compare-at (the marketing reference);
+  // fall back to null when not on sale.
+  const strikeCents = isOnSale && compareAtPriceCents != null ? compareAtPriceCents : null
+
+  // The buybox reads `price` to seed the cart unit price; pass the active
+  // display price so a Sale flows through to checkout without touching the
+  // buybox component contract.
+  const buyBoxProduct: BuyBoxProduct = {
+    ...(product as any),
+    price: displayPrice,
+  } as BuyBoxProduct
 
   // ---- Structured data (server-rendered) ----
   const canonicalUrl = `${SITE_URL}/products/${slug}`
@@ -137,7 +170,6 @@ export default async function ProductPage({ params }: Params) {
       ? `${SITE_URL}${product.image}`
       : String(product.image)
     : undefined
-  const priceCents = parsePriceToCents(product.price)
   const productJsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -146,10 +178,10 @@ export default async function ProductPage({ params }: Params) {
     url: canonicalUrl,
   }
   if (productImage) productJsonLd.image = productImage
-  if (priceCents != null) {
+  if (displayPriceCents != null) {
     productJsonLd.offers = {
       "@type": "Offer",
-      price: priceCents / 100,
+      price: displayPriceCents / 100,
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
       url: canonicalUrl,
@@ -264,14 +296,28 @@ export default async function ProductPage({ params }: Params) {
             </a>
           )}
 
-          <p className="mt-4 text-[20px] font-bold text-gold-deep">{product.price}</p>
+          <p className="mt-4 flex flex-wrap items-baseline gap-3">
+            <span className="text-[24px] font-bold text-ink">
+              {displayPrice}
+            </span>
+            {strikeCents != null && (
+              <span className="text-[15px] font-medium text-ink-soft/70 line-through">
+                {formatCents(strikeCents)}
+              </span>
+            )}
+            {isOnSale && (
+              <span className="border border-gold-deep/40 bg-gold-deep/5 px-2.5 py-1 text-[9px] font-bold tracking-[0.16em] text-gold-deep">
+                SALE
+              </span>
+            )}
+          </p>
           {hasText(product.shortDescription) && (
             <p className="mt-4 max-w-[440px] text-[12.5px] leading-[1.85] text-ink-soft">
               {product.shortDescription}
             </p>
           )}
 
-          <ProductBuyBox product={product as BuyBoxProduct} />
+          <ProductBuyBox product={buyBoxProduct} />
         </div>
       </section>
 
@@ -410,16 +456,21 @@ export default async function ProductPage({ params }: Params) {
             YOU MAY ALSO LIKE
           </h2>
           <div className="mt-8 grid grid-cols-2 gap-8 lg:grid-cols-4">
-            {related.map((p: any) => (
+            {related.map((p: CatalogProduct) => {
+              const rOnSale = p.isOnSale
+              const rDisplay = formatCents(p.priceCents)
+              const rStrikeCents =
+                rOnSale && p.compareAtPriceCents != null ? p.compareAtPriceCents : null
+              return (
               <article key={p.id} className="group flex flex-col">
                 <Link
                   href={`/products/${p.slug}`}
                   className="relative block overflow-hidden border border-gold/25 bg-cream p-4 transition-colors group-hover:border-gold-deep/50"
                   aria-label={`View ${p.name}`}
                 >
-                  {p.badge && (
+                  {(rOnSale ? "Sale" : p.badge) && (
                     <span className="absolute left-0 top-0 z-10 bg-ink px-2.5 py-1 text-[8px] font-bold tracking-[0.14em] text-gold">
-                      {String(p.badge).toUpperCase()}
+                      {(rOnSale ? "SALE" : String(p.badge).toUpperCase())}
                     </span>
                   )}
                   {p.image ? (
@@ -449,10 +500,24 @@ export default async function ProductPage({ params }: Params) {
                   >
                     {p.name}
                   </Link>
-                  <p className="mt-2 text-[13px] font-bold text-gold-deep">{p.price}</p>
+                  <p className="mt-2 flex items-center justify-center gap-2">
+                    {rStrikeCents != null && (
+                      <span className="text-[12px] font-medium text-ink-soft/70 line-through">
+                        {formatCents(rStrikeCents)}
+                      </span>
+                    )}
+                    <span
+                      className={`text-[13px] font-bold ${
+                        rOnSale ? "text-ink" : "text-gold-deep"
+                      }`}
+                    >
+                      {rDisplay}
+                    </span>
+                  </p>
                 </div>
               </article>
-            ))}
+              )
+            })}
           </div>
           <div className="mt-10 text-center">
             <Link href="/shop" className="btn-ghost">BROWSE THE FULL COLLECTION</Link>

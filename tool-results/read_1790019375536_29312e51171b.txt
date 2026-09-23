@@ -1,0 +1,835 @@
+     1→'use client';
+     2→
+     3→import React, { useState, useMemo } from 'react';
+     4→import Image from 'next/image';
+     5→import Link from 'next/link';
+     6→import {
+     7→  Search,
+     8→  BookOpen,
+     9→  Award,
+    10→  Clock,
+    11→  ArrowRight,
+    12→  PawPrint,
+    13→  SlidersHorizontal,
+    14→  X,
+    15→  Shield,
+    16→  Layers,
+    17→  
+    18→  GraduationCap,
+    19→} from 'lucide-react';
+    20→import { COURSES_PROGRAMS, ProgramDetails } from '@/lib/courses-data';
+    21→import { ALL_CATALOG_MODULES, CatalogModule } from '@/lib/catalog-modules';
+    22→
+    23→// Track code mapping to program id
+    24→const TRACK_CODE_TO_PROGRAM_ID: Record<string, string> = {
+    25→  IPDG: 'ipdg',
+    26→  PDT: 'pdt',
+    27→  ACA: 'aca',
+    28→  PPS: 'pps',
+    29→  CAT: 'cat',
+    30→  PPC: 'ppc',
+    31→  BIZ: 'ppc',
+    32→  PERS: 'ppc',
+    33→};
+    34→
+    35→export function CoursesCatalogView() {
+    36→  const [selectedPathway, setSelectedPathway] = useState<string>('all');
+    37→  const [selectedLevel, setSelectedLevel] = useState<string>('all');
+    38→  const [selectedDuration, setSelectedDuration] = useState<string>('all');
+    39→  const [searchQuery, setSearchQuery] = useState<string>('');
+    40→  const [sortBy, setSortBy] = useState<string>('featured');
+    41→  const [viewMode, setViewMode] = useState<'programs' | 'modules'>('programs');
+    42→  const [activeCourseModal, setActiveCourseModal] = useState<ProgramDetails | null>(null);
+    43→
+    44→
+    45→  // 1. Filtered Modules from ALL_CATALOG_MODULES
+    46→  const filteredModules = useMemo(() => {
+    47→    return ALL_CATALOG_MODULES.filter((m) => {
+    48→      // Pathway filter
+    49→      if (selectedPathway !== 'all') {
+    50→        if (selectedPathway === 'grooming' && !['IPDG', 'CAT', 'ACA'].includes(m.trackCode)) return false;
+    51→        if (selectedPathway === 'training' && m.trackCode !== 'PDT') return false;
+    52→        if (selectedPathway === 'pet-care' && !['PPS', 'ACA', 'PPC'].includes(m.trackCode)) return false;
+    53→        if (selectedPathway === 'business' && !['PPC', 'BIZ', 'PERS'].includes(m.trackCode)) return false;
+    54→      }
+    55→
+    56→      // Course Level filter
+    57→      if (selectedLevel !== 'all') {
+    58→        if (m.level !== selectedLevel) return false;
+    59→      }
+    60→
+    61→      // Search Query filter
+    62→      if (searchQuery.trim()) {
+    63→        const q = searchQuery.toLowerCase().trim();
+    64→        const matchesCode = m.code.toLowerCase().includes(q);
+    65→        const matchesTitle = m.title.toLowerCase().includes(q);
+    66→        const matchesDesc = m.description.toLowerCase().includes(q);
+    67→        const matchesTrack = m.trackTitle.toLowerCase().includes(q) || m.trackCode.toLowerCase().includes(q);
+    68→        const matchesCategory = m.category.toLowerCase().includes(q);
+    69→        const matchesSafety = (q.includes('safety') || q.includes('gate')) && !!m.safetyGate;
+    70→        const matchesPracticum = q.includes('practicum') && !!m.practicum;
+    71→
+    72→        if (!matchesCode && !matchesTitle && !matchesDesc && !matchesTrack && !matchesCategory && !matchesSafety && !matchesPracticum) {
+    73→          return false;
+    74→        }
+    75→      }
+    76→
+    77→      return true;
+    78→    });
+    79→  }, [selectedPathway, selectedLevel, searchQuery]);
+    80→
+    81→  // 2. Map of matching modules grouped by program id for rich search previews
+    82→  const programMatchingModulesMap = useMemo(() => {
+    83→    const map: Record<string, CatalogModule[]> = {};
+    84→    if (!searchQuery.trim() && selectedLevel === 'all') return map;
+    85→
+    86→    for (const m of filteredModules) {
+    87→      const progId = TRACK_CODE_TO_PROGRAM_ID[m.trackCode];
+    88→      if (progId) {
+    89→        if (!map[progId]) map[progId] = [];
+    90→        map[progId].push(m);
+    91→      }
+    92→    }
+    93→    return map;
+    94→  }, [filteredModules, searchQuery, selectedLevel]);
+    95→
+    96→  // 3. Filtered & Sorted Programs
+    97→  const filteredPrograms = useMemo(() => {
+    98→    const list = COURSES_PROGRAMS.filter((p) => {
+    99→      // Pathway filter
+   100→      if (selectedPathway !== 'all') {
+   101→        if (selectedPathway === 'grooming' && !['ipdg', 'cat', 'aca'].includes(p.id)) return false;
+   102→        if (selectedPathway === 'training' && p.id !== 'pdt') return false;
+   103→        if (selectedPathway === 'pet-care' && !['pps', 'aca', 'ppc'].includes(p.id)) return false;
+   104→        if (selectedPathway === 'business' && p.id !== 'ppc') return false;
+   105→      }
+   106→
+   107→      // Duration filter
+   108→      if (selectedDuration === 'short' && p.totalWeeks > 16) return false;
+   109→      if (selectedDuration === 'long' && p.totalWeeks <= 16) return false;
+   110→
+   111→      // Course Level filter
+   112→      if (selectedLevel !== 'all') {
+   113→        const hasLevelModule = ALL_CATALOG_MODULES.some(
+   114→          (m) => TRACK_CODE_TO_PROGRAM_ID[m.trackCode] === p.id && m.level === selectedLevel
+   115→        );
+   116→        if (!hasLevelModule) return false;
+   117→      }
+   118→
+   119→      // Search Query filter
+   120→      if (searchQuery.trim()) {
+   121→        const q = searchQuery.toLowerCase().trim();
+   122→        const matchesTitle = p.title.toLowerCase().includes(q);
+   123→        const matchesCode = p.code.toLowerCase().includes(q);
+   124→        const matchesSubtitle = p.subtitle.toLowerCase().includes(q);
+   125→        const matchesOverview = p.overviewParagraphs.some((para) => para.toLowerCase().includes(q));
+   126→        const matchesTopics = p.terms.some((t) => t.topics.some((top) => top.toLowerCase().includes(q)));
+   127→        const matchesHighlights = p.terms.some((t) =>
+   128→          t.courseHighlights.some(
+   129→            (ch) =>
+   130→              ch.code.toLowerCase().includes(q) ||
+   131→              ch.title.toLowerCase().includes(q) ||
+   132→              ch.description.toLowerCase().includes(q)
+   133→          )
+   134→        );
+   135→        const hasMatchedModules = (programMatchingModulesMap[p.id]?.length ?? 0) > 0;
+   136→        const matchesSafetyQuery = (q.includes('safety') || q.includes('gate')) && p.terms.some((t) =>
+   137→          t.courseHighlights.some((ch) => ch.title.toLowerCase().includes('safety gate'))
+   138→        );
+   139→
+   140→        if (
+   141→          !matchesTitle &&
+   142→          !matchesCode &&
+   143→          !matchesSubtitle &&
+   144→          !matchesOverview &&
+   145→          !matchesTopics &&
+   146→          !matchesHighlights &&
+   147→          !hasMatchedModules &&
+   148→          !matchesSafetyQuery
+   149→        ) {
+   150→          return false;
+   151→        }
+   152→      }
+   153→
+   154→      return true;
+   155→    });
+   156→
+   157→    // Sorting
+   158→    return [...list].sort((a, b) => {
+   159→      if (sortBy === 'hours') return b.totalClockHours - a.totalClockHours;
+   160→      if (sortBy === 'weeks') return b.totalWeeks - a.totalWeeks;
+   161→      if (sortBy === 'name') return a.title.localeCompare(b.title);
+   162→      return 0; // 'featured' keeps original curriculum order
+   163→    });
+   164→  }, [selectedPathway, selectedDuration, selectedLevel, searchQuery, sortBy, programMatchingModulesMap]);
+   165→
+   166→  const hasActiveFilters =
+   167→    selectedPathway !== 'all' ||
+   168→    selectedLevel !== 'all' ||
+   169→    selectedDuration !== 'all' ||
+   170→    searchQuery.trim() !== '';
+   171→
+   172→  const handleResetFilters = () => {
+   173→    setSelectedPathway('all');
+   174→    setSelectedLevel('all');
+   175→    setSelectedDuration('all');
+   176→    setSearchQuery('');
+   177→  };
+   178→
+   179→  return (
+   180→    <div className="min-h-screen flex flex-col bg-cream text-ink">
+   181→      {/* Hero Header Banner — split grid: marble/cream left, image right */}
+   182→      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
+   183→        <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
+   184→          <div className="flex items-center gap-2">
+   185→            <GraduationCap className="w-4 h-4 text-gold-deep" strokeWidth={1.5} />
+   186→            <p className="eyebrow">ACADEMY CURRICULUM &amp; SYLLABUS</p>
+   187→          </div>
+   188→
+   189→          <h1 className="mt-3 font-display text-[34px] leading-[1.15] text-ink">
+   190→            View All Academy Courses
+   191→          </h1>
+   192→          <p className="mt-4 max-w-[460px] text-[13px] leading-[1.8] text-ink-soft">
+   193→            Explore our 6 career pathways and 160+ courses. Search by module code, skill, or credential to find your path.
+   194→          </p>
+   195→
+   196→          {/* Quick Route Shortcut to Enroll */}
+   197→          <div className="mt-8 flex flex-wrap items-center gap-3">
+   198→            <Link href="/learn/enroll" className="btn-gold">
+   199→              GET STARTED / ENROLL NOW
+   200→            </Link>
+   201→            <Link href="/learn/classroom" className="btn-ghost">
+   202→              INTERACTIVE AI CLASSROOM
+   203→            </Link>
+   204→          </div>
+   205→
+   206→          {/* 3 Pillars */}
+   207→          <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-gold/25 pt-6">
+   208→            <div>
+   209→              <div className="flex items-center gap-2 text-gold-deep mb-1">
+   210→                <Award className="w-4 h-4" strokeWidth={1.5} />
+   211→                <span className="text-[0.7rem] uppercase tracking-wider font-semibold text-ink-soft">6 Pathways</span>
+   212→              </div>
+   213→              <p className="text-[0.75rem] text-ink-soft leading-relaxed">
+   214→                Grooming, training, sitting, daycare, cat care, business.
+   215→              </p>
+   216→            </div>
+   217→
+   218→            <div>
+   219→              <div className="flex items-center gap-2 text-gold-deep mb-1">
+   220→                <Clock className="w-4 h-4" strokeWidth={1.5} />
+   221→                <span className="text-[0.7rem] uppercase tracking-wider font-semibold text-ink-soft">Flexible Formats</span>
+   222→              </div>
+   223→              <p className="text-[0.75rem] text-ink-soft leading-relaxed">
+   224→                6 to 52 weeks with hybrid and hands-on tracks.
+   225→              </p>
+   226→            </div>
+   227→
+   228→            <div>
+   229→              <div className="flex items-center gap-2 text-gold-deep mb-1">
+   230→                <BookOpen className="w-4 h-4" strokeWidth={1.5} />
+   231→                <span className="text-[0.7rem] uppercase tracking-wider font-semibold text-ink-soft">Hands-on Practice</span>
+   232→              </div>
+   233→              <p className="text-[0.75rem] text-ink-soft leading-relaxed">
+   234→                Key skills checks, real animals, and portfolios.
+   235→              </p>
+   236→            </div>
+   237→          </div>
+   238→        </div>
+   239→
+   240→        {/* Right Photo Column — bright, no dark overlay */}
+   241→        <div className="relative min-h-[300px]">
+   242→          <img
+   243→            src="/images/pets_caregiver.jpg"
+   244→            alt="LEASHED Academy Students"
+   245→            className="absolute inset-0 h-full w-full object-cover"
+   246→          />
+   247→        </div>
+   248→      </section>
+   249→
+   250→      {/* Main Catalog View: full-width to align with hero edges */}
+   251→      <main className="flex-1 w-full px-0 py-8 lg:py-12">
+   252→        <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+   253→          {/* Left Sidebar Filters */}
+   254→          <aside className="lg:col-span-4 xl:col-span-3 space-y-6 px-8 lg:px-12">
+   255→            <div className="bg-cream rounded-2xl p-6 border border-gold/25 shadow-sm sticky top-24">
+   256→              {/* Academy Nav Header */}
+   257→              <div className="flex items-center justify-between pb-4 border-b border-gold/25">
+   258→                <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-ink uppercase">
+   259→                  <BookOpen className="w-4 h-4 text-gold-deep" />
+   260→                  <span>CURRICULUM TRACKS</span>
+   261→                </div>
+   262→                {hasActiveFilters && (
+   263→                  <button
+   264→                    onClick={handleResetFilters}
+   265→                    className="text-[0.7rem] font-bold text-[#b56548] hover:underline"
+   266→                  >
+   267→                    Reset
+   268→                  </button>
+   269→                )}
+   270→              </div>
+   271→
+   272→              {/* Direct Pathway Quick Links to Syllabus Pages */}
+   273→              <div className="py-4 border-b border-gold/25 space-y-1 text-xs">
+   274→                {COURSES_PROGRAMS.map((prog) => (
+   275→                  <Link
+   276→                    key={prog.id}
+   277→                    href={`/learn/courses/${prog.slug}`}
+   278→                    className="flex items-center justify-between py-1.5 px-2 rounded-lg text-ink-soft hover:bg-cream-deep hover:text-ink font-medium transition-colors"
+   279→                  >
+   280→                    <span className="truncate">{prog.title}</span>
+   281→                    <span className="font-mono text-[0.68rem] text-[#5a6b5f] bg-cream-deep px-1.5 py-0.5 rounded">
+   282→                      {prog.code}
+   283→                    </span>
+   284→                  </Link>
+   285→                ))}
+   286→              </div>
+   287→
+   288→              {/* Filter Controls */}
+   289→              <div className="pt-4 space-y-4">
+   290→                <h3 className="text-xs font-bold uppercase tracking-wider text-ink flex items-center gap-2">
+   291→                  <SlidersHorizontal className="w-3.5 h-3.5 text-gold-deep" />
+   292→                  <span>Filter Catalog</span>
+   293→                </h3>
+   294→
+   295→                {/* Search Input with Clear Button */}
+   296→                <div>
+   297→                  <label className="block text-[0.72rem] font-bold text-ink-soft uppercase mb-1">
+   298→                    Search Course or Skill
+   299→                  </label>
+   300→                  <div className="relative">
+   301→                    <input
+   302→                      type="text"
+   303→                      value={searchQuery}
+   304→                      onChange={(e) => setSearchQuery(e.target.value)}
+   305→                      placeholder="e.g. IPDG-103, key skills check, lion cut..."
+   306→                      className="w-full bg-cream border border-gold/30 rounded-lg pl-3 pr-8 py-2 text-xs text-ink focus:outline-none focus:border-gold-deep"
+   307→                    />
+   308→                    {searchQuery ? (
+   309→                      <button
+   310→                        onClick={() => setSearchQuery('')}
+   311→                        aria-label="Clear search"
+   312→                        className="absolute right-2.5 top-2.5 text-[#5a6b5f] hover:text-ink"
+   313→                      >
+   314→                        <X className="w-3.5 h-3.5" />
+   315→                      </button>
+   316→                    ) : (
+   317→                      <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-[#5a6b5f]" />
+   318→                    )}
+   319→                  </div>
+   320→                </div>
+   321→
+   322→                {/* Pathway Dropdown */}
+   323→                <div>
+   324→                  <label className="block text-[0.72rem] font-bold text-ink-soft uppercase mb-1">
+   325→                    Pathway
+   326→                  </label>
+   327→                  <select
+   328→                    value={selectedPathway}
+   329→                    onChange={(e) => setSelectedPathway(e.target.value)}
+   330→                    className="w-full bg-cream border border-gold/30 rounded-lg px-3 py-2 text-xs text-ink font-medium focus:outline-none focus:border-gold-deep"
+   331→                  >
+   332→                    <option value="all">All Pathways</option>
+   333→                    <option value="grooming">Grooming &amp; Bathing (IPDG, CAT, ACA)</option>
+   334→                    <option value="training">Dog Training (PDT)</option>
+   335→                    <option value="pet-care">Pet Sitting &amp; Care (PPS, ACA, PPC)</option>
+   336→                    <option value="business">Business &amp; Ownership (PPC)</option>
+   337→                  </select>
+   338→                </div>
+   339→
+   340→                {/* Course Level Dropdown */}
+   341→                <div>
+   342→                  <label className="block text-[0.72rem] font-bold text-ink-soft uppercase mb-1">
+   343→                    Course Level
+   344→                  </label>
+   345→                  <select
+   346→                    value={selectedLevel}
+   347→                    onChange={(e) => setSelectedLevel(e.target.value)}
+   348→                    className="w-full bg-cream border border-gold/30 rounded-lg px-3 py-2 text-xs text-ink font-medium focus:outline-none focus:border-gold-deep"
+   349→                  >
+   350→                    <option value="all">All Levels (100–400)</option>
+   351→                    <option value="100">100 Level – Foundation &amp; Safety</option>
+   352→                    <option value="200">200 Level – Core Skills</option>
+   353→                    <option value="300">300 Level – Advanced Skills</option>
+   354→                    <option value="400">400 Level – Hands-on Practice &amp; Capstone</option>
+   355→                  </select>
+   356→                </div>
+   357→
+   358→                {/* Duration Filter */}
+   359→                <div>
+   360→                  <label className="block text-[0.72rem] font-bold text-ink-soft uppercase mb-1">
+   361→                    Duration
+   362→                  </label>
+   363→                  <select
+   364→                    value={selectedDuration}
+   365→                    onChange={(e) => setSelectedDuration(e.target.value)}
+   366→                    className="w-full bg-cream border border-gold/30 rounded-lg px-3 py-2 text-xs text-ink font-medium focus:outline-none focus:border-gold-deep"
+   367→                  >
+   368→                    <option value="all">All Durations</option>
+   369→                    <option value="short">Short Courses (≤ 16 Weeks)</option>
+   370→                    <option value="long">Comprehensive Programs (&gt; 16 Weeks)</option>
+   371→                  </select>
+   372→                </div>
+   373→
+   374→                {/* Suggested Quick Search Chips */}
+   375→                <div className="pt-2">
+   376→                  <div className="text-[0.68rem] font-bold uppercase tracking-wider text-[#5a6b5f] mb-1.5">
+   377→                    Popular Inquiries
+   378→                  </div>
+   379→                  <div className="flex flex-wrap gap-1.5">
+   380→                    {['Key Skills Check', 'IPDG-103', 'PDT-201', 'Lion Cut', 'Bathing', 'Obedience'].map((term) => (
+   381→                      <button
+   382→                        key={term}
+   383→                        onClick={() => setSearchQuery(term)}
+   384→                        className={`text-[0.68rem] px-2 py-0.5 rounded-md border transition-colors ${
+   385→                          searchQuery.toLowerCase() === term.toLowerCase()
+   386→                            ? 'bg-gold-deep text-on-dark border-gold-deep'
+   387→                            : 'bg-cream-deep text-[#5a6b5f] border-[#e4dfd4] hover:bg-gold-light'
+   388→                        }`}
+   389→                      >
+   390→                        {term}
+   391→                      </button>
+   392→                    ))}
+   393→                  </div>
+   394→                </div>
+   395→              </div>
+   396→
+   397→              {/* Advisor Callout Card */}
+   398→              <div className="mt-6 p-4 rounded-xl bg-ink text-on-dark">
+   399→                <div className="w-8 h-8 rounded-full bg-gold-light text-ink flex items-center justify-center mb-2.5">
+   400→                  <PawPrint className="w-4 h-4" />
+   401→                </div>
+   402→                <h4 className="font-display text-sm font-bold mb-1">
+   403→                  Need Help Choosing?
+   404→                </h4>
+   405→                <p className="text-[0.75rem] text-[#e4dfd4] leading-relaxed mb-3">
+   406→                  Talk to an admissions advisor to map your background to the best pathway.
+   407→                </p>
+   408→                <Link
+   409→                  href="/learn/enroll"
+   410→                  className="block text-center py-1.5 px-3 rounded-lg bg-cream/10 hover:bg-cream/20 text-gold-light text-xs font-bold transition-colors border border-white/15"
+   411→                >
+   412→                  Start Enrollment &amp; Advising
+   413→                </Link>
+   414→              </div>
+   415→            </div>
+   416→          </aside>
+   417→
+   418→          {/* Right Main Catalog Content */}
+   419→          <section className="lg:col-span-8 xl:col-span-9 space-y-6 px-8 lg:px-12">
+   420→            {/* Top Toolbar: View Switcher + Count + Sort */}
+   421→            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-gold/20">
+   422→              {/* Tabs: Programs vs Modules */}
+   423→              <div className="flex items-center gap-1.5 bg-cream-deep p-1 rounded-xl">
+   424→                <button
+   425→                  onClick={() => setViewMode('programs')}
+   426→                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+   427→                    viewMode === 'programs'
+   428→                      ? 'bg-cream text-ink shadow-sm'
+   429→                      : 'text-ink-soft hover:text-ink'
+   430→                  }`}
+   431→                >
+   432→                  <BookOpen className="w-3.5 h-3.5 text-gold-deep" />
+   433→                  <span>Programs &amp; Tracks</span>
+   434→                  <span className="text-[0.68rem] px-1.5 py-0.2 rounded-full bg-gold-light text-ink">
+   435→                    {filteredPrograms.length}
+   436→                  </span>
+   437→                </button>
+   438→
+   439→                <button
+   440→                  onClick={() => setViewMode('modules')}
+   441→                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+   442→                    viewMode === 'modules'
+   443→                      ? 'bg-cream text-ink shadow-sm'
+   444→                      : 'text-ink-soft hover:text-ink'
+   445→                  }`}
+   446→                >
+   447→                  <Layers className="w-3.5 h-3.5 text-gold-deep" />
+   448→                  <span>Course Modules Catalog</span>
+   449→                  <span className="text-[0.68rem] px-1.5 py-0.2 rounded-full bg-gold-light text-ink">
+   450→                    {filteredModules.length}
+   451→                  </span>
+   452→                </button>
+   453→              </div>
+   454→
+   455→              {/* Sort By Dropdown */}
+   456→              <div className="flex items-center gap-2 self-end sm:self-auto">
+   457→                <span className="text-xs text-ink-soft">Sort by</span>
+   458→                <select
+   459→                  value={sortBy}
+   460→                  onChange={(e) => setSortBy(e.target.value)}
+   461→                  className="bg-cream border border-gold/30 rounded-lg px-2.5 py-1 text-xs text-ink font-medium focus:outline-none"
+   462→                >
+   463→                  <option value="featured">Featured (Curriculum Order)</option>
+   464→                  <option value="hours">Hours (High to Low)</option>
+   465→                  <option value="weeks">Duration (Weeks)</option>
+   466→                  <option value="name">Title (A-Z)</option>
+   467→                </select>
+   468→              </div>
+   469→            </div>
+   470→
+   471→            {/* Active search summary notice */}
+   472→            {searchQuery && (
+   473→              <div className="p-3 bg-cream-deep rounded-xl border border-gold/25 flex items-center justify-between text-xs text-ink-soft">
+   474→                <div>
+   475→                  Showing results for &ldquo;<strong>{searchQuery}</strong>&rdquo; across{' '}
+   476→                  <strong>{filteredPrograms.length}</strong> programs and{' '}
+   477→                  <strong>{filteredModules.length}</strong> course modules.
+   478→                </div>
+   479→                <button
+   480→                  onClick={() => setSearchQuery('')}
+   481→                  className="text-xs font-bold text-[#b56548] hover:underline"
+   482→                >
+   483→                  Clear search
+   484→                </button>
+   485→              </div>
+   486→            )}
+   487→
+   488→            {/* VIEW MODE 1: PROGRAMS & TRACKS */}
+   489→            {viewMode === 'programs' && (
+   490→              <>
+   491→                {filteredPrograms.length === 0 ? (
+   492→                  <div className="bg-cream rounded-2xl p-12 text-center border border-gold/25 space-y-4">
+   493→                    <div className="w-12 h-12 rounded-full bg-cream-deep text-gold-deep flex items-center justify-center mx-auto">
+   494→                      <Search className="w-6 h-6" />
+   495→                    </div>
+   496→                    <h3 className="font-display text-lg font-bold text-ink">No programs found</h3>
+   497→                    <p className="text-xs text-ink-soft max-w-md mx-auto">
+   498→                      We couldn&rsquo;t find any programs matching your current search or filter combination.
+   499→                    </p>
+   500→                    <button
+   501→                      onClick={handleResetFilters}
+   502→                      className="px-4 py-2 rounded-full bg-ink text-on-dark font-bold text-xs hover:bg-gold-deep transition-colors"
+   503→                    >
+   504→                      Reset All Filters
+   505→                    </button>
+   506→                  </div>
+   507→                ) : (
+   508→                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+   509→                    {filteredPrograms.map((program) => {
+   510→                      const matchedModules = programMatchingModulesMap[program.id] || [];
+   511→                      return (
+   512→                        <div
+   513→                          key={program.id}
+   514→                          className="bg-cream rounded-2xl border border-gold/25 overflow-hidden shadow-xs hover:shadow-md hover:border-gold/25 transition-all flex flex-col justify-between"
+   515→                        >
+   516→                          <div>
+   517→                            {/* Top Image Banner with Badges - Crisp & Bright */}
+   518→                            <div className="relative w-full aspect-[16/9] bg-cream-deep overflow-hidden">
+   519→                              <Image
+   520→                                src={program.heroImage}
+   521→                                alt={program.title}
+   522→                                fill
+   523→                                sizes="(max-width: 768px) 100vw, 50vw"
+   524→                                className="object-cover object-center brightness-100 contrast-[1.01] transition-transform duration-500 hover:scale-105"
+   525→                                referrerPolicy="no-referrer"
+   526→                              />
+   527→                            </div>
+   528→
+   529→                            {/* Card Body */}
+   530→                            <div className="p-5">
+   531→                              <h3 className="font-display text-lg font-bold text-ink leading-snug mb-1.5 line-clamp-1">
+   532→                                {program.title}
+   533→                              </h3>
+   534→                              <p className="text-xs text-ink-soft leading-relaxed mb-4 line-clamp-2">
+   535→                                {program.subtitle}
+   536→                              </p>
+   537→
+   538→                              {/* 3 Metric Pills */}
+   539→                              <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-cream border border-gold/25 text-center mb-4">
+   540→                                <div>
+   541→                                  <div className="text-[0.68rem] text-ink-soft font-semibold uppercase">Duration</div>
+   542→                                  <div className="text-xs font-bold text-ink">{program.totalWeeks} Wks</div>
+   543→                                </div>
+   544→                                <div className="border-x border-gold/25">
+   545→                                  <div className="text-[0.68rem] text-ink-soft font-semibold uppercase">Modules</div>
+   546→                                  <div className="text-xs font-bold text-ink">{program.totalModules}</div>
+   547→                                </div>
+   548→                                <div>
+   549→                                  <div className="text-[0.68rem] text-ink-soft font-semibold uppercase">Hours</div>
+   550→                                  <div className="text-xs font-bold text-ink">{program.totalClockHours}</div>
+   551→                                </div>
+   552→                              </div>
+   553→
+   554→                              {/* Matched Modules Indicator (when user searches) */}
+   555→                              {matchedModules.length > 0 && searchQuery && (
+   556→                                <div className="mb-4 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/60 text-xs">
+   557→                                  <div className="text-[0.68rem] font-bold text-amber-900 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+   558→                                    
+   559→                                    <span>Matched Courses in this Track ({matchedModules.length})</span>
+   560→                                  </div>
+   561→                                  <div className="space-y-1">
+   562→                                    {matchedModules.slice(0, 2).map((m) => (
+   563→                                      <div key={m.code} className="flex items-center gap-1.5 text-[0.72rem] text-ink">
+   564→                                        <span className="font-mono font-bold text-gold-deep">{m.code}:</span>
+   565→                                        <span className="truncate">{m.title}</span>
+   566→                                        {m.safetyGate && (
+   567→                                          <span className="shrink-0 text-[0.62rem] px-1 rounded bg-gold-deep/10 text-gold-deep font-bold">
+   568→                                            Key Skills Check
+   569→                                          </span>
+   570→                                        )}
+   571→                                      </div>
+   572→                                    ))}
+   573→                                    {matchedModules.length > 2 && (
+   574→                                      <button
+   575→                                        onClick={() => setViewMode('modules')}
+   576→                                        className="text-[0.68rem] font-bold text-gold-deep hover:underline block pt-1"
+   577→                                      >
+   578→                                        + {matchedModules.length - 2} more matching modules in catalog →
+   579→                                      </button>
+   580→                                    )}
+   581→                                  </div>
+   582→                                </div>
+   583→                              )}
+   584→
+   585→                              {/* 4 Term Breadcrumb Pills */}
+   586→                              <div className="space-y-1.5 mb-4">
+   587→                                <div className="text-[0.68rem] font-bold uppercase tracking-wider text-ink-soft">
+   588→                                  4-Term Integrated Curriculum:
+   589→                                </div>
+   590→                                <div className="grid grid-cols-2 gap-1.5 text-[0.72rem] text-ink-soft">
+   591→                                  {program.terms.map((t) => (
+   592→                                    <div
+   593→                                      key={t.termNumber}
+   594→                                      className="px-2 py-1 rounded-lg bg-cream-deep border border-gold/25 truncate font-medium flex items-center gap-1"
+   595→                                    >
+   596→                                      <span className="font-bold text-gold-deep">T{t.termNumber}:</span>
+   597→                                      <span className="truncate">{t.name}</span>
+   598→                                    </div>
+   599→                                  ))}
+   600→                                </div>
+   601→                              </div>
+   602→                            </div>
+   603→                          </div>
+   604→
+   605→                          {/* Card Actions Footer */}
+   606→                          <div className="p-5 pt-0 flex items-center justify-between gap-3 border-t border-gold/25 mt-2">
+   607→                            {/* Basic Info Quick Modal Button */}
+   608→                            <button
+   609→                              onClick={() => setActiveCourseModal(program)}
+   610→                              className="text-xs font-semibold text-ink-soft hover:text-ink underline underline-offset-2"
+   611→                            >
+   612→                              Quick Overview
+   613→                            </button>
+   614→
+   615→                            {/* See More Button Routing to Dedicated Course Page & Syllabus */}
+   616→                            <Link
+   617→                              href={`/learn/courses/${program.slug}`}
+   618→                              className="btn-gold"
+   619→                            >
+   620→                              <span>Full Syllabus &amp; Schedule</span>
+   621→                              <ArrowRight className="w-3.5 h-3.5" />
+   622→                            </Link>
+   623→                          </div>
+   624→                        </div>
+   625→                      );
+   626→                    })}
+   627→                  </div>
+   628→                )}
+   629→              </>
+   630→            )}
+   631→
+   632→            {/* VIEW MODE 2: COURSE MODULES CATALOG (ALL 160+ MODULES) */}
+   633→            {viewMode === 'modules' && (
+   634→              <div className="space-y-4">
+   635→                <div className="bg-cream rounded-2xl p-5 border border-gold/25 shadow-sm">
+   636→                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gold/25">
+   637→                    <div>
+   638→                      <h2 className="font-display text-lg font-bold text-ink">
+   639→                        Academic Course Modules Catalog
+   640→                      </h2>
+   641→                      <p className="text-xs text-[#5a6b5f]">
+   642→                        Showing {filteredModules.length} courses
+   643→                      </p>
+   644→                    </div>
+   645→                    {hasActiveFilters && (
+   646→                      <button
+   647→                        onClick={handleResetFilters}
+   648→                        className="text-xs font-bold text-[#b56548] hover:underline self-start sm:self-auto"
+   649→                      >
+   650→                        Reset All Filters
+   651→                      </button>
+   652→                    )}
+   653→                  </div>
+   654→
+   655→                  {filteredModules.length === 0 ? (
+   656→                    <div className="py-12 text-center space-y-3">
+   657→                      <div className="w-12 h-12 rounded-full bg-cream-deep text-gold-deep flex items-center justify-center mx-auto">
+   658→                        <Search className="w-6 h-6" />
+   659→                      </div>
+   660→                      <h3 className="font-display text-base font-bold text-ink">No matching course modules found</h3>
+   661→                      <p className="text-xs text-ink-soft max-w-md mx-auto">
+   662→                        Try clearing or modifying your search terms to explore modules across all 6 pathways.
+   663→                      </p>
+   664→                      <button
+   665→                        onClick={handleResetFilters}
+   666→                        className="px-4 py-2 rounded-full bg-ink text-on-dark font-bold text-xs hover:bg-gold-deep transition-colors"
+   667→                      >
+   668→                        Clear Filters
+   669→                      </button>
+   670→                    </div>
+   671→                  ) : (
+   672→                    <div className="divide-y divide-gold/25 mt-2">
+   673→                      {filteredModules.map((m) => (
+   674→                        <div
+   675→                          key={m.code}
+   676→                          className="py-4 hover:bg-[#faf6ee] px-3 -mx-3 rounded-xl transition-colors flex flex-col sm:flex-row sm:items-start justify-between gap-4"
+   677→                        >
+   678→                          <div className="space-y-1.5 flex-1 min-w-0">
+   679→                            <div className="flex flex-wrap items-center gap-2">
+   680→                              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-gold-light text-ink">
+   681→                                {m.code}
+   682→                              </span>
+   683→                              <span className="text-[0.68rem] font-bold uppercase tracking-wider text-gold-deep bg-[#faf6ee] px-2 py-0.5 rounded">
+   684→                                {m.trackTitle}
+   685→                              </span>
+   686→                              <span className="text-[0.68rem] text-[#5a6b5f] bg-cream-deep px-2 py-0.5 rounded">
+   687→                                Term {m.term} • Level {m.level}
+   688→                              </span>
+   689→                              {m.safetyGate && (
+   690→                                <span className="inline-flex items-center gap-1 text-[0.68rem] font-bold px-2 py-0.5 rounded bg-[#b56548] text-on-dark">
+   691→                                  <Shield className="w-3 h-3" />
+   692→                                  <span>Key Skills Check</span>
+   693→                                </span>
+   694→                              )}
+   695→                              {m.practicum && (
+   696→                                <span className="inline-flex items-center gap-1 text-[0.68rem] font-bold px-2 py-0.5 rounded bg-ink text-on-dark">
+   697→                                  <span>Hands-on Practice</span>
+   698→                                </span>
+   699→                              )}
+   700→                            </div>
+   701→
+   702→                            <h3 className="font-display text-base font-bold text-ink">
+   703→                              {m.title}
+   704→                            </h3>
+   705→
+   706→                            <p className="text-xs text-[#5a6b5f] leading-relaxed">
+   707→                              {m.description}
+   708→                            </p>
+   709→                          </div>
+   710→
+   711→                          <div className="sm:text-right shrink-0 flex sm:flex-col items-center sm:items-end justify-between gap-2">
+   712→                            <div className="text-xs font-bold text-ink bg-cream-deep sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-md">
+   713→                              {m.hours} Hours
+   714→                            </div>
+   715→                            <Link
+   716→                              href={`/learn/courses/${m.slug}`}
+   717→                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-ink hover:bg-gold-deep text-on-dark font-bold text-[0.72rem] transition-colors"
+   718→                            >
+   719→                              <span>View Track &amp; Syllabus</span>
+   720→                              <ArrowRight className="w-3 h-3" />
+   721→                            </Link>
+   722→                          </div>
+   723→                        </div>
+   724→                      ))}
+   725→                    </div>
+   726→                  )}
+   727→                </div>
+   728→              </div>
+   729→            )}
+   730→
+   731→            {/* Bottom Promo Banner */}
+   732→            <div className="mt-12 rounded-2xl bg-ink text-on-dark p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+   733→              <div className="max-w-xl z-10">
+   734→                <span className="text-[0.7rem] uppercase tracking-widest text-gold font-bold block mb-1">
+   735→                  CAREER OPPORTUNITY
+   736→                </span>
+   737→                <h3 className="font-display text-2xl font-bold mb-2">
+   738→                  More Than a School — It’s a Future in Pet Care.
+   739→                </h3>
+   740→                <p className="text-xs text-[#e4dfd4] leading-relaxed">
+   741→                  Build your hands-on skills, earn your credentials, and launch or advance the pet care business you want.
+   742→                </p>
+   743→              </div>
+   744→
+   745→              <div className="z-10 shrink-0 flex flex-wrap gap-3">
+   746→                <Link
+   747→                  href="/learn/enroll"
+   748→                  className="px-6 py-3 rounded-full bg-gold-light hover:bg-[#c9a96e] text-ink font-bold text-xs transition-colors shadow-sm inline-flex items-center gap-2"
+   749→                >
+   750→                  <span>Get Started / Enroll</span>
+   751→                  <ArrowRight className="w-3.5 h-3.5" />
+   752→                </Link>
+   753→              </div>
+   754→            </div>
+   755→          </section>
+   756→        </div>
+   757→      </main>
+   758→
+   759→      {/* Quick Info Modal */}
+   760→      {activeCourseModal && (
+   761→        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+   762→          <div className="bg-cream rounded-2xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-[#c9a96e] relative max-h-[90vh] overflow-y-auto">
+   763→            <button
+   764→              onClick={() => setActiveCourseModal(null)}
+   765→              aria-label="Close dialog"
+   766→              className="absolute top-4 right-4 text-[#5a6b5f] hover:text-ink text-xl font-bold w-8 h-8 rounded-full bg-cream-deep flex items-center justify-center"
+   767→            >
+   768→              ×
+   769→            </button>
+   770→
+   771→            <span className="text-[0.7rem] font-bold text-gold-deep uppercase tracking-widest block mb-1">
+   772→              {activeCourseModal.code} • {activeCourseModal.credential}
+   773→            </span>
+   774→            <h3 className="font-display text-2xl font-bold text-ink mb-2">
+   775→              {activeCourseModal.title}
+   776→            </h3>
+   777→            <p className="text-xs text-[#5a6b5f] leading-relaxed mb-6">
+   778→              {activeCourseModal.subtitle}
+   779→            </p>
+   780→
+   781→            <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-cream border border-gold/25 text-center mb-6">
+   782→              <div>
+   783→                <div className="text-[0.68rem] text-[#5a6b5f] uppercase font-bold">Total Duration</div>
+   784→                <div className="text-sm font-bold text-ink">{activeCourseModal.totalWeeksFormatted}</div>
+   785→              </div>
+   786→              <div className="border-x border-gold/25">
+   787→                <div className="text-[0.68rem] text-[#5a6b5f] uppercase font-bold">Modules</div>
+   788→                <div className="text-sm font-bold text-ink">{activeCourseModal.totalModules}</div>
+   789→              </div>
+   790→              <div>
+   791→                <div className="text-[0.68rem] text-[#5a6b5f] uppercase font-bold">Instruction</div>
+   792→                <div className="text-sm font-bold text-ink">{activeCourseModal.totalClockHours} Hours</div>
+   793→              </div>
+   794→            </div>
+   795→
+   796→            <div className="space-y-3 mb-6">
+   797→              <h4 className="font-display text-sm font-bold text-ink">
+   798→                4-Term Progression Outline:
+   799→              </h4>
+   800→              {activeCourseModal.terms.map((t) => (
+   801→                <div key={t.termNumber} className="p-2.5 rounded-lg bg-[#faf6ee] border border-gold/25 text-xs">
+   802→                  <div className="font-bold text-ink flex items-center justify-between">
+   803→                    <span>Term {t.termNumber}: {t.name}</span>
+   804→                    <span className="text-[#5a6b5f] font-normal">{t.clockHours} hrs • {t.durationWeeks}</span>
+   805→                  </div>
+   806→                  <p className="text-[0.72rem] text-ink-soft mt-0.5">{t.description}</p>
+   807→                </div>
+   808→              ))}
+   809→            </div>
+   810→
+   811→            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#faf6ee]">
+   812→              <Link
+   813→                href="/learn/enroll"
+   814→                onClick={() => setActiveCourseModal(null)}
+   815→                className="px-4 py-2 rounded-full bg-gold-light text-ink font-bold text-xs hover:bg-[#c9a96e] transition-colors"
+   816→              >
+   817→                Enroll Now
+   818→              </Link>
+   819→
+   820→              <Link
+   821→                href={`/learn/courses/${activeCourseModal.slug}`}
+   822→                className="px-5 py-2 rounded-full bg-ink hover:bg-gold-deep text-on-dark font-bold text-xs transition-colors flex items-center gap-1.5"
+   823→              >
+   824→                <span>Full Syllabus &amp; Catalog</span>
+   825→                <ArrowRight className="w-3.5 h-3.5" />
+   826→              </Link>
+   827→            </div>
+   828→          </div>
+   829→        </div>
+   830→      )}
+   831→
+   832→    </div>
+   833→  );
+   834→}
+   835→

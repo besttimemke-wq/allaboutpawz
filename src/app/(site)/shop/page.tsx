@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowDown, Sparkle } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
+import { ShopNavBar } from "@/components/site/islands/shop-nav-bar"
 import { Plp } from "@/components/site/shop/plp"
 import { CheckoutIsland } from "@/components/site/shop/checkout-island"
 import { TrustStrip } from "@/components/site/shop/shared"
@@ -33,6 +34,9 @@ export default async function ShopPage({ searchParams }: PageProps) {
   return (
     <>
       <PageHeader n="06" label="SHOP" />
+      {/* Our shop mega menu — the nine-department bar with hover mega
+          panels, on every /shop route directly below the breadcrumb bar. */}
+      <ShopNavBar />
 
       {/* Hero — brand band above the listing */}
       <section className="marble grid grid-cols-1 items-stretch gap-10 bg-cream px-8 pt-6 pb-10 lg:min-h-[420px] lg:grid-cols-[1fr_0.8fr] lg:px-12 lg:pt-8">

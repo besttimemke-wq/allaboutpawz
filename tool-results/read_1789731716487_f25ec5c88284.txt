@@ -1,0 +1,391 @@
+     1→"use client";
+     2→
+     3→import {useEffect, useMemo, useState} from "react";
+     4→import {lmsApi} from "@/lib/api";
+     5→import type {AdminDashboard, LessonContent, SchoolRuntime} from "@/lib/types";
+     6→import {SchoolControlPlane} from "@/components/SchoolControlPlane";
+     7→import {RuntimeReviewQueue} from "@/components/RuntimeReviewQueue";
+     8→import {CourseArchitect} from "@/components/CourseArchitect";
+     9→
+    10→type AdminSection = "overview" | "schools" | "curriculum" | "learners" | "educators" | "assessment" | "credentials" | "families" | "impact" | "policy";
+    11→
+    12→const ADMIN_NAV: Array<{id: AdminSection; label: string; icon: string}> = [
+    13→  {id:"overview",label:"Command center",icon:"⌂"},
+    14→  {id:"schools",label:"Schools & programs",icon:"▦"},
+    15→  {id:"curriculum",label:"Curriculum studio",icon:"✦"},
+    16→  {id:"learners",label:"Learner success",icon:"◎"},
+    17→  {id:"educators",label:"Educators & review",icon:"◇"},
+    18→  {id:"assessment",label:"Testing & evidence",icon:"✓"},
+    19→  {id:"credentials",label:"Credentials",icon:"◆"},
+    20→  {id:"families",label:"Families",icon:"○"},
+    21→  {id:"impact",label:"Outcomes & public reports",icon:"↗"},
+    22→  {id:"policy",label:"Policy & audit",icon:"≡"},
+    23→];
+    24→
+    25→export function AdminStudio({notify}: {notify: (message: string) => void}) {
+    26→  const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
+    27→  const [selectedCode, setSelectedCode] = useState("");
+    28→  const [content, setContent] = useState<LessonContent | null>(null);
+    29→  const [query, setQuery] = useState("");
+    30→  const [cohostOpen, setCohostOpen] = useState(false);
+    31→  const [cohost, setCohost] = useState({name: "", email: "", role: "co_instructor"});
+    32→  const [section, setSection] = useState<AdminSection>("overview");
+    33→
+    34→  const refresh = () => lmsApi.adminDashboard().then(setDashboard).catch((error) => notify(error.message));
+    35→  useEffect(() => {
+    36→    void refresh();
+    37→  }, []);
+    38→
+    39→  useEffect(() => {
+    40→    if (!selectedCode) return;
+    41→    lmsApi.adminContent(selectedCode).then(setContent).catch((error) => notify(error.message));
+    42→  }, [selectedCode, notify]);
+    43→
+    44→  const modules = useMemo(() => {
+    45→    if (!dashboard) return [];
+    46→    const needle = query.toLowerCase();
+    47→    return dashboard.modules.filter((item) => `${item.moduleCode} ${item.title} ${item.pathCode}`.toLowerCase().includes(needle));
+    48→  }, [dashboard, query]);
+    49→
+    50→  if (!dashboard) return <div className="page loading">Loading Leashed school network…</div>;
+    51→
+    52→  if (section !== "curriculum") {
+    53→    return (
+    54→      <div className="admin-shell light-admin">
+    55→        <AdminNavigation section={section} setSection={setSection} policy={dashboard.publicationPolicy}/>
+    56→        <AdminWorkspace section={section} setSection={setSection} dashboard={dashboard} notify={notify}/>
+    57→      </div>
+    58→    );
+    59→  }
+    60→
+    61→  return (
+    62→    <div className="admin-shell light-admin">
+    63→      <AdminNavigation section={section} setSection={setSection} policy={dashboard.publicationPolicy}/>
+    64→      <main className="admin-main">
+    65→        <header className="admin-head">
+    66→          <div><button className="back-workspace" onClick={() => setSection("overview")}>← Command center</button><span className="eyebrow green">Curriculum operating system</span><h1>Curriculum studio</h1><p>Build once, govern centrally, and deliver through either learning contract.</p></div>
+    67→          <button className="btn primary" onClick={() => setCohostOpen(true)}>+ Invite cohost</button>
+    68→        </header>
+    69→
+    70→        <SchoolControlPlane notify={notify}/>
+    71→        <RuntimeReviewQueue notify={notify}/>
+    72→
+    73→        <div className="admin-stats">
+    74→          <Stat value={dashboard.stats.pathways} label="Integrated paths"/>
+    75→          <Stat value={dashboard.stats.coursePlacements} label="Course placements"/>
+    76→          <Stat value={dashboard.stats.uniqueModules} label="Unique lesson drafts"/>
+    77→          <Stat value={dashboard.stats.publishedOverrides} label="Published edits"/>
+    78→          <Stat value={dashboard.stats.pendingReviews} label="Review queue"/>
+    79→        </div>
+    80→
+    81→        <section className="author-layout">
+    82→          <aside className="course-browser">
+    83→            <div className="browser-head"><h2>Courses and modules</h2><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search 212 modules…"/></div>
+    84→            <div className="browser-list">
+    85→              {modules.map((module) => (
+    86→                <button className={selectedCode === module.moduleCode ? "active" : ""} key={module.moduleCode} onClick={() => setSelectedCode(module.moduleCode)}>
+    87→                  <span className="source-id">{module.pathCode}</span>
+    88→                  <span><strong>{module.moduleCode} · {module.title}</strong><small>{module.track} · {module.status}</small></span>
+    89→                </button>
+    90→              ))}
+    91→            </div>
+    92→          </aside>
+    93→          <section className="author-editor">
+    94→            {!content ? (
+    95→              <div className="empty"><h2>Select a module to author</h2><p>Edit approved teaching blocks, citations, media placements, assessments, assignments, timers, and proctoring.</p></div>
+    96→            ) : (
+    97→              <>
+    98→                <div className="editor-toolbar">
+    99→                  <div><span className={`status-dot ${content.status}`}/><strong>{content.moduleCode}</strong><small>v{content.version} · {content.status}</small></div>
+   100→                  <div><button className="btn secondary" onClick={async () => { await lmsApi.saveLesson(content.moduleCode, content, false); notify("Draft version saved"); refresh(); }}>Save draft</button><button className="btn primary" onClick={async () => { const result = await lmsApi.saveLesson(content.moduleCode, content, true); setContent(result.content); notify("Human-approved lesson published"); refresh(); }}>Review & publish</button></div>
+   101→                </div>
+   102→                <div className="editor-body">
+   103→                  <CourseArchitect moduleCode={content.moduleCode} onDraft={setContent} notify={notify}/>
+   104→                  <label className="field">Lesson title<input value={content.title} onChange={(event) => setContent({...content, title: event.target.value})}/></label>
+   105→                  <label className="field">Summary<textarea value={content.summary} onChange={(event) => setContent({...content, summary: event.target.value})}/></label>
+   106→
+   107→                  <h3>Teaching blocks</h3>
+   108→                  {content.phases.map((phase, index) => (
+   109→                    <div className="block-editor" key={`${phase.kind}-${index}`}>
+   110→                      <span className="drag">⠿</span>
+   111→                      <div><div className="inline-fields"><input value={phase.title} onChange={(event) => {
+   112→                        const phases = [...content.phases]; phases[index] = {...phase, title: event.target.value}; setContent({...content, phases});
+   113→                      }}/><input type="number" value={phase.minutes} onChange={(event) => {
+   114→                        const phases = [...content.phases]; phases[index] = {...phase, minutes: Number(event.target.value)}; setContent({...content, phases});
+   115→                      }}/></div><textarea value={phase.body} onChange={(event) => {
+   116→                        const phases = [...content.phases]; phases[index] = {...phase, body: event.target.value}; setContent({...content, phases});
+   117→                      }}/></div>
+   118→                    </div>
+   119→                  ))}
+   120→
+   121→                  <h3>Media</h3>
+   122→                  <div className="asset-editor">
+   123→                    <label className="upload-drop">▶<strong>Add lesson video</strong><small>MP4, WebM or MOV · 100 MB maximum · captions required</small><input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={async (event) => {
+   124→                      const file = event.target.files?.[0];
+   125→                      if (!file) return;
+   126→                      try {
+   127→                        const asset = await lmsApi.uploadMedia(content.moduleCode, "video", file);
+   128→                        setContent({...content, video: {...content.video, url: asset.url, status: "ready"}});
+   129→                        notify(`Uploaded ${asset.fileName}`);
+   130→                      } catch (error) { notify((error as Error).message); }
+   131→                    }}/></label>
+   132→                    <label className="upload-drop">▧<strong>Add image</strong><small>JPG, PNG, WebP or GIF · descriptive alt text required</small><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={async (event) => {
+   133→                      const file = event.target.files?.[0];
+   134→                      if (!file) return;
+   135→                      try {
+   136→                        const asset = await lmsApi.uploadMedia(content.moduleCode, "image", file);
+   137→                        const images = [...content.imagePlaceholders];
+   138→                        images[0] = {...images[0], url: asset.url, status: "ready"};
+   139→                        setContent({...content, imagePlaceholders: images});
+   140→                        notify(`Uploaded ${asset.fileName}`);
+   141→                      } catch (error) { notify((error as Error).message); }
+   142→                    }}/></label>
+   143→                  </div>
+   144→                  <label className="field">Video URL<input value={content.video.url} onChange={(event) => setContent({...content, video: {...content.video, url: event.target.value, status: event.target.value ? "ready" : "placeholder"}})} placeholder="https://…"/></label>
+   145→                  <label className="field">Image descriptive brief<textarea value={content.imagePlaceholders[0]?.description || ""} onChange={(event) => {
+   146→                    const images = [...content.imagePlaceholders]; images[0] = {...images[0], description: event.target.value}; setContent({...content, imagePlaceholders: images});
+   147→                  }}/></label>
+   148→
+   149→                  <h3>Citations</h3>
+   150→                  <div className="citation-list">{content.citations.map((citation, index) => <div className="citation" key={citation.id}><span className="source-id">{citation.id}</span><div><strong>{citation.title}</strong><input value={citation.locator} onChange={(event) => {
+   151→                    const citations = [...content.citations]; citations[index] = {...citation, locator: event.target.value}; setContent({...content, citations});
+   152→                  }}/></div></div>)}</div>
+   153→
+   154→                  <h3>Assessment and timing</h3>
+   155→                  <div className="settings-grid">
+   156→                    <label>Quiz passing score<input type="number" value={content.quiz.passingScore} onChange={(event) => setContent({...content, quiz: {...content.quiz, passingScore: Number(event.target.value)}})}/></label>
+   157→                    <label>Quiz timer (minutes)<input type="number" value={content.quiz.timeLimitMinutes} onChange={(event) => setContent({...content, quiz: {...content.quiz, timeLimitMinutes: Number(event.target.value)}})}/></label>
+   158→                    <label>Assignment due (hours)<input type="number" value={content.assignment.dueOffsetHours} onChange={(event) => setContent({...content, assignment: {...content.assignment, dueOffsetHours: Number(event.target.value)}})}/></label>
+   159→                    <label>Exam proctoring<select value={content.exam.proctored ? "on" : "off"} onChange={(event) => setContent({...content, exam: {...content.exam, proctored: event.target.value === "on"}})}><option value="on">Required</option><option value="off">Standard</option></select></label>
+   160→                  </div>
+   161→                  <div className="human-gate">✓ AI can draft questions and teaching blocks. A human author must verify sources and publish.</div>
+   162→                </div>
+   163→              </>
+   164→            )}
+   165→          </section>
+   166→        </section>
+   167→
+   168→        <section className="cohost-table">
+   169→          <div className="section-head"><div><h2>Cohost tools</h2><p>Share authoring, review, grading, and live-session responsibilities.</p></div><button className="btn secondary" onClick={() => setCohostOpen(true)}>Invite co-instructor</button></div>
+   170→          {dashboard.cohosts.length === 0 ? <div className="empty">No cohosts invited yet.</div> : dashboard.cohosts.map((person) => <div className="cohost-row" key={person.id}><span className="avatar">{person.name[0]}</span><span><strong>{person.name}</strong><small>{person.email}</small></span><span className="pill">{person.role.replaceAll("_"," ")}</span><span className="pill">{person.status}</span><button className="link-btn">Manage</button></div>)}
+   171→        </section>
+   172→      </main>
+   173→
+   174→      {cohostOpen && (
+   175→        <div className="modal-backdrop">
+   176→          <section className="modal small-modal">
+   177→            <div className="modal-head"><div><span className="eyebrow green">Cohost tools</span><h2>Invite a co-instructor</h2></div><button className="close" onClick={() => setCohostOpen(false)}>×</button></div>
+   178→            <div className="modal-body form-grid">
+   179→              <label className="field">Name<input value={cohost.name} onChange={(event) => setCohost({...cohost, name: event.target.value})}/></label>
+   180→              <label className="field">Email<input type="email" value={cohost.email} onChange={(event) => setCohost({...cohost, email: event.target.value})}/></label>
+   181→              <label className="field">Role<select value={cohost.role} onChange={(event) => setCohost({...cohost, role: event.target.value})}><option value="co_instructor">Co-instructor</option><option value="content_reviewer">Content reviewer</option><option value="grader">Grader</option><option value="live_session_host">Live session host</option></select></label>
+   182→              <div className="permission-grid">{["Author content","Review drafts","Grade submissions","Host live sessions"].map((item) => <label className="check" key={item}><input type="checkbox" defaultChecked/>{item}</label>)}</div>
+   183→            </div>
+   184→            <div className="modal-foot"><button className="btn ghost" onClick={() => setCohostOpen(false)}>Cancel</button><button className="btn primary" disabled={!cohost.name || !cohost.email} onClick={async () => { await lmsApi.addCohost({...cohost, permissions: ["author","review","grade","host"]}); setCohostOpen(false); setCohost({name:"",email:"",role:"co_instructor"}); notify("Cohost invitation created"); refresh(); }}>Send invite</button></div>
+   185→          </section>
+   186→        </div>
+   187→      )}
+   188→    </div>
+   189→  );
+   190→}
+   191→
+   192→
+   193→function AdminNavigation({
+   194→  section, setSection, policy
+   195→}: {
+   196→  section: AdminSection;
+   197→  setSection: (section: AdminSection) => void;
+   198→  policy: string;
+   199→}) {
+   200→  return (
+   201→    <aside className="admin-sidebar intentional-nav">
+   202→      <div className="admin-brand">
+   203→        <span className="brand-mark">L</span>
+   204→        <div><strong>Leashed</strong><small>Vocational school network</small></div>
+   205→      </div>
+   206→      <p className="nav-kicker">OPERATE</p>
+   207→      {ADMIN_NAV.map((item) => (
+   208→        <button className={section === item.id ? "active" : ""} key={item.id} onClick={() => setSection(item.id)}>
+   209→          <span>{item.icon}</span>{item.label}
+   210→        </button>
+   211→      ))}
+   212→      <div className="admin-policy"><strong>One operating promise</strong><p>{policy}</p></div>
+   213→    </aside>
+   214→  );
+   215→}
+   216→
+   217→function AdminWorkspace({
+   218→  section, setSection, dashboard, notify
+   219→}: {
+   220→  section: AdminSection;
+   221→  setSection: (section: AdminSection) => void;
+   222→  dashboard: AdminDashboard;
+   223→  notify: (message: string) => void;
+   224→}) {
+   225→  const [runtime, setRuntime] = useState<SchoolRuntime | null>(null);
+   226→  useEffect(() => {
+   227→    lmsApi.adminRuntime().then(setRuntime).catch((error) => notify(error.message));
+   228→  }, [notify]);
+   229→
+   230→  if (section === "overview") {
+   231→    return (
+   232→      <main className="admin-main stakeholder-workspace">
+   233→        <WorkspaceHeader eyebrow="Leashed school operating system" title="Teach the work. Prove the skill. Open the door." subtitle="One connected system turns approved vocational knowledge into daily AI-led instruction, verified evidence, portable credentials, and public outcomes."/>
+   234→        <section className="product-thesis">
+   235→          <div><span>THE PRODUCT</span><h2>Not another LMS. A vocational school operating system.</h2><p>Leashed gives a school the curriculum engine, AI professor, evidence system, human exception layer, credential record, family visibility, and outcome reporting required to run affordable skills education.</p></div>
+   236→          <button className="btn primary" onClick={() => setSection("curriculum")}>Build the learning system →</button>
+   237→        </section>
+   238→        <div className="operating-loop">
+   239→          {[
+   240→            ["1","AUTHOR","Approved experts and the AI Course Architect build source-grounded learning."],
+   241→            ["2","TEACH","The AI professor runs each learner’s day under published school policy."],
+   242→            ["3","PROVE","Learners submit observable work; testing and evidence gates protect rigor."],
+   243→            ["4","VERIFY","People review exceptions—not every instructional minute."],
+   244→            ["5","CREDENTIAL","Verified skills become portable records and completion credentials."],
+   245→            ["6","REPORT","Schools and public partners see access, progress, quality, and outcomes."],
+   246→          ].map(([n,title,copy]) => <article key={n}><span>{n}</span><strong>{title}</strong><p>{copy}</p></article>)}
+   247→        </div>
+   248→        <div className="workspace-grid">
+   249→          <RoleCard title="School operator" promise="Launch and govern programs without assembling seven disconnected tools." action="Open schools" onClick={() => setSection("schools")} stats={`${dashboard.stats.pathways} live pathways`}/>
+   250→          <RoleCard title="Curriculum administrator" promise="Control everything the learner and professor can see, teach, ask, grade, and unlock." action="Open curriculum" onClick={() => setSection("curriculum")} stats={`${dashboard.stats.uniqueModules} reusable modules`}/>
+   251→          <RoleCard title="Educator" promise="Review judgment, safety, and evidence exceptions while AI handles daily repetition." action="Open educator desk" onClick={() => setSection("educators")} stats={`${runtime?.stats.pendingEvidence || 0} evidence reviews`}/>
+   252→          <RoleCard title="Testing authority" promise="Trace every assessment to approved outcomes and preserve an auditable decision." action="Open testing" onClick={() => setSection("assessment")} stats={`${runtime?.stats.pendingAssessmentReviews || 0} written reviews`}/>
+   253→          <RoleCard title="Family or supporter" promise="See attendance, momentum, milestones, and support needs without exposing private instruction." action="Open family view" onClick={() => setSection("families")} stats="Consent-controlled"/>
+   254→          <RoleCard title="Government or funder" promise="Measure seats, hours, completions, equity, credentials, and outcomes—not chat volume." action="Open public outcomes" onClick={() => setSection("impact")} stats="Aggregate reporting"/>
+   255→        </div>
+   256→      </main>
+   257→    );
+   258→  }
+   259→
+   260→  if (section === "schools") {
+   261→    return (
+   262→      <main className="admin-main stakeholder-workspace">
+   263→        <WorkspaceHeader eyebrow="School operations" title="Schools, programs, cohorts, and delivery" subtitle="A school launches a governed program, enrolls a cohort, chooses a delivery contract, and monitors intervention—not individual chat threads."/>
+   264→        <JourneyRail steps={["Create school","Choose pathways","Set policy","Open cohort","Enroll learners","Operate learning days","Verify outcomes"]}/>
+   265→        <div className="workspace-grid three">
+   266→          <MetricCard value="1" label="School in this environment" detail="Leashed Learning Academy"/>
+   267→          <MetricCard value={String(dashboard.stats.pathways)} label="Active pathways" detail="Shared governed curriculum"/>
+   268→          <MetricCard value="2" label="Delivery contracts" detail="Self-paced assistant or paced professor"/>
+   269→        </div>
+   270→        <section className="surface-panel">
+   271→          <PanelTitle title="Program portfolio" copy="Each pathway inherits published curriculum, assessment, credential, and reporting rules."/>
+   272→          {["SIT · Professional Pet Sitter","CAT · Professional Cat Groomer","DB · Dog Bather / Animal Care Assistant","PDT · Professional Dog Trainer","PDG · Professional Dog Groomer","CPP · Complete Professional Pet Care"].map((item, index) => (
+   273→            <div className="operations-row" key={item}><span className="program-orb">{index+1}</span><strong>{item}</strong><span>Admissions open</span><span>AI delivery ready</span><button onClick={() => setSection("curriculum")}>Manage</button></div>
+   274→          ))}
+   275→        </section>
+   276→      </main>
+   277→    );
+   278→  }
+   279→
+   280→  if (section === "learners") {
+   281→    return (
+   282→      <main className="admin-main stakeholder-workspace">
+   283→        <WorkspaceHeader eyebrow="Learner success" title="Every learner has a next best action" subtitle="Progress combines time, mastery, evidence, wellbeing, attendance, and credential requirements—not page views."/>
+   284→        <JourneyRail steps={["Welcome","Assess readiness","Set daily mission","Teach & adapt","Practice","Prove mastery","Earn credential","Transition to work"]}/>
+   285→        <div className="workspace-grid three">
+   286→          <MetricCard value={String(runtime?.sessions.length || 0)} label="Learning-day records" detail="Timestamped sessions"/>
+   287→          <MetricCard value={String(runtime?.stats.submissions || 0)} label="Evidence submissions" detail="Verification tracked"/>
+   288→          <MetricCard value={String(runtime?.stats.incidents || 0)} label="Conduct interventions" detail="Respectful-learning policy"/>
+   289→        </div>
+   290→        <CapabilityMap title="Learner success signals" items={["Daily readiness and sentiment","Instructional minutes and breaks","Mastery attempts and reteaching","Assignment evidence","Assessment status","Accessibility accommodations","Support escalation","Credential readiness"]}/>
+   291→      </main>
+   292→    );
+   293→  }
+   294→
+   295→  if (section === "educators") {
+   296→    return (
+   297→      <main className="admin-main stakeholder-workspace">
+   298→        <WorkspaceHeader eyebrow="Educator desk" title="Humans handle judgment. AI handles repetition." subtitle="Educators approve sources, calibrate standards, review edge cases, support learners, and intervene where professional judgment matters."/>
+   299→        <JourneyRail steps={["Review exceptions","Inspect source trail","Assess evidence","Coach or return","Verify competency","Improve curriculum"]}/>
+   300→        <RuntimeReviewQueue notify={notify}/>
+   301→        <CapabilityMap title="Educator controls" items={["Evidence review","Written-response verification","Safety signoff","Rubric calibration","Learner intervention","Professor conversation audit","Curriculum feedback","Accommodation decisions"]}/>
+   302→      </main>
+   303→    );
+   304→  }
+   305→
+   306→  if (section === "assessment") {
+   307→    return (
+   308→      <main className="admin-main stakeholder-workspace">
+   309→        <WorkspaceHeader eyebrow="Assessment integrity" title="Testing proves decisions, not memory tricks" subtitle="Question banks, practical evidence, proctor events, written judgment, and human verification flow into one auditable grade decision."/>
+   310→        <JourneyRail steps={["Map outcome","Author item","Validate source","Deliver securely","Score objective work","Review judgment","Release result"]}/>
+   311→        <RuntimeReviewQueue notify={notify}/>
+   312→        <CapabilityMap title="Assessment system" items={["Outcome-to-item map","Adaptive practice","Timed quizzes","Module exams","Practical evidence","Retake policy","Accommodations","Proctor event ledger","Moderation and appeals","Grade release"]}/>
+   313→      </main>
+   314→    );
+   315→  }
+   316→
+   317→  if (section === "credentials") {
+   318→    return (
+   319→      <main className="admin-main stakeholder-workspace">
+   320→        <WorkspaceHeader eyebrow="Skills and credentials" title="A credential is the visible edge of verified evidence" subtitle="Leashed records what the learner can do, who or what verified it, which standard governed it, and how the result can be checked."/>
+   321→        <JourneyRail steps={["Complete requirements","Verify evidence","Approve skills","Issue credential","Share safely","Verify publicly","Connect to opportunity"]}/>
+   322→        <div className="credential-preview"><span className="brand-mark">L</span><div><small>LEASHED VERIFIED</small><h2>Professional Pet Care Credential</h2><p>Identity · skills · evidence · issuer · policy version · issue date · verification record</p></div><strong>READY WHEN VERIFIED</strong></div>
+   323→        <CapabilityMap title="Credential record" items={["Stackable skills","Certificates and diplomas","Evidence lineage","Revocation status","Public verification link","Learner-controlled sharing","Employer view","Renewal requirements"]}/>
+   324→      </main>
+   325→    );
+   326→  }
+   327→
+   328→  if (section === "families") {
+   329→    return (
+   330→      <main className="admin-main stakeholder-workspace">
+   331→        <WorkspaceHeader eyebrow="Family and supporter view" title="Useful visibility without surveillance" subtitle="With learner consent, supporters see schedule, attendance, milestones, upcoming evidence, celebrations, and requests for help—not private coaching conversations."/>
+   332→        <JourneyRail steps={["Learner grants access","Supporter accepts","See weekly rhythm","Celebrate progress","Respond to support need","Prepare for completion"]}/>
+   333→        <section className="family-card">
+   334→          <div><span className="family-avatar">MS</span><div><strong>Morgan’s weekly learning</strong><small>Shared with consent · private conversations hidden</small></div></div>
+   335→          <div className="family-week"><span><strong>4</strong> learning days</span><span><strong>18.5h</strong> verified time</span><span><strong>3</strong> milestones</span><span><strong>1</strong> upcoming assignment</span></div>
+   336→          <div className="celebration">A moment to celebrate: Morgan demonstrated safe client handoff reasoning this week.</div>
+   337→        </section>
+   338→        <CapabilityMap title="Supporter boundaries" items={["Consent and revocation","Attendance summary","Milestones","Upcoming commitments","Celebrations","Support requests","No private chat access","Age-appropriate controls"]}/>
+   339→      </main>
+   340→    );
+   341→  }
+   342→
+   343→  if (section === "impact") {
+   344→    return (
+   345→      <main className="admin-main stakeholder-workspace">
+   346→        <WorkspaceHeader eyebrow="Public outcomes" title="Fund access and outcomes—not software activity" subtitle="Government, funders, and workforce partners receive aggregate, privacy-protected evidence of reach, instructional delivery, completion quality, credentials, and transition outcomes."/>
+   347→        <div className="workspace-grid three">
+   348→          <MetricCard value="6" label="Vocational pathways" detail="From entry certificate to advanced diploma"/>
+   349→          <MetricCard value="656" label="Mapped placements" detail="Versioned curriculum lineage"/>
+   350→          <MetricCard value="100%" label="Completion gate coverage" detail="Time + mastery + evidence + assessment"/>
+   351→        </div>
+   352→        <CapabilityMap title="Public accountability" items={["Enrollment and access","Verified instructional hours","Persistence and completion","Credential attainment","Accommodation usage","Equity cuts","Cost per completion","Employment or business launch","Provider quality","Audit exports"]}/>
+   353→        <section className="surface-panel public-contract"><PanelTitle title="Data contract" copy="Individual coaching remains private. Public reporting uses minimum-cell thresholds, aggregate measures, policy versions, and traceable definitions."/></section>
+   354→      </main>
+   355→    );
+   356→  }
+   357→
+   358→  if (section === "policy") {
+   359→    return (
+   360→      <main className="admin-main stakeholder-workspace">
+   361→        <WorkspaceHeader eyebrow="Policy and audit" title="The school’s rules must be executable" subtitle="Published policy controls what the professor can do, what learners must prove, when people intervene, and what the record means."/>
+   362→        <SchoolControlPlane notify={notify}/>
+   363→      </main>
+   364→    );
+   365→  }
+   366→
+   367→  return null;
+   368→}
+   369→
+   370→function WorkspaceHeader({eyebrow,title,subtitle}:{eyebrow:string;title:string;subtitle:string}) {
+   371→  return <header className="workspace-header"><span className="eyebrow green">{eyebrow}</span><h1>{title}</h1><p>{subtitle}</p></header>;
+   372→}
+   373→function JourneyRail({steps}:{steps:string[]}) {
+   374→  return <section className="journey-rail">{steps.map((step,index)=><div key={step}><span>{index+1}</span><strong>{step}</strong></div>)}</section>;
+   375→}
+   376→function RoleCard({title,promise,action,onClick,stats}:{title:string;promise:string;action:string;onClick:()=>void;stats:string}) {
+   377→  return <article className="role-card"><small>{stats}</small><h3>{title}</h3><p>{promise}</p><button onClick={onClick}>{action} →</button></article>;
+   378→}
+   379→function MetricCard({value,label,detail}:{value:string;label:string;detail:string}) {
+   380→  return <article className="metric-card"><strong>{value}</strong><h3>{label}</h3><p>{detail}</p></article>;
+   381→}
+   382→function CapabilityMap({title,items}:{title:string;items:string[]}) {
+   383→  return <section className="surface-panel capability-panel"><PanelTitle title={title} copy="The connected capabilities for this workspace."/><div>{items.map(item=><span key={item}>✓ {item}</span>)}</div></section>;
+   384→}
+   385→function PanelTitle({title,copy}:{title:string;copy:string}) {
+   386→  return <div className="panel-title"><h2>{title}</h2><p>{copy}</p></div>;
+   387→}
+   388→
+   389→function Stat({value, label}: {value: number; label: string}) {
+   390→  return <div className="admin-stat"><strong>{value.toLocaleString()}</strong><span>{label}</span></div>;
+   391→}

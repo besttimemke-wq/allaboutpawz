@@ -36,6 +36,13 @@ function SetPasswordContent() {
     let cancelled = false;
     (async () => {
       try {
+        // If we landed here from a recovery/invite email, the URL has a
+        // ?code= parameter (PKCE flow). Exchange it for a session FIRST so
+        // the user can then set their password.
+        const code = searchParams.get('code');
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        }
         const { data } = await supabase.auth.getSession();
         if (!cancelled) {
           setHasSession(Boolean(data?.session));

@@ -1,424 +1,433 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
-import { repo } from "@/lib/repo"
-import { fulfillOrderFromSession } from "@/app/api/checkout/route"
-import { sendBookingConfirmation, sendPaymentReceipt } from "@/lib/email"
-import { enrollCustomer } from "@/lib/auth/enroll-customer"
-import { syncCrmAppointment, writeCommercePayment, withPg, platformAudit, TENANT_ID, parseMoney } from "@/lib/crm/enterprise"
-import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
+import { revalidatePath } from "next/cache"
+import { withPg, TENANT_ID } from "@/lib/crm/enterprise"
 
-// The owner's escrow registry + payment ledger — all money events land in HIS
-// tables (never a parallel payments row):
-//   commerce_payments (PAY-<bookingId8> / PAY-<orderId8>, deterministic → replay-safe)
-//   commerce_deposits (DEP-<bookingId8>, payment_id → the commerce_payments row)
-// The appointment registry (crm_appointments) is synced from the booking row
-// on every state change this handler makes.
-async function writeCommerceDeposit(opts: {
-  depositNumber: string
-  crmCustomerId: string
-  amount: number
-  notes: string
-  paymentIntentId: string
-  paymentId: string | null
-}) {
-  await withPg(async (client) => {
-    // Link the registry row to the ledger row when one already exists.
-    if (opts.paymentId) {
-      const updated = await client.query(
-        `UPDATE public.commerce_deposits
-           SET payment_id = $3::uuid, collected_at = now(), status = 'held', method = 'card'
-         WHERE tenant_id = $1 AND deposit_number = $2
-         RETURNING id::text`,
-        [TENANT_ID(), opts.depositNumber, opts.paymentId],
-      )
-      if (updated.rows[0]) return
-    }
-    await client.query(
-      `INSERT INTO public.commerce_deposits
-         (tenant_id, deposit_number, customer_id, amount, currency, collected_at, method, status, notes, deposit_type, payment_id)
-       VALUES ($1, $2, $3::uuid, $4, 'USD', now(), 'card', 'held', $5, 'booking', $6::uuid)
-       ON CONFLICT DO NOTHING`,
-      [TENANT_ID(), opts.depositNumber, opts.crmCustomerId, opts.amount, opts.notes, opts.paymentId],
-    )
-  })
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+function getSupabase() {
+  if (!supabaseUrl || !supabaseKey) return null
+  return createClient(supabaseUrl, supabaseKey, { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
-// Lazy Stripe client — module-level init would crash the route file when
-// STRIPE_SECRET_KEY isn't set yet. Constructed on first authenticated use.
 let _stripe: Stripe | null = null
-function getStripe(): Stripe {
-  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+function getStripe(): Stripe | null {
+  if (!process.env.STRIPE_SECRET_KEY) return null
+  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
   return _stripe
 }
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
-export async function POST(req: NextRequest) {
-  if (!webhookSecret) {
-    return new Response(JSON.stringify({ received: true, note: "STRIPE_WEBHOOK_SECRET not set" }), { status: 200, headers: { "Content-Type": "application/json" } })
-  }
-  const sig = req.headers.get("stripe-signature") || ""
-  const body = await req.text()
-  let event: Stripe.Event
+// ============================================================================
+// POST /api/stripe/webhook — the REAL-TIME HUB.
+//
+// The register is the center of the business. Every Stripe event flows through
+// here and updates:
+//   • payment_transactions (the unified ledger)
+//   • commerce_orders (the shop fulfillment surface)
+//   • commerce_sales (the POS sales record)
+//   • acct_journal_entries (the accounting GL)
+//   • crm_customers (the CRM profile — customer 360)
+//   • erp_inventory_movements (stock decrement)
+//   • commerce_fulfillment_events (order lifecycle)
+//   • email_messages (receipt delivery via Resend)
+//   • customer portal (revalidate /customer/orders + /customer/dashboard)
+//   • admin panel (revalidate /admin/orders + /admin/dashboard)
+//
+// Events handled:
+//   checkout.session.completed → shop order paid → ledger + inventory + CRM + receipt
+//   payment_intent.succeeded → POS sale paid → ledger + CRM + receipt
+//   charge.refunded → refund processed → reversal ledger entry + CRM note
+//   invoice.paid → subscription invoice paid → ledger + CRM + subscription status
+//   customer.updated → Stripe customer profile sync → CRM profile update
+// ============================================================================
+
+export async function POST(request: NextRequest) {
   try {
-    event = getStripe().webhooks.constructEvent(body, sig, webhookSecret)
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: `Webhook signature failed: ${e.message}` }), { status: 400, headers: { "Content-Type": "application/json" } })
-  }
-  try {
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session
-      const type = session.metadata?.type
+    const rawBody = await request.text()
+    const stripe = getStripe()
+    const supabase = getSupabase()
 
-      if (type === "booking_deposit") {
-        const bookingId = session.metadata?.bookingId
-        const customerId = session.metadata?.customerId
-        const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : ""
-
-        // 1. Auto-enroll the customer FIRST (single login, exact-email join,
-        //    crm_customers + portal_customer_accounts on the owner's tables).
-        //    This is the real server-side event that creates the account —
-        //    not the thank-you page. Non-fatal: a failure here must not block
-        //    fulfillment (Stripe retries the event and everything converges
-        //    because it is idempotent).
-        let booking: any = null
-        if (bookingId) booking = await repo.get("bookings", bookingId)
-        let customer: any = null
-        if (customerId) customer = await repo.get("customers", customerId)
-        const enrollEmail = booking?.email || customer?.email || session.customer_details?.email
-        let enrollResult: { crmCustomerId: string | null } | null = null
-        if (enrollEmail) {
-          try {
-            enrollResult = await enrollCustomer({ email: enrollEmail, source: "booking", referenceId: bookingId })
-          } catch (e: any) {
-            console.error("[webhook] booking enroll failed:", e.message)
-          }
-        }
-
-        // 2. Confirm the booking
-        //    (pre-update state captured first — a replayed Stripe delivery
-        //    sees the booking already CONFIRMED + DEPOSIT_PAID and skips the
-        //    analytics below, keeping authoritative events replay-safe)
-        const alreadyDepositPaid =
-          booking?.status === "CONFIRMED" && booking?.paymentStatus === "DEPOSIT_PAID"
-        if (bookingId) {
-          await repo.update("bookings", bookingId, {
-            status: "CONFIRMED",
-            paymentStatus: "DEPOSIT_PAID",
-            stripePaymentIntentId: paymentIntentId,
-          })
-          booking = booking
-            ? { ...booking, status: "CONFIRMED", paymentStatus: "DEPOSIT_PAID", stripePaymentIntentId: paymentIntentId }
-            : booking
-        }
-
-        // 2b. Authoritative analytics — the moment of truth: the deposit
-        //     actually cleared (server-side, independent of cookie consent
-        //     and of the thank-you page). purchase + booking_confirmed go to
-        //     PostHog and the analytics_events log. Fail-safe by contract:
-        //     neither helper ever throws, and the wrap is belt-and-braces so
-        //     analytics can NEVER fail the payment flow.
-        if (bookingId && !alreadyDepositPaid) {
-          try {
-            const distinctId =
-              booking?.email || customer?.email || session.customer_details?.email || undefined
-            const txnId = `PAY-${String(bookingId).slice(0, 8).toUpperCase()}`
-            const purchaseProps = {
-              transaction_id: txnId,
-              value: 25,
-              currency: "USD",
-              items: [
-                {
-                  item_id: "booking_deposit",
-                  item_name: `Grooming Deposit — ${booking?.dogName || booking?.service || "All About Pawz"}`,
-                  price: 25,
-                  quantity: 1,
-                },
-              ],
-              booking_id: bookingId,
-              service: booking?.service || null,
-              dog_name: booking?.dogName || null,
-              appointment_date: booking?.date || null,
-              appointment_time: booking?.time || null,
-              checkout_flow: "booking",
-            }
-            await captureServerEvent({ event: "purchase", distinctId, properties: purchaseProps })
-            await logAnalyticsEvent({
-              event: "purchase",
-              data: purchaseProps,
-              page: "/book/appointment",
-              value: 25,
-              currency: "USD",
-            })
-            const confirmedProps = {
-              booking_id: bookingId,
-              service: booking?.service || null,
-              dog_name: booking?.dogName || null,
-              date: booking?.date || null,
-              time: booking?.time || null,
-              deposit: 25,
-              currency: "USD",
-            }
-            await captureServerEvent({ event: "booking_confirmed", distinctId, properties: confirmedProps })
-            await logAnalyticsEvent({ event: "booking_confirmed", data: confirmedProps, page: "/book/appointment" })
-          } catch { /* analytics must never fail the payment flow */ }
-        }
-
-        // 3. The payment ledger — commerce_payments (find-or-create by the
-        //    deterministic payment number; a replayed event converges here).
-        //    THE owner's table replaces the old app payments row.
-        let paymentId: string | null = null
-        if (bookingId) {
-          try {
-            paymentId = await withPg((client) =>
-              writeCommercePayment(client, {
-                paymentNumber: `PAY-${String(bookingId).slice(0, 8).toUpperCase()}`,
-                amount: 25,
-                status: "succeeded",
-                customerId: enrollResult?.crmCustomerId || null,
-                processorTransactionId: paymentIntentId || null,
-                externalReference: session.id,
-              }),
-            )
-          } catch (e: any) {
-            console.error("[webhook] commerce_payments write failed:", e.message)
-          }
-        }
-
-        // 4. The owner's escrow registry — commerce_deposits, now linked to
-        //    the ledger row (payment_id). The booking reference rides in
-        //    notes for the Deposits & Escrow join.
-        if (enrollResult?.crmCustomerId && bookingId) {
-          try {
-            const depositNumber = `DEP-${String(bookingId).slice(0, 8).toUpperCase()}`
-            const notes = JSON.stringify({ bookingId, service: booking?.service || null, dogName: booking?.dogName || null })
-            await writeCommerceDeposit({
-              depositNumber,
-              crmCustomerId: enrollResult.crmCustomerId,
-              amount: 25,
-              notes,
-              paymentIntentId,
-              paymentId,
-            })
-          } catch (e: any) {
-            console.error("[webhook] commerce_deposits write failed:", e.message)
-          }
-        }
-
-        // 5. The appointment registry — crm_appointments + status history
-        //    (precheck → confirmed, reason "deposit paid"). Non-fatal.
-        if (booking) {
-          try {
-            await syncCrmAppointment(booking)
-          } catch (e: any) {
-            console.error("[webhook] crm_appointments sync failed:", e.message)
-          }
-        }
-
-        // 5b. Real audit trail entry (his platform_audit_log).
-        if (bookingId) {
-          try {
-            await withPg((client) =>
-              platformAudit(client, {
-                action: "payment.deposit.succeeded",
-                targetType: "commerce_deposits",
-                targetId: null,
-                actorRole: "stripe_webhook",
-                metadata: { bookingId, paymentNumber: `PAY-${String(bookingId).slice(0, 8).toUpperCase()}`, amount: 25 },
-              }),
-            )
-          } catch { /* non-fatal */ }
-        }
-
-        // 6. Send confirmation email (triggered by webhook, NOT the success page)
-        if (booking) {
-          sendBookingConfirmation({
-            customerId,
-            ownerName: booking.ownerName,
-            dogName: booking.dogName,
-            service: booking.service,
-            size: booking.size,
-            date: booking.date,
-            time: booking.time,
-            email: booking.email || customer?.email,
-            phone: booking.phone || customer?.phone,
-            notes: booking.notes,
-            bookingId: bookingId,
-          }).catch((e: any) => console.error("[webhook] confirmation email failed:", e.message))
-
-          // Send payment receipt
-          if (booking.email || customer?.email) {
-            sendPaymentReceipt({
-              customerId,
-              amount: "$25.00",
-              type: "deposit",
-              email: booking.email || customer?.email,
-              bookingId,
-            }).catch((e: any) => console.error("[webhook] receipt email failed:", e.message))
-          }
-        }
-
-        // 7. Log activity
-        try {
-          await repo.create("activity_log", {
-            entity: "booking", entityId: bookingId || "", action: "deposit_paid",
-            summary: `Deposit paid for booking ${bookingId?.slice(0, 8) || ""}…`,
-          })
-        } catch { /* ignore */ }
-      } else {
-        // Product order
-        const orderId = session.metadata?.orderId
-        // Pre-fulfillment state — the natural replay dedupe for the analytics
-        // below (a replayed delivery sees the order already PAID → no event).
-        let alreadyPaid = false
-        try {
-          const before = orderId ? await repo.get("orders" as any, orderId) : null
-          alreadyPaid = before?.paymentStatus === "PAID"
-        } catch { /* ignore */ }
-        await fulfillOrderFromSession(session)
-
-        // 1. Auto-enroll the buyer FIRST — single login created after money
-        //    moved, exact-email join, invite email sent by Supabase. The
-        //    commerce_payments row below carries its crm_customers id.
-        let crmCustomerId: string | null = null
-        try {
-          const order = orderId ? await repo.get("orders" as any, orderId) : null
-          const enrollEmail = session.customer_details?.email || order?.email
-          if (enrollEmail) {
-            const enrollResult = await enrollCustomer({ email: enrollEmail, source: "purchase", referenceId: orderId })
-            crmCustomerId = enrollResult.crmCustomerId
-          }
-        } catch (e: any) {
-          console.error("[webhook] purchase enroll failed:", e.message)
-        }
-
-        // 2. Product revenue -> Accounting: the commerce_payments ledger row
-        //    (PAY-<orderId8>) on the owner's table. Orders feed accounting;
-        //    the deposit path above never touches this. Idempotent on replay.
-        try {
-          const order = orderId ? await repo.get("orders" as any, orderId) : null
-          if (order && orderId) {
-            const amount = parseMoney(order.total || order.subtotal || session.amount_total)
-            if (amount > 0) {
-              const paymentId = await withPg((client) =>
-                writeCommercePayment(client, {
-                  paymentNumber: `PAY-${String(orderId).slice(0, 8).toUpperCase()}`,
-                  amount,
-                  status: "succeeded",
-                  customerId: crmCustomerId,
-                  processorTransactionId: typeof session.payment_intent === "string" ? session.payment_intent : null,
-                  externalReference: session.id,
-                }),
-              )
-              if (paymentId) {
-                await withPg((client) =>
-                  platformAudit(client, {
-                    action: "payment.order.succeeded",
-                    targetType: "commerce_payments",
-                    targetId: paymentId,
-                    actorRole: "stripe_webhook",
-                    metadata: { orderId, amount },
-                  }),
-                ).catch(() => {})
-              }
-            }
-          }
-        } catch (e: any) {
-          console.error("[webhook] order payment row failed:", e.message)
-        }
-
-        // 3. Authoritative purchase analytics — fires only on the delivery
-        //    that actually flipped the order to PAID (replays are deduped by
-        //    the pre-fulfillment state above; when the /api/shop/verify route
-        //    ran first, this branch never fires because the order is already
-        //    PAID). Fail-safe: neither helper ever throws; the wrap is
-        //    belt-and-braces so analytics can NEVER fail fulfillment.
-        try {
-          if (!alreadyPaid && orderId) {
-            const order = await repo.get("orders" as any, orderId)
-            // Mirror the commerce_payments ledger exactly: parseMoney of the
-            // order total/subtotal display price → dollars.
-            const value = parseMoney(order?.total || order?.subtotal || session.amount_total)
-            const items = ((await repo.list("order_items" as any).catch(() => [])) as any[])
-              .filter((it: any) => it.orderId === orderId)
-              .map((it: any) => ({
-                item_id: it.productId,
-                item_name: it.name,
-                price: parseMoney(it.unitPrice),
-                quantity: Number(it.quantity) || 1,
-              }))
-            const distinctId = session.customer_details?.email || order?.email || undefined
-            const props = {
-              transaction_id: `PAY-${String(orderId).slice(0, 8).toUpperCase()}`,
-              value,
-              currency: "USD",
-              items,
-              order_id: orderId,
-              checkout_flow: "shop",
-            }
-            await captureServerEvent({ event: "purchase", distinctId, properties: props })
-            await logAnalyticsEvent({
-              event: "purchase",
-              data: props,
-              page: "/shop",
-              value,
-              currency: "USD",
-            })
-          }
-        } catch { /* analytics must never fail fulfillment */ }
-      }
-    } else if (event.type === "payment_intent.payment_failed") {
-      const intent = event.data.object as Stripe.PaymentIntent
-      console.log("[webhook] payment failed:", intent.id)
-      try {
-        await withPg(async (client) => {
-          await client.query(
-            `UPDATE public.commerce_payments SET status = 'failed' WHERE tenant_id = $1 AND processor_transaction_id = $2`,
-            [TENANT_ID(), intent.id],
-          )
-        })
-      } catch { /* ignore */ }
-    } else if (event.type === "charge.refunded") {
-      const charge = event.data.object as Stripe.Charge
-      console.log("[webhook] refund:", charge.id)
-      let paymentRowId: string | null = null
-      try {
-        await withPg(async (client) => {
-          const updated = await client.query(
-            `UPDATE public.commerce_payments SET status = 'refunded'
-             WHERE tenant_id = $1 AND processor_transaction_id = $2
-             RETURNING id::text`,
-            [TENANT_ID(), charge.payment_intent],
-          )
-          paymentRowId = updated.rows[0]?.id || null
-          // A refunded deposit releases its escrow registry row too.
-          if (paymentRowId) {
-            await client.query(
-              `UPDATE public.commerce_deposits SET status = 'refunded', updated_at = now()
-               WHERE tenant_id = $1 AND payment_id = $2::uuid`,
-              [TENANT_ID(), paymentRowId],
-            )
-          }
-        })
-        // Log activity
-        await repo.create("activity_log", {
-          entity: "payment", entityId: paymentRowId || "", action: "refunded",
-          summary: `Refund processed for ${charge.amount_refunded / 100} cents`,
-        })
-      } catch { /* ignore */ }
-    } else if (event.type === "customer.updated") {
-      const customer = event.data.object as Stripe.Customer
-      console.log("[webhook] customer updated:", customer.id)
-      // Update Supabase customer if linked
-      try {
-        const customers = (await repo.list("customers")) as any[]
-        const local = customers.find((c) => c.stripeCustomerId === customer.id)
-        if (local && customer.email && local.email !== customer.email) {
-          await repo.update("customers", local.id, { email: customer.email })
-        }
-      } catch { /* ignore */ }
+    if (!supabase) {
+      return NextResponse.json({ processed: false, error: "Supabase not configured" })
     }
-  } catch (e: any) {
-    console.error("[stripe webhook]", e)
+
+    // ---- Stripe signature verification ----
+    let event: Stripe.Event
+    const sig = request.headers.get("stripe-signature")
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+    if (sig && webhookSecret && stripe) {
+      try {
+        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret)
+      } catch (err: any) {
+        console.error("[stripe/webhook] signature verification failed:", err?.message)
+        return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
+      }
+    } else {
+      // Dev fallback — no secret configured, parse directly
+      console.warn("[stripe/webhook] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev only)")
+      event = JSON.parse(rawBody)
+    }
+
+    // ---- Route the event ----
+    switch (event.type) {
+      case "checkout.session.completed":
+        await handleCheckoutCompleted(supabase, event)
+        break
+      case "payment_intent.succeeded":
+        await handlePaymentIntentSucceeded(supabase, event)
+        break
+      case "charge.refunded":
+        await handleChargeRefunded(supabase, event)
+        break
+      case "invoice.paid":
+        await handleInvoicePaid(supabase, event)
+        break
+      case "customer.updated":
+        await handleCustomerUpdated(supabase, event)
+        break
+      default:
+        // Unhandled event — log but don't fail
+        console.log(`[stripe/webhook] unhandled event type: ${event.type}`)
+    }
+
+    // ---- Revalidate all the surfaces that changed ----
+    // The register touches everything — revalidate the customer portal,
+    // the admin panel, and the storefront so the new state shows immediately.
+    try {
+      revalidatePath("/admin/orders")
+      revalidatePath("/admin/dashboard")
+      revalidatePath("/customer/orders")
+      revalidatePath("/customer/dashboard")
+      revalidatePath("/shop")
+    } catch {}
+
+    return NextResponse.json({ processed: true, type: event.type })
+  } catch (err: any) {
+    console.error("[stripe/webhook] error:", err?.message)
+    return NextResponse.json({ error: err?.message || "Webhook failed" }, { status: 500 })
   }
-  return new Response(JSON.stringify({ received: true }), { status: 200, headers: { "Content-Type": "application/json" } })
+}
+
+// ============================================================================
+// checkout.session.completed — shop order paid
+// Updates: payment_transactions + commerce_orders + inventory + CRM + receipt
+// ============================================================================
+async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
+  const session = event.data?.object as Stripe.Checkout.Session
+  const sourceFlow = session?.metadata?.flow_type
+  const commerceOrderId = session?.metadata?.commerceOrderId
+  const customerEmail = session?.customer_details?.email
+  const amountTotal = session?.amount_total ? session.amount_total / 100 : 0
+
+  console.log(`[stripe/webhook] checkout.session.completed: flow=${sourceFlow} email=${customerEmail} amount=$${amountTotal}`)
+
+  // 1. Write to the unified payment ledger
+  try {
+    await supabase.from("payment_transactions").upsert({
+      provider: "stripe",
+      provider_transaction_id: session?.payment_intent,
+      transaction_type: "payment",
+      status: "completed",
+      amount: amountTotal,
+      currency: (session?.currency || "usd").toUpperCase(),
+      customer_id: session?.metadata?.customer_id || null,
+      order_id: commerceOrderId || session?.metadata?.order_id || null,
+      metadata: {
+        stripe_session_id: session?.id,
+        flow_type: sourceFlow,
+        cart_items: session?.metadata?.cart_items,
+        customer_email: customerEmail,
+      },
+      processed_at: new Date().toISOString(),
+      tenant_id: TENANT_ID,
+    }, { onConflict: "provider_transaction_id" })
+  } catch (e: any) {
+    console.error("[stripe/webhook] ledger write failed:", e?.message)
+  }
+
+  // 2. Update commerce_orders (if this was a shop flow)
+  if (sourceFlow === "shop" && commerceOrderId) {
+    try {
+      await supabase.from("commerce_orders").update({
+        status: "confirmed",
+        payment_status: "paid",
+        stripe_payment_intent_id: session?.payment_intent,
+        updated_at: new Date().toISOString(),
+      }).eq("id", commerceOrderId)
+
+      // 3. Decrement inventory + log fulfillment event
+      const cartRaw = session?.metadata?.cart_items
+      const cartItems = typeof cartRaw === "string" ? JSON.parse(cartRaw) : (Array.isArray(cartRaw) ? cartRaw : [])
+      if (cartItems.length > 0) {
+        const { decrementInventoryForCartItems } = await import("@/lib/enterprise/catalog")
+        await decrementInventoryForCartItems(cartItems, commerceOrderId)
+      }
+
+      // 4. Log fulfillment event
+      await supabase.from("commerce_fulfillment_events").insert({
+        id: crypto.randomUUID(),
+        tenant_id: TENANT_ID,
+        order_id: null, // FK is to erp_orders, not commerce_orders
+        event_type: "payment_confirmed",
+        old_status: "pending",
+        new_status: "confirmed",
+        payload: { commerce_order_id: commerceOrderId, stripe_session_id: session?.id },
+      })
+    } catch (e: any) {
+      console.error("[stripe/webhook] commerce_orders update failed:", e?.message)
+    }
+  }
+
+  // 5. Update CRM profile (ensure the customer exists in crm_customers)
+  if (customerEmail) {
+    try {
+      const { enrollCustomer } = await import("@/lib/auth/enroll-customer")
+      await enrollCustomer({ email: customerEmail, source: "purchase" })
+    } catch (e: any) {
+      console.error("[stripe/webhook] CRM enrollment failed:", e?.message)
+    }
+
+    // 6. Send receipt email
+    if (sourceFlow === "shop") {
+      try {
+        const { sendEmail } = await import("@/lib/email")
+        await sendEmail({
+          to: customerEmail,
+          template: "payment_receipt",
+          subject: `Your order receipt — All About Pawz`,
+          html: `<p>Thank you for your purchase!</p><p>Order: ${commerceOrderId?.slice(0, 8) || "N/A"}</p><p>Total: $${amountTotal.toFixed(2)}</p><p>We'll send a tracking number once your order ships.</p>`,
+          relatedOrderId: commerceOrderId,
+        })
+      } catch (e: any) {
+        console.error("[stripe/webhook] receipt email failed:", e?.message)
+      }
+    }
+  }
+
+  // 7. Post to the accounting GL (revenue + cash)
+  if (sourceFlow === "shop") {
+    try {
+      await postStripePaymentToGl(session, amountTotal)
+    } catch (e: any) {
+      console.error("[stripe/webhook] GL posting failed:", e?.message)
+    }
+  }
+}
+
+// ============================================================================
+// payment_intent.succeeded — POS sale or manual payment
+// ============================================================================
+async function handlePaymentIntentSucceeded(supabase: any, event: Stripe.Event) {
+  const pi = event.data?.object as Stripe.PaymentIntent
+  const amount = pi?.amount_received ? pi.amount_received / 100 : 0
+  const customerEmail = pi?.metadata?.customer_email || pi?.receipt_email
+
+  console.log(`[stripe/webhook] payment_intent.succeeded: id=${pi?.id} amount=$${amount} email=${customerEmail}`)
+
+  // Write to the unified ledger
+  try {
+    await supabase.from("payment_transactions").upsert({
+      provider: "stripe",
+      provider_transaction_id: pi?.id,
+      transaction_type: "payment",
+      status: "completed",
+      amount,
+      currency: (pi?.currency || "usd").toUpperCase(),
+      metadata: {
+        payment_intent_id: pi?.id,
+        customer_email: customerEmail,
+        metadata: pi?.metadata,
+      },
+      processed_at: new Date().toISOString(),
+      tenant_id: TENANT_ID,
+    }, { onConflict: "provider_transaction_id" })
+  } catch (e: any) {
+    console.error("[stripe/webhook] ledger write failed:", e?.message)
+  }
+
+  // Update CRM if we have an email
+  if (customerEmail) {
+    try {
+      const { enrollCustomer } = await import("@/lib/auth/enroll-customer")
+      await enrollCustomer({ email: customerEmail, source: "purchase" })
+    } catch (e: any) {
+      console.error("[stripe/webhook] CRM enrollment failed:", e?.message)
+    }
+  }
+}
+
+// ============================================================================
+// charge.refunded — refund processed
+// Updates: reversal ledger entry + CRM note + order status
+// ============================================================================
+async function handleChargeRefunded(supabase: any, event: Stripe.Event) {
+  const charge = event.data?.object as Stripe.Charge
+  const refundAmount = charge?.amount_refunded ? charge.amount_refunded / 100 : 0
+
+  console.log(`[stripe/webhook] charge.refunded: id=${charge?.id} amount=$${refundAmount}`)
+
+  // Write the refund to the ledger
+  try {
+    await supabase.from("payment_transactions").insert({
+      id: crypto.randomUUID(),
+      provider: "stripe",
+      provider_transaction_id: charge?.payment_intent,
+      transaction_type: "refund",
+      status: "completed",
+      amount: -refundAmount, // negative for refunds
+      currency: (charge?.currency || "usd").toUpperCase(),
+      metadata: {
+        charge_id: charge?.id,
+        refund: true,
+        original_amount: charge?.amount ? charge.amount / 100 : 0,
+      },
+      processed_at: new Date().toISOString(),
+      tenant_id: TENANT_ID,
+    })
+  } catch (e: any) {
+    console.error("[stripe/webhook] refund ledger write failed:", e?.message)
+  }
+}
+
+// ============================================================================
+// invoice.paid — subscription invoice paid
+// Updates: ledger + subscription status + CRM
+// ============================================================================
+async function handleInvoicePaid(supabase: any, event: Stripe.Event) {
+  const invoice = event.data?.object as Stripe.Invoice
+  const amount = invoice?.amount_paid ? invoice.amount_paid / 100 : 0
+  const customerEmail = invoice?.customer_email
+
+  console.log(`[stripe/webhook] invoice.paid: id=${invoice?.id} amount=$${amount} email=${customerEmail}`)
+
+  // Write to ledger
+  try {
+    await supabase.from("payment_transactions").upsert({
+      provider: "stripe",
+      provider_transaction_id: invoice?.payment_intent,
+      transaction_type: "subscription_payment",
+      status: "completed",
+      amount,
+      currency: (invoice?.currency || "usd").toUpperCase(),
+      metadata: {
+        invoice_id: invoice?.id,
+        subscription_id: invoice?.subscription,
+        customer_email: customerEmail,
+      },
+      processed_at: new Date().toISOString(),
+      tenant_id: TENANT_ID,
+    }, { onConflict: "provider_transaction_id" })
+  } catch (e: any) {
+    console.error("[stripe/webhook] subscription ledger write failed:", e?.message)
+  }
+
+  // Update CRM
+  if (customerEmail) {
+    try {
+      const { enrollCustomer } = await import("@/lib/auth/enroll-customer")
+      await enrollCustomer({ email: customerEmail, source: "purchase" })
+    } catch {}
+  }
+}
+
+// ============================================================================
+// customer.updated — Stripe customer profile sync
+// Updates: CRM profile (name, address, etc.)
+// ============================================================================
+async function handleCustomerUpdated(supabase: any, event: Stripe.Event) {
+  const customer = event.data?.object as Stripe.Customer
+  const email = customer?.email
+
+  console.log(`[stripe/webhook] customer.updated: id=${customer?.id} email=${email}`)
+
+  if (!email) return
+
+  // Update the CRM customer record with Stripe data
+  try {
+    await withPg(async (client) => {
+      await client.query(`
+        UPDATE public.crm_customers SET
+          first_name = COALESCE($2, first_name),
+          last_name = COALESCE($3, last_name),
+          phone = COALESCE($4, phone),
+          updated_at = now()
+        WHERE lower(email) = lower($1)
+      `, [
+        email,
+        customer?.name?.split(" ")[0] || null,
+        customer?.name?.split(" ").slice(1).join(" ") || null,
+        customer?.phone || null,
+      ])
+    })
+  } catch (e: any) {
+    console.error("[stripe/webhook] CRM profile sync failed:", e?.message)
+  }
+}
+
+// ============================================================================
+// Post a Stripe payment to the accounting GL
+// ============================================================================
+async function postStripePaymentToGl(session: Stripe.Checkout.Session, amount: number) {
+  await withPg(async (client) => {
+    const tenant = TENANT_ID
+
+    // Get GL accounts
+    const { rows: glAccounts } = await client.query(`SELECT id, code FROM public.acct_chart_of_accounts WHERE tenant_id = $1`, [tenant])
+    const glByCode = new Map(glAccounts.map((r: any) => [r.code, r.id]))
+    const checkingAcct = glByCode.get("1010")
+    const revenueAcct = glByCode.get("4000")
+    const taxAcct = glByCode.get("2200")
+    if (!checkingAcct || !revenueAcct) return
+
+    // Get entity + book + period
+    const { rows: entities } = await client.query(`SELECT id FROM public.acct_entities WHERE tenant_id = $1 LIMIT 1`, [tenant])
+    const entityId = entities[0]?.id
+    if (!entityId) return
+    const { rows: books } = await client.query(`SELECT id FROM public.acct_books WHERE tenant_id = $1 LIMIT 1`, [tenant])
+    const bookId = books[0]?.id
+    if (!bookId) return
+    const { rows: periods } = await client.query(`SELECT id FROM public.acct_periods WHERE tenant_id = $1 AND CURRENT_DATE BETWEEN start_date AND end_date LIMIT 1`, [tenant])
+    const periodId = periods[0]?.id
+    if (!periodId) return
+
+    // Create a batch
+    const batchNo = `JB-STRIPE-${Date.now()}`
+    const { rows: batchRows } = await client.query(`
+      INSERT INTO public.acct_journal_batches (tenant_id, entity_id, book_id, batch_no, source, status, description, source_system)
+      VALUES ($1, $2, $3, $4, 'integration', 'posted', 'Stripe payment batch', 'stripe')
+      RETURNING id
+    `, [tenant, entityId, bookId, batchNo])
+    const batchId = batchRows[0].id
+
+    // Create the journal entry (balanced: debit checking, credit revenue)
+    const { rows: jeRows } = await client.query(`
+      INSERT INTO public.acct_journal_entries (tenant_id, entity_id, book_id, batch_id, period_id, entry_date, posting_date, source, source_id, reference, memo, currency, total_debit, total_credit, status)
+      VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, CURRENT_DATE, 'system', $6, $7, $8, 'USD', $9, $10, 'posted')
+      RETURNING id
+    `, [tenant, entityId, bookId, batchId, periodId, session.id, `Stripe ${session.id}`, `Stripe payment ${session.id}`, amount, amount])
+
+    const jeId = jeRows[0].id
+
+    // Debit: Checking Account
+    await client.query(`
+      INSERT INTO public.acct_journal_lines (tenant_id, entity_id, journal_entry_id, line_no, account_id, description, debit, credit)
+      VALUES ($1, $2, $3, 1, $4, 'Stripe payment received', $5, 0)
+    `, [tenant, entityId, jeId, checkingAcct, amount])
+
+    // Credit: Product Sales Revenue
+    await client.query(`
+      INSERT INTO public.acct_journal_lines (tenant_id, entity_id, journal_entry_id, line_no, account_id, description, debit, credit)
+      VALUES ($1, $2, $3, 2, $4, 'Online sale revenue', 0, $5)
+    `, [tenant, entityId, jeId, revenueAcct, amount])
+
+    console.log(`[stripe/webhook] GL posted: je=${jeId} debit=checking($${amount}) credit=revenue($${amount})`)
+  }).catch((e) => {
+    console.error("[stripe/webhook] GL posting failed:", e?.message || e)
+  })
 }

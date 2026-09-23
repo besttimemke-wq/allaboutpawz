@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       // so analytics can NEVER fail the verify response.
       try {
         const value = parseMoney(order?.total || order?.subtotal || session.amount_total)
-        const items = ((await repo.list("order_items").catch(() => [])) as any[])
+        const items = ((await repo.list("commerce_order_items").catch(() => [])) as any[])
           .filter((it: any) => it.orderId === orderId)
           .map((it: any) => ({
             item_id: it.productId,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseConfig, usingSupabase, supabaseReady } from "@/lib/repo"
-import { withPg, TENANT_ID, platformAudit } from "@/lib/crm/enterprise"
 
 // ============================================================================
 // POST /api/dogs/[id]/photo  (multipart/form-data, field "file")
@@ -186,75 +185,6 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       { status: 502 },
     )
   }
-
-  // ---- Dual-write: crm_documents (canonical pet photo) ----
-  // Resolve the crm_pets row via source_pet_id back-link, then insert a
-  // crm_documents row so the photo appears in the admin CRM.
-  await withPg(async (client) => {
-    const tenant = TENANT_ID()
-    // 1. Find crm_pets by source_pet_id = legacy dogs.id
-    const petRes = await client.query(
-      `SELECT id::text, primary_customer_id::text AS customer_id, name FROM public.crm_pets
-       WHERE tenant_id = $1 AND source_pet_id = $2 LIMIT 1`,
-      [tenant, String(id)],
-    )
-    const pet = petRes.rows[0]
-    if (!pet?.id || !pet?.customer_id) {
-      // No canonical pet row — try fallback: look up the legacy dogs row →
-      // find crm_customers by source_customer_id → find crm_pets by name
-      const dogRes = await fetch(
-        `${supabaseConfig.url}/rest/v1/dogs?id=eq.${encodeURIComponent(id)}&select=name,customerId&limit=1`,
-        { headers: { apikey: supabaseConfig.key!, Authorization: `Bearer ${supabaseConfig.key}` } },
-      ).catch(() => null)
-      if (dogRes?.ok) {
-        const rows = await dogRes.json().catch(() => [])
-        const d = Array.isArray(rows) ? rows[0] : null
-        if (d?.name && d?.customerId) {
-          const cust = await client.query(
-            `SELECT id::text FROM public.crm_customers WHERE tenant_id = $1 AND source_customer_id = $2 LIMIT 1`,
-            [tenant, String(d.customerId)],
-          )
-          if (cust.rows[0]?.id) {
-            const byName = await client.query(
-              `SELECT id::text, primary_customer_id::text AS customer_id FROM public.crm_pets
-               WHERE tenant_id = $1 AND primary_customer_id = $2::uuid AND lower(name) = lower($3) LIMIT 1`,
-              [tenant, cust.rows[0].id, String(d.name)],
-            )
-            if (byName.rows[0]?.id) {
-              pet.id = byName.rows[0].id
-              pet.customer_id = byName.rows[0].customer_id || cust.rows[0].id
-            }
-          }
-        }
-      }
-    }
-    if (pet?.id && pet?.customer_id) {
-      try {
-        await client.query("SAVEPOINT photo_sp")
-        const docIns = await client.query(
-          `INSERT INTO public.crm_documents
-             (tenant_id, customer_id, pet_id, name, status, storage_path, mime_type, uploaded_at, metadata)
-           VALUES ($1::uuid, $2::uuid, $3::uuid, $4, 'submitted', $5, $6, now(), $7::jsonb)
-           RETURNING id::text`,
-          [tenant, pet.customer_id, pet.id, `Pet Photo — ${pet.name || "Unnamed"}`, url, "image/jpeg", JSON.stringify({ source: "booking_wizard", photo_url: url, legacy_dog_id: String(id) })],
-        )
-        const docId = docIns.rows[0]?.id
-        try {
-          await platformAudit(client, {
-            action: "crm.pet.photo.uploaded",
-            targetType: "crm_document",
-            targetId: docId,
-            actorRole: "system",
-            metadata: { petId: pet.id, customerId: pet.customer_id, source: "booking_wizard" },
-          })
-        } catch {}
-        await client.query("RELEASE SAVEPOINT photo_sp")
-      } catch (photoErr) {
-        console.warn("[api/dogs/[id]/photo] crm_documents insert failed (non-fatal):", photoErr instanceof Error ? photoErr.message : photoErr)
-        await client.query("ROLLBACK TO SAVEPOINT photo_sp").catch(() => {})
-      }
-    }
-  }).catch(() => {})
 
   return NextResponse.json({ url })
 }
