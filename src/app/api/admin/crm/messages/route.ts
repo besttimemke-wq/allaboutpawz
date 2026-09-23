@@ -29,7 +29,25 @@ export async function POST(req: NextRequest) {
       const ins = await client.query(`INSERT INTO public.crm_messages (tenant_id, customer_id, channel, direction, status, subject, body, provider, sent_at) VALUES ($1, $2::uuid, $3, 'outbound', 'sent', $4, $5, $6, now()) RETURNING *`, [tenant, customerId, channel, body.subject || null, msgBody, channel === "email" ? "resend" : channel === "sms" ? "twilio" : null]);
       const row = ins.rows[0];
       try { await client.query("SAVEPOINT audit_sp"); await platformAudit(client, { action: "crm.message.sent", targetType: "crm_message", targetId: String(row.id), actorRole: "admin", metadata: { customerId, channel, bodyPreview: msgBody.slice(0, 100) } }); await client.query("RELEASE SAVEPOINT audit_sp"); } catch { await client.query("ROLLBACK TO SAVEPOINT audit_sp").catch(() => {}); }
-      await client.query("COMMIT"); return NextResponse.json({ message: { id: String(row.id), channel, body: msgBody, status: "sent", createdAt: toIso(row.created_at) } }, { status: 201 });
+      await client.query("COMMIT");
+      // Actually send the email via Resend if channel is email. Non-fatal.
+      if (channel === "email") {
+        try {
+          await fetch("/api/send-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: body.toAddress || undefined,
+              subject: body.subject || msgBody.slice(0, 80),
+              html: `<p>${msgBody.replace(/\n/g, "<br>")}</p>`,
+              customerId,
+            }),
+          });
+        } catch (emailErr) {
+          console.warn("[crm/messages POST] email send via Resend failed (non-fatal):", emailErr instanceof Error ? emailErr.message : emailErr);
+        }
+      }
+      return NextResponse.json({ message: { id: String(row.id), channel, body: msgBody, status: "sent", createdAt: toIso(row.created_at) } }, { status: 201 });
     } catch (e: any) { await client.query("ROLLBACK").catch(() => {}); return NextResponse.json({ error: e?.message }, { status: 500 }); }
   }).then((r) => r ?? NextResponse.json({ error: "DB unavailable" }, { status: 503 })).catch((e: any) => NextResponse.json({ error: e?.message }, { status: 500 }));
 }

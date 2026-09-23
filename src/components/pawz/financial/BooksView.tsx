@@ -186,7 +186,7 @@ export const BooksView: React.FC<BooksViewProps> = ({ onNavigateSection }) => {
   const filteredAccounts = accounts.filter(acc => {
     if (coaSearch.trim()) {
       const q = coaSearch.toLowerCase();
-      return acc.code.includes(q) || acc.name.toLowerCase().includes(q) || acc.type.toLowerCase().includes(q);
+      return acc.code.includes(q) || (acc.name || '').toLowerCase().includes(q) || (acc.type || '').toLowerCase().includes(q);
     }
     return true;
   });

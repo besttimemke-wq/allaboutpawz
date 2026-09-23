@@ -960,12 +960,9 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Merge live Supabase customers with rich design presets (avoiding duplicate emails)
+  // Live data only — no mock fallback. Shows empty state when no data.
   const allList: ExtendedCustomerRecord[] = React.useMemo(() => {
-    if (liveDbCustomers.length === 0) return EXTENDED_MOCK_CUSTOMERS;
-    const liveEmails = new Set(liveDbCustomers.map(c => c.email.toLowerCase()));
-    const nonDuplicatedMock = EXTENDED_MOCK_CUSTOMERS.filter(m => !liveEmails.has(m.email.toLowerCase()));
-    return [...liveDbCustomers, ...nonDuplicatedMock];
+    return liveDbCustomers;
   }, [liveDbCustomers]);
 
   // Dynamic calculated metrics across all customers
@@ -1261,7 +1258,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
       if (selectedCustomerForRail) {
         handleOpenFullProfile(selectedCustomerForRail);
       } else {
-        handleOpenFullProfile(EXTENDED_MOCK_CUSTOMERS[0]);
+        handleOpenFullProfile(allList[0]);
       }
     } else if (action === 'call-customer') {
       const targetPhone = selectedCustomerForRail?.phone || '(214) 555-0198';
@@ -1423,7 +1420,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
     );
   }
 
-  const activeCustomer = selectedCustomerForRail || EXTENDED_MOCK_CUSTOMERS[0];
+  const activeCustomer = selectedCustomerForRail || allList[0];
 
   return (
     <div className="flex h-full min-h-[calc(100vh-56px)] overflow-hidden bg-background text-foreground antialiased font-sans text-[13px]">
