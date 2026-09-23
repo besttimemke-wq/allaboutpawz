@@ -38,15 +38,15 @@ export const StripeIntegrationScreen: React.FC<ScreenProps> = ({
   const [publicKey, setPublicKey] = useState('pk_live_••••••••••••••••••••');
   const [webhookSecret, setWebhookSecret] = useState('whsec_••••••••••••••••••');
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (systemSettings) {
       if (systemSettings.payment_processing_mode) setStripeMode(systemSettings.payment_processing_mode as 'live' | 'test');
       if (systemSettings.stripe_public_key) setPublicKey(systemSettings.stripe_public_key);
     }
   }, [systemSettings]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   const showToast = (msg: string) => {
     setToastMsg(msg);

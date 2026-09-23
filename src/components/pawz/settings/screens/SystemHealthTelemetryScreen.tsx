@@ -43,7 +43,7 @@ export const SystemHealthTelemetryScreen: React.FC<ScreenProps> = ({
   ]);
 
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     async function fetchAuditLogs() {
       try {
         const res = await fetch("/api/admin/audit-logs");

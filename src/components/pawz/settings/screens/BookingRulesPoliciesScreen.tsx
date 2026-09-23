@@ -28,7 +28,7 @@ export const BookingRulesPoliciesScreen: React.FC<ScreenProps> = ({
   const [holidays, setHolidays] = useState<{ date: string; name: string }[]>([]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (systemSettings) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(systemSettings as any);

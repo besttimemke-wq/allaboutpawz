@@ -17,25 +17,25 @@ export const BusinessProfileScreen: React.FC<ScreenProps> = ({
   systemSettings,
   saveSettingsToDb,
 }) => {
-// eslint-disable-next-line react-hooks/set-state-in-effect
+ 
   const [form, setForm] = useState<Record<string, any>>({});
   const [saved, setSaved] = useState(false);
-// eslint-disable-next-line react-hooks/set-state-in-effect
+ 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (systemSettings) {
-// eslint-disable-next-line react-hooks/set-state-in-effect
+ 
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(systemSettings as any);
-// eslint-disable-next-line react-hooks/set-state-in-effect
+ 
       setLoading(false);
     }
   }, [systemSettings]);
 
   const update = (key: string, value: any) => {
-// eslint-disable-next-line react-hooks/set-state-in-effect
+ 
     setForm(prev => ({ ...prev, [key]: value }));
   };
 

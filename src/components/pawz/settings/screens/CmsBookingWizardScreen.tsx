@@ -37,16 +37,16 @@ export const CmsBookingWizardScreen: React.FC<ScreenProps> = ({
   const [fontFamily, setFontFamily] = useState('Plus Jakarta Sans');
   const [logoUrl, setLogoUrl] = useState('https://images.unsplash.com/photo-1516738901171-8eb4fc13bd20?w=128&h=128&fit=crop');
 
-  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+   
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (systemSettings) {
       if (systemSettings.portal_custom_domain) setSubdomain(systemSettings.portal_custom_domain.split('.')[0] || 'frisco');
       if (systemSettings.org_primary_color) setPrimaryColor(systemSettings.org_primary_color);
       if (systemSettings.org_logo_url) setLogoUrl(systemSettings.org_logo_url || logoUrl);
     }
   }, [systemSettings]);
-  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+   
 
   const showToast = (msg: string) => {
     setToastMsg(msg);

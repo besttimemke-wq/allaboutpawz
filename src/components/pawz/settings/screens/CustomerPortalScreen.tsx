@@ -23,9 +23,9 @@ export const CustomerPortalScreen: React.FC<ScreenProps> = ({
   const [forfeiturePrompt, setForfeiturePrompt] = useState(true);
   const [portalGreeting, setPortalGreeting] = useState('Welcome to your All About Pawz Pet Care Portal');
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (systemSettings) {
       if (systemSettings.portal_allow_self_cancel !== undefined) setSelfReg(systemSettings.portal_allow_self_cancel);
       if (systemSettings.booking_cancellation_cutoff_hours !== undefined) setCutoff(String(systemSettings.booking_cancellation_cutoff_hours));
@@ -33,7 +33,7 @@ export const CustomerPortalScreen: React.FC<ScreenProps> = ({
       if (systemSettings.org_business_name) setPortalGreeting(`Welcome to your ${systemSettings.org_business_name} Pet Care Portal`);
     }
   }, [systemSettings]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
   
   const [featureFlags, setFeatureFlags] = useState([
     { key: '01', title: 'Online Booking & Appointment Rescheduling', badge: 'CORE', desc: 'Permits calendar slot reservation, groomer tier selection, and self-reschedule up to 24h before appointment.', integration: 'CAL://SCHEDULE_V2', enabled: true },

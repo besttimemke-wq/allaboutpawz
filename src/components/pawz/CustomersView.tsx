@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { Customer, CustomerFullProfile } from '@/lib/types';
 import { CustomerDetailsView } from './CustomerDetailsView';
-import { SARAH_JOHNSON_PROFILE } from '@/lib/dawg-mock-data';
 import { QuickActionsModal, UnifiedQuickActionType } from './QuickActionsModal';
 import {
   QuickActionTakePaymentView,
@@ -747,9 +746,20 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   onOpenTakePayment,
   onOpenIntake,
 }) => {
-  // Navigation State: Directory landing vs. Full profile view
+// Empty customer profile — replaced SARAH_JOHNSON_PROFILE mock.
+// Shows proper empty state when no customer is selected.
+const EMPTY_PROFILE: CustomerFullProfile = {
+  id: '', name: '', status: '', phone: '', email: '', address: '',
+  customerType: '', preferredGroomer: '', lastVisit: '', lastService: '',
+  nextAppointment: '', nextApptTime: '', totalSpent: 0, lifetimeValue: 0,
+  balance: 0, loyaltyPoints: 0, customerSince: '', notes: '',
+  pets: [], upcomingAppointments: [], paymentHistory: [],
+  recentActivity: [], communication: [],
+};
+
+// Navigation State: Directory landing vs. Full profile view
   const [viewMode, setViewMode] = useState<'directory' | 'detail'>('directory');
-  const [selectedProfile, setSelectedProfile] = useState<CustomerFullProfile>(SARAH_JOHNSON_PROFILE);
+  const [selectedProfile, setSelectedProfile] = useState<CustomerFullProfile>(EMPTY_PROFILE);
   
   // Quick View Rail (Right side drawer) - Closed by default on entry
   const [selectedCustomerForRail, setSelectedCustomerForRail] = useState<ExtendedCustomerRecord | null>(null);
@@ -1130,7 +1140,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   // Open Full Profile View
   const handleOpenFullProfile = (cust: ExtendedCustomerRecord) => {
     if (cust.id === 'cust-1' && !cust.isLiveDb) {
-      setSelectedProfile(SARAH_JOHNSON_PROFILE);
+      setSelectedProfile(EMPTY_PROFILE);
     } else {
       const customerPets = (cust.petDetails && cust.petDetails.length > 0)
         ? cust.petDetails.map((d: any, i: number) => ({
@@ -1304,13 +1314,13 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
             last4: selectedCustomerForRail.cardLast4 || '4242',
             expires: selectedCustomerForRail.cardExpiry || '04/27',
           },
-          pets: SARAH_JOHNSON_PROFILE.pets,
-          upcomingAppointments: SARAH_JOHNSON_PROFILE.upcomingAppointments,
-          paymentHistory: SARAH_JOHNSON_PROFILE.paymentHistory,
-          recentActivity: SARAH_JOHNSON_PROFILE.recentActivity,
-          communication: SARAH_JOHNSON_PROFILE.communication,
+          pets: [],
+          upcomingAppointments: [],
+          paymentHistory: [],
+          recentActivity: [],
+          communication: [],
         }
-      : SARAH_JOHNSON_PROFILE;
+      : EMPTY_PROFILE;
 
     return (
       <div className="flex-1 flex flex-col min-h-screen bg-muted/40">
@@ -1438,7 +1448,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         onClose={() => setIsQuickActionsModalOpen(false)}
         onSelectAction={handleUnifiedQuickAction}
         customer={activeCustomer ? {
-          ...SARAH_JOHNSON_PROFILE,
+          ...EMPTY_PROFILE,
           name: activeCustomer.name,
           email: activeCustomer.email,
           phone: activeCustomer.phone,

@@ -107,7 +107,7 @@ export function BookingWizardV2({
       track.generateLead("consultation", { breed: selectedBreed?.name })
       identifyViewer(s.email)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
   // ----- Derived lookups -----
@@ -356,7 +356,7 @@ export function BookingWizardV2({
         {/* Pet photo (if uploaded) */}
         {s.photoUrl && (
           <div className="mx-auto mb-4 h-24 w-24 overflow-hidden rounded-full border-2 border-gold/40">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            { }
             <img src={s.photoUrl} alt={s.dogName || "Your pup"} className="h-full w-full object-cover" />
           </div>
         )}
@@ -811,7 +811,7 @@ function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean 
             className="relative group flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-gold/40 bg-cream-deep transition hover:border-gold-deep disabled:opacity-60"
           >
             {s.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
+               
               <img src={s.photoUrl} alt="Pet photo" className="h-full w-full object-cover" />
             ) : (
               <PawPrint size={28} weight="fill" className="text-gold-deep" />

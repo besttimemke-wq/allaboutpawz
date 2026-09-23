@@ -38,7 +38,7 @@ export default function LearnLayout({ children }: { children: React.ReactNode })
   } = useAppStore();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     const unsub = useAppStore.persist.onFinishHydration(() => setHasHydrated(true));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (useAppStore.persist.hasHydrated()) setHasHydrated(true);
@@ -58,7 +58,7 @@ export default function LearnLayout({ children }: { children: React.ReactNode })
   // Scope enforcement — LMS is open to every signed-in account. The only
   // failure path is no session at all → back to the LMS sign-in door.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (!session.isResolved) return;
     if (!session.user) {
       router.replace('/learn/sign-in');

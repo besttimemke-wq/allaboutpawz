@@ -90,7 +90,7 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
           servicePrice: `$${parseFloat(price) || 85.0}`, status: 'Scheduled', notes,
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     onSaveAppointment({
       petName: petName || 'Max', customerName: customerName || 'Sarah Johnson',
       breed: breed || 'Golden Retriever', serviceName, staffName, date, time,
@@ -109,9 +109,9 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
         body: JSON.stringify({ email: custEmail || 'client@example.com', firstName: (custName || 'New Client').split(' ')[0], lastName: (custName || '').split(' ').slice(1).join(' '), phone: custPhone, lifecycleStage: 'new_customer' }),
       });
       if (res.ok) { const j = await res.json(); crmId = j?.id || null; }
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     if (custPet && crmId) {
-      try { await fetch('/api/admin/crm/pets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: crmId, name: custPet.split(' ')[0], species: 'dog' }) }); } catch { /* non-fatal */ }
+      try { await fetch('/api/admin/crm/pets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: crmId, name: custPet.split(' ')[0], species: 'dog' }) }); } catch (err) { console.error('[CRM action failed]', err); }
     }
     onSaveCustomer({
       name: custName || 'New Client', email: custEmail || 'client@example.com',
@@ -134,7 +134,7 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
         body: JSON.stringify({ email: newPetOwnerEmail, firstName: newPetOwner.split(' ')[0] || newPetOwner, lastName: newPetOwner.split(' ').slice(1).join(' '), lifecycleStage: 'active' }),
       });
       if (custRes.ok) { const j = await custRes.json(); customerId = j?.id || ''; }
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     if (!customerId) { alert('Could not create or find customer. Please check the email.'); return; }
     try {
       await fetch('/api/admin/crm/pets', {
@@ -142,7 +142,7 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customerId, name: newPetName, breed: newPetBreed, species: 'dog', weight: parseFloat(newPetWeight) || undefined, handlingNotes: newPetNotes, isPrimary: true }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     onSavePet({
       name: newPetName, breed: newPetBreed || '—',
       ownerName: newPetOwner, age: newPetAge, weight: newPetWeight,
@@ -164,7 +164,7 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
           notes: 'Quick payment',
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     setPaySuccess(true);
     setTimeout(() => { setPaySuccess(false); onClose(); }, 1200);
   };
@@ -183,7 +183,7 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
           notes: invNotes || '',
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     setInvSuccess(true);
     setTimeout(() => { setInvSuccess(false); onClose(); }, 1200);
   };

@@ -48,7 +48,7 @@ export const ServicesPricingMatrixScreen: React.FC<ScreenProps> = ({
   const [newDesc, setNewDesc] = useState('');
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (systemSettings) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(systemSettings as any);

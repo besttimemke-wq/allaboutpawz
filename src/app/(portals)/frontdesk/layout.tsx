@@ -43,7 +43,7 @@ export default function FrontDeskLayout({ children }: { children: React.ReactNod
   } = useAppStore();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     const unsub = useAppStore.persist.onFinishHydration(() => setHasHydrated(true));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (useAppStore.persist.hasHydrated()) setHasHydrated(true);
@@ -65,7 +65,7 @@ export default function FrontDeskLayout({ children }: { children: React.ReactNod
 
   // Scope enforcement — only after the server session has spoken.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (!session.isResolved) return;
     const user = session.user as any;
     if (!user) {

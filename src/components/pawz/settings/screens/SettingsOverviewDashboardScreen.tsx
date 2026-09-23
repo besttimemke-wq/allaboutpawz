@@ -30,7 +30,7 @@ export const SettingsOverviewDashboardScreen: React.FC<ScreenProps> = ({
 
   // Fetch live settings + user counts
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     async function fetchData() {
       try {
         const [settingsRes, usersRes] = await Promise.all([

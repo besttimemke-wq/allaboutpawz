@@ -67,7 +67,7 @@ export function useSessionQuery(onServerUser?: (user: AuthUser | null) => void):
   useEffect(() => {
     if (!arrived || !onServerUser) return;
     onServerUser(serverUser);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [arrived, serverUser?.id, serverUser?.role]);
 
   return {

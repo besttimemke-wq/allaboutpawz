@@ -145,7 +145,7 @@ export function PetCard({
 
   // --- Photo element (the visible circle content) ---
   const photoElement = photoUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
+     
     <img
       src={photoUrl}
       alt={`${dog.name} photo`}

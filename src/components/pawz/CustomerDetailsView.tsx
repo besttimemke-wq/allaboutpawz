@@ -527,7 +527,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: editEmail || profile.email, firstName: editName?.split(' ')[0], lastName: editName?.split(' ').slice(1).join(' '), phone: editPhone, addressLine1: editAddress, lifecycleStage: profile.lifecycleStage || 'active' }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     setProfile(prev => ({ ...prev, name: editName, phone: editPhone, email: editEmail, address: editAddress }));
     setIsEditCustomerOpen(false);
     showToast('Customer contact & account details saved.');
@@ -539,7 +539,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
     const channelId = (messageChannel || '').toLowerCase().includes('email') ? 'email' : (messageChannel || '').toLowerCase().includes('sms') || (messageChannel || '').toLowerCase().includes('text') ? 'sms' : 'other';
     try {
       await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, channel: channelId, body: messageText, subject: messageText.slice(0, 80) }) });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     const newComm = { id: `comm-${Date.now()}`, date: 'Today', time: 'Just Now', channel: messageChannel, type: 'Direct Communication', direction: 'Outgoing', subject: messageText, pet: 'Household', status: 'Sent' };
     setCommunicationsList(prev => [newComm, ...prev]);
     setMessageText(''); setIsSendMessageOpen(false);
@@ -548,7 +548,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
 
   /* ------------------- ACTIONS: 2. PETS ------------------- */
   const handleSetPrimaryPet = async (petId: string) => {
-    try { await fetch(`/api/admin/crm/pets/${encodeURIComponent(petId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isPrimary: true }) }); } catch { /* non-fatal */ }
+    try { await fetch(`/api/admin/crm/pets/${encodeURIComponent(petId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isPrimary: true }) }); } catch (err) { console.error('[CRM action failed]', err); }
     setProfile(prev => ({ ...prev, pets: (prev.pets || []).map(p => ({ ...p, isPrimary: p.id === petId })) }));
     const targetPet = (profile.pets || []).find(p => p.id === petId);
     showToast(`Marked ${targetPet?.name || 'Pet'} as primary/default for booking.`);
@@ -567,21 +567,21 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
     const appt = appointmentsList.find(a => a.id === apptId);
     if (!appt) return;
     const nextStatus = appt.status === 'Scheduled' ? 'Checked In' : appt.status === 'Checked In' ? 'In Progress' : appt.status === 'In Progress' ? 'Checked Out' : 'Scheduled';
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: apptId, status: nextStatus }) }); } catch { /* non-fatal */ }
+    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: apptId, status: nextStatus }) }); } catch (err) { console.error('[CRM action failed]', err); }
     setAppointmentsList(prev => prev.map(a => a.id === apptId ? { ...a, status: nextStatus } : a));
     showToast(`Marked ${appt.pet}'s appointment as "${nextStatus}".`);
   };
 
   const handleCancelAppointment = async (apptId: string) => {
     const target = appointmentsList.find(a => a.id === apptId);
-    try { await fetch(`/api/bookings?id=${encodeURIComponent(apptId)}`, { method: 'DELETE' }); } catch { /* non-fatal */ }
+    try { await fetch(`/api/bookings?id=${encodeURIComponent(apptId)}`, { method: 'DELETE' }); } catch (err) { console.error('[CRM action failed]', err); }
     setAppointmentsList(prev => prev.map(a => a.id === apptId ? { ...a, status: 'Cancelled' } : a));
     showToast(`Appointment for ${target?.pet || 'pet'} has been cancelled.`);
   };
 
   const handleSendApptReminder = async (appt: any) => {
     if (!profile.id) return;
-    try { await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, channel: 'sms', body: `Reminder: ${appt.pet}'s appointment on ${appt.date} at ${appt.time}.`, subject: 'Appointment Reminder' }) }); } catch { /* non-fatal */ }
+    try { await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, channel: 'sms', body: `Reminder: ${appt.pet}'s appointment on ${appt.date} at ${appt.time}.`, subject: 'Appointment Reminder' }) }); } catch (err) { console.error('[CRM action failed]', err); }
     showToast(`Automated SMS reminder sent to ${profile.phone} for ${appt.pet}'s session on ${appt.date}.`);
   };
 
@@ -593,7 +593,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customerId: profile.id, priority: 5, notes: `Requested by admin for ${profile.name}` }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     showToast(`Added ${profile.name} to the grooming waitlist.`);
   };
 
@@ -627,7 +627,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appendNote: note }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     setGroomingRecords(prev =>
       prev.map(r => (r.id === recordId ? { ...r, notes: `${r.notes} • ${note}` } : r))
     );
@@ -686,7 +686,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
 
   /* ------------------- ACTIONS: 6. DOCUMENTS ------------------- */
   const handleVerifyDocument = async (docId: string) => {
-    try { await fetch(`/api/admin/crm/documents/${encodeURIComponent(docId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'approved' }) }); } catch { /* non-fatal */ }
+    try { await fetch(`/api/admin/crm/documents/${encodeURIComponent(docId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'approved' }) }); } catch (err) { console.error('[CRM action failed]', err); }
     setDocumentsList(prev => prev.map(d => (d.id === docId ? { ...d, status: 'Valid (Verified)' } : d)));
     showToast('Document marked as verified by staff.');
   };
@@ -699,7 +699,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
     try {
       const res = await fetch('/api/admin/crm/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, body: noteContent, noteType: 'internal' }) });
       if (res.ok) { const j = await res.json(); dbId = j?.note?.id || null; }
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     const petText = notePetSelection ? ` (${notePetSelection})` : '';
     const newNote = { id: dbId || `note-${Date.now()}`, date: 'Today', time: 'Just Now', actor: 'Groomer Note', actorType: 'Staff', description: `Note${petText}: ${noteContent}`, isPinned: false };
     setNotesList(prev => [newNote, ...prev]);

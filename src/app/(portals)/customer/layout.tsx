@@ -22,7 +22,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
   const { currentUser, setUser, activeSection, setActiveSection, mobileOpen, setMobileOpen, isSidebarCollapsed, toggleSidebar, selectedLocation, setSelectedLocation, locations, activeModal, setActiveModal } = useAppStore();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     const unsub = useAppStore.persist.onFinishHydration(() => setHasHydrated(true));
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (useAppStore.persist.hasHydrated()) setHasHydrated(true);
@@ -44,7 +44,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
 
   // Scope enforcement — only after the server session has spoken.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (!session.isResolved) return;
     const user = session.user;
     if (!user) {

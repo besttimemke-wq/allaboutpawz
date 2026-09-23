@@ -22,15 +22,15 @@ export const OrgBrandIdentityScreen: React.FC<ScreenProps> = ({
     'Thank you for trusting us with your furry family! Texas Rabies Reg #826 compliant.'
   );
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (systemSettings) {
       if (systemSettings.org_tagline) setTagline(systemSettings.org_tagline);
       if (systemSettings.org_business_name) setSmsHeader(`[${systemSettings.org_business_name.toUpperCase()}]`);
     }
   }, [systemSettings]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   const showToast = (msg: string) => {
     setToastMsg(msg);

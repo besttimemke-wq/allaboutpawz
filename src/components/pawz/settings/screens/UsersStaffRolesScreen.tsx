@@ -66,7 +66,7 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
 
   // Fetch users from live API
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     async function fetchData() {
       try {
         const res = await fetch('/api/admin/users');

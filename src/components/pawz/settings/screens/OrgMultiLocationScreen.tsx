@@ -33,7 +33,7 @@ export const OrgMultiLocationScreen: React.FC<ScreenProps> = ({
   const [newType, setNewType] = useState('physical');
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     async function fetchLocations() {
       try {
         // Try fetching from database via the admin settings API (which can return locations)

@@ -74,7 +74,7 @@ export const UsersAccessTab: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     let ignore = false;
     const loadUsers = async () => {
       try {

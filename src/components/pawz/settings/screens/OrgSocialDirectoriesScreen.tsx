@@ -22,15 +22,15 @@ export const OrgSocialDirectoriesScreen: React.FC<ScreenProps> = ({
   const [yelpUrl, setYelpUrl] = useState('https://yelp.com/biz/all-about-pawz-frisco');
   const [tiktok, setTiktok] = useState('https://tiktok.com/@allaboutpawzgrooming');
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (systemSettings) {
       if (systemSettings.org_instagram_url) setInstagram(systemSettings.org_instagram_url);
       if (systemSettings.org_facebook_url) setFacebook(systemSettings.org_facebook_url);
     }
   }, [systemSettings]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   const showToast = (msg: string) => {
     setToastMsg(msg);

@@ -74,7 +74,7 @@ export const QuickActionTakePaymentView: React.FC<CustomerQuickActionsProps> = (
           customerName: customer.name,
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     setIsProcessing(false);
     onSuccess(`Payment of $${numericPaid.toFixed(2)} processed successfully for ${customer.name}. Receipt sent to ${customer.email}.`, {
       type: 'payment',
@@ -484,7 +484,7 @@ export const QuickActionNewAppointmentView: React.FC<CustomerQuickActionsProps> 
           customerId: customer.id,
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     onSuccess(`Appointment booked for ${selectedPetName} on ${date} at ${time} (${service})!`, {
       type: 'appointment',
       pet: selectedPetName,
@@ -874,7 +874,7 @@ export const QuickActionAddPetView: React.FC<CustomerQuickActionsProps> = ({
           isPrimary: true,
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
 
     const newPetDetail: CustomerPetDetail = {
       id: `pet-${Date.now()}`,
@@ -1276,7 +1276,7 @@ export const QuickActionSendMessageView: React.FC<CustomerQuickActionsProps> = (
           subject: message.slice(0, 80),
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     onSuccess(`Message sent via ${channel} to ${customer.name}!`, {
       type: 'message',
       channel,
@@ -1571,7 +1571,7 @@ export const QuickActionUpdateDocumentsView: React.FC<CustomerQuickActionsProps>
           status: 'submitted',
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     const newDoc = {
       id: `doc-${Date.now()}`,
       name: docName,
@@ -1829,7 +1829,7 @@ export const QuickActionAddNoteView: React.FC<CustomerQuickActionsProps> = ({
           isPinned: false,
         }),
       });
-    } catch { /* non-fatal */ }
+    } catch (err) { console.error('[CRM action failed]', err); }
     onSuccess(`Note added to ${customer.name}'s profile (${visibility === 'private' ? 'Internal Only' : 'Visible to Customer'})!`, {
       type: 'note',
       noteFor,
