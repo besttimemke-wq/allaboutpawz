@@ -156,18 +156,29 @@ export const Header: React.FC<HeaderProps> = ({
       { id: 'financial-settings', label: 'Financial Settings' },
       { id: 'stripe-connections', label: 'Stripe' },
     ],
+    POS: [
+      { id: 'pos', label: 'Register' },
+      { id: 'subscriptions', label: 'Subscriptions' },
+    ],
+    LEARN: [
+      { id: 'dashboard', label: 'Academy Home' },
+    ],
   };
 
   const pillarDefaultSection: Record<PillarType, DawgNavSection> = {
     CRM: 'dashboard',
     ORDERS: 'orders',
     ACCOUNTING: 'books',
+    POS: 'pos',
+    LEARN: 'dashboard',
   };
 
   const pillars: { id: PillarType; label: string }[] = [
     { id: 'CRM', label: 'CRM' },
     { id: 'ORDERS', label: 'Orders' },
     { id: 'ACCOUNTING', label: 'Accounting' },
+    { id: 'POS', label: 'POS' },
+    { id: 'LEARN', label: 'Learn' },
   ];
 
   const activeSubRoute = subRoutesByPillar[activePillar]?.find(
