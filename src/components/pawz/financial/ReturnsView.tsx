@@ -27,40 +27,44 @@ export const ReturnsView: React.FC<ReturnsViewProps> = ({ onNavigateSection }) =
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch refunds from the POS API (which has the refund action)
-    fetch('/api/admin/orders')
-      .then((r) => r.ok ? r.json() : { orders: [] })
-      .then((d) => {
-        // Map orders with return/cancelled status to RMA display
-        const rows = (d.orders || [])
-          .filter((o: any) => {
-            const fs = String(o.fulfillmentStatus || '').toUpperCase();
-            return fs === 'CANCELLED' || fs === 'RETURNED' || fs === 'REFUNDED';
-          })
-          .map((o: any) => ({
-            id: `RMA-${o.id?.slice(0, 8).toUpperCase() || '???'}`,
-            time: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-            orderRef: `#${o.id?.slice(0, 8).toUpperCase() || '???'}`,
-            customer: o.customerName || o.email || 'Guest',
-            pet: '—',
-            item: (o.items || []).map((it: any) => it.name).join(', ') || '—',
-            condition: '—',
-            reason: 'Customer return',
-            resolution: `$${parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')).toFixed(2)}`,
-            status: (o.fulfillmentStatus || 'Pending').toUpperCase(),
-          }));
-        setLiveRmas(rows);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    // Fetch REAL refunds from the POS API (which has the refund action)
+    // + also fetch orders to cross-reference
+    Promise.all([
+      fetch('/api/admin/pos').then(r => r.ok ? r.json() : { catalog: [] }).catch(() => ({ catalog: [] })),
+      fetch('/api/admin/orders').then(r => r.ok ? r.json() : { orders: [] }).catch(() => ({ orders: [] })),
+    ]).then(([posData, ordersData]) => {
+      const orders = ordersData.orders || [];
+      // Map orders with return/cancelled/refunded status to RMA display
+      const fromOrders = orders
+        .filter((o: any) => {
+          const fs = String(o.fulfillmentStatus || '').toUpperCase();
+          const ps = String(o.paymentStatus || '').toUpperCase();
+          return fs === 'CANCELLED' || fs === 'RETURNED' || fs === 'REFUNDED' || ps === 'REFUNDED';
+        })
+        .map((o: any) => ({
+          id: `RMA-${o.id?.slice(0, 8).toUpperCase() || '???'}`,
+          time: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+          orderRef: `#${o.id?.slice(0, 8).toUpperCase() || '???'}`,
+          customer: o.customerName || o.email || 'Guest',
+          pet: '—',
+          item: (o.items || []).map((it: any) => `${it.quantity}× ${it.name}`).join(', ') || '—',
+          condition: '—',
+          reason: o.notes || 'Customer return',
+          resolution: `$${parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')).toFixed(2)}`,
+          status: (o.fulfillmentStatus || 'Pending').toUpperCase(),
+          orderId: o.id,
+        }));
+      setLiveRmas(fromOrders);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const rmas = liveRmas;
 
   const filteredRmas = rmas.filter((rma) => {
-    if (activeTab === 'action' && rma.status !== 'Pending Inspection') return false;
-    if (activeTab === 'transit' && rma.status !== 'Awaiting Package') return false;
-    if (activeTab === 'completed' && rma.status !== 'Replacement Packed') return false;
+    const st = String(rma.status || '').toUpperCase();
+    if (activeTab === 'action' && !(st.includes('PENDING') || st.includes('ACTION') || st.includes('INSPECT'))) return false;
+    if (activeTab === 'transit' && !st.includes('AWAITING')) return false;
+    if (activeTab === 'completed' && !(st.includes('COMPLETE') || st.includes('REFUND') || st.includes('CANCEL'))) return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();

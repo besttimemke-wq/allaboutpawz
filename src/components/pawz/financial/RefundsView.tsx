@@ -85,30 +85,38 @@ export const RefundsView: React.FC<RefundsViewProps> = ({ onNavigateSection }) =
 
   const [refundsAndDisputes, setRefundsAndDisputes] = useState(initialRefundsAndDisputes);
 
-  // LIVE DATA — fetch real refunds + disputes
+  // LIVE DATA — fetch real refunds + disputes from /api/admin/refunds
   useEffect(() => {
-    fetch('/api/admin/orders')
-      .then((r) => r.ok ? r.json() : { orders: [] })
+    fetch('/api/admin/refunds')
+      .then((r) => r.ok ? r.json() : { refunds: [], disputes: [] })
       .then((d) => {
-        const rows = (d.orders || []).map((o: any) => {
-          const amount = parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')) || 0;
-          const isDispute = String(o.fulfillmentStatus || '').toUpperCase().includes('DISPUTE');
-          return {
-            id: isDispute ? `DISP-${o.id?.slice(0, 6).toUpperCase()}` : `REF-${o.id?.slice(0, 6).toUpperCase()}`,
-            customer: o.customerName || o.email || 'Guest',
-            email: o.email || '',
-            amount,
-            status: (o.paymentStatus?.toUpperCase() || 'PENDING'),
-            reason: o.notes || 'Customer request',
-            date: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-            method: o.fulfillmentMethod || 'card',
-            refundStatus: (o.fulfillmentStatus || 'pending').toUpperCase(),
-          };
-        });
-        if (rows.length > 0) setRefundsAndDisputes(rows);
+        const refunds = (d.refunds || []).map((r: any) => ({
+          id: r.refund_number || `REF-${r.id?.slice(0, 6).toUpperCase()}`,
+          customer: r.customer_email || '—',
+          email: r.customer_email || '',
+          amount: Number(r.amount) || 0,
+          status: (r.status || 'pending').toUpperCase(),
+          reason: r.reason || 'Customer request',
+          date: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+          method: r.refund_method || 'card',
+          refundStatus: (r.status || 'pending').toUpperCase(),
+        }));
+        const disputes = (d.disputes || []).map((d: any) => ({
+          id: d.dispute_number || `DISP-${d.id?.slice(0, 6).toUpperCase()}`,
+          customer: '—',
+          email: '',
+          amount: Number(d.amount) || 0,
+          status: (d.status || 'open').toUpperCase(),
+          reason: d.reason || 'Chargeback',
+          date: d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+          method: 'card',
+          refundStatus: 'DISPUTE_UNDER_REVIEW',
+        }));
+        if (refunds.length > 0 || disputes.length > 0) {
+          setRefundsAndDisputes([...disputes, ...refunds]);
+        }
       })
-      .catch(() => {})
-      .finally(() => {});
+      .catch(() => {});
   }, []);
 
   const filteredItems = refundsAndDisputes.filter((item) => {
