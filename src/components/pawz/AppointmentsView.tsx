@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { AppointmentItem, AppointmentStatus } from '@/lib/types';
-import { RICH_APPOINTMENTS_DATA } from '@/lib/appointments-rich-data';
+
 import { FullCalendarView } from './FullCalendarView';
 import { KanbanView } from './KanbanView';
 import { HourlyTimelineView } from './HourlyTimelineView';
@@ -69,7 +69,7 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   const [appointmentsList, setAppointmentsList] = useState<AppointmentItem[]>(
     initialPropAppointments && initialPropAppointments.length > 0 
       ? initialPropAppointments 
-      : RICH_APPOINTMENTS_DATA
+      : []
   );
 
   React.useEffect(() => {
@@ -77,15 +77,13 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
     fetch('/api/bookings')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!isMounted || !data?.appointments || !Array.isArray(data.appointments) || data.appointments.length === 0) return;
-        const liveIds = new Set(data.appointments.map((a: any) => a.id));
-        const mockFiltered = RICH_APPOINTMENTS_DATA.filter(a => !liveIds.has(a.id));
+        if (!isMounted || !data?.appointments || !Array.isArray(data.appointments)) return;
         if (isMounted) {
-          setAppointmentsList([...data.appointments, ...mockFiltered]);
+          setAppointmentsList(data.appointments);
         }
       })
       .catch((err) => {
-        console.log('Using local cached appointments:', err);
+        console.log('Failed to fetch appointments:', err);
       });
 
     return () => {
