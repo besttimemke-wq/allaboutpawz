@@ -57,7 +57,7 @@ interface HeaderProps {
   showPillars?: boolean;
 }
 
-type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING';
+type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING' | 'POS' | 'LEARN';
 
 interface SubRouteItem {
   id: DawgNavSection;
@@ -113,8 +113,11 @@ export const Header: React.FC<HeaderProps> = ({
       case 'financial-settings':
       case 'stripe-connections':
         return 'ACCOUNTING';
+      case 'pos':
+      case 'subscriptions':
+        return 'POS';
       default:
-        return 'CRM';
+        return 'LEARN';
     }
   };
 
