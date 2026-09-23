@@ -132,6 +132,13 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
   };
 
   const handleBatchSlip = () => {
+    // Generate a printable batch slip for all shippable orders
+    const w = window.open('', '_blank', 'width=400,height=600');
+    if (!w) return;
+    const rows = shippableOrders.map(o => `<tr><td>#${o.id.slice(0,8).toUpperCase()}</td><td>${o.customer}</td><td>${o.address.slice(0,40)}</td><td>${o.items} items</td></tr>`).join('');
+    w.document.write(`<html><head><title>Batch Slip</title><style>body{font-family:monospace;font-size:11px;padding:20px}table{width:100%}td,th{padding:3px;border-bottom:1px solid #ccc}h1{font-size:14px}</style></head><body><h1>All About Pawz — Batch Packing Slip</h1><p>Date: ${new Date().toLocaleString()}</p><p>Total Orders: ${shippableOrders.length}</p><hr><table><thead><tr><th>Order</th><th>Customer</th><th>Address</th><th>Items</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    w.document.close();
+    w.print();
     setPrintedNotice(true);
     setTimeout(() => setPrintedNotice(false), 3500);
   };

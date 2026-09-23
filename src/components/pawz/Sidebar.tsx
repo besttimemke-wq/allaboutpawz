@@ -133,6 +133,7 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
           { id: 'shipping', label: 'Shipping Station', icon: Truck },
           { id: 'returns', label: 'Returns & RMA', icon: ArrowDownLeft },
           { id: 'purchase-orders', label: 'Purchase Orders', icon: Inbox },
+          { id: 'vendors', label: 'Vendors', icon: Inbox },
         ],
       },
       {

@@ -31,7 +31,9 @@ const STAGES = [
   { id: 'ready', label: 'Ready to Ship', icon: Package, color: 'text-primary' },
   { id: 'packed', label: 'Packed & Staged', icon: CheckCircle2, color: 'text-primary' },
   { id: 'pickup', label: 'Local Pickup', icon: MapPin, color: 'text-muted-foreground' },
+  { id: 'curbside', label: 'Curbside Arrived', icon: MapPin, color: 'text-muted-foreground' },
   { id: 'shipped', label: 'Shipped Today', icon: Truck, color: 'text-success' },
+  { id: 'dispatched', label: 'Dispatched', icon: CheckCircle2, color: 'text-success' },
 ] as const;
 
 export default function FulfillmentPage() {
@@ -57,9 +59,10 @@ export default function FulfillmentPage() {
         case 'rush': return fs === 'PENDING' && (o.createdAt && (Date.now() - new Date(o.createdAt).getTime()) > 3600000);
         case 'ready': return fs === 'PROCESSING' || (fs === 'PENDING' && !isPickup);
         case 'packed': return fs === 'PACKED' || fs === 'STAGED';
-        case 'pickup': return isPickup && fs !== 'DELIVERED';
+        case 'pickup': return isPickup && fs !== 'DELIVERED' && fs !== 'DISPATCHED';
+        case 'curbside': return isPickup && (fs === 'CURBSIDE' || fs === 'READY');
         case 'shipped': return fs === 'SHIPPED';
-        default: return false;
+        case 'dispatched': return fs === 'DISPATCHED' || fs === 'DELIVERED';
       }
     });
   };
@@ -199,11 +202,26 @@ export default function FulfillmentPage() {
                           <Mail className="size-3" />
                         </button>
                         <button
-                          onClick={() => window.print()}
+                          onClick={() => {
+                            // Packing slip — generate printable HTML
+                            const w = window.open('', '_blank', 'width=400,height=600');
+                            if (!w) return;
+                            const items = order.items.map(it => `<tr><td>${it.quantity}x</td><td>${it.name}</td></tr>`).join('');
+                            w.document.write(`<html><head><title>Packing Slip</title><style>body{font-family:monospace;font-size:12px;padding:20px}table{width:100%}td,th{padding:4px;border-bottom:1px solid #ccc}</style></head><body><h1>All About Pawz</h1><p>Order: #${order.id.slice(0,8).toUpperCase()}</p><p>Customer: ${order.customerName || order.email}</p><hr><table><tr><th>Qty</th><th>Item</th></tr>${items}</table></body></html>`);
+                            w.document.close();
+                            w.print();
+                          }}
                           className="p-1.5 border border-border rounded hover:bg-muted cursor-pointer"
                           title="Packing slip"
                         >
                           <Printer className="size-3" />
+                        </button>
+                        <button
+                          onClick={() => { window.location.href = `/admin/shipping?orderId=${order.id}`; }}
+                          className="p-1.5 border border-border rounded hover:bg-muted cursor-pointer"
+                          title="Shipping label"
+                        >
+                          <Truck className="size-3" />
                         </button>
                       </div>
                     </div>

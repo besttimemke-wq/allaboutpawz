@@ -271,12 +271,28 @@ export const ReturnsView: React.FC<ReturnsViewProps> = ({ onNavigateSection }) =
                     </span>
                   </td>
                   <td className="py-3 px-3 text-right">
-                    <button 
-                      onClick={() => alert(`Inspecting and resolving ${rma.id}`)}
-                      className="px-2.5 py-1 border border-border bg-primary text-primary-foreground hover:bg-primary/90 text-[10px] font-semibold uppercase transition-colors cursor-pointer"
-                    >
-                      Inspect
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => { window.location.href = `/admin/order-details?id=${(rma as any).orderId || rma.orderRef?.replace('#','')}`; }}
+                        className="px-2 py-1 border border-border bg-card hover:bg-muted text-[10px] font-semibold uppercase cursor-pointer"
+                        title="View original order"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => { window.location.href = `/admin/shipping?orderId=${(rma as any).orderId || ''}`; }}
+                        className="px-2 py-1 border border-border bg-card hover:bg-muted text-[10px] font-semibold uppercase cursor-pointer"
+                        title="Track return shipment"
+                      >
+                        Track
+                      </button>
+                      <button
+                        onClick={() => alert(`Reviewing ${rma.id} — RMA inspection form opens here.`)}
+                        className="px-2.5 py-1 border border-border bg-primary text-primary-foreground hover:bg-primary/90 text-[10px] font-semibold uppercase transition-colors cursor-pointer"
+                      >
+                        Review
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

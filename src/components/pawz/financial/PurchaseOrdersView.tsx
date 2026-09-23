@@ -30,6 +30,11 @@ export const PurchaseOrdersView: React.FC<PurchaseOrdersViewProps> = ({ onNaviga
   // LIVE DATA — fetch purchase orders from the API
   const [livePos, setLivePos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreatePO, setShowCreatePO] = useState(false);
+  const [poVendor, setPoVendor] = useState('');
+  const [poItems, setPoItems] = useState('');
+  const [poQty, setPoQty] = useState('10');
+  const [poCost, setPoCost] = useState('');
 
   useEffect(() => {
     fetch('/api/admin/orders')
@@ -112,7 +117,7 @@ export const PurchaseOrdersView: React.FC<PurchaseOrdersViewProps> = ({ onNaviga
             <span>Export Ledger</span>
           </button>
           <button 
-            onClick={() => alert('Opening Create Purchase Order modal...')}
+            onClick={() => setShowCreatePO(true)}
             className="h-9 px-4 bg-black hover:bg-muted text-white font-semibold text-[13px] uppercase tracking-wider flex items-center gap-1.5 border border-border cursor-pointer transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -359,6 +364,31 @@ export const PurchaseOrdersView: React.FC<PurchaseOrdersViewProps> = ({ onNaviga
           </div>
         </div>
       </div>
+
+      {/* Create PO Modal */}
+      {showCreatePO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90 p-4">
+          <div className="w-full max-w-md bg-card rounded-2xl border border-border p-6 space-y-4">
+            <h3 className="text-[16px] font-semibold">Create Purchase Order</h3>
+            <div className="space-y-3">
+              <input type="text" placeholder="Vendor name" value={poVendor} onChange={e => setPoVendor(e.target.value)}
+                className="w-full border border-border rounded-lg px-3 py-2 text-[13px]" />
+              <input type="text" placeholder="Items (e.g. 60x Oatmeal Shampoo)" value={poItems} onChange={e => setPoItems(e.target.value)}
+                className="w-full border border-border rounded-lg px-3 py-2 text-[13px]" />
+              <div className="grid grid-cols-2 gap-3">
+                <input type="number" placeholder="Qty" value={poQty} onChange={e => setPoQty(e.target.value)}
+                  className="border border-border rounded-lg px-3 py-2 text-[13px]" />
+                <input type="number" placeholder="Total cost ($)" value={poCost} onChange={e => setPoCost(e.target.value)}
+                  className="border border-border rounded-lg px-3 py-2 text-[13px]" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowCreatePO(false)} className="flex-1 py-2.5 border border-border rounded-lg text-[13px] font-semibold hover:bg-muted cursor-pointer">Cancel</button>
+              <button onClick={() => { setShowCreatePO(false); alert(`PO created for ${poVendor}`); }} className="flex-1 py-2.5 bg-ink text-white rounded-lg text-[13px] font-semibold cursor-pointer">Create PO</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

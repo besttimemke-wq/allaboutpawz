@@ -248,6 +248,7 @@ export const InventoryView: React.FC = () => {
                   <th className="py-3 px-4 border-r border-border font-semibold">Reorder Level</th>
                   <th className="py-3 px-4 border-r border-border font-semibold">Unit Price</th>
                   <th className="py-3 px-4 border-r border-border font-semibold">Status</th>
+                  <th className="py-3 px-4 border-r border-border font-semibold">Bin</th>
                   <th className="py-3 px-4 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -287,6 +288,9 @@ export const InventoryView: React.FC = () => {
                           In Stock
                         </span>
                       )}
+                    </td>
+                    <td className="py-3.5 px-4 border-r border-border text-[12px] text-muted-foreground tabular-nums">
+                      A-{String(item.id ?? '').slice(0, 2).toUpperCase()}-{String(item.sku ?? '').slice(0, 3).toUpperCase()}
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button
