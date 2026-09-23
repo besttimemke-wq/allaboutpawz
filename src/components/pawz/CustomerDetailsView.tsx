@@ -423,7 +423,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
   const handleSendMessageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !profile.id) return;
-    const channelId = messageChannel.toLowerCase().includes('email') ? 'email' : messageChannel.toLowerCase().includes('sms') || messageChannel.toLowerCase().includes('text') ? 'sms' : 'other';
+    const channelId = (messageChannel || '').toLowerCase().includes('email') ? 'email' : (messageChannel || '').toLowerCase().includes('sms') || (messageChannel || '').toLowerCase().includes('text') ? 'sms' : 'other';
     try {
       await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, channel: channelId, body: messageText, subject: messageText.slice(0, 80) }) });
     } catch { /* non-fatal */ }
@@ -2001,8 +2001,8 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
                 <tbody className="divide-y divide-border">
                   {(profile.paymentHistory || [])
                     .filter((p) =>
-                      p.description.toLowerCase().includes(paymentSearch.toLowerCase()) ||
-                      p.type.toLowerCase().includes(paymentSearch.toLowerCase())
+                      (p.description || '').toLowerCase().includes((paymentSearch || '').toLowerCase()) ||
+                      (p.type || '').toLowerCase().includes((paymentSearch || '').toLowerCase())
                     )
                     .map((item, idx) => (
                       <tr key={item.id} className="hover:bg-muted/40/70 transition-colors">
@@ -2252,7 +2252,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
                     .filter((act) => {
                       if (activityFilter === 'All') return true;
                       if (activityFilter === 'System') return act.actorType === 'System';
-                      if (activityFilter === 'Notes') return act.actor.toLowerCase().includes('note') || act.isPinned;
+                      if (activityFilter === 'Notes') return (act.actor || '').toLowerCase().includes('note') || act.isPinned;
                       return act.actorType === 'Staff';
                     })
                     .map((act) => (
