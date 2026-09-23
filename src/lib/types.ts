@@ -39,6 +39,7 @@ export type DawgNavSection =
   | "messages"
   | "pos"
   | "subscriptions"
+  | "fulfillment"
 
 export type Area = {
   area: string;

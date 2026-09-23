@@ -129,6 +129,7 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
           { id: 'orders', label: 'Orders & POS', icon: Receipt },
           { id: 'order-details', label: 'Order Details', icon: FileSearch },
           { id: 'inventory', label: 'Products & Inventory', icon: Package },
+          { id: 'fulfillment', label: 'Fulfillment Queue', icon: Package },
           { id: 'shipping', label: 'Shipping Station', icon: Truck },
           { id: 'returns', label: 'Returns & RMA', icon: ArrowDownLeft },
           { id: 'purchase-orders', label: 'Purchase Orders', icon: Inbox },
