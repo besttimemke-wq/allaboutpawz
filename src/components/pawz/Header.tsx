@@ -376,18 +376,27 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Sub-nav — admin OS pillar pills only. Non-admin portals render no
           pill row at all (dedicated portal identity — no business nav). */}
       {showPillars && (
-        <div className="h-10 px-3 sm:px-4 flex items-center gap-1 overflow-x-auto custom-scrollbar bg-topbar text-topbar-foreground">
+        <div className="h-10 px-3 sm:px-4 flex items-center justify-end gap-1 overflow-x-auto custom-scrollbar bg-background border-b border-border">
           {pillars.map((pillar) => {
             const isSelected = activePillar === pillar.id;
+            // LEARN pill navigates to /learn (the academy) — it's a separate
+            // app surface, not an admin sub-section.
+            const handleClick = () => {
+              if (pillar.id === 'LEARN') {
+                window.location.href = '/learn';
+              } else {
+                onNavigateSection(pillarDefaultSection[pillar.id]);
+              }
+            };
             return (
               <button
                 key={pillar.id}
-                onClick={() => onNavigateSection(pillarDefaultSection[pillar.id])}
+                onClick={handleClick}
                 className={cn(
                   'rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer',
                   isSelected
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-topbar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                 )}
               >
                 {pillar.label}
