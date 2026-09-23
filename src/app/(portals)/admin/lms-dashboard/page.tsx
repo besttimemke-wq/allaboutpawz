@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import {
   GraduationCap, BookOpen, FolderOpen, Users, Sparkles, TrendingUp,
   ClipboardCheck, Award, HeartHandshake, Bell, ShieldCheck,
-  ArrowRightLeft, Bot, LayoutGrid, Search, ChevronRight,
+  ArrowRightLeft, Bot, LayoutGrid, Search, ChevronRight, FileText,
 } from 'lucide-react';
 import type { DawgNavSection } from '@/lib/types';
 
