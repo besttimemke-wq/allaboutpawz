@@ -380,12 +380,7 @@ export const Header: React.FC<HeaderProps> = ({
           {pillars.map((pillar) => {
             const isSelected = activePillar === pillar.id;
             const handleClick = () => {
-              if (pillar.id === 'LEARN') {
-                // LMS admin lives at /learn/admin/* — not /admin/*
-                window.location.href = '/learn/admin/architect';
-              } else {
-                onNavigateSection(pillarDefaultSection[pillar.id]);
-              }
+              onNavigateSection(pillarDefaultSection[pillar.id]);
             };
             return (
               <button
