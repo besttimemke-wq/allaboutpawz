@@ -208,7 +208,8 @@ const ViewDetailsModalContent: React.FC<{
 }> = ({ appointment, onClose, onUpdate, onShowToast }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'history'>('overview');
 
-  const handleQuickStatusChange = (newStatus: AppointmentStatus) => {
+  const handleQuickStatusChange = async (newStatus: AppointmentStatus) => {
+    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, status: newStatus }) }); } catch { /* non-fatal */ }
     onUpdate({
       ...appointment,
       status: newStatus,
@@ -435,7 +436,7 @@ const EditAppointmentModalContent: React.FC<{
   const [price, setPrice] = useState(appointment.price?.toString() || '85.00');
   const [notes, setNotes] = useState(appointment.notes || '');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const updated: AppointmentItem = {
       ...appointment,
@@ -450,6 +451,7 @@ const EditAppointmentModalContent: React.FC<{
       price: parseFloat(price) || 85.0,
       notes,
     };
+    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, petName, breed, ownerName: customerName, phone: customerPhone, service: serviceName, staffName, time, notes, servicePrice: String(parseFloat(price) || 85.0) }) }); } catch { /* non-fatal */ }
     onUpdate(updated);
     onShowToast(`Updated appointment details for ${petName}`);
     onClose();
@@ -630,7 +632,8 @@ const RescheduleModalContent: React.FC<{
     '11:30 AM', '1:00 PM', '2:00 PM', '2:30 PM', '3:30 PM', '4:00 PM'
   ];
 
-  const handleReschedule = () => {
+  const handleReschedule = async () => {
+    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, date: selectedDate, time: selectedTime, staffName: selectedGroomer, status: 'Scheduled' }) }); } catch { /* non-fatal */ }
     onUpdate({
       ...appointment,
       date: selectedDate,
@@ -776,7 +779,8 @@ const AddonServiceModalContent: React.FC<{
 
   const finalTotal = basePrice + addonsTotal;
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, price: finalTotal, notes: `${appointment.notes || ''} [Add-ons: ${selectedAddons.join(', ')}]` }) }); } catch { /* non-fatal */ }
     onUpdate({
       ...appointment,
       price: finalTotal,
@@ -895,18 +899,19 @@ const TakePaymentModalContent: React.FC<{
     : (servicePrice * tipPercentage) / 100;
   const finalAmountDue = subtotalBalance + tipAmount;
 
-  const handleCharge = () => {
+  const handleCharge = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      onUpdate({
-        ...appointment,
-        paymentStatus: 'Paid in Full',
-        status: appointment.status === 'Scheduled' ? 'Confirmed' : appointment.status,
-      });
-      setIsProcessing(false);
-      onShowToast(`Processed $${finalAmountDue.toFixed(2)} payment for ${appointment.petName} via ${paymentMethod.toUpperCase()}!`);
-      onClose();
-    }, 900);
+    try {
+      await fetch('/api/pos/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ name: appointment.serviceName || 'Grooming', unitPrice: String(finalAmountDue), quantity: 1 }], tender: paymentMethod, customerId: appointment.customerId, customerEmail: appointment.customerEmail, customerName: appointment.customerName }) });
+    } catch { /* non-fatal */ }
+    onUpdate({
+      ...appointment,
+      paymentStatus: 'Paid in Full',
+      status: appointment.status === 'Scheduled' ? 'Confirmed' : appointment.status,
+    });
+    setIsProcessing(false);
+    onShowToast(`Processed $${finalAmountDue.toFixed(2)} payment for ${appointment.petName} via ${paymentMethod.toUpperCase()}!`);
+    onClose();
   };
 
   return (
@@ -1064,7 +1069,10 @@ const SendMessageModalContent: React.FC<{
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
+    if (appointment.customerId) {
+      try { await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: appointment.customerId, channel: channel, body: messageText, subject: messageText.slice(0, 80) }) }); } catch { /* non-fatal */ }
+    }
     onShowToast(`Message successfully dispatched to ${appointment.customerName || 'customer'} via ${channel.toUpperCase()}`);
     onClose();
   };
@@ -1201,8 +1209,12 @@ const AddNoteModalContent: React.FC<{
     setNoteText((prev) => (prev ? `${prev}, ${tag}` : tag));
   };
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     if (!noteText.trim()) return;
+    if (appointment.customerId) {
+      try { await fetch('/api/admin/crm/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: appointment.customerId, body: `[${noteType.toUpperCase()}]: ${noteText}`, noteType: 'internal' }) }); } catch { /* non-fatal */ }
+    }
+    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, notes: appointment.notes ? `${appointment.notes} | [${noteType.toUpperCase()}]: ${noteText}` : `[${noteType.toUpperCase()}]: ${noteText}` }) }); } catch { /* non-fatal */ }
     const combinedNotes = appointment.notes ? `${appointment.notes} | [${noteType.toUpperCase()}]: ${noteText}` : `[${noteType.toUpperCase()}]: ${noteText}`;
     onUpdate({
       ...appointment,
@@ -1536,7 +1548,8 @@ const CancelAppointmentModalContent: React.FC<{
   const [reason, setReason] = useState('Customer Request');
   const [refundDeposit, setRefundDeposit] = useState(false);
 
-  const handleConfirmCancel = () => {
+  const handleConfirmCancel = async () => {
+    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, status: 'Cancelled', cancellationReason: reason }) }); } catch { /* non-fatal */ }
     onUpdate({
       ...appointment,
       status: 'Canceled',
@@ -1624,7 +1637,8 @@ const NoShowModalContent: React.FC<{
 }> = ({ appointment, onClose, onUpdate, onShowToast }) => {
   const [chargeFee, setChargeFee] = useState(true);
 
-  const handleConfirmNoShow = () => {
+  const handleConfirmNoShow = async () => {
+    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, status: 'No Show' }) }); } catch { /* non-fatal */ }
     onUpdate({
       ...appointment,
       status: 'No Show',
@@ -1701,7 +1715,8 @@ const DeleteConfirmationModalContent: React.FC<{
   onDelete: (id: string) => void;
   onShowToast: (msg: string) => void;
 }> = ({ appointment, onClose, onDelete, onShowToast }) => {
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    try { await fetch(`/api/bookings?id=${encodeURIComponent(appointment.id)}`, { method: 'DELETE' }); } catch { /* non-fatal */ }
     onDelete(appointment.id);
     onShowToast(`Permanently deleted appointment for ${appointment.petName}`);
     onClose();
