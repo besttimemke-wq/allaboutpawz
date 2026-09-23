@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { PageHeader } from "@/components/site/site-chrome"
-import { ShopNavBar } from "@/components/site/islands/shop-nav-bar"
+import { ShopMegaMenu } from "@/components/site/islands/shop-mega-menu"
 import { Plp } from "@/components/site/shop/plp"
 import {
   Breadcrumbs,
@@ -104,7 +104,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     return (
       <>
         <PageHeader n="06" label={`SHOP / ${meta.displayName.toUpperCase()}`} />
-        <ShopNavBar />
+        <ShopMegaMenu />
         <Breadcrumbs chain={[]} />
         <section className="marble bg-cream px-8 py-10 lg:px-12">
           <p className="eyebrow">THE PAWZ COLLECTION</p>
@@ -159,7 +159,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     return (
       <>
         <PageHeader n="06" label={`SHOP / ${node.displayName.toUpperCase()}`} />
-        <ShopNavBar />
+        <ShopMegaMenu />
         <Breadcrumbs chain={chain} />
         <ParentHero node={node} />
         <CategoryCards title="SHOP BY CATEGORY" nodes={node.children} />
@@ -180,7 +180,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     return (
       <>
         <PageHeader n="06" label={`SHOP / ${node.displayName.toUpperCase()}`} />
-        <ShopNavBar />
+        <ShopMegaMenu />
         <Breadcrumbs chain={chain} />
         <PrimaryHero node={node} />
         {node.children.length > 0 && (

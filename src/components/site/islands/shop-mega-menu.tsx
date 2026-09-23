@@ -136,6 +136,11 @@ export function ShopMegaMenu() {
                           {dept.productCount}
                         </span>
                       </Link>
+                      {dept.featuredInMegaMenu && (
+                        <span className="mt-0.5 inline-block text-[8px] font-bold uppercase tracking-[0.14em] text-gold-deep">
+                          ★ Featured
+                        </span>
+                      )}
                       <ul className="mt-1.5 space-y-1">
                         {shown.map((s) => (
                           <li key={s.id} className="min-w-0">
@@ -160,6 +165,11 @@ export function ShopMegaMenu() {
                           </li>
                         )}
                       </ul>
+                      {dept.promoBlurb && (
+                        <p className="mt-2 text-[9.5px] leading-[1.5] text-ink-soft/60 italic">
+                          {dept.promoBlurb}
+                        </p>
+                      )}
                     </div>
                   )
                 })}
