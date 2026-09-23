@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Truck, 
   Search, 
@@ -25,6 +25,35 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
   const [boxPreset, setBoxPreset] = useState<'small' | 'med' | 'padded' | 'custom'>('small');
   const [sigRequired, setSigRequired] = useState(false);
   const [printedNotice, setPrintedNotice] = useState(false);
+  const [shippableOrders, setShippableOrders] = useState<any[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
+
+  useEffect(() => {
+    fetch('/api/admin/orders')
+      .then((r) => r.ok ? r.json() : { orders: [] })
+      .then((d) => {
+        const rows = (d.orders || [])
+          .filter((o: any) => {
+            const fs = String(o.fulfillmentStatus || '').toUpperCase();
+            return fs === 'PENDING' || fs === 'PROCESSING' || fs === 'SHIPPED' || fs === 'UNFULFILLED';
+          })
+          .filter((o: any) => o.shippingAddress)
+          .map((o: any) => ({
+            id: o.id,
+            label: `#${o.id?.slice(0, 8).toUpperCase()} — ${o.customerName || o.email || 'Guest'} (${o.shippingAddress?.split(',').slice(-2).join(',').trim() || '—'}) • ${o.items?.length || 0} items`,
+            customer: o.customerName || o.email || 'Guest',
+            address: o.shippingAddress || '—',
+            items: o.items?.length || 0,
+            total: parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')) || 0,
+            tracking: o.trackingNumber || null,
+          }));
+        setShippableOrders(rows);
+        if (rows.length > 0) setSelectedOrderId(rows[0].id);
+      })
+      .catch(() => {});
+  }, []);
+
+  const selectedOrder = shippableOrders.find(o => o.id === selectedOrderId);
 
   const rates = [
     {
@@ -112,10 +141,15 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
         <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] tabular-nums">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <span className="font-semibold text-foreground">DISPATCH:</span>
-            <select className="h-8 px-2 border border-border bg-card font-semibold uppercase focus:outline-none w-full sm:w-96 cursor-pointer">
-              <option>#ORD-2025-1048 — Sarah Johnson (Frisco, TX) • 3 items • 1.50 lbs</option>
-              <option>#ORD-2025-1044 — Jessica Ramirez (Plano, TX) • 4 items • 3.80 lbs</option>
-              <option>#ORD-2025-1040 — Kevin Vance (Dallas, TX) • 2 items • 9.40 lbs</option>
+            <select
+              value={selectedOrderId}
+              onChange={(e) => setSelectedOrderId(e.target.value)}
+              className="h-8 px-2 border border-border bg-card font-semibold uppercase focus:outline-none w-full sm:w-96 cursor-pointer"
+            >
+              <option value="">Select an order to ship…</option>
+              {shippableOrders.map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
             </select>
           </div>
 
@@ -143,8 +177,8 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="font-semibold text-sm uppercase text-foreground">Sarah Johnson</p>
-                <p className="tabular-nums text-foreground">1234 Maple Drive<br />Frisco, TX 75034-4921</p>
+                <p className="font-semibold text-sm uppercase text-foreground">{selectedOrder?.customer || 'Select an order'}</p>
+                <p className="tabular-nums text-foreground">{selectedOrder?.address || '—'}</p>
               </div>
               <div className="border-l border-border pl-3 text-[12px] text-muted-foreground space-y-1">
                 <p className="font-semibold text-foreground uppercase text-[10px]">Package Items:</p>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   RotateCcw, 
   Search, 
@@ -23,45 +23,39 @@ interface ReturnsViewProps {
 export const ReturnsView: React.FC<ReturnsViewProps> = ({ onNavigateSection }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'action' | 'transit' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [liveRmas, setLiveRmas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const rmas = [
-    {
-      id: 'RMA-2025-042',
-      time: 'Created 2h ago',
-      orderRef: '#ORD-2025-1012',
-      customer: 'Chris Evans',
-      pet: 'Dodger (Golden Retriever)',
-      item: 'Ergonomic De-shedding Slicker Brush (Medium)',
-      condition: 'Unopened original packaging',
-      reason: 'Duplicate Gift',
-      resolution: 'Store Credit ($32.50)',
-      status: 'Awaiting Package',
-    },
-    {
-      id: 'RMA-2025-041',
-      time: 'Delivered to Salon',
-      orderRef: '#ORD-2025-0994',
-      customer: 'Amanda Garcia',
-      pet: 'Bella (French Bulldog)',
-      item: 'Blueberry Spa Facial Foam Cleanser (250ml)',
-      condition: 'Opened / Safety seal broken',
-      reason: 'Opened / Scent Disliked',
-      resolution: 'Original Card ($18.00)',
-      status: 'Pending Inspection',
-    },
-    {
-      id: 'RMA-2025-040',
-      time: 'Returned Item Received',
-      orderRef: '#ORD-2025-0988',
-      customer: 'Mike Ross',
-      pet: 'Harvey (Labrador)',
-      item: 'All-Weather Insulated Winter Vest (Size: Large)',
-      condition: 'Like New with tags attached',
-      reason: 'Wrong Size',
-      resolution: 'Direct Exchange (Size: XL)',
-      status: 'Replacement Packed',
-    },
-  ];
+  useEffect(() => {
+    // Fetch refunds from the POS API (which has the refund action)
+    fetch('/api/admin/orders')
+      .then((r) => r.ok ? r.json() : { orders: [] })
+      .then((d) => {
+        // Map orders with return/cancelled status to RMA display
+        const rows = (d.orders || [])
+          .filter((o: any) => {
+            const fs = String(o.fulfillmentStatus || '').toUpperCase();
+            return fs === 'CANCELLED' || fs === 'RETURNED' || fs === 'REFUNDED';
+          })
+          .map((o: any) => ({
+            id: `RMA-${o.id?.slice(0, 8).toUpperCase() || '???'}`,
+            time: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+            orderRef: `#${o.id?.slice(0, 8).toUpperCase() || '???'}`,
+            customer: o.customerName || o.email || 'Guest',
+            pet: '—',
+            item: (o.items || []).map((it: any) => it.name).join(', ') || '—',
+            condition: '—',
+            reason: 'Customer return',
+            resolution: `$${parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')).toFixed(2)}`,
+            status: (o.fulfillmentStatus || 'Pending').toUpperCase(),
+          }));
+        setLiveRmas(rows);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const rmas = liveRmas;
 
   const filteredRmas = rmas.filter((rma) => {
     if (activeTab === 'action' && rma.status !== 'Pending Inspection') return false;

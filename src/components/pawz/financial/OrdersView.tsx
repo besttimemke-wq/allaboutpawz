@@ -238,7 +238,9 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
       .finally(() => setRealOrdersLoading(false));
   }, []);
 
-  const orders: MockOrder[] = realOrders.length > 0 ? realOrders : (MOCK_ORDERS as unknown as MockOrder[]);
+  // LIVE DATA ONLY — no mock fallback. If the API returns 0 orders, the
+  // table shows an empty state (not fake data).
+  const orders: MockOrder[] = realOrders;
   const handleToggleSelect = (id: string) => {
     setSelectedOrders(prev => 
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -254,11 +256,15 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
   };
 
   const filteredOrders = orders.filter((ord) => {
-    if (activeTab === 'unfulfilled' && ord.status !== 'UNFULFILLED') return false;
-    if (activeTab === 'ready' && ord.status !== 'READY' && ord.status !== 'LOCAL_PICKUP') return false;
-    if (activeTab === 'pickup' && ord.methodType !== 'pickup') return false;
-    if (activeTab === 'shipped' && ord.status !== 'SHIPPED') return false;
-    if (activeTab === 'delivered' && ord.status !== 'DELIVERED') return false;
+    const fs = String(ord.status || '').toUpperCase();
+    const methodIsPickup = ord.methodType === 'pickup';
+    if (activeTab === 'all') return true;
+    if (activeTab === 'unfulfilled' && !(fs === 'UNFULFILLED' || fs === 'PENDING' || fs === 'PROCESSING')) return false;
+    if (activeTab === 'ready' && !(fs === 'READY' || (methodIsPickup && (fs === 'SHIPPED' || fs === 'PENDING')))) return false;
+    if (activeTab === 'pickup' && !methodIsPickup) return false;
+    if (activeTab === 'shipped' && fs !== 'SHIPPED') return false;
+    if (activeTab === 'delivered' && fs !== 'DELIVERED') return false;
+    if (activeTab === 'returns' && !(fs === 'CANCELLED' || fs === 'RETURNED')) return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -541,6 +547,10 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                             onOpenOrderDetails(ord.id);
                           } else {
                             onNavigateSection?.('order-details');
+                            // Pass the order ID via URL query so OrderDetailsView can fetch it.
+                            if (typeof window !== 'undefined') {
+                              window.location.href = `/admin/order-details?id=${ord.id}`;
+                            }
                           }
                         }}
                         className="font-semibold text-foreground hover:underline text-left cursor-pointer"
@@ -598,7 +608,12 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                           {ord.methodType === 'pickup' ? 'Handover' : 'Fulfill'}
                         </button>
                         <button 
-                          onClick={() => onNavigateSection?.('order-details')}
+                          onClick={() => {
+                            onNavigateSection?.('order-details');
+                            if (typeof window !== 'undefined') {
+                              window.location.href = `/admin/order-details?id=${ord.id}`;
+                            }
+                          }}
                           className="px-1.5 py-1 border border-border bg-card hover:bg-accent/50 text-[10px] cursor-pointer"
                           title="View Order Details"
                         >

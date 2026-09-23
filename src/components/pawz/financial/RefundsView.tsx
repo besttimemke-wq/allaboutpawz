@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DawgNavSection } from '@/lib/types';
 import { PageTabs, KpiTiles, FilterSelect } from '../_shared/PageHeader';
 import { cn } from '@/lib/utils';
@@ -84,6 +84,32 @@ export const RefundsView: React.FC<RefundsViewProps> = ({ onNavigateSection }) =
   ];
 
   const [refundsAndDisputes, setRefundsAndDisputes] = useState(initialRefundsAndDisputes);
+
+  // LIVE DATA — fetch real refunds + disputes
+  useEffect(() => {
+    fetch('/api/admin/orders')
+      .then((r) => r.ok ? r.json() : { orders: [] })
+      .then((d) => {
+        const rows = (d.orders || []).map((o: any) => {
+          const amount = parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')) || 0;
+          const isDispute = String(o.fulfillmentStatus || '').toUpperCase().includes('DISPUTE');
+          return {
+            id: isDispute ? `DISP-${o.id?.slice(0, 6).toUpperCase()}` : `REF-${o.id?.slice(0, 6).toUpperCase()}`,
+            customer: o.customerName || o.email || 'Guest',
+            email: o.email || '',
+            amount,
+            status: (o.paymentStatus?.toUpperCase() || 'PENDING'),
+            reason: o.notes || 'Customer request',
+            date: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+            method: o.fulfillmentMethod || 'card',
+            refundStatus: (o.fulfillmentStatus || 'pending').toUpperCase(),
+          };
+        });
+        if (rows.length > 0) setRefundsAndDisputes(rows);
+      })
+      .catch(() => {})
+      .finally(() => {});
+  }, []);
 
   const filteredItems = refundsAndDisputes.filter((item) => {
     // Tab filter
