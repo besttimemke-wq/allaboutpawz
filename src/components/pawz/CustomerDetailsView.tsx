@@ -404,6 +404,119 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // ---- FETCH EXISTING DATA: bridge the UI state arrays to the CRM API ----
+  // When the customer profile opens, fetch real notes, messages, documents,
+  // grooming records, and appointments from the canonical CRM routes.
+  // Replaces the mock initial state with live DB data.
+  React.useEffect(() => {
+    if (!profile.id) return;
+    const cid = profile.id;
+
+    // 1. Fetch notes
+    fetch(`/api/admin/crm/notes?customerId=${encodeURIComponent(cid)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.notes || data.notes.length === 0) return;
+        setNotesList(data.notes.map((n: any) => ({
+          id: n.id,
+          date: n.createdAt ? new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+          time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—',
+          actor: n.noteType === 'internal' ? 'Staff Note' : n.noteType === 'customer_visible' ? 'Customer Note' : n.noteType || 'Note',
+          actorType: n.noteType === 'system' ? 'System' : 'Staff',
+          description: n.body || '',
+          isPinned: !!n.isPinned,
+        })));
+      })
+      .catch(() => {});
+
+    // 2. Fetch messages (communications)
+    fetch(`/api/admin/crm/messages?customerId=${encodeURIComponent(cid)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.messages || data.messages.length === 0) return;
+        setCommunicationsList(data.messages.map((m: any) => ({
+          id: m.id,
+          date: m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+          time: m.createdAt ? new Date(m.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—',
+          channel: m.channel === 'email' ? 'Email' : m.channel === 'sms' ? 'SMS' : m.channel || 'Other',
+          type: m.direction === 'outbound' ? 'Direct Communication' : 'Inbound',
+          direction: m.direction === 'outbound' ? 'Outgoing' : 'Incoming',
+          subject: m.subject || m.body?.slice(0, 50) || '—',
+          pet: 'Household',
+          status: m.status || 'Sent',
+        })));
+      })
+      .catch(() => {});
+
+    // 3. Fetch documents
+    fetch(`/api/admin/crm/documents?customerId=${encodeURIComponent(cid)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.documents || data.documents.length === 0) return;
+        setDocumentsList(data.documents.map((d: any) => ({
+          id: d.id,
+          name: d.name || '—',
+          type: d.documentTypeId || 'Document',
+          pet: '—',
+          uploaded: d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+          expires: d.expiresAt || '—',
+          status: d.status === 'approved' ? 'Valid (Verified)' : d.status === 'pending' ? 'Pending' : d.status || 'Pending',
+          isWaiver: false,
+        })));
+      })
+      .catch(() => {});
+
+    // 4. Fetch grooming records
+    fetch(`/api/admin/crm/grooming-records?customerId=${encodeURIComponent(cid)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.records || data.records.length === 0) return;
+        setGroomingRecords(data.records.map((r: any) => ({
+          id: r.id,
+          date: r.date || '—',
+          pet: r.petName || '—',
+          petColor: 'bg-primary/10',
+          service: r.serviceName || 'Grooming',
+          groomer: r.groomer || '—',
+          duration: r.durationMinutes ? `${r.durationMinutes} min` : '—',
+          notes: r.cutDetails || r.notes || '',
+          amount: r.amount || 0,
+          status: r.status || 'Paid',
+        })));
+      })
+      .catch(() => {});
+
+    // 5. Fetch appointments for this customer
+    fetch('/api/bookings?limit=50')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.appointments) return;
+        // Filter by customerId or customerName matching this profile
+        const customerAppts = data.appointments.filter((a: any) =>
+          a.customerId === cid ||
+          (a.customerName && profile.name && a.customerName.toLowerCase() === profile.name.toLowerCase()) ||
+          (a.customerEmail && profile.email && a.customerEmail.toLowerCase() === profile.email.toLowerCase())
+        );
+        if (customerAppts.length > 0) {
+          setAppointmentsList(customerAppts.map((a: any) => ({
+            id: a.id,
+            date: a.date || '—',
+            time: a.time || '—',
+            duration: a.duration || '2.5 hrs',
+            pet: a.petName || '—',
+            petColor: 'bg-primary/10',
+            service: a.serviceName || '—',
+            groomer: a.staffName || '—',
+            status: a.status || 'Scheduled',
+            amount: a.price || 0,
+            paymentStatus: a.paymentStatus || 'Unpaid',
+            notes: a.notes || '',
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [profile.id, profile.name, profile.email]);
+
   /* ------------------- ACTIONS: 1. OVERVIEW ------------------- */
   const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
