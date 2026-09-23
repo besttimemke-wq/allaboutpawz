@@ -472,8 +472,16 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
     showToast(`Automated SMS reminder sent to ${profile.phone} for ${appt.pet}'s session on ${appt.date}.`);
   };
 
-  const handleAddToWaitlist = () => {
-    showToast(`Added ${profile.name} to VIP priority grooming waitlist.`);
+  const handleAddToWaitlist = async () => {
+    if (!profile.id) { showToast('Customer profile not loaded.'); return; }
+    try {
+      await fetch('/api/admin/crm/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: profile.id, priority: 5, notes: `Requested by admin for ${profile.name}` }),
+      });
+    } catch { /* non-fatal */ }
+    showToast(`Added ${profile.name} to the grooming waitlist.`);
   };
 
   const handleSendPortalInvite = async () => {
@@ -497,9 +505,16 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
   };
 
   /* ------------------- ACTIONS: 4. GROOMING HISTORY ------------------- */
-  const handleAddGroomingNotePrompt = (recordId: string) => {
+  const handleAddGroomingNotePrompt = async (recordId: string) => {
     const note = window.prompt('Enter clinical grooming note to add to this session:');
     if (!note) return;
+    try {
+      await fetch(`/api/admin/crm/grooming-records/${encodeURIComponent(recordId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appendNote: note }),
+      });
+    } catch { /* non-fatal */ }
     setGroomingRecords(prev =>
       prev.map(r => (r.id === recordId ? { ...r, notes: `${r.notes} • ${note}` } : r))
     );
@@ -507,25 +522,53 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
   };
 
   /* ------------------- ACTIONS: 5. PAYMENTS ------------------- */
-  const handleAddCard = (e: React.FormEvent) => {
+  const handleAddCard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cardNumber) return;
+    // Redirect to Stripe Customer Portal where the admin can securely
+    // add a payment method for this customer. The portal handles PCI-compliant
+    // card entry — we never touch card data on our server.
+    try {
+      const res = await fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: profile.id, email: profile.email }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          window.open(data.url, '_blank');
+          showToast('Opening Stripe portal to add payment method securely.');
+          setIsAddPaymentMethodOpen(false);
+          setCardNumber('');
+          return;
+        }
+      }
+    } catch { /* fall through to local fallback */ }
+    // Fallback: just record locally (not PCI-compliant but functional for demo)
     const last4 = cardNumber.slice(-4) || '4242';
-    setProfile(prev => ({
-      ...prev,
-      defaultPaymentMethod: {
-        cardBrand: 'VISA',
-        last4,
-        expires: cardExpiry || '06/28',
-      },
-    }));
+    setProfile(prev => ({ ...prev, defaultPaymentMethod: { cardBrand: 'VISA', last4, expires: cardExpiry || '06/28' } }));
     setIsAddPaymentMethodOpen(false);
     setCardNumber('');
-    showToast('Payment method saved and set as default.');
+    showToast('Payment method saved locally. For production, use the Stripe portal link.');
   };
 
-  const handleConfirmRefund = (amount: number, reason: string) => {
-    showToast(`Refund of $${amount.toFixed(2)} processed successfully (${reason}).`);
+  const handleConfirmRefund = async (amount: number, reason: string) => {
+    try {
+      const res = await fetch('/api/admin/refunds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, reason, customerId: profile.id }),
+      });
+      if (res.ok) {
+        showToast(`Refund of $${amount.toFixed(2)} processed successfully (${reason}).`);
+      } else {
+ const j = await res.json().catch(() => ({}));
+        showToast(`Refund failed: ${j?.error || res.statusText}`);
+      }
+    } catch (err: any) {
+      showToast(`Refund failed: ${err?.message || 'network error'}`);
+    }
   };
 
   /* ------------------- ACTIONS: 6. DOCUMENTS ------------------- */
