@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
       const appCustByEmail = new Map<string, any>();
       for (const r of appCustRes.rows) appCustByEmail.set(String(r.email || "").toLowerCase(), r);
 
-      const ordersRes = await pgClient.query(`SELECT id, "customerId", email FROM public.orders;`);
+      const ordersRes = await pgClient.query(`SELECT id::text, "customerId"::text AS "customerId", email FROM public.commerce_orders LIMIT 200;`).catch(() => ({ rows: [] }));
 
       let rolesRes = { rows: [] };
       try {

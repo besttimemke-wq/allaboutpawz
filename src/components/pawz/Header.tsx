@@ -116,6 +116,20 @@ export const Header: React.FC<HeaderProps> = ({
       case 'pos':
       case 'subscriptions':
         return 'POS';
+      case 'lms-dashboard':
+      case 'lms-curriculum':
+      case 'lms-media':
+      case 'lms-enrollment':
+      case 'lms-ai-teaching':
+      case 'lms-progress':
+      case 'lms-assessment':
+      case 'lms-skills':
+      case 'lms-support':
+      case 'lms-communication':
+      case 'lms-compliance':
+      case 'lms-bridge':
+      case 'lms-ai-instructor':
+        return 'LEARN';
       default:
         return 'LEARN';
     }
@@ -161,7 +175,12 @@ export const Header: React.FC<HeaderProps> = ({
       { id: 'subscriptions', label: 'Subscriptions' },
     ],
     LEARN: [
-      { id: 'dashboard', label: 'Academy Overview' },
+      { id: 'lms-dashboard', label: 'Overview' },
+      { id: 'lms-curriculum', label: 'Curriculum' },
+      { id: 'lms-enrollment', label: 'Enrollment' },
+      { id: 'lms-progress', label: 'Progress' },
+      { id: 'lms-assessment', label: 'Assessment' },
+      { id: 'lms-skills', label: 'Credentials' },
     ],
   };
 
@@ -170,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({
     ORDERS: 'orders',
     ACCOUNTING: 'books',
     POS: 'pos',
-    LEARN: 'dashboard',
+    LEARN: 'lms-dashboard',
   };
 
   const pillars: { id: PillarType; label: string }[] = [

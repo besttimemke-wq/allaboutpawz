@@ -41,6 +41,19 @@ export type DawgNavSection =
   | "subscriptions"
   | "fulfillment"
   | "vendors"
+  | "lms-dashboard"
+  | "lms-curriculum"
+  | "lms-media"
+  | "lms-enrollment"
+  | "lms-ai-teaching"
+  | "lms-progress"
+  | "lms-assessment"
+  | "lms-skills"
+  | "lms-support"
+  | "lms-communication"
+  | "lms-compliance"
+  | "lms-bridge"
+  | "lms-ai-instructor"
 
 export type Area = {
   area: string;
