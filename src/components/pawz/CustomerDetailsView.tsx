@@ -423,7 +423,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
           time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—',
           actor: n.noteType === 'internal' ? 'Staff Note' : n.noteType === 'customer_visible' ? 'Customer Note' : n.noteType || 'Note',
           actorType: n.noteType === 'system' ? 'System' : 'Staff',
-          description: n.body || '',
+          description: n.body ?? '',
           isPinned: !!n.isPinned,
         })));
       })
@@ -479,7 +479,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
           service: r.serviceName || 'Grooming',
           groomer: r.groomer || '—',
           duration: r.durationMinutes ? `${r.durationMinutes} min` : '—',
-          notes: r.cutDetails || r.notes || '',
+          notes: r.cutDetails || r.notes ?? '',
           amount: r.amount || 0,
           status: r.status || 'Paid',
         })));
@@ -510,7 +510,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
             status: a.status || 'Scheduled',
             amount: a.price || 0,
             paymentStatus: a.paymentStatus || 'Unpaid',
-            notes: a.notes || '',
+            notes: a.notes ?? '',
           })));
         }
       })
@@ -536,7 +536,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
   const handleSendMessageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageText.trim() || !profile.id) return;
-    const channelId = (messageChannel || '').toLowerCase().includes('email') ? 'email' : (messageChannel || '').toLowerCase().includes('sms') || (messageChannel || '').toLowerCase().includes('text') ? 'sms' : 'other';
+    const channelId = (messageChannel ?? '').toLowerCase().includes('email') ? 'email' : (messageChannel ?? '').toLowerCase().includes('sms') || (messageChannel ?? '').toLowerCase().includes('text') ? 'sms' : 'other';
     try {
       await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, channel: channelId, body: messageText, subject: messageText.slice(0, 80) }) });
     } catch (err) { console.error('[CRM action failed]', err); }
@@ -2157,8 +2157,8 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
                 <tbody className="divide-y divide-border">
                   {(profile.paymentHistory || [])
                     .filter((p) =>
-                      (p.description || '').toLowerCase().includes((paymentSearch || '').toLowerCase()) ||
-                      (p.type || '').toLowerCase().includes((paymentSearch || '').toLowerCase())
+                      (p.description ?? '').toLowerCase().includes((paymentSearch ?? '').toLowerCase()) ||
+                      (p.type ?? '').toLowerCase().includes((paymentSearch ?? '').toLowerCase())
                     )
                     .map((item, idx) => (
                       <tr key={item.id} className="hover:bg-muted/40/70 transition-colors">
@@ -2408,7 +2408,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
                     .filter((act) => {
                       if (activityFilter === 'All') return true;
                       if (activityFilter === 'System') return act.actorType === 'System';
-                      if (activityFilter === 'Notes') return (act.actor || '').toLowerCase().includes('note') || act.isPinned;
+                      if (activityFilter === 'Notes') return (act.actor ?? '').toLowerCase().includes('note') || act.isPinned;
                       return act.actorType === 'Staff';
                     })
                     .map((act) => (

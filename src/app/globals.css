@@ -57,10 +57,7 @@
 :root {
   --radius: 0.125rem;
 
-  /* Brand fonts — loaded via Google Fonts CDN in layout.tsx */
-  --font-display: "Playfair Display", serif;
-  --font-script: "Great Vibes", cursive;
-  --font-body: "Lato", sans-serif;
+  /* Brand fonts — loaded via next/font/google in layout.tsx */
   --background: oklch(0.972 0.011 88);
   --foreground: oklch(0.26 0.012 60);
   --card: oklch(0.985 0.008 88);
