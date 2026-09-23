@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DawgNavSection } from '@/lib/types';
 import { CreditCard, Terminal, Search, Shield, RefreshCw, Smartphone, DollarSign, Calculator, ChevronRight, Check } from 'lucide-react';
 import { PageHeader, PageTabs, FilterSelect, KpiTiles } from '../_shared/PageHeader';
@@ -64,14 +64,18 @@ export const PaymentsView: React.FC<PaymentsViewProps> = ({ onNavigateSection, o
   ]);
   const [fleetCmd, setFleetCmd] = useState('');
 
-  // Dummy payments list
-  const [paymentsList, setPaymentsList] = useState([
-    { id: 'TXN-9021', customer: 'Alice Cooper', pet: 'Rockstar (Retriever)', service: 'Full Groom + Deshedding', invoice: 'INV-2025-901', amount: 145.00, method: 'CREDIT_CARD', date: '2025-05-12', time: '14:21', status: 'PAID', details: 'Stripe Terminal #L1-PAX-A920' },
-    { id: 'TXN-9022', customer: 'David Bowie', pet: 'Starman (Poodle)', service: 'Breed Standard Cut', invoice: 'INV-2025-902', amount: 125.00, method: 'CASH', date: '2025-05-12', time: '13:05', status: 'PAID', details: 'Register Till Drawer A' },
-    { id: 'TXN-9023', customer: 'Freddie Mercury', pet: 'Balsara (Persian)', service: 'De-matting & Bath', invoice: 'INV-2025-903', amount: 110.00, method: 'E_STORE_AUTOPAY', date: '2025-05-11', time: '16:45', status: 'PAID', details: 'Stripe Storefront Online Webhook' },
-    { id: 'TXN-9024', customer: 'Iggy Pop', pet: 'WildOne (Bulldog)', service: 'Nail Grinding Accrual', invoice: 'INV-2025-904', amount: 35.00, method: 'CREDIT_CARD', date: '2025-05-11', time: '10:12', status: 'PAID', details: 'Stripe Terminal #L2-S700' },
-    { id: 'TXN-9025', customer: 'Robert Plant', pet: 'Zeppelin (Malamute)', service: 'Blowout & Brush', invoice: 'INV-2025-905', amount: 165.00, method: 'CREDIT_CARD', date: '2025-05-12', time: '09:14', status: 'PENDING_AUTH', details: 'Pre-auth escrow reservation lock' },
-  ]);
+  // Live payments log — reads from /api/admin/payments (commerce_payments)
+  const [paymentsList, setPaymentsList] = useState<any[]>([]);
+  useEffect(() => {
+    fetch('/api/admin/payments?limit=200').then((r) => r.ok ? r.json() : null).then((data) => {
+      if (!data?.payments) return;
+      setPaymentsList(data.payments.map((p: any) => ({
+        id: p.id, customer: p.customer, pet: '—', service: 'Payment', invoice: '—',
+        amount: Number(p.amount) || 0, method: p.tender?.toUpperCase() || 'OTHER',
+        date: p.date || '—', time: p.time || '—', status: p.status, details: p.reference || p.tender || '—',
+      })));
+    }).catch(() => {});
+  }, []);
 
   // Dummy checkouts queue
   const [checkoutQueue, setCheckoutQueue] = useState([

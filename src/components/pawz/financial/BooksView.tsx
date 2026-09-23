@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DawgNavSection } from '@/lib/types';
 import { Search, Plus, CheckCircle2, AlertTriangle, ArrowRight, BookOpen, Terminal, Check } from 'lucide-react';
 
@@ -46,16 +46,22 @@ export const BooksView: React.FC<BooksViewProps> = ({ onNavigateSection }) => {
   });
 
   // Transactions State
-  const [transactions, setTransactions] = useState([
-    { id: 'TXN-8094', date: '2025-05-12', memo: 'Card Checkout #9421 - Grooming (Milo)', account: '1000 Operating Cash', debit: 145.00, credit: 0, reconciled: true, type: 'DEBIT' },
-    { id: 'TXN-8094', date: '2025-05-12', memo: 'Revenue Share - Service Allocation', account: '4000 Grooming Revenue', debit: 0, credit: 145.00, reconciled: true, type: 'CREDIT' },
-    { id: 'TXN-8095', date: '2025-05-11', memo: 'Vendor Bill disburse (Apex Shampoos)', account: '2000 Accounts Payable', debit: 340.00, credit: 0, reconciled: true, type: 'DEBIT' },
-    { id: 'TXN-8095', date: '2025-05-11', memo: 'Treasury Wire settlement (Plaid bank)', account: '1000 Operating Cash', debit: 0, credit: 340.00, reconciled: true, type: 'CREDIT' },
-    { id: 'TXN-8096', date: '2025-05-10', memo: 'Client Portal Invoice payment #8214', account: '1000 Operating Cash', debit: 210.00, credit: 0, reconciled: false, type: 'DEBIT' },
-    { id: 'TXN-8096', date: '2025-05-10', memo: 'Client Outstanding AR clearing', account: '1100 Accounts Receivable', debit: 0, credit: 210.00, reconciled: false, type: 'CREDIT' },
-    { id: 'TXN-8097', date: '2025-05-09', memo: 'Wages disburse (Groomer Sarah)', account: '6000 Staff Wages', debit: 1250.00, credit: 0, reconciled: true, type: 'DEBIT' },
-    { id: 'TXN-8097', date: '2025-05-09', memo: 'Operating checking disburse', account: '1000 Operating Cash', debit: 0, credit: 1250.00, reconciled: true, type: 'CREDIT' },
-  ]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  useEffect(() => {
+    fetch('/api/admin/payments?limit=200').then((r) => r.ok ? r.json() : null).then((data) => {
+      if (!data?.payments) return;
+      const rows: any[] = [];
+      for (const p of data.payments) {
+        const amt = Number(p.amount) || 0; if (amt <= 0) continue;
+        const txnId = p.id || `TXN-${Date.now()}`;
+        const date = p.date || new Date().toISOString().slice(0,10);
+        const memo = `${p.tender || 'Payment'} · ${p.customer || 'Walk-in'}`;
+        rows.push({ id: txnId, date, memo, account: '1000 Operating Cash', debit: amt, credit: 0, reconciled: p.status === 'PAID', type: 'DEBIT' });
+        rows.push({ id: txnId, date, memo, account: '4000 Service Revenue', debit: 0, credit: amt, reconciled: p.status === 'PAID', type: 'CREDIT' });
+      }
+      if (rows.length > 0) setTransactions(rows);
+    }).catch(() => {});
+  }, []);
 
   // Journal Entries State
   const [journalEntries, setJournalEntries] = useState([

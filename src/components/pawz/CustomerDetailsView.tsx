@@ -481,6 +481,26 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
     showToast(`Added ${profile.name} to VIP priority grooming waitlist.`);
   };
 
+  const handleSendPortalInvite = async () => {
+    if (!profile.email) { showToast('Customer has no email on file.'); return; }
+    showToast(`Sending portal invite to ${profile.email}…`);
+    try {
+      const res = await fetch('/api/auth/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: profile.email, role: 'customer', name: profile.name }),
+      });
+      if (res.ok) {
+        showToast(`Portal invite sent to ${profile.email}. They'll receive a magic link.`);
+      } else {
+        const j = await res.json().catch(() => ({}));
+        showToast(`Invite failed: ${j?.error || res.statusText}`);
+      }
+    } catch (err: any) {
+      showToast(`Invite failed: ${err?.message || 'network error'}`);
+    }
+  };
+
   /* ------------------- ACTIONS: 4. GROOMING HISTORY ------------------- */
   const handleAddGroomingNotePrompt = (recordId: string) => {
     const note = window.prompt('Enter clinical grooming note to add to this session:');
@@ -1653,6 +1673,14 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
               >
                 <Clock className="w-3.5 h-3.5 text-warning" />
                 <span>Add to Waitlist</span>
+              </button>
+
+              <button
+                onClick={handleSendPortalInvite}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-semibold text-foreground bg-card border border-border hover:bg-muted/40 rounded-lg shadow-2xs transition-colors cursor-pointer"
+              >
+                <Mail className="w-3.5 h-3.5 text-primary" />
+                <span>Send Portal Invite</span>
               </button>
 
               <button

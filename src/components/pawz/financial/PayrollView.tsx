@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, 
   Users, 
@@ -31,128 +31,19 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ onNavigateSection }) =
   const [activeTab, setActiveTab] = useState<'dashboard' | 'employees' | 'timesheets' | 'transactions' | 'taxes'>('dashboard');
   
   // Roster state for interactive employee directory and detailed inspector
-  const [employeesList, setEmployeesList] = useState([
-    {
-      id: 'EMP-0101',
-      name: 'Marcus Reyes',
-      role: 'Sr Master Groomer',
-      class: 'W-2 Salon',
-      baseWage: 26.00,
-      commissionRate: 45,
-      otMultiplier: 1.5,
-      w4Status: 'Single (0)',
-      account: 'Chase ••••4192',
-      routing: '021000021',
-      status: 'ACTIVE',
-      ytdGross: 31450.00,
-      ytdNet: 22439.58,
-      ytdTax: 9010.42,
-      regHours: 72.0,
-      otHours: 4.5,
-      commissionAmt: 1180.00,
-      tipsAmt: 420.00,
-    },
-    {
-      id: 'EMP-0102',
-      name: 'Sarah Miller',
-      role: 'Lead Canine Stylist',
-      class: 'W-2 Salon',
-      baseWage: 24.00,
-      commissionRate: 40,
-      otMultiplier: 1.5,
-      w4Status: 'Married (2)',
-      account: 'Wells ••••8812',
-      routing: '121000248',
-      status: 'ACTIVE',
-      ytdGross: 28500.00,
-      ytdNet: 20520.00,
-      ytdTax: 7980.00,
-      regHours: 74.0,
-      otHours: 2.0,
-      commissionAmt: 980.00,
-      tipsAmt: 380.00,
-    },
-    {
-      id: 'EMP-0103',
-      name: 'Elena Rostova',
-      role: 'Sr Hydrotherapist',
-      class: 'W-2 Salon',
-      baseWage: 20.00,
-      commissionRate: 0,
-      otMultiplier: 1.5,
-      w4Status: 'Single (1)',
-      account: 'Citi ••••3041',
-      routing: '021000089',
-      status: 'ACTIVE',
-      ytdGross: 19800.00,
-      ytdNet: 14256.00,
-      ytdTax: 5544.00,
-      regHours: 80.0,
-      otHours: 0.0,
-      commissionAmt: 0.00,
-      tipsAmt: 220.00,
-    },
-    {
-      id: 'EMP-0104',
-      name: 'David Kim',
-      role: 'Grooming Tech',
-      class: 'W-2 Salon',
-      baseWage: 19.50,
-      commissionRate: 30,
-      otMultiplier: 1.5,
-      w4Status: 'Single (0)',
-      account: 'BOA ••••9914',
-      routing: '111000025',
-      status: 'ACTIVE',
-      ytdGross: 18200.00,
-      ytdNet: 13104.00,
-      ytdTax: 5096.00,
-      regHours: 78.0,
-      otHours: 1.5,
-      commissionAmt: 210.00,
-      tipsAmt: 190.00,
-    },
-    {
-      id: 'EMP-0105',
-      name: 'Chloe Bennett',
-      role: 'Front Desk Ops',
-      class: 'W-2 Admin',
-      baseWage: 21.00,
-      commissionRate: 0,
-      otMultiplier: 1.5,
-      w4Status: 'Single (0)',
-      account: 'Capital One ••••1120',
-      routing: '051400549',
-      status: 'ACTIVE',
-      ytdGross: 19100.00,
-      ytdNet: 14120.00,
-      ytdTax: 4980.00,
-      regHours: 80.0,
-      otHours: 0.0,
-      commissionAmt: 0.00,
-      tipsAmt: 120.00,
-    },
-    {
-      id: 'CON-0201',
-      name: 'Dr. Aris Thorne',
-      role: 'Relief Vet Specialist',
-      class: '1099-NEC',
-      baseWage: 120.00,
-      commissionRate: 0,
-      otMultiplier: 1.0,
-      w4Status: 'W-9 Verified',
-      account: 'Wire ••••5521',
-      routing: '021000021',
-      status: 'ACTIVE',
-      ytdGross: 14400.00,
-      ytdNet: 14400.00,
-      ytdTax: 0.00,
-      regHours: 24.0,
-      otHours: 0.0,
-      commissionAmt: 0.00,
-      tipsAmt: 0.00,
-    }
-  ]);
+  const [employeesList, setEmployeesList] = useState<any[]>([]);
+  useEffect(() => {
+    fetch('/api/admin/payroll?days=30').then((r) => r.ok ? r.json() : null).then((data) => {
+      if (!data?.staff) return;
+      setEmployeesList(data.staff.map((s: any) => ({
+        id: s.id, name: s.name, role: s.role, class: s.isGroomer ? 'W-2 Groomer' : 'W-2 Salon',
+        baseWage: 0, commissionRate: Math.round((s.commissionRate ?? 0.5) * 100), otMultiplier: 1.5,
+        w4Status: '—', account: '—', routing: '—', status: s.isActive ? 'ACTIVE' : 'INACTIVE',
+        ytdGross: Number(s.grossRevenue) || 0, ytdNet: Number(s.netPay) || 0, ytdTax: 0,
+        regHours: 0, otHours: 0, commissionAmt: Number(s.commissionOwed) || 0, tipsAmt: Number(s.tipsEarned) || 0,
+      })));
+    }).catch(() => {});
+  }, []);
 
   const [selectedEmpId, setSelectedEmployeeId] = useState<string>('EMP-0101');
   const [filterClass, setFilterFilterClass] = useState<string>('ALL');
