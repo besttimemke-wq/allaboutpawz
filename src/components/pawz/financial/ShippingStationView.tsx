@@ -27,6 +27,8 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
   const [printedNotice, setPrintedNotice] = useState(false);
   const [shippableOrders, setShippableOrders] = useState<any[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string>('');
+  const [labelBusy, setLabelBusy] = useState(false);
+  const [labelResult, setLabelResult] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/orders')
@@ -97,7 +99,39 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
   const currentRate = rates.find(r => r.id === selectedCarrier) || rates[0];
   const totalPrice = (currentRate.price + (sigRequired ? 3.50 : 0)).toFixed(2);
 
-  const handleBuyAndPrint = () => {
+  const handleBuyAndPrint = async () => {
+    if (!selectedOrder || labelBusy) return;
+    setLabelBusy(true);
+    setLabelResult(null);
+    try {
+      const res = await fetch('/api/admin/shipping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: selectedOrder.id,
+          action: 'buy_label',
+          toName: selectedOrder.customer,
+          toAddress1: selectedOrder.address,
+          toCity: '', toState: '', toZIP: '',
+          weight: weight * 16,
+          mailClass: selectedCarrier.includes('priority') ? 'PRIORITY_MAIL' : 'USPS_GROUND_ADVANTAGE',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const tracking = data.label?.trackingNumber || data.order?.tracking_number || 'pending';
+        setLabelResult(`✓ Label purchased — Tracking: ${tracking}`);
+        setPrintedNotice(true);
+        setTimeout(() => setPrintedNotice(false), 3500);
+        if (data.label?.labelUrl) window.open(data.label.labelUrl, '_blank');
+      } else {
+        setLabelResult(`⚠ ${data.error || 'Label purchase failed'}`);
+      }
+    } catch { setLabelResult('⚠ Failed to connect to shipping API'); }
+    setLabelBusy(false);
+  };
+
+  const handleBatchSlip = () => {
     setPrintedNotice(true);
     setTimeout(() => setPrintedNotice(false), 3500);
   };

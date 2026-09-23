@@ -116,7 +116,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigateSection }) =
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => alert('Exporting GAAP-compliant PDF ledger summary... Generated.')}
+                onClick={() => { window.open('/api/admin/orders/export', '_blank'); }}
                 className="bg-card hover:bg-muted/40 text-foreground border border-border px-3 py-1 text-[11px] text-muted-foreground font-semibold cursor-pointer rounded-md flex items-center gap-1.5"
               >
                 <Download className="w-3 h-3" /> EXPORT PDF
