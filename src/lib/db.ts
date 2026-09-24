@@ -5,6 +5,7 @@
 // behavior the frontend expects.
 
 import { supabase } from "./supabase";
+import { pgQuery, pgExec } from "./pg";
 import type { Companion, CourseRecord } from "./types";
 
 function iso(value: Date | string | null | undefined): string {
@@ -12,41 +13,68 @@ function iso(value: Date | string | null | undefined): string {
   return typeof value === "string" ? value : value.toISOString();
 }
 
-// Convert a Supabase row (which returns timestamps as ISO strings) into the
-// shape our callers expect — most fields already match the Prisma camelCase
-// column names because the public.* tables were created with quoted camelCase
-// columns.
+// Convert a Supabase row (timestamps arrive as ISO strings) into the shape
+// our callers expect. The LMS data layer reads from the enterprise `lms.*`
+// schema (UUIDs + snake_case + tenant_id), so each helper below maps a row
+// from `lms.courses` / `lms.enrollments` / etc. back to the CourseRecord /
+// Companion shape the classroom UI was authored against.
 type Row = Record<string, unknown>;
 function asRow<T = Row>(r: unknown): T {
   return (r ?? {}) as T;
 }
 
-// ---------------- Courses ----------------
+const TENANT_ID = process.env.SUPABASE_TENANT_ID ?? "00000000-0000-0000-0000-000000000001";
 
-type CourseRow = {
-  id: number;
-  ownerId: string;
-  state: string;
-  area: string;
-  statute: string;
-  grade: string;
+// Stable integer ID derived from a UUID — the classroom UI uses integer IDs
+// for course lookup; lms.courses.id is a UUID. We derive a deterministic
+// 31-bit int from the UUID's first 8 hex chars so the same course always
+// maps to the same int within a session.
+function uuidToInt(uuid: string | null | undefined): number {
+  if (!uuid) return 0;
+  const head = uuid.replace(/[^0-9a-f]/gi, "").slice(0, 8);
+  return parseInt(head || "0", 16) % 0x7fffffff;
+}
+
+// ---------------- Courses (lms.courses) ----------------
+
+type LmsCourseRow = {
+  id: string;
+  tenant_id: string;
+  code: string | null;
   title: string;
-  companionJson: string;
-  model: string;
-  createdAt: string;
+  slug: string;
+  description: string | null;
+  long_description: string | null;
+  category: string | null;
+  tags: string[] | null;
+  is_published: boolean;
+  sort_order: number;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  total_clock_hours: string | number | null;
+  difficulty_level: string | null;
 };
 
-function mapCourse(c: CourseRow): CourseRecord {
+function mapCourseFromLms(c: LmsCourseRow): CourseRecord {
+  const meta = (c.metadata && typeof c.metadata === "object" ? c.metadata : {}) as Record<string, unknown>;
+  const companionRaw = meta.companion ?? { title: c.title, sections: [] };
+  const companion = (
+    typeof companionRaw === "string"
+      ? (() => {
+          try { return JSON.parse(companionRaw); } catch { return { title: c.title, sections: [] }; }
+        })()
+      : companionRaw
+  ) as Companion;
   return {
-    id: c.id,
-    state: c.state,
-    area: c.area,
-    statute: c.statute,
-    grade: c.grade,
+    id: uuidToInt(c.id),
+    state: (meta.state as string) || "TN",
+    area: c.category || (meta.area as string) || "Grooming",
+    statute: (meta.statute as string) || "",
+    grade: (meta.grade as string) || "9-12",
     title: c.title,
-    companion: JSON.parse(c.companionJson || "{}") as Companion,
-    model: c.model,
-    createdAt: iso(c.createdAt),
+    companion,
+    model: (meta.model as string) || "gemini-1.5-flash",
+    createdAt: iso(c.created_at),
   };
 }
 
@@ -56,55 +84,52 @@ export async function saveCourse(
   companion: Companion,
   model: string,
 ) {
-  const { data, error } = await supabase
-    .from("course")
-    .insert({
-      ownerId,
-      state: selection.state,
-      area: selection.area,
-      statute: selection.statute,
-      grade: selection.grade,
-      title: companion.title,
-      companionJson: JSON.stringify(companion),
-      model,
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("[db] saveCourse failed:", error.message);
-    return null;
-  }
-  const row = asRow<CourseRow>(data);
-  return getCourse(ownerId, row.id);
+  // Courses in the enterprise schema are tenant-scoped, not visitor-scoped.
+  // Store the original Prisma-shape fields in lms.courses.metadata so they
+  // survive round-trips. slug derived from title; code derived from title.
+  const slug = companion.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  const code = (companion.title.split(/\s+/).map((w: string) => w[0]?.toUpperCase() ?? "").join("").slice(0, 4) || "CRS");
+  const meta = JSON.stringify({ state: selection.state, area: selection.area, statute: selection.statute, grade: selection.grade, companion, model, ownerId });
+  const rows = await pgQuery<LmsCourseRow>(
+    `INSERT INTO lms.courses (tenant_id, code, title, slug, description, course_type, delivery_modes, difficulty_level, is_published, sort_order, metadata)
+     VALUES ($1, $2, $3, $4, $5, 'course', ARRAY['self_paced']::text[], 'beginner', true, 999, $6::jsonb)
+     RETURNING id, tenant_id, code, title, slug, description, long_description, category, tags, is_published, sort_order, metadata, created_at, total_clock_hours, difficulty_level`,
+    [TENANT_ID, code, companion.title, slug, companion.title, meta],
+  );
+  if (rows.length === 0) return null;
+  return mapCourseFromLms(rows[0]);
 }
 
 export async function listCourses(ownerId: string): Promise<CourseRecord[]> {
-  const { data, error } = await supabase
-    .from("course")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .order("createdAt", { ascending: false })
-    .limit(50);
-  if (error) {
-    console.error("[db] listCourses failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((r) => mapCourse(asRow<CourseRow>(r)));
+  // LMS courses are tenant-scoped — every learner sees the same published
+  // catalog. ownerId is preserved for the demo seed path but does not filter
+  // the catalog query.
+  void ownerId;
+  const rows = await pgQuery<LmsCourseRow>(
+    `SELECT id, tenant_id, code, title, slug, description, long_description, category, tags, is_published, sort_order, metadata, created_at, total_clock_hours, difficulty_level
+     FROM lms.courses
+     WHERE tenant_id = $1 AND is_published = true
+     ORDER BY sort_order ASC NULLS LAST, title ASC
+     LIMIT 50`,
+    [TENANT_ID],
+  );
+  return rows.map(mapCourseFromLms);
 }
 
 export async function getCourse(ownerId: string, id: number): Promise<CourseRecord | null> {
-  const { data, error } = await supabase
-    .from("course")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .eq("id", id)
-    .maybeSingle();
-  if (error) {
-    console.error("[db] getCourse failed:", error.message);
-    return null;
-  }
-  if (!data) return null;
-  return mapCourse(asRow<CourseRow>(data));
+  void ownerId;
+  // The classroom calls with an integer id; we look up across the tenant's
+  // published courses and match by the derived uuidToInt. Cheap at 15 rows.
+  const rows = await pgQuery<LmsCourseRow>(
+    `SELECT id, tenant_id, code, title, slug, description, long_description, category, tags, is_published, sort_order, metadata, created_at, total_clock_hours, difficulty_level
+     FROM lms.courses
+     WHERE tenant_id = $1 AND is_published = true
+     ORDER BY sort_order ASC NULLS LAST, title ASC
+     LIMIT 50`,
+    [TENANT_ID],
+  );
+  const match = rows.find((r) => uuidToInt(r.id) === id);
+  return match ? mapCourseFromLms(match) : null;
 }
 
 // ---------------- Professor conversation ----------------

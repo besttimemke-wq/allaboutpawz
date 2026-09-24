@@ -1,6 +1,14 @@
-// Server-side Supabase client for the LMS data layer.
+// Server-side Supabase clients.
 // Uses the project's existing SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY env vars
 // (no anon key, no RLS — service role bypasses RLS for trusted server use).
+//
+// Two clients are exported:
+//   - `supabase`     → default `public` schema (CRM/ERP tables, the platform
+//                      enterprise schema)
+//   - `supabaseLms`  → `lms` schema (LMS enterprise tables: courses,
+//                      enrollments, learner_profiles, meeting_records, etc.)
+// supabase-js v2 pins the PostgREST schema at client-creation time, so a
+// separate client is the clean way to query a non-default schema.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -13,14 +21,25 @@ if (!supabaseUrl || !supabaseServiceKey) {
   );
 }
 
-let _client: SupabaseClient | null = null;
+let _publicClient: SupabaseClient | null = null;
+let _lmsClient: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
-  if (_client) return _client;
-  _client = createClient(supabaseUrl, supabaseServiceKey, {
+  if (_publicClient) return _publicClient;
+  _publicClient = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  return _client;
+  return _publicClient;
+}
+
+export function getSupabaseLms(): SupabaseClient {
+  if (_lmsClient) return _lmsClient;
+  _lmsClient = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    db: { schema: "lms" },
+  });
+  return _lmsClient;
 }
 
 export const supabase = getSupabase();
+export const supabaseLms = getSupabaseLms();
