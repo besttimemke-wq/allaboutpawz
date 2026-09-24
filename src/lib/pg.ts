@@ -4,10 +4,11 @@
 // PostgREST config changes, we connect to the session pooler with the `pg`
 // package and run parameterized SQL directly against `lms.*` tables.
 //
-// The client is lazy — only connected on first query. Reused across requests
-// via process-global cache.
+// Uses a Pool (not a single Client) so concurrent queries from the classroom
+// (which fires Promise.all for /api/courses + /api/workspace + /api/school)
+// can run in parallel instead of serializing onto one connection.
 
-import { Client } from "pg";
+import { Pool, type PoolClient } from "pg";
 
 const connectionString = process.env.SUPABASE_SESSION_POOLER ?? "";
 
@@ -17,17 +18,41 @@ if (!connectionString) {
   );
 }
 
-let _client: Client | null = null;
+// Pool is lazy — connections are created on demand up to max. Reused across
+// requests via process-global cache.
+let _pool: Pool | null = null;
 
-export async function getPg(): Promise<Client> {
-  if (_client) return _client;
-  _client = new Client({
+function getPool(): Pool {
+  if (_pool) return _pool;
+  _pool = new Pool({
     connectionString,
     connectionTimeoutMillis: 5000,
     query_timeout: 15000,
+    // Supabase session pooler limits to 15 concurrent connections per user.
+    // Keep our pool small (3) so we stay well under the limit even with
+    // the Next.js dev server's own connections. Connections are released
+    // back to the pool after each query, so 3 is enough for parallelism.
+    max: 3,
+    idleTimeoutMillis: 10000, // close idle connections after 10s
+    // Don't keep the pool alive between requests — let it shrink to 0
+    // when idle to free connections for other processes.
   });
-  await _client.connect();
-  return _client;
+  // Surface pool errors so they don't silently swallow
+  _pool.on("error", (err) => {
+    console.error("[pg] pool error:", err.message);
+  });
+  return _pool;
+}
+
+// Acquire a client from the pool for a single query. Released automatically.
+async function withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    return await fn(client);
+  } finally {
+    client.release();
+  }
 }
 
 // Run a parameterized query and return rows; never throws (logs + returns []).
@@ -36,9 +61,10 @@ export async function pgQuery<T = Record<string, unknown>>(
   params: unknown[] = [],
 ): Promise<T[]> {
   try {
-    const client = await getPg();
-    const { rows } = await client.query(text, params);
-    return rows as T[];
+    return await withClient(async (client) => {
+      const { rows } = await client.query(text, params);
+      return rows as T[];
+    });
   } catch (e) {
     console.error("[pg] query failed:", e instanceof Error ? e.message : String(e));
     return [];
@@ -51,9 +77,10 @@ export async function pgExec(
   params: unknown[] = [],
 ): Promise<number> {
   try {
-    const client = await getPg();
-    const { rowCount } = await client.query(text, params);
-    return rowCount ?? 0;
+    return await withClient(async (client) => {
+      const { rowCount } = await client.query(text, params);
+      return rowCount ?? 0;
+    });
   } catch (e) {
     console.error("[pg] exec failed:", e instanceof Error ? e.message : String(e));
     return 0;

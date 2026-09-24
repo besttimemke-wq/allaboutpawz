@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useRef,useState, type ReactNode} from "react";
-import {BookOpen,GraduationCap,CalendarDays,MessageSquare,FolderOpen,StickyNote,ClipboardList,House,Video,Library,ChevronRight,ChevronLeft,ArrowUpRight,ArrowRight,ArrowLeft,Volume2,VolumeX,Hand,Search,Send,Check,CheckCheck,Clock3,Pause,Play,X,FileText,Target,HelpCircle,Headphones,ExternalLink,Upload,Plus,Mic,Square,RefreshCw,Layers,NotebookPen,Link2,ShieldCheck,ChevronDown,Bell,LogOut} from "lucide-react";
+import {BookOpen,GraduationCap,CalendarDays,MessageSquare,FolderOpen,StickyNote,ClipboardList,House,Video,Library,ChevronRight,ChevronLeft,ArrowUpRight,ArrowRight,ArrowLeft,Volume2,VolumeX,Hand,Search,Send,Check,CheckCheck,Clock3,Pause,Play,X,FileText,Target,HelpCircle,Headphones,ExternalLink,Upload,Plus,Mic,Square,RefreshCw,Layers,NotebookPen,Link2,ShieldCheck,ChevronDown,Bell,LogOut,Sparkles} from "lucide-react";
 
 import CourseBuilder from "./course-builder";
 
@@ -45,6 +45,7 @@ export default function Classroom(){
  const [meetingLink,setMeetingLink]=useState(""),[meetingLinks,setMeetingLinks]=useState<Record<string,string>>({});
  const scroll=useRef<HTMLDivElement>(null),lock=useRef(false),video=useRef<HTMLVideoElement>(null),stream=useRef<MediaStream|null>(null);
  const [camera,setCamera]=useState(false),[cameraError,setCameraError]=useState("");
+ const [knowledgeCount,setKnowledgeCount]=useState<number>(0);
  const course=courses.find(c=>c.id===active),day=snap?.day,lessons=course?.companion?.sections||[],lesson=lessons[day?.currentLesson||0]||{};
  const enrollment=school.enrollments.find((e:any)=>e.courseId===active);
  const state=day?.state,locked=state==="BREAK_LOCKED",handoff=state==="HUMAN_HANDOFF";
@@ -72,6 +73,12 @@ export default function Classroom(){
 
  useEffect(()=>{if(!voice||!latest?.content||busy)return;readAloud(latest.content);return()=>window.speechSynthesis?.cancel()},[latest?.id,voice]);
  useEffect(()=>{if(identity?.id){try{setMeetingLinks(JSON.parse(localStorage.getItem(`${saveKey}-meetings`)||"{}"))}catch{}}},[identity?.id]);
+
+ // Fetch the RAG knowledge chunk count for the active course's pathway code.
+ // Shows the learner that the AI Professor is grounded in real curriculum
+ // content (lms.ai_rag_chunks). Re-fetches when the active course changes.
+ useEffect(()=>{if(!course){setKnowledgeCount(0);return}const pathwayCode=(course as any)?.code||course?.companion?.alignment?.area||"";if(!pathwayCode){setKnowledgeCount(0);return}fetch(`/api/knowledge?pathwayCode=${encodeURIComponent(pathwayCode)}`).then(r=>r.ok?r.json():Promise.reject(r)).then((d:{total?:number;chunks?:any[]})=>{const n=d.chunks?.length||d.total||0;setKnowledgeCount(typeof n==="number"?n:0)}).catch(()=>setKnowledgeCount(0))},[active,course]);
+
  async function load(){
   try{const ir=await api("/api/identity");setIdentity(ir);
    if(!ir.id){setLoaded(true);return}
@@ -199,7 +206,7 @@ export default function Classroom(){
   <div className={`room-grid mobile-${mobilePanel}`}>
    <aside className="left-room" data-testid="professor-and-day">
     <section className="professor" data-testid="professor">
-     <div className="professor-image"><img src="/professor.png" alt="Professor portrait"/><div className="professor-label"><span className="dot"/> PROFESSOR <span>AI instructor</span></div><span className="portrait-disclosure">AI portrait · ZAI powered</span><span className={`voice-indicator ${speaking?"speaking":""}`} aria-label={speaking?"Speaking":"Voice idle"}>{[1,2,3,4,5].map(n=><i key={n}/>)}</span></div>
+     <div className="professor-image"><img src="/professor.png" alt="Professor portrait"/><div className="professor-label"><span className="dot"/> PROFESSOR <span>AI instructor</span></div><span className="portrait-disclosure">AI portrait · ZAI powered</span><span className={`voice-indicator ${speaking?"speaking":""}`} aria-label={speaking?"Speaking":"Voice idle"}>{[1,2,3,4,5].map(n=><i key={n}/>)}</span>{knowledgeCount>0&&<div className="knowledge-badge" title={`The Professor is grounded in ${knowledgeCount} knowledge chunks from the companion curriculum for this pathway.`}><Sparkles size={12}/><span>Knowledge Base</span><strong>{knowledgeCount} chunks</strong></div>}</div>
      <div className="professor-caption" aria-live="polite"><p>{caption.replace(/[*#]/g,"")}</p></div>
      <div className="teacher-controls"><button disabled={!!busy||!day||locked||handoff} onClick={()=>cmd("ASK_PROFESSOR",{message:"Teach one small next step from the current companion. Keep it under 70 words; don't answer the check."})}><Play size={14}/>Teach</button><button disabled={!!busy||!day||locked||handoff} onClick={()=>cmd("ASK_PROFESSOR",{message:"Reframe the current idea using a different example. Keep it under 70 words; don't answer the active check."})}><RefreshCw size={13}/>Reframe</button><button className={transcript?"selected":""} aria-label="Professor transcript" onClick={()=>setTranscript(v=>!v)}><MessageSquare size={14}/></button></div>
      {transcript&&<div className="transcript"><div className="row"><b>Conversation</b><button aria-label="Close transcript" onClick={()=>setTranscript(false)}><X size={15}/></button></div>{messages.map((m:any,i:number)=><p key={m.id||i}><b>{m.role==="professor"?"Professor":"You"}</b>{m.content}</p>)}</div>}

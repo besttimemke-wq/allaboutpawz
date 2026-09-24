@@ -1032,3 +1032,77 @@ The LMS is stable and married to the real `lms.*` schema (Task 18). All key endp
 2. **Wire the full 13-step intake pipeline** to the OnboardingFlow UI (partner verification, recommendation engine, support team auto-assignment).
 3. **Add a knowledge base panel to the classroom** — show the learner what the Professor knows for the active course (similar to the pathway detail panel).
 4. **Generate real vector embeddings** for the 270 RAG chunks to enable semantic retrieval.
+
+---
+Task ID: 20
+Agent: main (Z.ai Code) — webDevReview cron round 2
+Task: QA test, fix the pg client serialization + connection pool exhaustion bugs, add knowledge base badge to the classroom, improve styling.
+
+## Current project status assessment
+The LMS is stable (Tasks 18-19). RAG has 270 chunks across 15 courses. The OnboardingFlow creates real enrollments. The AI Professor works end-to-end with the Z.ai SDK. However, a critical performance bug was discovered: the `pg.ts` module used a single `pg.Client` which serialized ALL queries — when the classroom fired `Promise.all([/api/courses, /api/workspace, /api/school])`, the three API calls couldn't run queries in parallel, causing `/api/school` to take 6.4s. Switching to a Pool introduced a new issue: `max:10` exceeded the Supabase session pooler's 15-connection limit, causing `EMAXCONNSESSION` errors that silently returned 0 results (the knowledge endpoint returned 0 chunks even though 270 were seeded).
+
+## What changed this round
+
+### 1. Bug fix: pg.ts — switched from single Client to Pool
+- The old `pg.ts` used a single `pg.Client` — all queries serialized onto one connection. The `DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated` appeared in the dev log.
+- Replaced with `pg.Pool` (max:3 connections, idleTimeoutMillis:10000) using a `withClient()` helper that acquires and releases a connection per query.
+- **Why max:3**: Supabase session pooler limits to 15 concurrent connections per user. The Next.js dev server + any test scripts share this limit. Pool max:3 stays well under 15 while still allowing parallel queries.
+- **Verified**: No more `DeprecationWarning` in dev log. No more `EMAXCONNSESSION` errors.
+
+### 2. Bug fix: getSchoolSnapshot — parallelized 6 sequential queries
+- The function had 6 sequential `await` calls: grade book query, meetings query, assignment states, workspace messages, workspace files, workspace events.
+- Refactored to a single `Promise.all([...6 queries...])` that runs all 6 in parallel. The grade/meeting/assignment queries only need the enrollments map for post-processing (mapping course_id → title), which happens after the Promise.all resolves.
+- **Performance**: `/api/school` went from 6.4s → ~2s (3x speedup). First-hit includes compile overhead (~3s warm).
+
+### 3. Bug fix: Connection pool exhaustion (EMAXCONNSESSION)
+- After switching to Pool with max:10, the dev log showed `EMAXCONNSESSION: max clients reached in session mode - max clients are limited to pool_size: 15`.
+- The knowledge endpoint returned `total:0, chunks:0` even though 270 chunks were seeded — the queries were failing silently (pgQuery catches errors and returns []).
+- Fixed by reducing Pool `max` from 10 to 3. **Verified**: `GET /api/knowledge?pathwayCode=GRO` now returns `total:270, chunks:18`.
+
+### 4. Feature: Knowledge base badge on the classroom canvas
+- Added `Sparkles` icon import to `classroom.tsx`.
+- Added `knowledgeCount` state (number, default 0).
+- Added a `useEffect` that fetches `/api/knowledge?pathwayCode=<code>` when the active course changes. Uses `(course as any)?.code` (the Course type doesn't include `code` but the runtime object from `/api/courses` does). Falls back to `course?.companion?.alignment?.area`.
+- Added a `.knowledge-badge` div inside `.professor-image` that renders when `knowledgeCount > 0`:
+  - Shows a Sparkles icon + "Knowledge Base" label + "{N} chunks" count
+  - Has a `title` tooltip: "The Professor is grounded in N knowledge chunks from the companion curriculum for this pathway."
+  - Positioned absolute at top-right of the professor image
+- **Verified**: `document.querySelector('.knowledge-badge')?.textContent` returns `"Knowledge Base18 chunks"` on the classroom page with the GRO course active.
+
+### 5. Styling: .knowledge-badge CSS
+- Added CSS for `.knowledge-badge` in `classroom.css`:
+  - `position:absolute;right:8px;top:8px;z-index:3` — overlays the professor image top-right
+  - `background:linear-gradient(135deg,#0f1f35,#1a2f4a)` — navy gradient matching the LMS theme
+  - `color:#f4c95d` — gold text (matches the gold accent system)
+  - `border:1px solid rgba(244,201,93,.3)` — subtle gold border
+  - `box-shadow:0 2px 8px rgba(15,31,53,.35)` — depth shadow
+  - `backdrop-filter:blur(4px)` — glassmorphism
+  - `transition:transform .15s,box-shadow .15s` — hover lift effect
+  - `.knowledge-badge:hover` — `transform:translateY(-1px)` + stronger shadow
+  - `white-space:nowrap` on span + strong to prevent wrapping
+  - `max-width:calc(100% - 16px)` to stay within image bounds
+
+## Verification results
+- `pg.ts` Pool with max:3 — no `EMAXCONNSESSION` errors in dev log ✓
+- No `DeprecationWarning` about concurrent queries ✓
+- `GET /api/knowledge?pathwayCode=GRO` → `total:270, chunks:18` ✓
+- `GET /api/knowledge?pathwayCode=ACA` → `total:270, chunks:18` ✓
+- `GET /api/school` → 200 in ~2s (down from 6.4s) ✓
+- `GET /api/courses` → 200, 2 enrolled courses (GRO + ACA) ✓
+- `/learn/classroom` → knowledge badge renders with "Knowledge Base 18 chunks" ✓
+- Classroom dropdown shows both enrolled courses (Pet Grooming + Animal Care Assistant) ✓
+- Lint: 0 errors ✓
+- Dev log: clean (no pg errors, no table-not-found, no EMAXCONNSESSION) ✓
+
+## Unresolved issues / risks
+1. **Google OAuth**: `visitor.ts` still returns "demo-avery". Real Google OAuth remains the next major feature.
+2. **13-step intake pipeline**: The full 13-step intake (partner verification, recommendation engine, support team assignment) is not wired to the UI. The OnboardingFlow has 7 steps and creates a real enrollment.
+3. **RAG embeddings**: The 270 chunks have no vector embeddings. Retrieval uses keyword-overlap scoring. Adding real embeddings would improve semantic retrieval.
+4. **School endpoint still ~2s**: Even with parallelized queries, the endpoint takes ~2s due to network latency to Supabase + the first query (enrollments join courses) which is sequential. Further optimization would require caching or denormalization.
+
+## Priority recommendations for next phase
+1. **Wire real Google OAuth** to replace the demo-avery visitor system.
+2. **Wire the full 13-step intake pipeline** to the OnboardingFlow UI (partner verification, recommendation engine, support team auto-assignment).
+3. **Add a knowledge base exploration panel** to the classroom — let learners browse the RAG chunks the Professor knows.
+4. **Generate real vector embeddings** for the 270 RAG chunks to enable semantic retrieval.
+5. **Add caching** to the school snapshot (it's read-heavy and changes infrequently).

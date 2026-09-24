@@ -1329,25 +1329,54 @@ export async function getSchoolSnapshot(ownerId: string) {
     courseTitle: e.title,
   }));
 
-  // Grade book (real table — joined to courses for titles).
-  const gradeRows = await pgQuery<{
-    id: string;
-    course_id: string;
-    category: string;
-    item_name: string;
-    score: string | null;
-    max_score: string | null;
-    is_released: boolean;
-    updated_at: string;
-  }>(
-    `SELECT g.id, g.course_id, g.category, g.item_name, g.score, g.max_score,
-            g.is_released, g.updated_at
-     FROM lms.grade_book g
-     WHERE g.learner_user_id = $1
-     ORDER BY g.updated_at DESC
-     LIMIT 100`,
-    [DEMO_LEARNER_UUID],
-  );
+  // Parallelize ALL independent queries: grades, meetings, assignment states,
+  // workspace messages, files, events — 6 queries in one round-trip instead
+  // of 6 sequential. The grade/meeting/assignment queries only need the
+  // enrollments map for post-processing (mapping course_id → title), which
+  // happens after the Promise.all resolves.
+  const [gradeRows, meetingRows, assignmentStates, inbox, resources, wsEvents] = await Promise.all([
+    pgQuery<{
+      id: string;
+      course_id: string;
+      category: string;
+      item_name: string;
+      score: string | null;
+      max_score: string | null;
+      is_released: boolean;
+      updated_at: string;
+    }>(
+      `SELECT g.id, g.course_id, g.category, g.item_name, g.score, g.max_score,
+              g.is_released, g.updated_at
+       FROM lms.grade_book g
+       WHERE g.learner_user_id = $1
+       ORDER BY g.updated_at DESC
+       LIMIT 100`,
+      [DEMO_LEARNER_UUID],
+    ),
+    pgQuery<{
+      id: string;
+      course_id: string | null;
+      title: string;
+      start_time: string | null;
+      end_time: string | null;
+      status: string;
+      join_url: string | null;
+    }>(
+      `SELECT id, course_id, title, start_time, end_time, status, join_url
+       FROM lms.meeting_records
+       WHERE created_by = $1 OR course_id IN (
+         SELECT course_id FROM lms.enrollments WHERE learner_user_id = $1
+       )
+       ORDER BY start_time ASC NULLS LAST
+       LIMIT 100`,
+      [DEMO_LEARNER_UUID],
+    ),
+    listAssignmentStates(ownerId),
+    listWorkspaceMessages(ownerId),
+    listWorkspaceFiles(ownerId),
+    listWorkspaceEvents(ownerId),
+  ]);
+
   const grades = gradeRows.map((g) => {
     const enr = enrollments.find((e) => e.courseId === g.course_id);
     return {
@@ -1369,25 +1398,6 @@ export async function getSchoolSnapshot(ownerId: string) {
     return b.id - a.id;
   });
 
-  // Meetings (real table).
-  const meetingRows = await pgQuery<{
-    id: string;
-    course_id: string | null;
-    title: string;
-    start_time: string | null;
-    end_time: string | null;
-    status: string;
-    join_url: string | null;
-  }>(
-    `SELECT id, course_id, title, start_time, end_time, status, join_url
-     FROM lms.meeting_records
-     WHERE created_by = $1 OR course_id IN (
-       SELECT course_id FROM lms.enrollments WHERE learner_user_id = $1
-     )
-     ORDER BY start_time ASC NULLS LAST
-     LIMIT 100`,
-    [DEMO_LEARNER_UUID],
-  );
   const meetings = meetingRows.map((m) => {
     const enr = m.course_id ? enrollments.find((e) => e.courseId === m.course_id) : null;
     return {
@@ -1403,7 +1413,6 @@ export async function getSchoolSnapshot(ownerId: string) {
   });
 
   // Submissions from assignment states
-  const assignmentStates = await listAssignmentStates(ownerId);
   const submissions = assignmentStates
     .filter((item) => ["Submitted", "Completed"].includes(item.status))
     .map((item) => {
@@ -1456,9 +1465,9 @@ export async function getSchoolSnapshot(ownerId: string) {
     grades,
     submissions,
     meetings,
-    inbox: (await listWorkspaceMessages(ownerId)).slice(-50).reverse(),
-    resources: await listWorkspaceFiles(ownerId),
-    events: await listWorkspaceEvents(ownerId),
+    inbox: inbox.slice(-50).reverse(),
+    resources,
+    events: wsEvents,
   };
 }
 
