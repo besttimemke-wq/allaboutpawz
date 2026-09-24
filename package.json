@@ -8,7 +8,9 @@
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "dev:stop": "bash -c 'test -f .next/dev-daemon.pid && kill $(cat .next/dev-daemon.pid) 2>/dev/null; sleep 1; true'",
-    "dev:daemon": "bash scripts/dev-daemon.sh"
+    "dev:daemon": "bash scripts/dev-daemon.sh",
+    "db:push": "echo skip",
+    "db:generate": "echo skip"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
