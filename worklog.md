@@ -1106,3 +1106,86 @@ The LMS is stable (Tasks 18-19). RAG has 270 chunks across 15 courses. The Onboa
 3. **Add a knowledge base exploration panel** to the classroom — let learners browse the RAG chunks the Professor knows.
 4. **Generate real vector embeddings** for the 270 RAG chunks to enable semantic retrieval.
 5. **Add caching** to the school snapshot (it's read-heavy and changes infrequently).
+
+---
+Task ID: 21
+Agent: main (Z.ai Code) — webDevReview cron round 3
+Task: QA test, add a knowledge base exploration panel to the classroom + a lesson progress bar, improve styling.
+
+## Current project status assessment
+The LMS is stable (Tasks 18-20). The pg Pool fix (max:3) eliminated the EMAXCONNSESSION errors. The `/api/school` endpoint runs in ~2s (down from 6.4s). The knowledge badge shows on the professor portrait. The AI Professor works end-to-end with the Z.ai SDK. RAG has 270 chunks across 15 courses. The QA pass (agent-browser on classroom, catalog, pathway detail) shows 0 console errors on all pages. The project is ready for feature additions.
+
+## What changed this round
+
+### 1. Feature: Knowledge Base exploration panel (new classroom tool)
+Added a new "Knowledge" tool to the classroom's bottom rail, between "Companion" and "Assignments":
+- **Tool type**: Added `"knowledge"` to the `Tool` union type and `["knowledge","Knowledge",Sparkles]` to the `TOOLS` array.
+- **State**: Added `knowledgeChunks` (full chunk array) and `knowledgeSearch` (search filter string) state. Updated the existing knowledge `useEffect` to store the full chunk data (not just the count) so the panel can render it.
+- **Render branch** (`tool === "knowledge"`): A rich, browsable panel showing all RAG chunks for the active course:
+  - **Header**: "AI PROFESSOR KNOWLEDGE BASE" eyebrow + "What the Professor knows" h2 + description + chunk count pill
+  - **Search bar**: Full-text search across chunk text, module code, and pathway code — filters chunks in real time
+  - **Grouped chunks**: Chunks are grouped by type (Overview, Lessons, Practice, Applied Project, Glossary, Family Note, Sources, Other) with a group header (label + count badge) and a responsive grid of chunk cards
+  - **Chunk cards**: Each card shows the module code badge, a safety flag icon (ShieldCheck, amber) for safety-relevant chunks, the chunk content preview (280 chars with fade-out gradient), and an "Ask Professor" button that sends the chunk content to the AI Professor
+  - **Safety styling**: Safety-flagged chunks have a left amber border + warm background gradient
+  - **Empty state**: "No knowledge chunks yet" message when no chunks are available
+- **Verified**: `document.querySelector('.knowledge-groups').children.length` = 7 groups. Group labels: "Overview:2, Lessons:4, Practice:1, Applied Project:1, Glossary:8, Family Note:1, Sources:1" = 18 chunks for the GRO course.
+
+### 2. Feature: Lesson progress bar in the classroom header
+Added a visual progress bar to the `work-heading` (the classroom header):
+- **Logic**: Computes `prog = Math.round(((day.currentLesson + 1) / lessons.length) * 100)` — shows the percentage through the course based on the current lesson index.
+- **Rendering**: Only shows when `tool === "lesson"` and `lessons.length > 0`. The bar has:
+  - A track (light background) with a fill (navy gradient, `linear-gradient(90deg, #547590, #0f1f35)`)
+  - A subtle shimmer effect on the fill's leading edge
+  - A percentage label on the right
+  - A tooltip: "Lesson X of Y · N% through the course"
+  - Smooth width transition (`cubic-bezier(.4,0,.2,1)`, 0.4s)
+- **Verified**: `document.querySelector('.lesson-progress').textContent` = "25%" (lesson 1 of 4 = 25% for the GRO course).
+
+### 3. Styling: Rich CSS for the knowledge panel + progress bar
+Added 19 new CSS rules to `classroom.css`:
+
+**Knowledge panel** (`.knowledge-*`):
+- `.knowledge-search` — search input container with cream background, rounded border, clear button
+- `.knowledge-groups` — flex column with 22px gap between groups
+- `.knowledge-group-header` — flex row with 2px bottom border separator
+- `.knowledge-group-label` — uppercase, bold, 11px, ink color
+- `.knowledge-group-count` — navy pill badge with white text, 10px
+- `.knowledge-chunk-list` — responsive grid (`auto-fill, minmax(280px, 1fr)`)
+- `.knowledge-chunk` — card with cream background, border, hover lift effect (border darkens + shadow)
+- `.knowledge-chunk.safety` — amber left border (3px) + warm gradient background
+- `.knowledge-chunk-code` — module code badge with blue-tinted background
+- `.knowledge-safety-flag` — amber ShieldCheck icon
+- `.knowledge-chunk-content` — 11px text with fade-out gradient at the bottom (max-height: 120px)
+- `.knowledge-chunk-ask` — navy gradient button with gold text, hover lift + shadow
+
+**Lesson progress** (`.lesson-progress*`):
+- `.lesson-progress` — flex row, max-width 280px, 8px gap
+- `.lesson-progress-track` — 5px height, rounded, light background
+- `.lesson-progress-fill` — navy gradient fill with shimmer edge, smooth width transition
+- `.lesson-progress-label` — 10px bold, blue-grey color
+
+## Verification results
+- `GET /api/knowledge?pathwayCode=GRO` → 200, 18 chunks ✓
+- `GET /api/school` → 200 in ~2s ✓
+- `GET /api/courses` → 200, 2 enrolled courses (GRO + ACA) ✓
+- `/learn/classroom` → knowledge badge "Knowledge Base18 chunks" ✓
+- `/learn/classroom` → lesson progress bar "25%" (lesson 1 of 4) ✓
+- `/learn/classroom` → Knowledge panel: 7 groups, 18 chunks, search box, Ask Professor buttons ✓
+- `/learn/courses` → 15 programs, 0 errors ✓
+- `/learn/courses/animal-care-assistant` → Knowledge Base panel + Ask the Professor CTA ✓
+- Lint: 0 errors ✓
+- Dev log: clean (no pg errors, no EMAXCONNSESSION, no table-not-found) ✓
+- Browser console: 0 errors on all pages ✓
+
+## Unresolved issues / risks
+1. **Google OAuth**: `visitor.ts` still returns "demo-avery". Real Google OAuth remains the next major feature.
+2. **13-step intake pipeline**: The full 13-step intake (partner verification, recommendation engine, support team assignment) is not wired to the UI. The OnboardingFlow has 7 steps and creates a real enrollment.
+3. **RAG embeddings**: The 270 chunks have no vector embeddings. Retrieval uses keyword-overlap scoring. Adding real embeddings would improve semantic retrieval.
+4. **Knowledge panel "Ask Professor" button**: Currently sends the first 200 chars of the chunk text as a message. This works but could be improved to show a confirmation or loading state on the specific button clicked.
+
+## Priority recommendations for next phase
+1. **Wire real Google OAuth** to replace the demo-avery visitor system — this unlocks multi-learner support.
+2. **Wire the full 13-step intake pipeline** to the OnboardingFlow UI (partner verification, recommendation engine, support team auto-assignment).
+3. **Generate real vector embeddings** for the 270 RAG chunks to enable semantic retrieval.
+4. **Add a course completion dashboard** — show the learner's progress across all enrolled courses (progress %, lessons completed, knowledge chunks available, evidence count).
+5. **Add caching** to the school snapshot and knowledge endpoints (they're read-heavy and change infrequently).
