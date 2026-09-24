@@ -28,7 +28,7 @@ export const PORTALS: Record<PortalId, PortalDefinition> = {
   groomer: { id: "groomer", door: "/access-groomer", destination: "/groomer/dashboard", google: true },
   frontdesk: { id: "frontdesk", door: "/access-frontdesk", destination: "/frontdesk/dashboard", google: false },
   admin: { id: "admin", door: "/admin-login", destination: "/admin/dashboard", google: true },
-  lms: { id: "lms", door: "/learn/sign-in", destination: "/learn/dashboard", google: true },
+  lms: { id: "lms", door: "/learn/sign-in", destination: "/learn/classroom", google: true },
 };
 
 // ---------------------------------------------------------------------------

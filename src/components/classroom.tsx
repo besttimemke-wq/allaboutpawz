@@ -184,7 +184,7 @@ export default function Classroom(){
 
  return <main className="classroom" style={{"--subject":tone} as React.CSSProperties} data-testid="classroom">
   <header className="top-rail">
-   <button className="wordmark" aria-label="All About Pawz Academy" onClick={()=>navigate("lesson")}><span className="brand-academy">All About Pawz Academy</span><img src="/unleashe-logo.png" alt="UnLeashe" className="brand-logo"/></button>
+   <button className="wordmark" aria-label="All About Pawz Academy" onClick={()=>navigate("lesson")}><span className="brand-academy">All About Pawz Academy</span></button>
    <span className="brand-divider"/>
    <div className="learner-id"><span className="avatar">AJ</span><div><b>Avery Johnson</b><small>{course?.grade||"Diploma"} <span>· Leashed learner</span></small></div></div>
    <label className="course-switch"><BookOpen size={17}/><select aria-label="Active course" value={active} disabled={!!busy||locked||!courses.length} onChange={e=>changeCourse(Number(e.target.value))}>{!courses.length&&<option value={0}>Your classroom</option>}{courses.map(c=><option key={c.id} value={c.id}>{short(c)}</option>)}</select></label>

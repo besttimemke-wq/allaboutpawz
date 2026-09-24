@@ -187,10 +187,10 @@ export function CoursesCatalogView() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-cream text-ink">
+    <div className="min-h-screen flex flex-col bg-white text-ink">
       {/* Hero Header Banner — split grid: marble/cream left, image right */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
-        <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
+      <section className="grid grid-cols-1">
+        <div className="flex flex-col justify-center bg-white px-8 py-10 lg:px-12">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-4 h-4 text-gold-deep" strokeWidth={1.5} />
             <p className="eyebrow">ACADEMY CURRICULUM &amp; SYLLABUS</p>
@@ -205,10 +205,10 @@ export function CoursesCatalogView() {
 
           {/* Quick Route Shortcut to Enroll */}
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link href="/learn/enroll" className="btn-gold">
+            <Link href="/learn/enroll" className="inline-flex items-center justify-center gap-2 bg-black text-white text-[0.6875rem] font-bold tracking-[0.16em] uppercase px-7 py-3.5 hover:bg-black/85 transition-colors">
               GET STARTED / ENROLL NOW
             </Link>
-            <Link href="/learn/classroom" className="btn-ghost">
+            <Link href="/learn/classroom" className="inline-flex items-center justify-center gap-2 border border-black text-black text-[0.6875rem] font-bold tracking-[0.16em] uppercase px-7 py-3.5 hover:bg-black hover:text-white transition-colors">
               INTERACTIVE AI CLASSROOM
             </Link>
           </div>
@@ -247,14 +247,6 @@ export function CoursesCatalogView() {
           </div>
         </div>
 
-        {/* Right Photo Column — bright, no dark overlay */}
-        <div className="relative min-h-[300px]">
-          <img
-            src="/images/pets_caregiver.jpg"
-            alt="LEASHED Academy Students"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        </div>
       </section>
 
       {/* Main Catalog View: full-width to align with hero edges */}
@@ -262,7 +254,7 @@ export function CoursesCatalogView() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
           {/* Left Sidebar Filters */}
           <aside className="lg:col-span-4 xl:col-span-3 space-y-6 px-8 lg:px-12">
-            <div className="bg-cream rounded-2xl p-6 border border-gold/25 shadow-sm sticky top-24">
+            <div className="bg-white rounded-2xl p-6 border border-black/10 shadow-sm sticky top-24">
               {/* Academy Nav Header */}
               <div className="flex items-center justify-between pb-4 border-b border-gold/25">
                 <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-ink uppercase">
@@ -510,32 +502,22 @@ export function CoursesCatalogView() {
                     </p>
                     <button
                       onClick={handleResetFilters}
-                      className="px-4 py-2 rounded-full bg-gold-deep text-on-dark font-bold text-xs hover:bg-ink transition-colors"
+                      className="px-4 py-2 rounded-full bg-black text-white font-bold text-xs hover:bg-black/85 transition-colors"
                     >
                       Reset All Filters
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-4">
                     {filteredPrograms.map((program) => {
                       const matchedModules = programMatchingModulesMap[program.id] || [];
                       return (
                         <div
                           key={program.id}
-                          className="bg-cream rounded-2xl border border-gold/25 overflow-hidden shadow-xs hover:shadow-md hover:border-gold/25 transition-all flex flex-col justify-between"
+                          className="bg-white rounded-xl border border-black/10 overflow-hidden hover:border-black/30 transition-colors flex flex-col justify-between"
                         >
                           <div>
-                            {/* Top Image Banner with Badges - Crisp & Bright */}
-                            <div className="relative w-full aspect-[16/9] bg-cream-deep overflow-hidden">
-                              <Image
-                                src={program.heroImage}
-                                alt={program.title}
-                                fill
-                                sizes="(max-width: 768px) 100vw, 50vw"
-                                className="object-cover object-center brightness-100 contrast-[1.01] transition-transform duration-500 hover:scale-105"
-                                referrerPolicy="no-referrer"
-                              />
-                            </div>
+
 
                             {/* Card Body */}
                             <div className="p-5">

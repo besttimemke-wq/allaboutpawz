@@ -6,6 +6,7 @@
 
 import { supabase } from "./supabase";
 import { pgQuery, pgExec } from "./pg";
+import { companionForPathway } from "./curriculum";
 import type { Companion, CourseRecord } from "./types";
 
 function iso(value: Date | string | null | undefined): string {
@@ -24,6 +25,13 @@ function asRow<T = Row>(r: unknown): T {
 }
 
 const TENANT_ID = process.env.SUPABASE_TENANT_ID ?? "00000000-0000-0000-0000-000000000001";
+
+// Demo learner UUID — the visitor system in src/lib/visitor.ts is a fixed
+// demo identity ("demo-avery"). The lms.* schema uses UUID user_ids that FK
+// to auth.users. We seed exactly one real auth user (allaboutpawz901@gmail.com)
+// as the demo learner, and map the visitor to that UUID here. When real auth
+// lands, replace this with the actual session user_id.
+const DEMO_LEARNER_UUID = "7ea0339e-d79d-477e-adc5-66b6b417525d";
 
 // Stable integer ID derived from a UUID — the classroom UI uses integer IDs
 // for course lookup; lms.courses.id is a UUID. We derive a deterministic
@@ -57,22 +65,34 @@ type LmsCourseRow = {
 
 function mapCourseFromLms(c: LmsCourseRow): CourseRecord {
   const meta = (c.metadata && typeof c.metadata === "object" ? c.metadata : {}) as Record<string, unknown>;
-  const companionRaw = meta.companion ?? { title: c.title, sections: [] };
-  const companion = (
-    typeof companionRaw === "string"
-      ? (() => {
-          try { return JSON.parse(companionRaw); } catch { return { title: c.title, sections: [] }; }
-        })()
-      : companionRaw
-  ) as Companion;
+  // Companion resolution order:
+  //   1. lms.courses.metadata.companion (if a generated companion was persisted)
+  //   2. companionForPathway(c.code) — the curriculum.ts authored companions
+  //      keyed by pathway code (IPDG, PDT, ACA, PPS, CAT, PPC, ...)
+  //   3. Minimal fallback (title only, empty sections)
+  let companion: Companion | null = null;
+  const companionRaw = meta.companion;
+  if (typeof companionRaw === "string") {
+    try { companion = JSON.parse(companionRaw) as Companion; } catch { companion = null; }
+  } else if (companionRaw && typeof companionRaw === "object") {
+    companion = companionRaw as Companion;
+  }
+  if (!companion && c.code) {
+    try { companion = companionForPathway(c.code); } catch { companion = null; }
+  }
+  const fallback: Companion = {
+    title: c.title, subtitle: "", overview: "", alignment: { state: "TN", grade: "9-12", area: c.category || "Grooming", statute: "", authority: "", note: "" },
+    learningObjectives: [], sections: [], independentPractice: [], appliedProject: { title: "", brief: "", deliverables: [] },
+    glossary: [], familyNote: "", sources: [],
+  };
   return {
     id: uuidToInt(c.id),
-    state: (meta.state as string) || "TN",
-    area: c.category || (meta.area as string) || "Grooming",
-    statute: (meta.statute as string) || "",
-    grade: (meta.grade as string) || "9-12",
+    state: (meta.state as string) || companion?.alignment?.state || "TN",
+    area: c.category || (meta.area as string) || companion?.alignment?.area || "Grooming",
+    statute: (meta.statute as string) || companion?.alignment?.statute || "",
+    grade: (meta.grade as string) || companion?.alignment?.grade || "9-12",
     title: c.title,
-    companion,
+    companion: companion ?? fallback,
     model: (meta.model as string) || "gemini-1.5-flash",
     createdAt: iso(c.created_at),
   };
@@ -101,32 +121,39 @@ export async function saveCourse(
 }
 
 export async function listCourses(ownerId: string): Promise<CourseRecord[]> {
-  // LMS courses are tenant-scoped — every learner sees the same published
-  // catalog. ownerId is preserved for the demo seed path but does not filter
-  // the catalog query.
+  // The classroom canvas shows the LEARNER'S ENROLLED courses — not the
+  // catalog. The catalog (all 15 published) lives at /learn
+  // via courses-data.ts; the classroom queries the learner's active
+  // enrollments joined to lms.courses for the rich companion data.
+  //
+  // ownerId is the visitor string ("demo-avery" in this build). The lms.*
+  // schema uses UUID user_ids FK'd to auth.users. Until real auth lands,
+  // every classroom request maps to the seeded demo learner UUID.
   void ownerId;
   const rows = await pgQuery<LmsCourseRow>(
-    `SELECT id, tenant_id, code, title, slug, description, long_description, category, tags, is_published, sort_order, metadata, created_at, total_clock_hours, difficulty_level
-     FROM lms.courses
-     WHERE tenant_id = $1 AND is_published = true
-     ORDER BY sort_order ASC NULLS LAST, title ASC
+    `SELECT c.id, c.tenant_id, c.code, c.title, c.slug, c.description, c.long_description, c.category, c.tags, c.is_published, c.sort_order, c.metadata, c.created_at, c.total_clock_hours, c.difficulty_level
+     FROM lms.enrollments e
+     JOIN lms.courses c ON c.id = e.course_id AND c.tenant_id = e.tenant_id
+     WHERE e.learner_user_id = $1 AND e.status = 'active'
+     ORDER BY c.sort_order ASC NULLS LAST, c.title ASC
      LIMIT 50`,
-    [TENANT_ID],
+    [DEMO_LEARNER_UUID],
   );
   return rows.map(mapCourseFromLms);
 }
 
 export async function getCourse(ownerId: string, id: number): Promise<CourseRecord | null> {
+  // Same enrollment-scoped filter as listCourses; the classroom calls this
+  // with an integer id derived from uuidToInt(course.uuid).
   void ownerId;
-  // The classroom calls with an integer id; we look up across the tenant's
-  // published courses and match by the derived uuidToInt. Cheap at 15 rows.
   const rows = await pgQuery<LmsCourseRow>(
-    `SELECT id, tenant_id, code, title, slug, description, long_description, category, tags, is_published, sort_order, metadata, created_at, total_clock_hours, difficulty_level
-     FROM lms.courses
-     WHERE tenant_id = $1 AND is_published = true
-     ORDER BY sort_order ASC NULLS LAST, title ASC
+    `SELECT c.id, c.tenant_id, c.code, c.title, c.slug, c.description, c.long_description, c.category, c.tags, c.is_published, c.sort_order, c.metadata, c.created_at, c.total_clock_hours, c.difficulty_level
+     FROM lms.enrollments e
+     JOIN lms.courses c ON c.id = e.course_id AND c.tenant_id = e.tenant_id
+     WHERE e.learner_user_id = $1 AND e.status = 'active'
+     ORDER BY c.sort_order ASC NULLS LAST, c.title ASC
      LIMIT 50`,
-    [TENANT_ID],
+    [DEMO_LEARNER_UUID],
   );
   const match = rows.find((r) => uuidToInt(r.id) === id);
   return match ? mapCourseFromLms(match) : null;

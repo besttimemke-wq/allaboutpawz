@@ -81,10 +81,17 @@ Never claim this course is state-approved. Distinguish a statutory instructional
 COURSE COMPANION
 ${source.slice(0, 28000)}${knowledgeBlock}`;
 
-    const history = existing.map((item) => ({
-      role: item.role === "learner" ? ("user" as const) : ("model" as const),
-      text: item.content,
-    }));
+    const history = [
+      ...existing.map((item) => ({
+        role: item.role === "learner" ? ("user" as const) : ("model" as const),
+        text: item.content,
+      })),
+      // Always include the learner's new message in the history we send to
+      // the model — otherwise, when the persisted-message store is empty
+      // (e.g. right after enrollment, or when the message table is offline),
+      // the SDK receives only the system message and rejects the call.
+      { role: "user" as const, text: message },
+    ];
 
     const reply = await generateText(
       visitor.token,
