@@ -1189,3 +1189,94 @@ Added 19 new CSS rules to `classroom.css`:
 3. **Generate real vector embeddings** for the 270 RAG chunks to enable semantic retrieval.
 4. **Add a course completion dashboard** — show the learner's progress across all enrolled courses (progress %, lessons completed, knowledge chunks available, evidence count).
 5. **Add caching** to the school snapshot and knowledge endpoints (they're read-heavy and change infrequently).
+
+---
+Task ID: 22
+Agent: main (Z.ai Code) — webDevReview cron round 4
+Task: QA test, fix the returning EMAXCONNSESSION errors + 404 on /api/day, add a course progress dashboard, improve styling.
+
+## Current project status assessment
+The LMS is stable (Tasks 18-21). The knowledge panel, lesson progress bar, and knowledge badge all work. However, the dev log showed returning `EMAXCONNSESSION: max clients reached in session mode` errors AND a `404` on `/api/day?courseId=2099869391` (the GRO course). The 404 was a side-effect of the connection exhaustion — when pgQuery fails with EMAXCONNSESSION, it returns [] (empty), so `getCourse` returns null, so the day route returns 404. The root cause was that the Pool max:3 was still too high when other processes (test scripts, the dev server itself) held connections.
+
+## What changed this round
+
+### 1. Bug fix: pg.ts — retry logic + reduced Pool max to 2
+- Added an `isRetryable()` helper that detects EMAXCONNSESSION, "max clients reached", "Connection terminated", and connection-closed errors.
+- Added a `sleep()` helper for exponential backoff.
+- Refactored `withClient()` to retry up to 3 attempts with exponential backoff (150ms, 300ms) on transient pool exhaustion.
+- Reduced Pool `max` from 3 to 2 — stays well under the Supabase session pooler's 15-connection limit even when other processes hold connections.
+- Increased `connectionTimeoutMillis` from 5000 to 10000 — gives the retry logic more room to acquire a connection.
+- **Verified**: 5 rapid sequential requests to `/api/courses` all return 200 with no EMAXCONNSESSION errors. The dev log is clean after the fix.
+
+### 2. Bug fix: /api/day 404 on GRO course
+- The 404 was a symptom of the EMAXCONNSESSION bug — when `getCourse` couldn't acquire a connection, it returned null, so the day route returned "Course not found."
+- Fixed by the retry logic above — `getCourse` now retries on transient pool exhaustion and successfully returns the course.
+- **Verified**: `GET /api/day?courseId=2099869391` → 200 with full GRO course data (4 sections, glossary, family note, sources, day snapshot).
+
+### 3. Feature: Course progress dashboard (new "Progress" tool)
+Added a new "Progress" tool to the classroom's bottom rail, between "Knowledge" and "Assignments":
+- **Tool type**: Added `"progress"` to the `Tool` union type and `["progress","Progress",Target]` to the `TOOLS` array.
+- **Render branch** (`tool === "progress"`): A rich dashboard showing the learner's progress across all enrolled courses:
+  - **Header**: "YOUR LEARNING JOURNEY" eyebrow + "Progress dashboard" h2 + description + enrolled count pill
+  - **Metrics grid** (8 cards in a responsive grid): Enrolled Courses, Total Lessons, Learning Objectives, Submissions, Evidence Items, Saved Notes, Uploaded Files, Graded Items. Each card has a colored icon, a large value, and a label.
+  - **Course-by-course section**: A responsive grid of course cards (one per enrolled course). Each card shows:
+    - Course icon + title + lesson/objective/assignment count
+    - "Current" badge if it's the active course
+    - 3 stat boxes: Submitted count, Evidence count, Notes count
+    - A progress bar (work completion %) with the course's subject color
+    - Enrollment info: Level + deficiency focus
+    - "Continue learning" / "Open course" button
+  - **Progress calculation**: `workPct = Math.round(completedWork / totalWork * 100)` where totalWork = independent practice + applied project + quizzes (checks), and completedWork = submissions with status "Submitted" or "Completed".
+- **Verified**: 8 metric cards render with values "2, 8, 19, 0, 0, 0, 0, 0" (2 courses, 8 lessons, 19 objectives, 0 submissions/evidence/notes/files/grades). 2 course cards render (Pet Grooming + Animal Care Assistant), both showing "0% complete" (no submissions yet).
+
+### 4. Styling: Rich CSS for the progress dashboard
+Added 30 new CSS rules to `classroom.css`:
+
+**Metrics grid** (`.progress-metric*`):
+- `.progress-metrics-grid` — responsive grid (`auto-fill, minmax(140px, 1fr)`), 12px gap, 28px bottom margin
+- `.progress-metric-card` — flex column, centered, cream background, border, hover lift (translateY -2px + shadow)
+- `.progress-metric-icon` — 40px circle with colored background (18% opacity)
+- `.progress-metric-value` — 28px Playfair Display bold
+- `.progress-metric-label` — 10px uppercase, semi-bold, grey-green
+
+**Course cards** (`.progress-course*`):
+- `.progress-course-list` — responsive grid (`auto-fill, minmax(320px, 1fr)`), 14px gap
+- `.progress-course-card` — flex column, cream background, border, hover effect
+- `.progress-course-card.active` — blue border + blue shadow (highlights the current course)
+- `.progress-course-icon` — 34px rounded square with subject color
+- `.progress-course-badge` — "Current" pill (blue background, white text)
+- `.progress-course-stats` — flex row of 3 stat boxes
+- `.progress-course-stat` — flex column, cream background, rounded
+- `.progress-course-stat-value` — 18px Playfair Display bold
+- `.progress-course-stat-label` — 9px uppercase
+- `.progress-course-bar` — flex row with track + fill + label
+- `.progress-course-bar-fill` — subject-colored fill, smooth width transition
+- `.progress-course-bar-label` — 10px bold, right-aligned
+- `.progress-course-enrollment` — cream background info box with level + focus
+- `.progress-course-open` — navy button with white text, hover lift
+
+## Verification results
+- `pg.ts` retry logic: 5 rapid requests → all 200, no EMAXCONNSESSION ✓
+- `GET /api/day?courseId=2099869391` → 200 (was 404 before) ✓
+- `GET /api/courses` → 200, 2 enrolled courses (GRO + ACA) ✓
+- `/learn/classroom` → Progress dashboard: 8 metric cards, 2 course cards ✓
+- Progress metric values: "2, 8, 19, 0, 0, 0, 0, 0" (correct) ✓
+- Course cards: "Pet Grooming: 0% complete | Animal Care Assistant: 0% complete" ✓
+- Knowledge badge: "Knowledge Base18 chunks" ✓
+- Lesson progress bar: "25%" ✓
+- Lint: 0 errors ✓
+- Dev log: clean (no EMAXCONNSESSION, no query failed, no table-not-found) ✓
+- Browser console: 0 errors ✓
+
+## Unresolved issues / risks
+1. **Google OAuth**: `visitor.ts` still returns "demo-avery". Real Google OAuth remains the next major feature.
+2. **13-step intake pipeline**: The full 13-step intake (partner verification, recommendation engine, support team assignment) is not wired to the UI.
+3. **RAG embeddings**: The 270 chunks have no vector embeddings. Retrieval uses keyword-overlap scoring.
+4. **Progress dashboard shows 0% for both courses**: This is correct (no submissions yet) but means the learner needs to actually complete work to see progress. A future enhancement could show lesson position progress (current lesson / total lessons) in addition to work completion.
+
+## Priority recommendations for next phase
+1. **Wire real Google OAuth** to replace the demo-avery visitor system.
+2. **Wire the full 13-step intake pipeline** to the OnboardingFlow UI.
+3. **Generate real vector embeddings** for the 270 RAG chunks.
+4. **Add lesson-position progress** to the progress dashboard (current lesson / total lessons, not just work completion).
+5. **Add caching** to the school snapshot and knowledge endpoints.

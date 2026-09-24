@@ -7,6 +7,11 @@
 // Uses a Pool (not a single Client) so concurrent queries from the classroom
 // (which fires Promise.all for /api/courses + /api/workspace + /api/school)
 // can run in parallel instead of serializing onto one connection.
+//
+// Retry logic: Supabase's session pooler limits to 15 concurrent connections
+// per user. When that limit is hit, queries fail with EMAXCONNSESSION. The
+// pgQuery/pgExec helpers retry with exponential backoff (3 attempts) so
+// transient pool exhaustion doesn't surface as empty results to the UI.
 
 import { Pool, type PoolClient } from "pg";
 
@@ -26,16 +31,14 @@ function getPool(): Pool {
   if (_pool) return _pool;
   _pool = new Pool({
     connectionString,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000, // wait up to 10s for a connection (was 5s)
     query_timeout: 15000,
     // Supabase session pooler limits to 15 concurrent connections per user.
-    // Keep our pool small (3) so we stay well under the limit even with
-    // the Next.js dev server's own connections. Connections are released
-    // back to the pool after each query, so 3 is enough for parallelism.
-    max: 3,
+    // Use max:2 so we stay well under the limit even when other processes
+    // (test scripts, admin queries) hold connections. The retry logic below
+    // handles transient exhaustion by waiting + retrying instead of failing.
+    max: 2,
     idleTimeoutMillis: 10000, // close idle connections after 10s
-    // Don't keep the pool alive between requests — let it shrink to 0
-    // when idle to free connections for other processes.
   });
   // Surface pool errors so they don't silently swallow
   _pool.on("error", (err) => {
@@ -44,15 +47,48 @@ function getPool(): Pool {
   return _pool;
 }
 
+// Check whether an error is a transient connection-pool exhaustion that
+// is safe to retry (EMAXCONNSESSION, connection terminated, etc.).
+function isRetryable(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    msg.includes("EMAXCONNSESSION") ||
+    msg.includes("max clients reached") ||
+    msg.includes("Connection terminated") ||
+    msg.includes("terminating connection") ||
+    msg.includes("connection") && msg.includes("closed")
+  );
+}
+
+// Sleep helper for backoff.
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 // Acquire a client from the pool for a single query. Released automatically.
+// Retries on transient pool exhaustion with exponential backoff.
 async function withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const pool = getPool();
-  const client = await pool.connect();
-  try {
-    return await fn(client);
-  } finally {
-    client.release();
+  const maxAttempts = 3;
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let client: PoolClient | null = null;
+    try {
+      client = await pool.connect();
+      const result = await fn(client);
+      return result;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < maxAttempts && isRetryable(e)) {
+        // Exponential backoff: 150ms, 400ms
+        const delay = 150 * Math.pow(2, attempt - 1);
+        await sleep(delay);
+        continue;
+      }
+      throw e;
+    } finally {
+      if (client) client.release();
+    }
   }
+  throw lastErr;
 }
 
 // Run a parameterized query and return rows; never throws (logs + returns []).
