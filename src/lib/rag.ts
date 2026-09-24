@@ -1,28 +1,17 @@
 // RAG knowledge layer for the All About Pawz classroom.
 //
 // Architecture:
-//   - Default: chunks stored in Prisma (SQLite), retrieval is keyword overlap.
-//   - Supabase: when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are configured,
-//     retrieve() calls the `match_knowledge_chunks` RPC (pgvector cosine
-//     similarity) for semantic search. Ingest mirrors to both stores.
+//   - Storage: Supabase `knowledgeChunk` table in the public schema.
+//   - When `match_knowledge_chunks` RPC exists (pgvector cosine similarity),
+//     retrieve() prefers semantic search; otherwise it falls back to
+//     keyword-overlap scoring done in JS.
 //
 // Owner scoping: every chunk is owned by a single demo visitor (ownerId).
 
-import { prisma } from "./prisma";
+import { supabase as supabaseClient } from "./supabase";
 
-let supabaseClient: any = null;
 async function getSupabase() {
-  if (supabaseClient !== null) return supabaseClient;
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  try {
-    const { createClient } = await import("@supabase/supabase-js");
-    supabaseClient = createClient(url, key);
-    return supabaseClient;
-  } catch {
-    return null;
-  }
+  return supabaseClient;
 }
 
 export function isSupabaseEnabled(): boolean {
@@ -112,8 +101,9 @@ export async function ingestChunk(
   chunk: IngestInput,
 ): Promise<KnowledgeChunk> {
   const embeddingJson = chunk.embedding ? JSON.stringify(chunk.embedding) : null;
-  const row = await prisma.knowledgeChunk.create({
-    data: {
+  const { data, error } = await supabaseClient
+    .from("knowledgeChunk")
+    .insert({
       ownerId,
       sourceId: chunk.sourceId,
       pathwayCode: chunk.pathwayCode,
@@ -121,9 +111,22 @@ export async function ingestChunk(
       text: chunk.text,
       safetyFlag: chunk.safetyFlag ?? false,
       embedding: embeddingJson,
-    },
-  });
-  return mapChunk(row);
+    })
+    .select()
+    .single();
+  if (error || !data) {
+    console.error("[rag] ingestChunk failed:", error?.message);
+    return {
+      id: "",
+      sourceId: chunk.sourceId,
+      pathwayCode: chunk.pathwayCode,
+      moduleCode: chunk.moduleCode,
+      text: chunk.text,
+      safetyFlag: chunk.safetyFlag ?? false,
+      embedding: chunk.embedding ?? null,
+    };
+  }
+  return mapChunk(data as any);
 }
 
 // ---------------- Retrieve ----------------
@@ -178,23 +181,28 @@ export async function retrieve(
     }
   }
 
-  // --- Keyword fallback path (SQLite) ---
+  // --- Keyword fallback path (Supabase) ---
   const tokens = tokenize(query);
   if (tokens.length === 0) return [];
 
-  // Fetch candidate chunks. SQLite LIKE is case-insensitive for ASCII by
-  // default; we still lowercase the token to be safe across locales.
-  const where: { ownerId: string; pathwayCode?: string; OR?: Array<{ text: { contains: string } }> } = { ownerId };
+  let query_builder = supabaseClient
+    .from("knowledgeChunk")
+    .select("*")
+    .eq("ownerId", ownerId);
   if (pathwayCode && pathwayCode.trim()) {
-    where.pathwayCode = pathwayCode.trim();
+    query_builder = query_builder.eq("pathwayCode", pathwayCode.trim());
   }
-  // Pull chunks that contain ANY token — narrow with LIKE on first 8 tokens
-  // to keep the SQL cheap. (The rest are scored in JS.)
+  // PostgREST or syntax: filter text contains any of the first 8 tokens
   const orTokens = tokens.slice(0, 8);
-  where.OR = orTokens.map((t) => ({ text: { contains: t } }));
-
-  const rows = await prisma.knowledgeChunk.findMany({ where });
-  if (rows.length === 0) return [];
+  // Use `or` so the candidate set contains chunks matching ANY token
+  const orFilter = orTokens.map((t) => `text.ilike.%${t.replace(/,/g, "\\,")}%`).join(",");
+  query_builder = query_builder.or(orFilter);
+  const { data: rows, error: rowsErr } = await query_builder.limit(200);
+  if (rowsErr) {
+    console.error("[rag] retrieve candidates failed:", rowsErr.message);
+    return [];
+  }
+  if (!rows || rows.length === 0) return [];
 
   // Score by total token hit count, then by text length (shorter = denser).
   const lowerText = (text: string) => ` ${text.toLowerCase()} `;
@@ -218,7 +226,7 @@ export async function retrieve(
       return a.row.text.length - b.row.text.length;
     })
     .slice(0, cappedLimit)
-    .map((s) => mapChunk(s.row));
+    .map((s) => mapChunk(s.row as any));
 }
 
 // ---------------- Context builder ----------------
@@ -247,22 +255,44 @@ export async function listChunks(
   ownerId: string,
   pathwayCode?: string,
 ): Promise<KnowledgeChunk[]> {
-  const where: { ownerId: string; pathwayCode?: string } = { ownerId };
-  if (pathwayCode && pathwayCode.trim()) where.pathwayCode = pathwayCode.trim();
-  const rows = await prisma.knowledgeChunk.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
-  return rows.map(mapChunk);
+  let query = supabaseClient
+    .from("knowledgeChunk")
+    .select("*")
+    .eq("ownerId", ownerId);
+  if (pathwayCode && pathwayCode.trim()) {
+    query = query.eq("pathwayCode", pathwayCode.trim());
+  }
+  const { data, error } = await query
+    .order("createdAt", { ascending: false })
+    .limit(200);
+  if (error) {
+    console.error("[rag] listChunks failed:", error.message);
+    return [];
+  }
+  return (data ?? []).map((row) => mapChunk(row as any));
 }
 
 export async function deleteChunk(ownerId: string, id: string): Promise<void> {
-  await prisma.knowledgeChunk.deleteMany({ where: { ownerId, id } });
+  const { error } = await supabaseClient
+    .from("knowledgeChunk")
+    .delete()
+    .eq("ownerId", ownerId)
+    .eq("id", id);
+  if (error) console.error("[rag] deleteChunk failed:", error.message);
 }
 
 export async function countChunks(ownerId?: string): Promise<number> {
-  return prisma.knowledgeChunk.count(ownerId ? { where: { ownerId } } : undefined);
+  let query = supabaseClient.from("knowledgeChunk").select("*", {
+    count: "exact",
+    head: true,
+  });
+  if (ownerId) query = query.eq("ownerId", ownerId);
+  const { count, error } = await query;
+  if (error) {
+    console.error("[rag] countChunks failed:", error.message);
+    return 0;
+  }
+  return count ?? 0;
 }
 
 // RAG is considered "enabled" when at least one knowledge chunk exists in the

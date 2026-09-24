@@ -68,7 +68,7 @@ export default function FulfillmentPage() {
   };
 
   const navigate = (s: DawgNavSection) => router.push(`/admin/${s === 'dashboard' ? 'dashboard' : s}`);
-  const viewOrder = (id: string) => { window.location.href = `/admin/order-details?id=${id}`; };
+  const viewOrder = (id: string) => { window.location.assign(`/admin/order-details?id=${id}`); };
 
   const sendAlert = async (orderId: string) => {
     // Resend alert — calls the existing email infrastructure

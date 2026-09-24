@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVisitor } from "@/lib/visitor";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { resolveHumanNeed, saveLearningEvidence } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -88,18 +88,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the most recent attempt that matches the moduleCode. Try workKey
-    // first (exact match), then itemText contains moduleCode.
-    const match = await prisma.learningAttempt.findFirst({
-      where: {
-        ownerId,
-        OR: [
-          { workKey: moduleCode },
-          { itemText: { contains: moduleCode } },
-        ],
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, courseId: true, dayId: true, itemText: true, workKey: true, lessonIndex: true },
-    });
+    // first (exact match), then itemText contains moduleCode. PostgREST `or`
+    // supports both filters in one round-trip.
+    const matchFilter = `workKey.eq.${moduleCode},itemText.ilike.%${moduleCode.replace(/,/g, "\\,")}%`;
+    const { data: matchRow, error: matchErr } = await supabase
+      .from("learningAttempt")
+      .select("id, courseId, dayId, itemText, workKey, lessonIndex")
+      .eq("ownerId", ownerId)
+      .or(matchFilter)
+      .order("createdAt", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (matchErr) console.error("[instructor/review] match:", matchErr.message);
+    const match = matchRow
+      ? (matchRow as {
+          id: number;
+          courseId: number;
+          dayId: number;
+          itemText: string;
+          workKey: string | null;
+          lessonIndex: number;
+        })
+      : undefined;
 
     const explicitCourseId = Number(body.courseId);
     const courseId: number | undefined =
