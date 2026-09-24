@@ -31,14 +31,15 @@ function getPool(): Pool {
   if (_pool) return _pool;
   _pool = new Pool({
     connectionString,
-    connectionTimeoutMillis: 10000, // wait up to 10s for a connection (was 5s)
+    connectionTimeoutMillis: 15000, // wait up to 15s for a connection
     query_timeout: 15000,
     // Supabase session pooler limits to 15 concurrent connections per user.
-    // Use max:2 so we stay well under the limit even when other processes
-    // (test scripts, admin queries) hold connections. The retry logic below
-    // handles transient exhaustion by waiting + retrying instead of failing.
-    max: 2,
-    idleTimeoutMillis: 10000, // close idle connections after 10s
+    // Use max:1 so we NEVER exceed the pooler limit from our own pool — the
+    // session pooler handles multiplexing internally. The retry logic below
+    // (5 attempts, 200ms/400ms/800ms/1600ms backoff) handles transient
+    // exhaustion from OTHER processes holding pooler connections.
+    max: 1,
+    idleTimeoutMillis: 5000, // close idle connections after 5s to free pooler slots
   });
   // Surface pool errors so they don't silently swallow
   _pool.on("error", (err) => {
@@ -67,7 +68,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 // Retries on transient pool exhaustion with exponential backoff.
 async function withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const pool = getPool();
-  const maxAttempts = 3;
+  const maxAttempts = 5;
   let lastErr: unknown = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let client: PoolClient | null = null;
@@ -78,8 +79,8 @@ async function withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T>
     } catch (e) {
       lastErr = e;
       if (attempt < maxAttempts && isRetryable(e)) {
-        // Exponential backoff: 150ms, 400ms
-        const delay = 150 * Math.pow(2, attempt - 1);
+        // Exponential backoff: 200ms, 400ms, 800ms, 1600ms
+        const delay = 200 * Math.pow(2, attempt - 1);
         await sleep(delay);
         continue;
       }

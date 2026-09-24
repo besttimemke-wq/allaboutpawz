@@ -1280,3 +1280,65 @@ Added 30 new CSS rules to `classroom.css`:
 3. **Generate real vector embeddings** for the 270 RAG chunks.
 4. **Add lesson-position progress** to the progress dashboard (current lesson / total lessons, not just work completion).
 5. **Add caching** to the school snapshot and knowledge endpoints.
+
+---
+Task ID: 23
+Agent: main (Z.ai Code) — webDevReview cron round 5
+Task: QA test, fix the still-occurring EMAXCONNSESSION errors, add lesson-position progress to the dashboard, improve styling.
+
+## Current project status assessment
+The LMS is stable (Tasks 18-22). However, the dev log still showed occasional `EMAXCONNSESSION: max clients reached in session mode` errors and a `404` on `/api/day?courseId=2099869391`. The root cause: the Pool max:2 was still too high when the Next.js dev server + browser + other processes all hit the Supabase session pooler's 15-connection limit simultaneously. The 3-retry logic with 150ms/300ms backoff wasn't enough to ride out the contention. The progress dashboard also only showed work completion (0% for both courses) with no lesson-position progress, making it look empty even though the learner is on lesson 1 of 4.
+
+## What changed this round
+
+### 1. Bug fix: pg.ts — Pool max:1 + 5 retries with longer backoff
+- Reduced Pool `max` from 2 to **1** — we now NEVER exceed the pooler limit from our own pool. The session pooler handles multiplexing internally, so max:1 still allows good throughput (queries queue at the pool level instead of the pooler level).
+- Increased retry attempts from 3 to **5** with exponential backoff: 200ms, 400ms, 800ms, 1600ms (was 150ms, 300ms). This gives the pooler up to ~3 seconds to free a connection.
+- Increased `connectionTimeoutMillis` from 10000 to **15000** — gives the retry logic more room.
+- Reduced `idleTimeoutMillis` from 10000 to **5000** — frees pooler slots faster when idle.
+- **Verified**: 8 rapid parallel requests to `/api/courses` all return 200 with no EMAXCONNSESSION errors. Both course day endpoints return 200 (no 404s).
+
+### 2. Feature: Lesson-position progress on the dashboard
+Enhanced the progress dashboard's course cards to show TWO progress bars instead of one:
+- **Lesson position bar**: Shows the learner's current lesson position (e.g. "1 / 4") as a percentage of total lessons. Uses `day.currentLesson` for the active course. For inactive courses, shows "Not started" with a 0% bar.
+- **Work completion bar**: Shows the percentage of submitted work (was the only bar before). Rendered in a muted amber (#956e29 at 70% opacity) to visually distinguish from the lesson position bar.
+- **Current lesson title**: A new info row showing the title of the active course's current lesson (e.g. "Foundation — Dog Life, Breeds & Salon Safety") with a gradient background.
+- **Updated stat boxes**: Changed from "Submitted / Evidence / Notes" to "Lesson / Submitted / Artifacts" (Artifacts = Evidence + Notes combined) — more meaningful at a glance.
+- **Verified**: GRO (active) shows "Lesson position: 1 / 4" + "Work completion: 0%" + "Foundation — Dog Life, Breeds & Salon Safety". ACA (inactive) shows "Lesson position: Not started" + "Work completion: 0%".
+
+### 3. Styling: New CSS for the dual-bar layout
+Added 6 new CSS rules to `classroom.css`:
+- `.progress-course-bar-section` — flex column with 5px gap (wraps each bar + its label row)
+- `.progress-course-bar-label-row` — flex row, space-between, for the bar title + percentage
+- `.progress-course-bar-title` — 10px uppercase, semi-bold, grey-green
+- `.progress-course-bar-pct` — 11px bold, ink color
+- `.progress-course-current-lesson` — gradient background (blue→cream), 11px blue text, with icon
+- `.progress-course-current-lesson svg` — blue icon, flex-none
+
+## Verification results
+- `pg.ts` Pool max:1 + 5 retries: 8 parallel requests → all 200, no EMAXCONNSESSION ✓
+- `GET /api/day?courseId=2099869391` → 200 (no more 404) ✓
+- `GET /api/day?courseId=1554339335` → 200 ✓
+- `/learn/classroom` → Progress dashboard: 8 metric cards, 2 course cards with dual progress bars ✓
+- Lesson position bars: "Lesson position | Work completion" for each course ✓
+- Lesson position values: "1 / 4 | 0% | Not started | 0%" ✓
+- Current lesson title: "Foundation — Dog Life, Breeds & Salon Safety" ✓
+- Knowledge badge: "Knowledge Base18 chunks" ✓
+- Lesson progress bar: "25%" ✓
+- Lint: 0 errors ✓
+- Dev log: clean (no EMAXCONNSESSION, no 404s, no query failed) ✓
+- Browser console: 0 errors ✓
+
+## Unresolved issues / risks
+1. **Google OAuth**: `visitor.ts` still returns "demo-avery". Real Google OAuth remains the next major feature.
+2. **13-step intake pipeline**: The full 13-step intake (partner verification, recommendation engine, support team assignment) is not wired to the UI.
+3. **RAG embeddings**: The 270 chunks have no vector embeddings. Retrieval uses keyword-overlap scoring.
+4. **Lesson position only shows for the active course**: Inactive courses show "Not started" because we only have `day.currentLesson` for the active course. To show lesson position for all courses, we'd need to fetch day snapshots for each (expensive) or persist the current lesson index per enrollment.
+5. **Pool max:1 serializes queries**: This is a tradeoff — queries within a single request now serialize, but the retry logic prevents EMAXCONNSESSION failures. For production with a dedicated database, max could be increased.
+
+## Priority recommendations for next phase
+1. **Wire real Google OAuth** to replace the demo-avery visitor system.
+2. **Wire the full 13-step intake pipeline** to the OnboardingFlow UI.
+3. **Generate real vector embeddings** for the 270 RAG chunks.
+4. **Persist current lesson index per enrollment** so the progress dashboard can show lesson position for all courses, not just the active one.
+5. **Add caching** to the school snapshot and knowledge endpoints (they're read-heavy and change infrequently).
