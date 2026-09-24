@@ -1559,14 +1559,29 @@ export async function enrollGeneratedCourse(ownerId: string, courseId: number) {
     return;
   }
 
-  // Check for an existing enrollment
-  const existing = await pgQuery<{ id: string }>(
-    `SELECT id FROM lms.enrollments
-     WHERE learner_user_id = $1 AND course_id = $2 AND status = 'active'
-     LIMIT 1`,
-    [DEMO_LEARNER_UUID, courseUuid],
+  // A learner is enrolled in ONE certificate course at a time. If the learner
+  // is already enrolled in a DIFFERENT course, drop that enrollment first
+  // (mark it 'dropped') so the new enrollment replaces it. If already
+  // enrolled in the SAME course, this is a no-op.
+  const existingEnrollments = await pgQuery<{ id: string; course_id: string }>(
+    `SELECT id, course_id FROM lms.enrollments
+     WHERE learner_user_id = $1 AND status = 'active'
+     LIMIT 5`,
+    [DEMO_LEARNER_UUID],
   );
-  if (existing.length > 0) return; // already enrolled
+  const alreadyEnrolled = existingEnrollments.some((e) => e.course_id === courseUuid);
+  if (alreadyEnrolled) return; // already enrolled in this exact course
+
+  // Drop all other active enrollments (one certificate course at a time)
+  for (const e of existingEnrollments) {
+    if (e.course_id !== courseUuid) {
+      await pgExec(
+        `UPDATE lms.enrollments SET status = 'dropped', dropped_at = now(), updated_at = now()
+         WHERE id = $1`,
+        [e.id],
+      );
+    }
+  }
 
   await pgExec(
     `INSERT INTO lms.enrollments
