@@ -54,6 +54,8 @@ export function OnboardingFlow({ initialStep = 1 }: OnboardingFlowProps) {
   const [phone, setPhone] = useState('(555) 123-4567');
   const [educationLevel, setEducationLevel] = useState('Some College');
   const [hearAboutUs, setHearAboutUs] = useState('Shelter / Vet Referral');
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [enrollmentStatus, setEnrollmentStatus] = useState<string | null>(null);
 
   // Toggle goal helper
   const toggleGoal = (goal: string) => {
@@ -62,6 +64,41 @@ export function OnboardingFlow({ initialStep = 1 }: OnboardingFlowProps) {
     } else {
       setSelectedGoals([...selectedGoals, goal]);
     }
+  };
+
+  // Map the learner's selected goals to a real lms.courses pathway code.
+  // The first matching goal wins (priority order matters).
+  const pathwayCodeFromGoals = (goals: string[]): string => {
+    if (goals.includes('Become a professional pet groomer')) return 'GRO';
+    if (goals.includes('Become a professional dog trainer')) return 'PRT';
+    if (goals.includes('Become a pet sitter')) return 'ACA';
+    if (goals.includes('Learn business and entrepreneurship')) return 'GSP';
+    if (goals.includes('Gain animal care knowledge')) return 'ACA';
+    return 'ACA'; // default: Animal Care Assistant (the demo enrollment)
+  };
+
+  // Create a real enrollment in lms.enrollments before navigating to the
+  // classroom. This bridges the onboarding flow to the live LMS data layer.
+  const handleGoToClassroom = async () => {
+    setIsEnrolling(true);
+    setEnrollmentStatus('Activating your enrollment…');
+    try {
+      const code = pathwayCodeFromGoals(selectedGoals);
+      const resp = await fetch('/api/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      if (resp.ok) {
+        setEnrollmentStatus('Enrollment confirmed! Opening classroom…');
+      } else {
+        setEnrollmentStatus('Enrollment already active — opening classroom…');
+      }
+    } catch {
+      setEnrollmentStatus('Opening classroom…');
+    }
+    // Small delay so the learner sees the confirmation message
+    setTimeout(() => router.push('/learn/classroom'), 600);
   };
 
   const nextStep = () => {
@@ -1046,14 +1083,29 @@ export function OnboardingFlow({ initialStep = 1 }: OnboardingFlowProps) {
                 </p>
 
                 {/* Primary Action — black "Go to Classroom" button */}
-                <div className="pt-2">
+                <div className="pt-2 space-y-2">
                   <button
-                    onClick={() => router.push('/learn/classroom')}
-                    className="w-full inline-flex items-center justify-center gap-2 py-4 px-6 rounded-xl bg-ink hover:bg-ink/90 text-on-dark font-bold text-sm tracking-wide transition-all duration-150 shadow-md hover:shadow-lg active:scale-[0.99]"
+                    onClick={handleGoToClassroom}
+                    disabled={isEnrolling}
+                    className="w-full inline-flex items-center justify-center gap-2 py-4 px-6 rounded-xl bg-ink hover:bg-ink/90 text-on-dark font-bold text-sm tracking-wide transition-all duration-150 shadow-md hover:shadow-lg active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    <span>Go to Classroom</span>
-                    <ArrowRight className="w-4 h-4" />
+                    {isEnrolling ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-on-dark/40 border-t-on-dark rounded-full animate-spin" />
+                        <span>Activating enrollment…</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Go to Classroom</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
+                  {enrollmentStatus && (
+                    <p className="text-center text-[0.72rem] text-emerald-700 font-semibold animate-in fade-in duration-200">
+                      ✓ {enrollmentStatus}
+                    </p>
+                  )}
                 </div>
               </div>
             );

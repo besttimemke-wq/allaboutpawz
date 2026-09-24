@@ -942,3 +942,93 @@ The old seed.ts queried `public.classroomMeeting`, `public.course`, `public.cour
 ## The bridge is complete
 The UI shell (CoursesCatalogView, ProgramDetailView, classroom canvas) now reads from the real enterprise `lms.*` schema via `pgQuery`. Every fetch hook returns real data. The hardcoded `courses-data.ts` presentation chrome is married to live DB rows by pathway code. The AI Professor, Day lifecycle, workspace, school snapshot, and RAG layer all persist to / read from the correct `lms.*` tables. The `public.knowledgeChunk` / `public.classroomMeeting` / `public.learnerNote` errors are eliminated.
 
+
+---
+Task ID: 19
+Agent: main (Z.ai Code) — webDevReview cron round 1
+Task: Assess project status, QA test, fix bugs, add features (RAG seeding + enrollment wiring + Knowledge Base panel), improve styling.
+
+## Current project status assessment
+The LMS is stable and married to the real `lms.*` schema (Task 18). All key endpoints return 200 with real data. The AI Professor is working end-to-end with the Z.ai SDK (real AI responses persisted to `lms.ai_tutor_messages`). The dev log is clean of table-not-found errors. The QA pass (agent-browser on home, catalog, pathway detail, classroom, enroll) shows 0 console errors on all pages.
+
+## What changed this round
+
+### 1. Bug fix: RAG pathway code resolution was broken
+- `courseIdForPathway()` in `rag.ts` queried `metadata->>'pathwayCode'` but the courses don't have that metadata — they have the `code` column (e.g. "ACA"). Fixed to query `UPPER(code) = UPPER($2)`.
+- `pathwayCodeFromCourse()` didn't accept the `code` field. Added `code?: string | null` to the type and made it the first preference (before the statute regex fallback). This means `pathwayCodeFromCourse({code:"ACA"})` now correctly returns "ACA".
+- **Impact**: RAG retrieval was completely broken before this fix — it could never find a course_id, so it could never scope chunks to a pathway. Now it works.
+
+### 2. Feature: Seeded 270 real RAG chunks from companion curriculum
+- Wrote `scripts/seed-rag-chunks.ts` that chunks each course's companion into `lms.ai_rag_chunks`:
+  - 1 overview chunk
+  - 1 learning objectives chunk
+  - 4 section chunks (lesson + worked example + checks, per term)
+  - 1 independent practice chunk
+  - 1 applied project chunk
+  - 8 glossary term chunks
+  - 1 family note chunk
+  - 1 sources chunk
+  = 18 chunks per course × 15 courses = **270 chunks total**
+- Safety-flagged chunks: sections with safety/gate/restrain/bite/aggressive/fear/panic/injur keywords + glossary terms with safety/quick/bite/injur/restrain keywords. 4 safety-flagged chunks per course.
+- Fixed check constraint violations:
+  - `document_type` must be one of: textbook, study_guide, handbook, procedure_manual, safety_protocol, akc_breed_standard, cpr_first_aid, business_template, video_transcript, regulation_reference, curriculum_supplement, system_training, instructor_guide, answer_key → used `study_guide`
+  - `processing_status` must be: pending, processing, completed, failed, reprocessing → used `completed`
+  - `rag_role` must be NULL or: core, reference, supplementary, system → used `core`
+  - `embedding_model` existing rows use `text-embedding-3-small` with 1536 dimensions → used that
+- Fixed `mapChunk()` in rag.ts to prefer the chunk-level safety flag (stored in `chunk_metadata.safetyFlag`) over the document-level flag, so non-safety chunks don't inherit the doc-level flag.
+- **Verified**: `GET /api/knowledge?pathwayCode=ACA` returns 18 ACA-scoped chunks. `GET /api/knowledge` returns 270 total.
+
+### 3. Feature: Wired OnboardingFlow to create real enrollment
+- Created `/api/enroll` POST endpoint that resolves a course by pathway code (e.g. "GRO") and calls `enrollGeneratedCourse()`.
+- Updated `OnboardingFlow.tsx` step 7 "Go to Classroom" button:
+  - Added `pathwayCodeFromGoals()` that maps selected goals to pathway codes (groomer→GRO, trainer→PRT, sitter→ACA, business→GSP, animal care→ACA)
+  - Added `handleGoToClassroom()` that POSTs to `/api/enroll` with the resolved code, shows a loading spinner + confirmation message, then navigates to the classroom
+  - Added `isEnrolling` + `enrollmentStatus` state for the loading UX
+- **Verified**: `POST /api/enroll {"code":"GRO"}` → 200, creates real enrollment. `GET /api/courses` now returns 2 enrolled courses (ACA + GRO).
+
+### 4. Bug fix: enrollGeneratedCourse FK constraint on course_version_id
+- The old code fell back to `"00000000-0000-0000-0000-000000000000"` when `current_version_id` was NULL, which violated the FK constraint `enrollments_tenant_id_course_version_id_fkey`.
+- Fixed to resolve `course_version_id` in order:
+  1. `lms.courses.current_version_id`
+  2. Any existing published version in `lms.course_versions` for this course
+  3. Create a new published version row (`version_number=1, status='published', is_current=true`) and update the course's `current_version_id`
+- **Verified**: GRO enrollment created successfully with a new course_versions row.
+
+### 5. Styling: AI Professor Knowledge Base panel on pathway detail
+- Updated `/learn/courses/[slug]/page.tsx` to fetch RAG chunks server-side via `listChunks()` and pass them as `knowledgeChunks` prop to `ProgramDetailView`.
+- Added a new `KnowledgeChunk[]` prop to `ProgramDetailViewProps`.
+- Added a new section to the overview tab (between "What You'll Learn" and "How Your Time Is Spent"):
+  - **Dark navy gradient background** (`from-[#0f1f35] to-[#1a2f4a]`) with gold accents
+  - **"AI Professor Knowledge Base"** heading with Sparkles icon
+  - **Chunk count** display: "The AI Professor draws from **N knowledge chunks** seeded from the companion curriculum"
+  - **4-card breakdown**: Overview count, Lessons count, Glossary count, Safety count (each with icon + number + label)
+  - **Sample topics**: module code pills (ACA-100, ACA-200, ACA-OBJ, ACA-PRAC, ACA-PROJ)
+  - **"Ask the Professor a Question"** CTA button linking to the classroom
+- **Verified**: agent-browser confirms the panel renders with "LeashGuide AI knows this pathway" heading + "Ask the Professor a Question" link.
+
+## Verification results
+- `GET /api/knowledge` → 200, 270 chunks total
+- `GET /api/knowledge?pathwayCode=ACA` → 200, 18 ACA-scoped chunks
+- `POST /api/enroll {"code":"GRO"}` → 200, `{"ok":true,"courseId":2099869391}`
+- `GET /api/courses` → 200, 2 enrolled courses (ACA + GRO)
+- `GET /api/workspace` → 200, no errors
+- `GET /api/school` → 200, real enrollments
+- `GET /api/day?courseId=1554339335` → 200, full companion + day snapshot + 3 real AI professor messages
+- `/learn/courses` → 15 DB-backed programs, 0 errors
+- `/learn/courses/animal-care-assistant` → Knowledge Base panel with 18 chunks, "Ask the Professor" CTA, 0 errors
+- `/learn/classroom` → full canvas, 0 errors
+- `/learn/enroll` → 7-step OnboardingFlow, 0 errors
+- Lint: 0 errors
+- Dev log: clean (no table-not-found, no FK constraint errors, no column errors)
+
+## Unresolved issues / risks
+1. **Google OAuth**: `visitor.ts` still returns "demo-avery". Real Google OAuth is wired in the API routes but the visitor system doesn't use it. This is the next major feature to wire.
+2. **13-step intake pipeline**: The worklog mentions a 13-step intake API was built in an earlier session, but the route file doesn't exist at `/api/intake`. The OnboardingFlow has 7 steps and now creates a real enrollment, but the full 13-step intake (with partner verification, recommendation engine, support team assignment) is not wired to the UI.
+3. **Classroom course dropdown**: After enrolling in a 2nd course (GRO), the classroom dropdown shows "Your classroom" (disabled). The classroom component may need a refresh to show multiple enrolled courses in the selector. This is a pre-existing UI behavior, not a data issue (the API returns 2 courses).
+4. **RAG embeddings**: The 270 chunks have no vector embeddings (`embedding_model='text-embedding-3-small'` is set but no actual embeddings are generated). Retrieval uses keyword-overlap scoring, which works well for the companion content. Adding real embeddings would improve semantic retrieval but requires an embedding API call per chunk.
+
+## Priority recommendations for next phase
+1. **Wire real Google OAuth** to replace the demo-avery visitor system — this unlocks multi-learner support.
+2. **Wire the full 13-step intake pipeline** to the OnboardingFlow UI (partner verification, recommendation engine, support team auto-assignment).
+3. **Add a knowledge base panel to the classroom** — show the learner what the Professor knows for the active course (similar to the pathway detail panel).
+4. **Generate real vector embeddings** for the 270 RAG chunks to enable semantic retrieval.

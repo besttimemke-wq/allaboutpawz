@@ -24,13 +24,16 @@ import { ProgramDetails } from '@/lib/courses-data';
 import { ALL_PROGRAM_SYLLABI, ProgramInstitutionalData } from '@/lib/syllabi-data';
 import { ALL_CATALOG_MODULES, CatalogModule } from '@/lib/catalog-modules';
 import type { CourseRecord } from '@/lib/types';
+import type { KnowledgeChunk } from '@/lib/rag';
+import { BookOpen, Sparkles, ShieldAlert } from 'lucide-react';
 
 interface ProgramDetailViewProps {
   program: ProgramDetails;
   dbCourse?: CourseRecord | null;
+  knowledgeChunks?: KnowledgeChunk[];
 }
 
-export function ProgramDetailView({ program, dbCourse }: ProgramDetailViewProps) {
+export function ProgramDetailView({ program, dbCourse, knowledgeChunks }: ProgramDetailViewProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'outcomes' | 'requirements' | 'faq'>('overview');
   const [curriculumViewMode, setCurriculumViewMode] = useState<'terms' | 'weekly' | 'catalog'>('terms');
   const [openTermIndex, setOpenTermIndex] = useState<number | null>(0);
@@ -218,6 +221,93 @@ export function ProgramDetailView({ program, dbCourse }: ProgramDetailViewProps)
                     ))}
                   </div>
                 </section>
+
+                {/* AI Professor Knowledge Base — shows what the LeashGuide AI
+                    Professor knows for this pathway. Pulls from the real
+                    lms.ai_rag_chunks seeded from the companion curriculum. */}
+                {knowledgeChunks && knowledgeChunks.length > 0 && (
+                  <section className="bg-gradient-to-br from-[#0f1f35] to-[#1a2f4a] p-6 sm:p-8 border-t border-gold/25 text-on-dark">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gold mb-3">
+                      <Sparkles className="w-4 h-4" />
+                      AI Professor Knowledge Base
+                    </div>
+                    <h2 className="font-display text-2xl font-bold text-on-dark mb-2">
+                      LeashGuide AI knows this pathway
+                    </h2>
+                    <p className="text-sm text-on-dark/70 leading-relaxed mb-5 max-w-2xl">
+                      The AI Professor draws from{' '}
+                      <strong className="text-gold">{knowledgeChunks.length} knowledge chunks</strong>{' '}
+                      seeded from the companion curriculum — including lessons, glossary terms,
+                      safety protocols, and applied project briefs. Ask any question and get
+                      a grounded, source-cited response in real time.
+                    </p>
+
+                    {/* Knowledge chunk type breakdown */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                      {(() => {
+                        const types: Record<string, { count: number; icon: typeof BookOpen; label: string }> = {
+                          overview: { count: 0, icon: BookOpen, label: 'Overview' },
+                          lesson: { count: 0, icon: BookOpen, label: 'Lessons' },
+                          glossary: { count: 0, icon: BookOpen, label: 'Glossary' },
+                          safety: { count: 0, icon: ShieldAlert, label: 'Safety' },
+                        };
+                        for (const c of knowledgeChunks) {
+                          const t = (c.text || '').toLowerCase();
+                          if (t.startsWith('section') || t.startsWith('lesson')) types.lesson.count++;
+                          else if (t.startsWith('glossary')) types.glossary.count++;
+                          else if (t.startsWith('overview') || t.startsWith('pathway overview') || t.startsWith('learning objectives')) types.overview.count++;
+                          if (c.safetyFlag) types.safety.count++;
+                        }
+                        return Object.entries(types).map(([key, val]) => {
+                          const Icon = val.icon;
+                          return (
+                            <div
+                              key={key}
+                              className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm"
+                            >
+                              <Icon className={`w-4 h-4 ${key === 'safety' ? 'text-amber-400' : 'text-gold'}`} />
+                              <span className="text-lg font-bold text-on-dark">{val.count}</span>
+                              <span className="text-[0.65rem] uppercase tracking-wider text-on-dark/60 font-semibold">{val.label}</span>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+
+                    {/* Sample topics */}
+                    <div className="space-y-2">
+                      <span className="text-[0.7rem] font-bold uppercase tracking-wider text-on-dark/50">
+                        Sample topics the Professor can teach
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {knowledgeChunks
+                          .filter((c) => c.moduleCode && !c.moduleCode.endsWith('GLOSS') && !c.moduleCode.endsWith('SRC') && !c.moduleCode.endsWith('FAM'))
+                          .slice(0, 8)
+                          .map((c, i) => (
+                            <span
+                              key={i}
+                              className="text-[0.7rem] px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-on-dark/80 font-medium"
+                            >
+                              {c.moduleCode}
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Launch CTA */}
+                    {dbCourse && (
+                      <div className="mt-5 pt-5 border-t border-white/10">
+                        <Link
+                          href={`/learn/classroom`}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gold hover:bg-gold/90 text-ink font-bold text-sm transition-all duration-150 shadow-md"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          <span>Ask the Professor a Question</span>
+                        </Link>
+                      </div>
+                    )}
+                  </section>
+                )}
 
                 {/* How Your Time Is Spent - Donut Breakdown */}
                 <section className="bg-cream p-6 sm:p-8 border-t border-gold/25">

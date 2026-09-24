@@ -96,14 +96,13 @@ type DocRow = {
 };
 
 // Look up the course UUID for a pathway code (e.g. "ACA"). RAG chunks are
-// scoped to a course_id; we resolve pathwayCode → course_id via
-// lms.courses.metadata.pathwayCode (the demo enrollment seeds this).
+// scoped to a course_id; we resolve pathwayCode → course_id via the
+// lms.courses.code column (the real schema stores the pathway code there).
 async function courseIdForPathway(pathwayCode: string): Promise<string | null> {
   if (!pathwayCode) return null;
   const rows = await pgQuery<{ id: string }>(
-    `SELECT c.id FROM lms.courses c
-     WHERE c.tenant_id = $1
-       AND c.metadata->>'pathwayCode' = $2
+    `SELECT id FROM lms.courses
+     WHERE tenant_id = $1 AND UPPER(code) = UPPER($2)
      LIMIT 1`,
     [TENANT_ID, pathwayCode],
   );
@@ -134,7 +133,11 @@ function mapChunk(
     pathwayCode,
     moduleCode,
     text: chunk.content,
-    safetyFlag: Boolean(doc?.safety_flag ?? false),
+    // Prefer the chunk-level safety flag (stored in chunk_metadata by the
+    // seed script); fall back to the document-level flag.
+    safetyFlag: chunkMeta.safetyFlag != null
+      ? Boolean(chunkMeta.safetyFlag)
+      : Boolean(doc?.safety_flag ?? false),
     embedding: null, // embeddings are vector type; not surfaced to JS
   };
 }
@@ -167,9 +170,9 @@ export async function ingestChunk(
       `INSERT INTO lms.ai_rag_documents
          (id, tenant_id, course_id, document_type, title, total_chunks, chunk_size, chunk_overlap,
           embedding_model, embedding_dimensions, processing_status, metadata, safety_flag, learner_facing, rag_role)
-       VALUES (gen_random_uuid(), $1, $2, 'companion', $3, 1, 0, 0, 'none', 0, 'ready', $4::jsonb, $5, true, $6)
+       VALUES (gen_random_uuid(), $1, $2, 'study_guide', $3, 1, 0, 0, 'text-embedding-3-small', 1536, 'completed', $4::jsonb, $5, true, 'core')
        RETURNING id`,
-      [TENANT_ID, courseId, chunk.sourceId, docMeta, chunk.safetyFlag ?? false, chunk.pathwayCode],
+      [TENANT_ID, courseId, chunk.sourceId, docMeta, chunk.safetyFlag ?? false],
     );
     docId = inserted.length > 0 ? inserted[0].id : null;
   }
@@ -390,9 +393,14 @@ export async function ragEnabled(ownerId?: string): Promise<boolean> {
 // so RAG retrieval can be scoped to the active pathway. Falls back to any
 // short uppercase token, then to the area title.
 export function pathwayCodeFromCourse(course: {
+  code?: string | null;
   area?: string;
   statute?: string;
 }): string | undefined {
+  // Prefer the explicit code column (lms.courses.code = "ACA", "VET", etc.)
+  if (course.code && course.code.length >= 2 && course.code.length <= 8) {
+    return course.code.toUpperCase();
+  }
   const statute = course.statute || "";
   const match = statute.match(/Leashed\s+([A-Z][A-Z0-9]{1,7})\b/);
   if (match) return match[1];

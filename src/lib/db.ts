@@ -1501,14 +1501,54 @@ export async function enrollGeneratedCourse(ownerId: string, courseId: number) {
     console.error("[db] enrollGeneratedCourse: course not found for int id", courseId);
     return;
   }
-  // Find the course_version_id (required NOT NULL). The demo courses store
-  // current_version_id; fall back to creating nothing if it's missing — we
-  // use the course id itself as a synthetic version id.
-  const versionRows = await pgQuery<{ current_version_id: string | null }>(
+
+  // Resolve the course_version_id (required NOT NULL + FK to
+  // lms.course_versions). Try in order:
+  //   1. lms.courses.current_version_id
+  //   2. Any existing published version for this course
+  //   3. Create a new published version row
+  const courseRows = await pgQuery<{ current_version_id: string | null }>(
     `SELECT current_version_id FROM lms.courses WHERE id = $1`,
     [courseUuid],
   );
-  const versionId = versionRows.length > 0 ? versionRows[0].current_version_id : null;
+  let versionId = courseRows.length > 0 ? courseRows[0].current_version_id : null;
+
+  if (!versionId) {
+    // Look for any existing published version for this course
+    const existingVersions = await pgQuery<{ id: string }>(
+      `SELECT id FROM lms.course_versions
+       WHERE course_id = $1 AND status = 'published'
+       ORDER BY version_number DESC LIMIT 1`,
+      [courseUuid],
+    );
+    if (existingVersions.length > 0) {
+      versionId = existingVersions[0].id;
+    } else {
+      // Create a new published version row for this course
+      const newVersion = await pgQuery<{ id: string }>(
+        `INSERT INTO lms.course_versions
+           (id, tenant_id, course_id, version_number, version_label, status,
+            is_current, content_snapshot, published_at)
+         VALUES (gen_random_uuid(), $1, $2, 1, 'v1.0', 'published',
+                 true, '{}'::jsonb, now())
+         RETURNING id`,
+        [TENANT_ID, courseUuid],
+      );
+      versionId = newVersion.length > 0 ? newVersion[0].id : null;
+      // Also update the course's current_version_id
+      if (versionId) {
+        await pgExec(
+          `UPDATE lms.courses SET current_version_id = $1 WHERE id = $2`,
+          [versionId, courseUuid],
+        );
+      }
+    }
+  }
+
+  if (!versionId) {
+    console.error("[db] enrollGeneratedCourse: could not resolve course_version_id for", courseUuid);
+    return;
+  }
 
   // Check for an existing enrollment
   const existing = await pgQuery<{ id: string }>(
@@ -1531,7 +1571,7 @@ export async function enrollGeneratedCourse(ownerId: string, courseId: number) {
       TENANT_ID,
       DEMO_LEARNER_UUID,
       courseUuid,
-      versionId ?? "00000000-0000-0000-0000-000000000000",
+      versionId,
       JSON.stringify({ pathwayCode: "ENROLLED", demoEnrollment: true }),
     ],
   );

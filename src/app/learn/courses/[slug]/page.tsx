@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 import { getProgramBySlug, COURSES_PROGRAMS } from '@/lib/courses-data';
 import { ProgramDetailView } from '@/components/ProgramDetailView';
 import { listAllCourses } from '@/lib/db';
+import { listChunks } from '@/lib/rag';
 import type { CourseRecord } from '@/lib/types';
+import type { KnowledgeChunk } from '@/lib/rag';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,5 +26,16 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const program = getProgramBySlug(slug);
   if (!program) notFound();
   const dbCourse = await getDbCourseByCode(program.code);
-  return <ProgramDetailView program={program} dbCourse={dbCourse} />;
+  // Fetch the RAG knowledge chunks for this pathway so the detail view can
+  // show what the AI Professor knows (grounded in the companion curriculum).
+  const knowledgeChunks = dbCourse?.code
+    ? await listChunks('demo-avery', dbCourse.code)
+    : [];
+  return (
+    <ProgramDetailView
+      program={program}
+      dbCourse={dbCourse}
+      knowledgeChunks={knowledgeChunks}
+    />
+  );
 }
