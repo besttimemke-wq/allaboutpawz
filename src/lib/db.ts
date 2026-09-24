@@ -161,27 +161,65 @@ export async function getCourse(ownerId: string, id: number): Promise<CourseReco
 
 // ---------------- Professor conversation ----------------
 
+// ---------------- Professor conversation (lms.ai_tutor_messages) ----------------
+
+// The LMS schema ties tutor messages to a teaching SESSION (ai_teaching_sessions),
+// not directly to a course. This helper finds the active session for the demo
+// learner + course, creating one if none exists. Returns the session UUID.
+async function getOrCreateSession(courseId: number): Promise<string | null> {
+  // Find the course UUID from the integer ID
+  const courses = await pgQuery<{ id: string }>(
+    `SELECT c.id FROM lms.enrollments e
+     JOIN lms.courses c ON c.id = e.course_id AND c.tenant_id = e.tenant_id
+     WHERE e.learner_user_id = $1 AND e.status = 'active'`,
+    [DEMO_LEARNER_UUID],
+  );
+  const course = courses.find((r) => uuidToInt(r.id) === courseId);
+  if (!course) return null;
+
+  // Find an active teaching session for this learner + course
+  const sessions = await pgQuery<{ id: string }>(
+    `SELECT id FROM lms.ai_teaching_sessions
+     WHERE learner_user_id = $1 AND course_id = $2 AND session_status = 'active'
+     ORDER BY created_at DESC LIMIT 1`,
+    [DEMO_LEARNER_UUID, course.id],
+  );
+  if (sessions.length > 0) return sessions[0].id;
+
+  // No active session — create one
+  const inserted = await pgQuery<{ id: string }>(
+    `INSERT INTO lms.ai_teaching_sessions
+       (id, tenant_id, learner_user_id, course_id, session_status, started_at, delivery_mode)
+     VALUES (gen_random_uuid(), $1, $2, $3, 'active', now(), 'ai_guided')
+     RETURNING id`,
+    [TENANT_ID, DEMO_LEARNER_UUID, course.id],
+  );
+  return inserted.length > 0 ? inserted[0].id : null;
+}
+
 export async function listMessages(ownerId: string, courseId: number) {
-  const { data, error } = await supabase
-    .from("professorMessage")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .eq("courseId", courseId)
-    .order("id", { ascending: true })
-    .limit(100);
-  if (error) {
-    console.error("[db] listMessages failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((m) => {
-    const r = asRow<{ id: number; role: string; content: string; createdAt: string }>(m);
-    return {
-      id: r.id,
-      role: r.role as "learner" | "professor",
-      content: r.content,
-      createdAt: iso(r.createdAt),
-    };
-  });
+  void ownerId;
+  const sessionId = await getOrCreateSession(courseId);
+  if (!sessionId) return [];
+  const rows = await pgQuery<{
+    id: string;
+    message_role: string;
+    message_content: string;
+    created_at: string;
+  }>(
+    `SELECT id, message_role, message_content, created_at
+     FROM lms.ai_tutor_messages
+     WHERE session_id = $1
+     ORDER BY created_at ASC
+     LIMIT 100`,
+    [sessionId],
+  );
+  return rows.map((r, i) => ({
+    id: i + 1,
+    role: (r.message_role === "ai" ? "professor" : r.message_role) as "learner" | "professor",
+    content: r.message_content,
+    createdAt: iso(r.created_at),
+  }));
 }
 
 export async function saveMessage(
@@ -190,36 +228,48 @@ export async function saveMessage(
   role: "learner" | "professor",
   content: string,
 ) {
-  const { error } = await supabase.from("professorMessage").insert({
-    ownerId,
-    courseId,
-    role,
-    content,
-  });
-  if (error) console.error("[db] saveMessage failed:", error.message);
+  void ownerId;
+  const sessionId = await getOrCreateSession(courseId);
+  if (!sessionId) {
+    console.error("[db] saveMessage: no session for courseId", courseId);
+    return;
+  }
+  try {
+    const lmsRole = role === "professor" ? "ai" : role;
+    await pgExec(
+      `INSERT INTO lms.ai_tutor_messages
+         (id, tenant_id, session_id, learner_user_id, message_role, message_content, message_type)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`,
+      [TENANT_ID, sessionId, DEMO_LEARNER_UUID, lmsRole, content, "text"],
+    );
+  } catch (e) {
+    console.error("[db] saveMessage failed:", e instanceof Error ? e.message : "unknown");
+  }
 }
 
 export async function listDashboardProfessorMessages(ownerId: string, lessonId: string) {
-  const { data, error } = await supabase
-    .from("dashboardProfessorMessage")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .eq("lessonId", lessonId)
-    .order("id", { ascending: true })
-    .limit(100);
-  if (error) {
-    console.error("[db] listDashboardProfessorMessages failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((m) => {
-    const r = asRow<{ id: number; role: string; content: string; createdAt: string }>(m);
-    return {
-      id: r.id,
-      role: r.role as "learner" | "professor",
-      content: r.content,
-      createdAt: iso(r.createdAt),
-    };
-  });
+  void ownerId;
+  // Dashboard professor messages are tutor messages scoped to a lesson
+  // (not a session). Query ai_tutor_messages by lesson_id.
+  const rows = await pgQuery<{
+    id: string;
+    message_role: string;
+    message_content: string;
+    created_at: string;
+  }>(
+    `SELECT id, message_role, message_content, created_at
+     FROM lms.ai_tutor_messages
+     WHERE learner_user_id = $1 AND lesson_id::text = $2
+     ORDER BY created_at ASC
+     LIMIT 100`,
+    [DEMO_LEARNER_UUID, lessonId],
+  );
+  return rows.map((r, i) => ({
+    id: i + 1,
+    role: (r.message_role === "ai" ? "professor" : r.message_role) as "learner" | "professor",
+    content: r.message_content,
+    createdAt: iso(r.created_at),
+  }));
 }
 
 export async function saveDashboardProfessorMessage(
@@ -228,13 +278,18 @@ export async function saveDashboardProfessorMessage(
   role: "learner" | "professor",
   content: string,
 ) {
-  const { error } = await supabase.from("dashboardProfessorMessage").insert({
-    ownerId,
-    lessonId,
-    role,
-    content,
-  });
-  if (error) console.error("[db] saveDashboardProfessorMessage failed:", error.message);
+  void ownerId;
+  try {
+    const lmsRole = role === "professor" ? "ai" : role;
+    await pgExec(
+      `INSERT INTO lms.ai_tutor_messages
+         (id, tenant_id, learner_user_id, lesson_id, message_role, message_content, message_type)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`,
+      [TENANT_ID, DEMO_LEARNER_UUID, lessonId, lmsRole, content, "text"],
+    );
+  } catch (e) {
+    console.error("[db] saveDashboardProfessorMessage failed:", e instanceof Error ? e.message : "unknown");
+  }
 }
 
 // ---------------- Workspace ----------------
