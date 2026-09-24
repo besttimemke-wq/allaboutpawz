@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -57,6 +57,37 @@ export function CoursesCatalogView() {
   const [viewMode, setViewMode] = useState<'programs' | 'modules'>('programs');
   const [activeCourseModal, setActiveCourseModal] = useState<ProgramDetails | null>(null);
 
+  // ── Fetch bridge: pull the real published courses from lms.courses via
+  //    /api/courses?catalog=true. The catalog only shows programs that are
+  //    backed by a real DB row (matched by pathway code). This marries the
+  //    COURSES_PROGRAMS presentation chrome to the live enterprise schema.
+  const [dbCourseCodes, setDbCourseCodes] = useState<Set<string> | null>(null);
+  const [dbCoursesById, setDbCoursesById] = useState<Record<string, { id: number; title: string }>>({});
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/courses?catalog=true')
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((data: { courses: Array<{ id: number; code: string | null; title: string }> }) => {
+        if (cancelled) return;
+        const codes = new Set<string>();
+        const byCode: Record<string, { id: number; title: string }> = {};
+        for (const c of data.courses ?? []) {
+          if (c.code) {
+            codes.add(c.code);
+            byCode[c.code] = { id: c.id, title: c.title };
+          }
+        }
+        setDbCourseCodes(codes);
+        setDbCoursesById(byCode);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Fall back to showing all programs if the DB fetch fails.
+        setDbCourseCodes(null);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
 
   // 1. Filtered Modules from ALL_CATALOG_MODULES
   const filteredModules = useMemo(() => {
@@ -107,9 +138,18 @@ export function CoursesCatalogView() {
     return map;
   }, [filteredModules, searchQuery, selectedLevel]);
 
-  // 3. Filtered & Sorted Programs
+  // 3. Filtered & Sorted Programs — only show programs backed by a real
+  //    lms.courses row (matched by pathway code). If the DB fetch hasn't
+  //    resolved yet (dbCourseCodes === null initially before fetch starts,
+  //    then becomes a Set after resolve), we gate the list on it. While
+  //    loading (null), we show nothing to avoid a flash of stale data.
   const filteredPrograms = useMemo(() => {
     const list = COURSES_PROGRAMS.filter((p) => {
+      // DB-backed gate: only show programs whose code exists in lms.courses.
+      // While the fetch is in-flight (null), show nothing (loading state).
+      if (dbCourseCodes === null) return false;
+      if (!dbCourseCodes.has(p.code)) return false;
+
       // Pathway filter (programs view)
       if (selectedPathway !== 'all') {
         const allowed = PATHWAY_CATEGORIES[selectedPathway]?.map((c) => c.toLowerCase());
@@ -171,7 +211,7 @@ export function CoursesCatalogView() {
       if (sortBy === 'name') return a.title.localeCompare(b.title);
       return 0; // 'featured' keeps original curriculum order
     });
-  }, [selectedPathway, selectedDuration, selectedLevel, searchQuery, sortBy, programMatchingModulesMap]);
+  }, [selectedPathway, selectedDuration, selectedLevel, searchQuery, sortBy, programMatchingModulesMap, dbCourseCodes]);
 
   const hasActiveFilters =
     selectedPathway !== 'all' ||
@@ -494,18 +534,28 @@ export function CoursesCatalogView() {
                 {filteredPrograms.length === 0 ? (
                   <div className="bg-cream rounded-2xl p-12 text-center border border-gold/25 space-y-4">
                     <div className="w-12 h-12 rounded-full bg-cream-deep text-gold-deep flex items-center justify-center mx-auto">
-                      <Search className="w-6 h-6" />
+                      {dbCourseCodes === null ? (
+                        <span className="block w-5 h-5 border-2 border-gold-deep border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Search className="w-6 h-6" />
+                      )}
                     </div>
-                    <h3 className="font-display text-lg font-bold text-ink">No programs found</h3>
+                    <h3 className="font-display text-lg font-bold text-ink">
+                      {dbCourseCodes === null ? 'Loading live course catalog…' : 'No programs found'}
+                    </h3>
                     <p className="text-xs text-ink-soft max-w-md mx-auto">
-                      We couldn&rsquo;t find any programs matching your current search or filter combination.
+                      {dbCourseCodes === null
+                        ? 'Fetching the published pathways from the All About Pawz course database.'
+                        : 'We couldn\u2019t find any programs matching your current search or filter combination.'}
                     </p>
-                    <button
-                      onClick={handleResetFilters}
-                      className="px-4 py-2 rounded-full bg-black text-white font-bold text-xs hover:bg-black/85 transition-colors"
-                    >
-                      Reset All Filters
-                    </button>
+                    {dbCourseCodes !== null && (
+                      <button
+                        onClick={handleResetFilters}
+                        className="px-4 py-2 rounded-full bg-black text-white font-bold text-xs hover:bg-black/85 transition-colors"
+                      >
+                        Reset All Filters
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">

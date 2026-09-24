@@ -1,271 +1,78 @@
-// All About Pawz Academy — demo seed.
-// Idempotent: creates the six Leashed pathway companions + a school-day
-// schedule, enrollments, gradebook entries and meetings the first time a
-// learner loads the classroom. Authored from the Leashed Program Delivery
-// Guide v1.0.
+// All About Pawz Academy — demo seed (married to the real lms.* schema).
 //
-// Backed by Supabase — every step is wrapped in try/catch and never throws.
-// This runs on every learner visit via the /api/identity route.
+// The seed's original job was to bootstrap demo courses, enrollments, a
+// school-day schedule, gradebook entries, and meetings the first time a
+// learner loaded the classroom. The enterprise schema now ships with the
+// demo course catalog pre-seeded (15 published courses in lms.courses) and
+// exactly one active demo enrollment (the seeded auth user
+// allaboutpawz901@gmail.com → lms.enrollments).
+//
+// This rewritten seed is a thin idempotent verifier: it ensures the demo
+// learner has at least one active enrollment. If the pre-seeded enrollment
+// already exists (the normal case), this is a fast no-op. The school
+// snapshot, schedule, grades, and meetings are synthesized on read by
+// getSchoolSnapshot from the real enrollment — no persisted demo rows are
+// needed for those anymore.
+//
+// Called on every /api/identity GET. Never throws.
 
-import { supabase } from "./supabase";
-import { allPathwayCompanions } from "./curriculum";
+import { pgQuery, pgExec } from "./pg";
 
-function todayInChicago(): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const pick = (t: string) => parts.find((p) => p.type === t)?.value || "";
-  return `${pick("year")}-${pick("month")}-${pick("day")}`;
-}
+const TENANT_ID = process.env.SUPABASE_TENANT_ID ?? "00000000-0000-0000-0000-000000000001";
 
-// Demo learner enrollment metadata per pathway (from the program guide).
-const ENROLLMENT_META: Array<{
-  level: string;
-  deficiencyFocus: string | null;
-  priority: string;
-}> = [
-  { level: "Term 2 — Core Skill", deficiencyFocus: null, priority: "Low" }, // IPDG
-  {
-    level: "Term 1 — Foundation",
-    deficiencyFocus: "Marker timing & leash-reactivity protocols",
-    priority: "Medium",
-  }, // PDT
-  { level: "On pace", deficiencyFocus: null, priority: "Low" }, // ACA
-  {
-    level: "Term 1 — Foundation",
-    deficiencyFocus: "Client intake & multi-species care protocols",
-    priority: "Medium",
-  }, // PPS
-  {
-    level: "Term 1 — Foundation",
-    deficiencyFocus: "Cat temperament reading & safe handling",
-    priority: "Medium",
-  }, // CAT
-  { level: "Term 1 — Foundation", deficiencyFocus: null, priority: "Low" }, // PPC
-];
+// Demo learner UUID — kept in sync with src/lib/db.ts.
+const DEMO_LEARNER_UUID = "7ea0339e-d79d-477e-adc5-66b6b417525d";
 
-// Demo gradebook — formative, not certified grades.
-const GRADEBOOK: Array<{
-  courseIndex: number;
-  title: string;
-  category: string;
-  score: number | null;
-  possible: number;
-  status: string;
-  feedback: string;
-}> = [
-  { courseIndex: 0, title: "IPDG-103 Salon Safety gate", category: "Safety gate", score: 10, possible: 10, status: "GRADED", feedback: "Passed. Signed off for live-animal work." },
-  { courseIndex: 0, title: "Breed identification quiz", category: "Quiz", score: 9, possible: 10, status: "GRADED", feedback: "Strong on breed groups; review terrier coat types." },
-  { courseIndex: 1, title: "PDT-101 Foundation quiz", category: "Quiz", score: 7, possible: 10, status: "GRADED", feedback: "Review marker timing. Practice with a clicker." },
-  { courseIndex: 1, title: "PDT-201 Safety gate", category: "Safety gate", score: null, possible: 10, status: "PENDING", feedback: "Awaiting sign-off." },
-  { courseIndex: 2, title: "ACA-201 Safety gate", category: "Safety gate", score: 10, possible: 10, status: "GRADED", feedback: "Passed. Signed off for live-animal work." },
-  { courseIndex: 3, title: "PPS-104 Safety gate", category: "Safety gate", score: null, possible: 10, status: "PENDING", feedback: "Awaiting sign-off." },
-  { courseIndex: 4, title: "CAT-102 Safety gate", category: "Safety gate", score: null, possible: 10, status: "PENDING", feedback: "Awaiting sign-off." },
-  { courseIndex: 0, title: "Sanitation sequence check", category: "Micro-check", score: 5, possible: 5, status: "GRADED", feedback: "Correct sequence demonstrated." },
-];
-
-const MEETINGS: Array<{
-  courseIndex: number | null;
-  title: string;
-  start: string;
-  end: string;
-  room: string;
-}> = [
-  { courseIndex: null, title: "Instructor check-in", start: "13:00", end: "13:30", room: "Room 204 / virtual" },
-  { courseIndex: 1, title: "PDT office hours", start: "15:30", end: "16:00", room: "Training floor" },
-];
-
-// Daily schedule template — adapted from the Leashed weekly template (A4).
-// A full-time learner's day: morning technical labs, afternoon business module,
-// late afternoon micro-checks. Different pathways rotate through the morning.
-type BlockTemplate = {
-  blockType: string;
-  title: string;
-  start: string;
-  end: string;
-  courseIndex: number | null;
-  deficiencyFocus?: string;
-};
-
-function dailySchedule(courseIds: number[]): BlockTemplate[] {
-  return [
-    { blockType: "ADVISORY", title: "Professor check-in and Day preview", start: "08:00", end: "08:15", courseIndex: null },
-    { blockType: "TECHNICAL_LAB", title: "IPDG Technical lab — Salon safety & breeds", start: "08:15", end: "10:00", courseIndex: 0 },
-    { blockType: "TECHNICAL_LAB", title: "PDT Technical lab — Marker training", start: "10:00", end: "11:45", courseIndex: 1, deficiencyFocus: "Marker timing & leash-reactivity protocols" },
-    { blockType: "LUNCH", title: "Lunch", start: "11:45", end: "12:30", courseIndex: null },
-    { blockType: "BUSINESS_MODULE", title: "Business module — BUS-201 Operations", start: "12:30", end: "13:30", courseIndex: null },
-    { blockType: "TECHNICAL_LAB", title: "ACA Technical lab — Handling & sanitation", start: "13:30", end: "14:15", courseIndex: 2 },
-    { blockType: "MICRO_CHECKS", title: "Micro-checks + AI workflow log", start: "14:15", end: "15:00", courseIndex: 0 },
-    { blockType: "RUBRIC_REVIEW", title: "Rubric review / office hours", start: "15:00", end: "15:30", courseIndex: null },
-  ];
-}
+// The seeded demo course (Animal Care Assistant) — its UUID is stable across
+// reseeds because the catalog seed uses a fixed id.
+const ACA_COURSE_ID = "dca55606-11e6-431d-9837-deda6427103b";
+const ACA_COURSE_VERSION_ID = "a2ea02c4-f65d-43fa-b04d-be320490e24e";
 
 export async function ensureDemoSeed(ownerId: string): Promise<void> {
+  void ownerId; // tenant + learner scoped, not visitor ownerId
   try {
-    const companions = allPathwayCompanions();
-    let courseIds: number[] = [];
-
-    // Count existing courses for this owner.
-    let existingCourses = 0;
-    try {
-      const { count, error: cntErr } = await supabase
-        .from("course")
-        .select("*", { count: "exact", head: true })
-        .eq("ownerId", ownerId);
-      if (cntErr) console.error("[seed] course count failed:", cntErr.message);
-      else existingCourses = count ?? 0;
-    } catch (e) {
-      console.error("[seed] course count exception:", e instanceof Error ? e.message : String(e));
+    // 1. Verify the demo course exists in lms.courses. If not, log and bail —
+    //    the catalog seed runs out-of-band (SQL migration) and we don't
+    //    want to silently recreate it from JS.
+    const courseRows = await pgQuery<{ id: string }>(
+      `SELECT id FROM lms.courses WHERE tenant_id = $1 AND id = $2::uuid`,
+      [TENANT_ID, ACA_COURSE_ID],
+    );
+    if (courseRows.length === 0) {
+      console.warn("[seed] demo course not found — run the catalog seed SQL migration.");
+      return;
     }
 
-    if (existingCourses === 0) {
-      // First run: create courses + enrollments + grades + meetings.
-      for (let i = 0; i < companions.length; i++) {
-        const { seed, companion } = companions[i];
-        try {
-          const { data: course, error } = await supabase
-            .from("course")
-            .insert({
-              ownerId,
-              state: "Louisiana",
-              area: seed.title,
-              statute: `Leashed ${seed.code} · Program Delivery Guide v1.0`,
-              grade: seed.level,
-              title: companion.title,
-              companionJson: JSON.stringify(companion),
-              model: "ZAI GLM-4.6",
-              createdAt: new Date(Date.now() - (companions.length - i) * 60000).toISOString(),
-            })
-            .select()
-            .single();
-          if (error || !course) {
-            console.error("[seed] course insert failed:", error?.message);
-            continue;
-          }
-          const courseId = (course as { id: number }).id;
-          courseIds.push(courseId);
+    // 2. Ensure the demo enrollment exists. Idempotent: if an active
+    //    enrollment already exists, do nothing.
+    const enrRows = await pgQuery<{ id: string }>(
+      `SELECT id FROM lms.enrollments
+       WHERE learner_user_id = $1 AND course_id = $2 AND status = 'active'
+       LIMIT 1`,
+      [DEMO_LEARNER_UUID, ACA_COURSE_ID],
+    );
+    if (enrRows.length > 0) return; // already enrolled
 
-          const meta = ENROLLMENT_META[i] ?? {
-            level: "Term 1 — Foundation",
-            deficiencyFocus: null,
-            priority: "Low",
-          };
-          const { error: enrErr } = await supabase.from("courseEnrollment").insert({
-            ownerId,
-            courseId,
-            level: meta.level,
-            deficiencyFocus: meta.deficiencyFocus,
-            priority: meta.priority,
-            enrolledAt: new Date().toISOString(),
-          });
-          if (enrErr) console.error("[seed] enrollment insert failed:", enrErr.message);
-        } catch (e) {
-          console.error("[seed] course insert exception:", e instanceof Error ? e.message : String(e));
-        }
-      }
-
-      // Gradebook.
-      for (const g of GRADEBOOK) {
-        const courseId = courseIds[g.courseIndex];
-        if (!courseId) continue;
-        try {
-          const { error } = await supabase.from("gradebookEntry").insert({
-            ownerId,
-            courseId,
-            title: g.title,
-            category: g.category,
-            score: g.score,
-            possible: g.possible,
-            status: g.status,
-            feedback: g.feedback,
-            gradedAt: g.status === "GRADED" ? new Date(Date.now() - 86400000).toISOString() : null,
-          });
-          if (error) console.error("[seed] gradebook insert failed:", error.message);
-        } catch (e) {
-          console.error("[seed] gradebook exception:", e instanceof Error ? e.message : String(e));
-        }
-      }
-
-      // Meetings.
-      for (const m of MEETINGS) {
-        try {
-          const { error } = await supabase.from("classroomMeeting").insert({
-            ownerId,
-            courseId: m.courseIndex === null ? null : courseIds[m.courseIndex] ?? null,
-            title: m.title,
-            startsAt: m.start,
-            endsAt: m.end,
-            room: m.room,
-            status: "SCHEDULED",
-          });
-          if (error) console.error("[seed] meeting insert failed:", error.message);
-        } catch (e) {
-          console.error("[seed] meeting exception:", e instanceof Error ? e.message : String(e));
-        }
-      }
-    } else {
-      // Subsequent runs: reuse existing courses (ordered by id ascending).
-      try {
-        const { data: rows, error } = await supabase
-          .from("course")
-          .select("id")
-          .eq("ownerId", ownerId)
-          .order("id", { ascending: true })
-          .limit(6);
-        if (error) console.error("[seed] course list failed:", error.message);
-        else if (rows) {
-          courseIds = rows.map((r) => (r as { id: number }).id);
-        }
-      } catch (e) {
-        console.error("[seed] course list exception:", e instanceof Error ? e.message : String(e));
-      }
-    }
-
-    // Ensure today's schedule exists.
-    const today = todayInChicago();
-    let todayCount = 0;
-    try {
-      const { count, error: tCntErr } = await supabase
-        .from("schoolScheduleBlock")
-        .select("*", { count: "exact", head: true })
-        .eq("ownerId", ownerId)
-        .eq("schoolDate", today);
-      if (tCntErr) console.error("[seed] today count failed:", tCntErr.message);
-      else todayCount = count ?? 0;
-    } catch (e) {
-      console.error("[seed] today count exception:", e instanceof Error ? e.message : String(e));
-    }
-    if (todayCount === 0 && courseIds.length > 0) {
-      const blocks = dailySchedule(courseIds);
-      let sequence = 0;
-      for (const block of blocks) {
-        sequence += 1;
-        const courseId =
-          block.courseIndex === null ? null : courseIds[block.courseIndex] ?? null;
-        try {
-          const { error } = await supabase.from("schoolScheduleBlock").insert({
-            ownerId,
-            schoolDate: today,
-            courseId,
-            blockType: block.blockType,
-            title: block.title,
-            startsAt: `${today}T${block.start}:00`,
-            endsAt: `${today}T${block.end}:00`,
-            status: "UPCOMING",
-            deficiencyFocus: block.deficiencyFocus ?? null,
-            sequence,
-          });
-          if (error) console.error("[seed] block insert failed:", error.message);
-        } catch (e) {
-          console.error("[seed] block exception:", e instanceof Error ? e.message : String(e));
-        }
-      }
-    }
+    // 3. Create the enrollment (first-time only).
+    await pgExec(
+      `INSERT INTO lms.enrollments
+         (id, tenant_id, learner_user_id, course_id, course_version_id,
+          delivery_mode, status, enrolled_at, progress_percentage,
+          is_minor, pinned_version_locked, metadata)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4,
+               'self_paced', 'active', now(), 0.00,
+               false, false, $5::jsonb)`,
+      [
+        TENANT_ID,
+        DEMO_LEARNER_UUID,
+        ACA_COURSE_ID,
+        ACA_COURSE_VERSION_ID,
+        JSON.stringify({ pathwayCode: "ACA", demoEnrollment: true }),
+      ],
+    );
+    console.log("[seed] created demo enrollment for learner", DEMO_LEARNER_UUID);
   } catch (e) {
-    // Never let the seed blow up the identity route.
-    console.error("[seed] unexpected failure:", e instanceof Error ? e.message : String(e));
+    // Never throw — /api/identity must always return 200.
+    console.error("[seed] ensureDemoSeed failed:", e instanceof Error ? e.message : String(e));
   }
 }

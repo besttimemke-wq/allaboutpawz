@@ -114,6 +114,7 @@ export type Companion = {
 
 export type CourseRecord = {
   id: number;
+  code: string | null;
   state: string;
   area: string;
   statute: string;
@@ -122,4 +123,10 @@ export type CourseRecord = {
   companion: Companion;
   model: string;
   createdAt: string;
+  description?: string | null;
+  longDescription?: string | null;
+  category?: string | null;
+  totalClockHours?: string | number | null;
+  difficultyLevel?: string | null;
+  slug?: string | null;
 };

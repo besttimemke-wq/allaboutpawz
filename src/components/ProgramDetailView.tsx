@@ -23,16 +23,23 @@ import { DynamicIcon } from '@/components/DynamicIcon';
 import { ProgramDetails } from '@/lib/courses-data';
 import { ALL_PROGRAM_SYLLABI, ProgramInstitutionalData } from '@/lib/syllabi-data';
 import { ALL_CATALOG_MODULES, CatalogModule } from '@/lib/catalog-modules';
+import type { CourseRecord } from '@/lib/types';
 
 interface ProgramDetailViewProps {
   program: ProgramDetails;
+  dbCourse?: CourseRecord | null;
 }
 
-export function ProgramDetailView({ program }: ProgramDetailViewProps) {
+export function ProgramDetailView({ program, dbCourse }: ProgramDetailViewProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'outcomes' | 'requirements' | 'faq'>('overview');
   const [curriculumViewMode, setCurriculumViewMode] = useState<'terms' | 'weekly' | 'catalog'>('terms');
   const [openTermIndex, setOpenTermIndex] = useState<number | null>(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+
+  // The real DB course id (from lms.courses via /api/courses?catalog=true).
+  // Used to construct the live-classroom deep link so the learner can launch
+  // the AI Professor directly from the pathway detail page.
+  const liveCourseId = dbCourse?.id ?? null;
 
   // Retrieve matching program syllabus
   const syllabus: ProgramInstitutionalData | undefined =
@@ -116,7 +123,25 @@ export function ProgramDetailView({ program }: ProgramDetailViewProps) {
               <span>Enroll in this Pathway</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
+            {liveCourseId !== null && (
+              <Link
+                href={`/learn?course=${liveCourseId}`}
+                className="btn-gold-outline"
+              >
+                <span>Launch Live Classroom</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
           </div>
+          {dbCourse && (
+            <p className="text-[0.7rem] text-ink-soft mt-2 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              Backed by live course record #{dbCourse.id} in the All About Pawz database
+              {dbCourse.companion?.sections?.length
+                ? ` · ${dbCourse.companion.sections.length} lessons authored`
+                : ''}
+            </p>
+          )}
         </div>
 
         {/* Right Photo Column */}

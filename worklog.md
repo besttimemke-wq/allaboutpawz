@@ -852,3 +852,93 @@ Colors match the mockup: slate text on white cards, blue (#0284c7) accents, navy
 - Pathway detail: "Life Skills & Personal Readiness" + Curriculum accordion + Enroll + Syllabus download
 - 0 console errors, all endpoints 200
 - Lint: 0 errors
+
+---
+Task ID: 18
+Agent: main (Z.ai Code) — marry the LMS database to the UI
+Task: Wire the existing UI components to the real Supabase LMS database tables via fetch hooks. "The UI exists, the routes exist, the state exists — just need the fetch bridge. Marry the table to the components."
+
+## What changed (the bridge)
+
+### 1. Schema verification (no guessing)
+Wrote `scripts/verify-lms-schema.ts` to query `information_schema.columns` for every LMS table before touching code. Verified the real column names for:
+- `lms.ai_rag_chunks` (16 cols), `lms.ai_rag_documents` (30 cols), `lms.learner_notes` (11 cols), `lms.learning_analytics_events` (11 cols, uses `recorded_at` NOT `updated_at`), `lms.file_uploads` (27 cols), `lms.conversation_messages` (18 cols), `lms.artifact_submissions` (16 cols), `lms.assignments` (24 cols), `lms.quiz_attempts` (23 cols), `lms.meeting_records` (27 cols), `lms.pacing_schedules` (11 cols), `lms.grade_book` (15 cols), `lms.enrollments` (20 cols, has `metadata.pathwayCode`), `lms.courses` (27 cols, has `code` column = pathway code), `lms.ai_tutor_messages` (12 cols), `lms.ai_teaching_sessions` (19 cols), `lms.ai_escalation_queue` (11 cols, orphan FK — not used), `lms.human_escalation_routing` (16 cols — perfect fit for human-need queue).
+
+### 2. src/lib/rag.ts — full rewrite
+- `knowledgeChunk` (public schema, BROKEN) → `lms.ai_rag_chunks` joined to `lms.ai_rag_documents` (via pgQuery).
+- `ingestChunk`: upserts parent `ai_rag_documents` row (keyed by sourceId+courseId), then inserts the chunk with `ON CONFLICT DO NOTHING`.
+- `retrieve`: resolves pathwayCode → course_id via `lms.courses.metadata->>'pathwayCode'`, pulls candidate chunks joined to learner-facing/safety-flagged docs, scores by keyword overlap.
+- `listChunks` / `deleteChunk` / `countChunks` / `ragEnabled`: all rewritten against `lms.ai_rag_chunks`.
+- **Result**: the `[rag] retrieve candidates failed: Could not find the table 'public.knowledgeChunk'` error is GONE.
+
+### 3. src/lib/db.ts — rewrote every broken `supabase.from()` call
+Preserved the working top section (courses + professor messages, already wired to lms.*). Replaced the entire bottom section (~1100 lines):
+
+| Repo function (was BROKEN) | Real LMS table(s) now used |
+|---|---|
+| `listWorkspaceNotes` / `saveWorkspaceNote` / `deleteWorkspaceNote` | `lms.learner_notes` (title+body joined in `note_body` as `${title}\n\n${body}`) |
+| `listWorkspaceEvents` / `saveWorkspaceEvent` / `deleteWorkspaceEvent` | `lms.learning_analytics_events` (event_type='SCHEDULE_EVENT', payload in `event_data` jsonb) |
+| `listWorkspaceFiles` / `saveWorkspaceFile` / `getWorkspaceFile` / `deleteWorkspaceFile` | `lms.file_uploads` (base64 payload in `metadata.base64`) |
+| `listAssignmentStates` / `saveAssignmentState` | `lms.learning_analytics_events` (event_type='ASSIGNMENT_STATE', upsert by finding matching event_data) |
+| `listWorkspaceMessages` / `saveWorkspaceMessage` | `lms.learning_analytics_events` (event_type='WORKSPACE_MESSAGE') |
+| `listLearningEvidence` / `saveLearningEvidence` | `lms.learning_analytics_events` (event_type='LEARNING_EVIDENCE') |
+| `appendDayEvent` | `lms.learning_analytics_events` (event_type='DAY_EVENT') |
+| `recordLearningAttempt` | `lms.learning_analytics_events` (event_type='LEARNING_ATTEMPT', full payload in jsonb) |
+| `createHumanNeed` / `resolveHumanNeed` | `lms.human_escalation_routing` (status='OPEN'/'RESOLVED', context in `escalation_context` jsonb, tied to teaching session) |
+| `closeLearningDay` | appends DAY_CLOSED event + marks session via snapshot reader |
+| `getLearningDaySnapshot` | reads `lms.ai_teaching_sessions` + latest DAY_EVENT + LEARNING_ATTEMPT count + open `lms.human_escalation_routing` queue |
+| `listInstructorDaySnapshots` | iterates `listCourses` and synthesizes a snapshot per enrolled course |
+| `getSchoolSnapshot` | `lms.enrollments` JOIN `lms.courses` + `lms.grade_book` + `lms.meeting_records` (synthesizes schedule from enrollments since demo has no cohort) |
+| `setMeetingStatus` | UPDATE `lms.meeting_records` |
+| `setScheduleBlockStatus` | appends DAY_EVENT (pacing_schedules is cohort-scoped, demo has none) |
+| `enrollGeneratedCourse` | INSERT into `lms.enrollments` (resolves course_version_id from `lms.courses.current_version_id`) |
+| `workspaceSummary` / `countRows` / `countEvents` | count queries against real tables |
+
+**Design decision**: used `lms.learning_analytics_events` as the universal event log for workspace events/messages/evidence/assignment-states/day-events/learning-attempts. This avoids NOT-NULL FK constraints on the specialized tables (`conversation_messages.requires conversation_id`, `artifact_submissions.requires assignment_id`, `quiz_attempts.requires quiz_id`) which the workspace UI does not have. The generic event log is exactly what the schema designed `learning_analytics_events` for.
+
+### 4. CourseRecord type extended
+Added `code`, `description`, `longDescription`, `category`, `totalClockHours`, `difficultyLevel`, `slug` to `CourseRecord` (src/lib/types.ts). `mapCourseFromLms` now populates all of them. This is the marriage key — `lms.courses.code` (VET, ACA, GRO, …) matches `COURSES_PROGRAMS[*].code` exactly (verified all 15 codes match).
+
+### 5. New exports in db.ts
+- `listAllCourses()` — all published courses in the tenant (catalog view).
+- `getPublishedCourse(id)` — single published course by integer id (pathway-detail view, before enrollment).
+
+### 6. /api/courses route extended
+- `GET /api/courses` → learner's enrolled courses (classroom) [unchanged]
+- `GET /api/courses?catalog=true` → all published courses (catalog) [NEW]
+- `GET /api/courses?id=<int>` → single published course (detail) [NEW]
+
+### 7. CoursesCatalogView.tsx — wired with fetch hook
+- Added `useEffect` that fetches `/api/courses?catalog=true` and stores `dbCourseCodes` (Set of real DB pathway codes) + `dbCoursesById` map.
+- `filteredPrograms` now gates on `dbCourseCodes.has(p.code)` — the catalog ONLY shows programs backed by a real `lms.courses` row. While the fetch is in-flight (null), shows a "Loading live course catalog…" spinner state instead of stale hardcoded data.
+- All existing filters (pathway, level, duration, search, sort) preserved — they operate on the merged list.
+
+### 8. ProgramDetailView.tsx — wired with real course
+- `/learn/courses/[slug]/page.tsx` now fetches the real course by code (server-side via `listAllCourses()`) and passes it as `dbCourse` prop.
+- Detail view shows a "Backed by live course record #<id> · N lessons authored" indicator (green dot) when `dbCourse` is present.
+- Adds a "Launch Live Classroom" button linking to `/learn?course=<realId>` using the real course id.
+
+### 9. src/lib/seed.ts — full rewrite (noise elimination)
+The old seed.ts queried `public.classroomMeeting`, `public.course`, `public.courseEnrollment`, `public.schoolScheduleBlock`, `public.gradebookEntry` — ALL of which don't exist in the public schema. It was producing `[seed] meeting insert failed: Could not find the table 'public.classroomMeeting'` on every `/api/identity` call. Rewrote as a thin idempotent verifier: checks the demo enrollment exists in `lms.enrollments`, creates it if missing (first-time only), otherwise no-op. The schedule/grades/meetings are now synthesized on-read by `getSchoolSnapshot` from the real enrollment.
+
+## Verified (agent-browser + curl)
+- `GET /api/courses?catalog=true` → 200, returns 15 real courses (Veterinary Assistant, Pet Grooming, Animal Care Assistant, …)
+- `GET /api/courses` → 200, returns 1 enrolled course (Animal Care Assistant, id 1554339335, full companion with 4 sections + glossary + family note + sources)
+- `GET /api/workspace` → 200, `{notes:0, events:0, files:0, messages:0, evidence:0, assignmentStates:[]}` (empty but NO table-not-found errors)
+- `GET /api/school` → 200, returns real enrollment (Animal Care Assistant, enrolledAt 2026-09-24, synthesized schedule/grades/meetings)
+- `GET /api/knowledge` → 200, `{chunks:[], total:0}` (empty but NO `public.knowledgeChunk` error)
+- `GET /api/identity` → 200, `{id:"demo-avery", name:"Avery Johnson"}` (seed runs clean, no meeting-insert noise)
+- `/learn/courses` renders all 15 DB-backed programs (ABT, ACA, EQN, FEL, GRO, GSP, PRT, PVM, VET, VPM, VPT, VST, VTE, VTN, ZKA) with "Programs & Tracks 15"
+- `/learn/courses/animal-care-assistant` renders "Launch Live Classroom" button + "Backed by live course record #1554339335 · 4 lessons authored" indicator
+- `/learn/classroom` renders the full classroom canvas with active course "Animal Care Assistant" (real enrolled course), school day schedule, inbox, notes, submissions — 0 console errors
+- Dev log: 0 `Could not find the table` errors, 0 `updated_at does not exist` errors, 0 `[rag] retrieve candidates failed` errors
+- Lint: 0 errors
+
+## What's NOT touched (correctly scoped)
+- The `supabase.from()` calls in `/api/stripe/webhook` and `admin/orders` — those query `commerce_orders` / `payment_transactions` which live in the **public** schema (CRM/ERP tables, 435 of them). Those calls are correctly scoped to public.* and are outside the LMS-bridge task.
+- `visitor.ts` still returns "demo-avery" — real Google OAuth is a separate task (the user flagged this explicitly).
+- The 13-step intake pipeline UI screens — the API is built, the screens need wiring (separate task).
+
+## The bridge is complete
+The UI shell (CoursesCatalogView, ProgramDetailView, classroom canvas) now reads from the real enterprise `lms.*` schema via `pgQuery`. Every fetch hook returns real data. The hardcoded `courses-data.ts` presentation chrome is married to live DB rows by pathway code. The AI Professor, Day lifecycle, workspace, school snapshot, and RAG layer all persist to / read from the correct `lms.*` tables. The `public.knowledgeChunk` / `public.classroomMeeting` / `public.learnerNote` errors are eliminated.
+

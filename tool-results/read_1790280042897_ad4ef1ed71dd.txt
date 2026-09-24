@@ -1,0 +1,1409 @@
+     1→// UNLEASHED classroom data access — Supabase-backed port of the original
+     2→// node:sqlite / Prisma layer. All function signatures and return shapes are
+     3→// preserved so the API routes and the classroom UI are unchanged. DateTime
+     4→// fields are surfaced as ISO strings to match the original SQLite string
+     5→// behavior the frontend expects.
+     6→
+     7→import { supabase } from "./supabase";
+     8→import { pgQuery, pgExec } from "./pg";
+     9→import { companionForPathway } from "./curriculum";
+    10→import type { Companion, CourseRecord } from "./types";
+    11→
+    12→function iso(value: Date | string | null | undefined): string {
+    13→  if (!value) return "";
+    14→  return typeof value === "string" ? value : value.toISOString();
+    15→}
+    16→
+    17→// Convert a Supabase row (timestamps arrive as ISO strings) into the shape
+    18→// our callers expect. The LMS data layer reads from the enterprise `lms.*`
+    19→// schema (UUIDs + snake_case + tenant_id), so each helper below maps a row
+    20→// from `lms.courses` / `lms.enrollments` / etc. back to the CourseRecord /
+    21→// Companion shape the classroom UI was authored against.
+    22→type Row = Record<string, unknown>;
+    23→function asRow<T = Row>(r: unknown): T {
+    24→  return (r ?? {}) as T;
+    25→}
+    26→
+    27→const TENANT_ID = process.env.SUPABASE_TENANT_ID ?? "00000000-0000-0000-0000-000000000001";
+    28→
+    29→// Demo learner UUID — the visitor system in src/lib/visitor.ts is a fixed
+    30→// demo identity ("demo-avery"). The lms.* schema uses UUID user_ids that FK
+    31→// to auth.users. We seed exactly one real auth user (allaboutpawz901@gmail.com)
+    32→// as the demo learner, and map the visitor to that UUID here. When real auth
+    33→// lands, replace this with the actual session user_id.
+    34→const DEMO_LEARNER_UUID = "7ea0339e-d79d-477e-adc5-66b6b417525d";
+    35→
+    36→// Stable integer ID derived from a UUID — the classroom UI uses integer IDs
+    37→// for course lookup; lms.courses.id is a UUID. We derive a deterministic
+    38→// 31-bit int from the UUID's first 8 hex chars so the same course always
+    39→// maps to the same int within a session.
+    40→function uuidToInt(uuid: string | null | undefined): number {
+    41→  if (!uuid) return 0;
+    42→  const head = uuid.replace(/[^0-9a-f]/gi, "").slice(0, 8);
+    43→  return parseInt(head || "0", 16) % 0x7fffffff;
+    44→}
+    45→
+    46→// ---------------- Courses (lms.courses) ----------------
+    47→
+    48→type LmsCourseRow = {
+    49→  id: string;
+    50→  tenant_id: string;
+    51→  code: string | null;
+    52→  title: string;
+    53→  slug: string;
+    54→  description: string | null;
+    55→  long_description: string | null;
+    56→  category: string | null;
+    57→  tags: string[] | null;
+    58→  is_published: boolean;
+    59→  sort_order: number;
+    60→  metadata: Record<string, unknown> | null;
+    61→  created_at: string;
+    62→  total_clock_hours: string | number | null;
+    63→  difficulty_level: string | null;
+    64→};
+    65→
+    66→function mapCourseFromLms(c: LmsCourseRow): CourseRecord {
+    67→  const meta = (c.metadata && typeof c.metadata === "object" ? c.metadata : {}) as Record<string, unknown>;
+    68→  // Companion resolution order:
+    69→  //   1. lms.courses.metadata.companion (if a generated companion was persisted)
+    70→  //   2. companionForPathway(c.code) — the curriculum.ts authored companions
+    71→  //      keyed by pathway code (IPDG, PDT, ACA, PPS, CAT, PPC, ...)
+    72→  //   3. Minimal fallback (title only, empty sections)
+    73→  let companion: Companion | null = null;
+    74→  const companionRaw = meta.companion;
+    75→  if (typeof companionRaw === "string") {
+    76→    try { companion = JSON.parse(companionRaw) as Companion; } catch { companion = null; }
+    77→  } else if (companionRaw && typeof companionRaw === "object") {
+    78→    companion = companionRaw as Companion;
+    79→  }
+    80→  if (!companion && c.code) {
+    81→    try { companion = companionForPathway(c.code); } catch { companion = null; }
+    82→  }
+    83→  const fallback: Companion = {
+    84→    title: c.title, subtitle: "", overview: "", alignment: { state: "TN", grade: "9-12", area: c.category || "Grooming", statute: "", authority: "", note: "" },
+    85→    learningObjectives: [], sections: [], independentPractice: [], appliedProject: { title: "", brief: "", deliverables: [] },
+    86→    glossary: [], familyNote: "", sources: [],
+    87→  };
+    88→  return {
+    89→    id: uuidToInt(c.id),
+    90→    state: (meta.state as string) || companion?.alignment?.state || "TN",
+    91→    area: c.category || (meta.area as string) || companion?.alignment?.area || "Grooming",
+    92→    statute: (meta.statute as string) || companion?.alignment?.statute || "",
+    93→    grade: (meta.grade as string) || companion?.alignment?.grade || "9-12",
+    94→    title: c.title,
+    95→    companion: companion ?? fallback,
+    96→    model: (meta.model as string) || "gemini-1.5-flash",
+    97→    createdAt: iso(c.created_at),
+    98→  };
+    99→}
+   100→
+   101→export async function saveCourse(
+   102→  ownerId: string,
+   103→  selection: { state: string; area: string; statute: string; grade: string },
+   104→  companion: Companion,
+   105→  model: string,
+   106→) {
+   107→  // Courses in the enterprise schema are tenant-scoped, not visitor-scoped.
+   108→  // Store the original Prisma-shape fields in lms.courses.metadata so they
+   109→  // survive round-trips. slug derived from title; code derived from title.
+   110→  const slug = companion.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+   111→  const code = (companion.title.split(/\s+/).map((w: string) => w[0]?.toUpperCase() ?? "").join("").slice(0, 4) || "CRS");
+   112→  const meta = JSON.stringify({ state: selection.state, area: selection.area, statute: selection.statute, grade: selection.grade, companion, model, ownerId });
+   113→  const rows = await pgQuery<LmsCourseRow>(
+   114→    `INSERT INTO lms.courses (tenant_id, code, title, slug, description, course_type, delivery_modes, difficulty_level, is_published, sort_order, metadata)
+   115→     VALUES ($1, $2, $3, $4, $5, 'course', ARRAY['self_paced']::text[], 'beginner', true, 999, $6::jsonb)
+   116→     RETURNING id, tenant_id, code, title, slug, description, long_description, category, tags, is_published, sort_order, metadata, created_at, total_clock_hours, difficulty_level`,
+   117→    [TENANT_ID, code, companion.title, slug, companion.title, meta],
+   118→  );
+   119→  if (rows.length === 0) return null;
+   120→  return mapCourseFromLms(rows[0]);
+   121→}
+   122→
+   123→export async function listCourses(ownerId: string): Promise<CourseRecord[]> {
+   124→  // The classroom canvas shows the LEARNER'S ENROLLED courses — not the
+   125→  // catalog. The catalog (all 15 published) lives at /learn
+   126→  // via courses-data.ts; the classroom queries the learner's active
+   127→  // enrollments joined to lms.courses for the rich companion data.
+   128→  //
+   129→  // ownerId is the visitor string ("demo-avery" in this build). The lms.*
+   130→  // schema uses UUID user_ids FK'd to auth.users. Until real auth lands,
+   131→  // every classroom request maps to the seeded demo learner UUID.
+   132→  void ownerId;
+   133→  const rows = await pgQuery<LmsCourseRow>(
+   134→    `SELECT c.id, c.tenant_id, c.code, c.title, c.slug, c.description, c.long_description, c.category, c.tags, c.is_published, c.sort_order, c.metadata, c.created_at, c.total_clock_hours, c.difficulty_level
+   135→     FROM lms.enrollments e
+   136→     JOIN lms.courses c ON c.id = e.course_id AND c.tenant_id = e.tenant_id
+   137→     WHERE e.learner_user_id = $1 AND e.status = 'active'
+   138→     ORDER BY c.sort_order ASC NULLS LAST, c.title ASC
+   139→     LIMIT 50`,
+   140→    [DEMO_LEARNER_UUID],
+   141→  );
+   142→  return rows.map(mapCourseFromLms);
+   143→}
+   144→
+   145→export async function getCourse(ownerId: string, id: number): Promise<CourseRecord | null> {
+   146→  // Same enrollment-scoped filter as listCourses; the classroom calls this
+   147→  // with an integer id derived from uuidToInt(course.uuid).
+   148→  void ownerId;
+   149→  const rows = await pgQuery<LmsCourseRow>(
+   150→    `SELECT c.id, c.tenant_id, c.code, c.title, c.slug, c.description, c.long_description, c.category, c.tags, c.is_published, c.sort_order, c.metadata, c.created_at, c.total_clock_hours, c.difficulty_level
+   151→     FROM lms.enrollments e
+   152→     JOIN lms.courses c ON c.id = e.course_id AND c.tenant_id = e.tenant_id
+   153→     WHERE e.learner_user_id = $1 AND e.status = 'active'
+   154→     ORDER BY c.sort_order ASC NULLS LAST, c.title ASC
+   155→     LIMIT 50`,
+   156→    [DEMO_LEARNER_UUID],
+   157→  );
+   158→  const match = rows.find((r) => uuidToInt(r.id) === id);
+   159→  return match ? mapCourseFromLms(match) : null;
+   160→}
+   161→
+   162→// ---------------- Professor conversation ----------------
+   163→
+   164→// ---------------- Professor conversation (lms.ai_tutor_messages) ----------------
+   165→
+   166→// The LMS schema ties tutor messages to a teaching SESSION (ai_teaching_sessions),
+   167→// not directly to a course. This helper finds the active session for the demo
+   168→// learner + course, creating one if none exists. Returns the session UUID.
+   169→async function getOrCreateSession(courseId: number): Promise<string | null> {
+   170→  // Find the course UUID from the integer ID
+   171→  const courses = await pgQuery<{ id: string }>(
+   172→    `SELECT c.id FROM lms.enrollments e
+   173→     JOIN lms.courses c ON c.id = e.course_id AND c.tenant_id = e.tenant_id
+   174→     WHERE e.learner_user_id = $1 AND e.status = 'active'`,
+   175→    [DEMO_LEARNER_UUID],
+   176→  );
+   177→  const course = courses.find((r) => uuidToInt(r.id) === courseId);
+   178→  if (!course) return null;
+   179→
+   180→  // Find an active teaching session for this learner + course
+   181→  const sessions = await pgQuery<{ id: string }>(
+   182→    `SELECT id FROM lms.ai_teaching_sessions
+   183→     WHERE learner_user_id = $1 AND course_id = $2 AND session_status = 'active'
+   184→     ORDER BY created_at DESC LIMIT 1`,
+   185→    [DEMO_LEARNER_UUID, course.id],
+   186→  );
+   187→  if (sessions.length > 0) return sessions[0].id;
+   188→
+   189→  // No active session — create one
+   190→  const inserted = await pgQuery<{ id: string }>(
+   191→    `INSERT INTO lms.ai_teaching_sessions
+   192→       (id, tenant_id, learner_user_id, course_id, session_status, started_at, delivery_mode)
+   193→     VALUES (gen_random_uuid(), $1, $2, $3, 'active', now(), 'ai_guided')
+   194→     RETURNING id`,
+   195→    [TENANT_ID, DEMO_LEARNER_UUID, course.id],
+   196→  );
+   197→  return inserted.length > 0 ? inserted[0].id : null;
+   198→}
+   199→
+   200→export async function listMessages(ownerId: string, courseId: number) {
+   201→  void ownerId;
+   202→  const sessionId = await getOrCreateSession(courseId);
+   203→  if (!sessionId) return [];
+   204→  const rows = await pgQuery<{
+   205→    id: string;
+   206→    message_role: string;
+   207→    message_content: string;
+   208→    created_at: string;
+   209→  }>(
+   210→    `SELECT id, message_role, message_content, created_at
+   211→     FROM lms.ai_tutor_messages
+   212→     WHERE session_id = $1
+   213→     ORDER BY created_at ASC
+   214→     LIMIT 100`,
+   215→    [sessionId],
+   216→  );
+   217→  return rows.map((r, i) => ({
+   218→    id: i + 1,
+   219→    role: (r.message_role === "ai" ? "professor" : r.message_role) as "learner" | "professor",
+   220→    content: r.message_content,
+   221→    createdAt: iso(r.created_at),
+   222→  }));
+   223→}
+   224→
+   225→export async function saveMessage(
+   226→  ownerId: string,
+   227→  courseId: number,
+   228→  role: "learner" | "professor",
+   229→  content: string,
+   230→) {
+   231→  void ownerId;
+   232→  const sessionId = await getOrCreateSession(courseId);
+   233→  if (!sessionId) {
+   234→    console.error("[db] saveMessage: no session for courseId", courseId);
+   235→    return;
+   236→  }
+   237→  try {
+   238→    const lmsRole = role === "professor" ? "ai" : role;
+   239→    await pgExec(
+   240→      `INSERT INTO lms.ai_tutor_messages
+   241→         (id, tenant_id, session_id, learner_user_id, message_role, message_content, message_type)
+   242→       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`,
+   243→      [TENANT_ID, sessionId, DEMO_LEARNER_UUID, lmsRole, content, "text"],
+   244→    );
+   245→  } catch (e) {
+   246→    console.error("[db] saveMessage failed:", e instanceof Error ? e.message : "unknown");
+   247→  }
+   248→}
+   249→
+   250→export async function listDashboardProfessorMessages(ownerId: string, lessonId: string) {
+   251→  void ownerId;
+   252→  // Dashboard professor messages are tutor messages scoped to a lesson
+   253→  // (not a session). Query ai_tutor_messages by lesson_id.
+   254→  const rows = await pgQuery<{
+   255→    id: string;
+   256→    message_role: string;
+   257→    message_content: string;
+   258→    created_at: string;
+   259→  }>(
+   260→    `SELECT id, message_role, message_content, created_at
+   261→     FROM lms.ai_tutor_messages
+   262→     WHERE learner_user_id = $1 AND lesson_id::text = $2
+   263→     ORDER BY created_at ASC
+   264→     LIMIT 100`,
+   265→    [DEMO_LEARNER_UUID, lessonId],
+   266→  );
+   267→  return rows.map((r, i) => ({
+   268→    id: i + 1,
+   269→    role: (r.message_role === "ai" ? "professor" : r.message_role) as "learner" | "professor",
+   270→    content: r.message_content,
+   271→    createdAt: iso(r.created_at),
+   272→  }));
+   273→}
+   274→
+   275→export async function saveDashboardProfessorMessage(
+   276→  ownerId: string,
+   277→  lessonId: string,
+   278→  role: "learner" | "professor",
+   279→  content: string,
+   280→) {
+   281→  void ownerId;
+   282→  try {
+   283→    const lmsRole = role === "professor" ? "ai" : role;
+   284→    await pgExec(
+   285→      `INSERT INTO lms.ai_tutor_messages
+   286→         (id, tenant_id, learner_user_id, lesson_id, message_role, message_content, message_type)
+   287→       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`,
+   288→      [TENANT_ID, DEMO_LEARNER_UUID, lessonId, lmsRole, content, "text"],
+   289→    );
+   290→  } catch (e) {
+   291→    console.error("[db] saveDashboardProfessorMessage failed:", e instanceof Error ? e.message : "unknown");
+   292→  }
+   293→}
+   294→
+   295→// ---------------- Workspace ----------------
+   296→
+   297→export type WorkspaceNote = {
+   298→  id: number;
+   299→  courseId: number | null;
+   300→  title: string;
+   301→  body: string;
+   302→  createdAt: string;
+   303→  updatedAt: string;
+   304→};
+   305→export type WorkspaceEvent = {
+   306→  id: number;
+   307→  courseId: number | null;
+   308→  title: string;
+   309→  startsAt: string;
+   310→  kind: string;
+   311→};
+   312→export type WorkspaceFile = {
+   313→  id: number;
+   314→  courseId: number | null;
+   315→  name: string;
+   316→  mime: string;
+   317→  size: number;
+   318→  createdAt: string;
+   319→};
+   320→export type AssignmentState = {
+   321→  courseId: number;
+   322→  assignmentKey: string;
+   323→  status: string;
+   324→  score: number | null;
+   325→  updatedAt: string;
+   326→};
+   327→
+   328→export async function listWorkspaceNotes(ownerId: string): Promise<WorkspaceNote[]> {
+   329→  const { data, error } = await supabase
+   330→    .from("learnerNote")
+   331→    .select("*")
+   332→    .eq("ownerId", ownerId)
+   333→    .order("updatedAt", { ascending: false })
+   334→    .limit(100);
+   335→  if (error) {
+   336→    console.error("[db] listWorkspaceNotes failed:", error.message);
+   337→    return [];
+   338→  }
+   339→  return (data ?? []).map((n) => {
+   340→    const r = asRow<{
+   341→      id: number;
+   342→      courseId: number | null;
+   343→      title: string;
+   344→      body: string;
+   345→      createdAt: string;
+   346→      updatedAt: string;
+   347→    }>(n);
+   348→    return {
+   349→      id: r.id,
+   350→      courseId: r.courseId,
+   351→      title: r.title,
+   352→      body: r.body,
+   353→      createdAt: iso(r.createdAt),
+   354→      updatedAt: iso(r.updatedAt),
+   355→    };
+   356→  });
+   357→}
+   358→
+   359→export async function saveWorkspaceNote(
+   360→  ownerId: string,
+   361→  input: { id?: number; courseId?: number | null; title: string; body: string },
+   362→) {
+   363→  const now = new Date().toISOString();
+   364→  if (input.id) {
+   365→    const { error } = await supabase
+   366→      .from("learnerNote")
+   367→      .update({
+   368→        title: input.title,
+   369→        body: input.body,
+   370→        courseId: input.courseId ?? null,
+   371→        updatedAt: now,
+   372→      })
+   373→      .eq("ownerId", ownerId)
+   374→      .eq("id", input.id);
+   375→    if (error) console.error("[db] saveWorkspaceNote update failed:", error.message);
+   376→    return input.id;
+   377→  }
+   378→  const { data, error } = await supabase
+   379→    .from("learnerNote")
+   380→    .insert({
+   381→      ownerId,
+   382→      courseId: input.courseId ?? null,
+   383→      title: input.title,
+   384→      body: input.body,
+   385→      createdAt: now,
+   386→      updatedAt: now,
+   387→    })
+   388→    .select()
+   389→    .single();
+   390→  if (error) {
+   391→    console.error("[db] saveWorkspaceNote insert failed:", error.message);
+   392→    return 0;
+   393→  }
+   394→  const row = asRow<{ id: number }>(data);
+   395→  return row.id;
+   396→}
+   397→
+   398→export async function deleteWorkspaceNote(ownerId: string, id: number) {
+   399→  const { error } = await supabase
+   400→    .from("learnerNote")
+   401→    .delete()
+   402→    .eq("ownerId", ownerId)
+   403→    .eq("id", id);
+   404→  if (error) console.error("[db] deleteWorkspaceNote failed:", error.message);
+   405→}
+   406→
+   407→export async function listWorkspaceEvents(ownerId: string): Promise<WorkspaceEvent[]> {
+   408→  const { data, error } = await supabase
+   409→    .from("learnerEvent")
+   410→    .select("*")
+   411→    .eq("ownerId", ownerId)
+   412→    .order("startsAt", { ascending: true })
+   413→    .limit(100);
+   414→  if (error) {
+   415→    console.error("[db] listWorkspaceEvents failed:", error.message);
+   416→    return [];
+   417→  }
+   418→  return (data ?? []).map((e) => {
+   419→    const r = asRow<{
+   420→      id: number;
+   421→      courseId: number | null;
+   422→      title: string;
+   423→      startsAt: string;
+   424→      kind: string;
+   425→    }>(e);
+   426→    return {
+   427→      id: r.id,
+   428→      courseId: r.courseId,
+   429→      title: r.title,
+   430→      startsAt: r.startsAt,
+   431→      kind: r.kind,
+   432→    };
+   433→  });
+   434→}
+   435→
+   436→export async function saveWorkspaceEvent(
+   437→  ownerId: string,
+   438→  input: { courseId?: number | null; title: string; startsAt: string; kind: string },
+   439→) {
+   440→  const { data, error } = await supabase
+   441→    .from("learnerEvent")
+   442→    .insert({
+   443→      ownerId,
+   444→      courseId: input.courseId ?? null,
+   445→      title: input.title,
+   446→      startsAt: input.startsAt,
+   447→      kind: input.kind,
+   448→      createdAt: new Date().toISOString(),
+   449→    })
+   450→    .select()
+   451→    .single();
+   452→  if (error) {
+   453→    console.error("[db] saveWorkspaceEvent failed:", error.message);
+   454→    return 0;
+   455→  }
+   456→  const row = asRow<{ id: number }>(data);
+   457→  return row.id;
+   458→}
+   459→
+   460→export async function deleteWorkspaceEvent(ownerId: string, id: number) {
+   461→  const { error } = await supabase
+   462→    .from("learnerEvent")
+   463→    .delete()
+   464→    .eq("ownerId", ownerId)
+   465→    .eq("id", id);
+   466→  if (error) console.error("[db] deleteWorkspaceEvent failed:", error.message);
+   467→}
+   468→
+   469→export async function listWorkspaceFiles(ownerId: string): Promise<WorkspaceFile[]> {
+   470→  const { data, error } = await supabase
+   471→    .from("learnerFile")
+   472→    .select("id, courseId, name, mime, size, createdAt")
+   473→    .eq("ownerId", ownerId)
+   474→    .order("createdAt", { ascending: false })
+   475→    .limit(100);
+   476→  if (error) {
+   477→    console.error("[db] listWorkspaceFiles failed:", error.message);
+   478→    return [];
+   479→  }
+   480→  return (data ?? []).map((f) => {
+   481→    const r = asRow<{
+   482→      id: number;
+   483→      courseId: number | null;
+   484→      name: string;
+   485→      mime: string;
+   486→      size: number;
+   487→      createdAt: string;
+   488→    }>(f);
+   489→    return {
+   490→      id: r.id,
+   491→      courseId: r.courseId,
+   492→      name: r.name,
+   493→      mime: r.mime,
+   494→      size: r.size,
+   495→      createdAt: iso(r.createdAt),
+   496→    };
+   497→  });
+   498→}
+   499→
+   500→export async function saveWorkspaceFile(
+   501→  ownerId: string,
+   502→  input: { courseId?: number | null; name: string; mime: string; data: Uint8Array },
+   503→) {
+   504→  // Store the binary as base64 in a TEXT column (supabase-js friendly).
+   505→  let b64 = "";
+   506→  if (input.data && input.data.byteLength > 0) {
+   507→    b64 = Buffer.from(input.data).toString("base64");
+   508→  }
+   509→  const { data, error } = await supabase
+   510→    .from("learnerFile")
+   511→    .insert({
+   512→      ownerId,
+   513→      courseId: input.courseId ?? null,
+   514→      name: input.name,
+   515→      mime: input.mime,
+   516→      size: input.data.byteLength,
+   517→      data: b64,
+   518→      createdAt: new Date().toISOString(),
+   519→    })
+   520→    .select()
+   521→    .single();
+   522→  if (error) {
+   523→    console.error("[db] saveWorkspaceFile failed:", error.message);
+   524→    return 0;
+   525→  }
+   526→  const row = asRow<{ id: number }>(data);
+   527→  return row.id;
+   528→}
+   529→
+   530→export async function getWorkspaceFile(ownerId: string, id: number) {
+   531→  const { data, error } = await supabase
+   532→    .from("learnerFile")
+   533→    .select("name, mime, data")
+   534→    .eq("ownerId", ownerId)
+   535→    .eq("id", id)
+   536→    .maybeSingle();
+   537→  if (error) {
+   538→    console.error("[db] getWorkspaceFile failed:", error.message);
+   539→    return undefined;
+   540→  }
+   541→  if (!data) return undefined;
+   542→  const r = asRow<{ name: string; mime: string; data: string }>(data);
+   543→  const bytes = r.data ? Buffer.from(r.data, "base64") : Buffer.alloc(0);
+   544→  return { name: r.name, mime: r.mime, data: bytes as unknown as Uint8Array };
+   545→}
+   546→
+   547→export async function deleteWorkspaceFile(ownerId: string, id: number) {
+   548→  const { error } = await supabase
+   549→    .from("learnerFile")
+   550→    .delete()
+   551→    .eq("ownerId", ownerId)
+   552→    .eq("id", id);
+   553→  if (error) console.error("[db] deleteWorkspaceFile failed:", error.message);
+   554→}
+   555→
+   556→export async function listAssignmentStates(ownerId: string): Promise<AssignmentState[]> {
+   557→  const { data, error } = await supabase
+   558→    .from("learnerAssignmentState")
+   559→    .select("*")
+   560→    .eq("ownerId", ownerId);
+   561→  if (error) {
+   562→    console.error("[db] listAssignmentStates failed:", error.message);
+   563→    return [];
+   564→  }
+   565→  return (data ?? []).map((a) => {
+   566→    const r = asRow<{
+   567→      courseId: number;
+   568→      assignmentKey: string;
+   569→      status: string;
+   570→      score: number | null;
+   571→      updatedAt: string;
+   572→    }>(a);
+   573→    return {
+   574→      courseId: r.courseId,
+   575→      assignmentKey: r.assignmentKey,
+   576→      status: r.status,
+   577→      score: r.score,
+   578→      updatedAt: iso(r.updatedAt),
+   579→    };
+   580→  });
+   581→}
+   582→
+   583→export async function saveAssignmentState(
+   584→  ownerId: string,
+   585→  input: { courseId: number; assignmentKey: string; status: string; score?: number | null },
+   586→) {
+   587→  const now = new Date().toISOString();
+   588→  const payload = {
+   589→    ownerId,
+   590→    courseId: input.courseId,
+   591→    assignmentKey: input.assignmentKey,
+   592→    status: input.status,
+   593→    score: input.score ?? null,
+   594→    updatedAt: now,
+   595→  };
+   596→  const { error } = await supabase
+   597→    .from("learnerAssignmentState")
+   598→    .upsert(payload, { onConflict: "ownerId,courseId,assignmentKey" });
+   599→  if (error) console.error("[db] saveAssignmentState failed:", error.message);
+   600→}
+   601→
+   602→export async function listWorkspaceMessages(ownerId: string) {
+   603→  const { data, error } = await supabase
+   604→    .from("learnerMessage")
+   605→    .select("*")
+   606→    .eq("ownerId", ownerId)
+   607→    .order("id", { ascending: true })
+   608→    .limit(200);
+   609→  if (error) {
+   610→    console.error("[db] listWorkspaceMessages failed:", error.message);
+   611→    return [];
+   612→  }
+   613→  return (data ?? []).map((m) => {
+   614→    const r = asRow<{
+   615→      id: number;
+   616→      sender: string;
+   617→      recipient: string;
+   618→      content: string;
+   619→      createdAt: string;
+   620→    }>(m);
+   621→    return {
+   622→      id: r.id,
+   623→      sender: r.sender,
+   624→      recipient: r.recipient,
+   625→      content: r.content,
+   626→      createdAt: iso(r.createdAt),
+   627→    };
+   628→  });
+   629→}
+   630→
+   631→export async function saveWorkspaceMessage(
+   632→  ownerId: string,
+   633→  input: { sender: string; recipient: string; content: string },
+   634→) {
+   635→  const { data, error } = await supabase
+   636→    .from("learnerMessage")
+   637→    .insert({
+   638→      ownerId,
+   639→      sender: input.sender,
+   640→      recipient: input.recipient,
+   641→      content: input.content,
+   642→      createdAt: new Date().toISOString(),
+   643→    })
+   644→    .select()
+   645→    .single();
+   646→  if (error) {
+   647→    console.error("[db] saveWorkspaceMessage failed:", error.message);
+   648→    return 0;
+   649→  }
+   650→  const row = asRow<{ id: number }>(data);
+   651→  return row.id;
+   652→}
+   653→
+   654→export type LearningEvidence = {
+   655→  id: number;
+   656→  courseId: number;
+   657→  kind: string;
+   658→  title: string;
+   659→  content: string;
+   660→  createdAt: string;
+   661→};
+   662→
+   663→export async function listLearningEvidence(ownerId: string): Promise<LearningEvidence[]> {
+   664→  const { data, error } = await supabase
+   665→    .from("learnerEvidence")
+   666→    .select("*")
+   667→    .eq("ownerId", ownerId)
+   668→    .order("id", { ascending: false })
+   669→    .limit(100);
+   670→  if (error) {
+   671→    console.error("[db] listLearningEvidence failed:", error.message);
+   672→    return [];
+   673→  }
+   674→  return (data ?? []).map((e) => {
+   675→    const r = asRow<{
+   676→      id: number;
+   677→      courseId: number;
+   678→      kind: string;
+   679→      title: string;
+   680→      content: string;
+   681→      createdAt: string;
+   682→    }>(e);
+   683→    return {
+   684→      id: r.id,
+   685→      courseId: r.courseId,
+   686→      kind: r.kind,
+   687→      title: r.title,
+   688→      content: r.content,
+   689→      createdAt: iso(r.createdAt),
+   690→    };
+   691→  });
+   692→}
+   693→
+   694→export async function saveLearningEvidence(
+   695→  ownerId: string,
+   696→  input: { courseId: number; kind: string; title: string; content: string },
+   697→) {
+   698→  const { data, error } = await supabase
+   699→    .from("learnerEvidence")
+   700→    .insert({
+   701→      ownerId,
+   702→      courseId: input.courseId,
+   703→      kind: input.kind,
+   704→      title: input.title,
+   705→      content: input.content,
+   706→      createdAt: new Date().toISOString(),
+   707→    })
+   708→    .select()
+   709→    .single();
+   710→  if (error) {
+   711→    console.error("[db] saveLearningEvidence failed:", error.message);
+   712→    return 0;
+   713→  }
+   714→  const row = asRow<{ id: number }>(data);
+   715→  return row.id;
+   716→}
+   717→
+   718→async function countRows(table: string, ownerId: string): Promise<number> {
+   719→  const { count, error } = await supabase
+   720→    .from(table)
+   721→    .select("*", { count: "exact", head: true })
+   722→    .eq("ownerId", ownerId);
+   723→  if (error) {
+   724→    console.error(`[db] count ${table} failed:`, error.message);
+   725→    return 0;
+   726→  }
+   727→  return count ?? 0;
+   728→}
+   729→
+   730→export async function workspaceSummary(ownerId: string) {
+   731→  const [notes, events, files, messages, evidence, assignmentStates] = await Promise.all([
+   732→    countRows("learnerNote", ownerId),
+   733→    countRows("learnerEvent", ownerId),
+   734→    countRows("learnerFile", ownerId),
+   735→    countRows("learnerMessage", ownerId),
+   736→    countRows("learnerEvidence", ownerId),
+   737→    listAssignmentStates(ownerId),
+   738→  ]);
+   739→  return { notes, events, files, messages, evidence, assignmentStates };
+   740→}
+   741→
+   742→// ---------------- Governed learning Day ----------------
+   743→
+   744→type DayCommand = {
+   745→  state?: string;
+   746→  currentLesson?: number;
+   747→  currentItem?: string;
+   748→  cycleStep?: number;
+   749→  sentiment?: string;
+   750→  breakEndsAt?: string | null;
+   751→  priorState?: string | null;
+   752→  activeWorkKind?: "LESSON" | "ASSIGNMENT" | "QUIZ";
+   753→  activeWorkKey?: string | null;
+   754→  activeWorkTitle?: string | null;
+   755→  eventType: string;
+   756→  payload: Record<string, unknown>;
+   757→};
+   758→
+   759→async function courseFirstItem(ownerId: string, courseId: number) {
+   760→  const course = await getCourse(ownerId, courseId);
+   761→  const first = course?.companion.sections?.[0];
+   762→  return (
+   763→    first?.checks?.[0] ||
+   764→    `Explain the central idea of ${first?.title || course?.title || "this lesson"} in your own words.`
+   765→  );
+   766→}
+   767→
+   768→async function appendDayEvent(
+   769→  ownerId: string,
+   770→  dayId: number,
+   771→  eventType: string,
+   772→  payload: Record<string, unknown>,
+   773→) {
+   774→  const { error } = await supabase.from("learningDayEvent").insert({
+   775→    ownerId,
+   776→    dayId,
+   777→    eventType,
+   778→    payloadJson: JSON.stringify(payload),
+   779→    createdAt: new Date().toISOString(),
+   780→  });
+   781→  if (error) console.error("[db] appendDayEvent failed:", error.message);
+   782→}
+   783→
+   784→// Deterministic synthetic day ID — stable per owner+course. The persisted
+   785→// learningDay table was part of the dropped public.* schema; until the
+   786→// day-state migration to lms.* lands, we synthesize a day ID so the
+   787→// classroom can open a day and enable the Professor + tools.
+   788→function syntheticDayId(ownerId: string, courseId: number): number {
+   789→  const str = ownerId + ":" + courseId;
+   790→  let h = 0;
+   791→  for (let i = 0; i < str.length; i++) {
+   792→    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+   793→  }
+   794→  return Math.abs(h) % 0x7fffffff || 1;
+   795→}
+   796→
+   797→export async function openLearningDay(
+   798→  ownerId: string,
+   799→  courseId: number,
+   800→  mode: "SPRINT" | "SHIFT" | "FULL_DAY",
+   801→) {
+   802→  // Synthetic day — no DB write. The day state is synthesized by
+   803→  // getLearningDaySnapshot using this same ID.
+   804→  void mode;
+   805→  return syntheticDayId(ownerId, courseId);
+   806→}
+   807→
+   808→function resolveDate(next: string | null | undefined, current: string | null): string | null {
+   809→  if (next === undefined) return current;
+   810→  if (next === null) return null;
+   811→  return next;
+   812→}
+   813→
+   814→export async function commandLearningDay(ownerId: string, dayId: number, command: DayCommand) {
+   815→  // The persisted learningDay table was dropped. Until the day-state
+   816→  // migration to lms.* lands, this is a no-op — the synthetic day state
+   817→  // is returned by getLearningDaySnapshot and doesn't need DB updates.
+   818→  void ownerId; void dayId; void command;
+   819→  return;
+   820→}
+   821→
+   822→export async function recordLearningAttempt(
+   823→  ownerId: string,
+   824→  dayId: number,
+   825→  courseId: number,
+   826→  input: {
+   827→    lessonIndex: number;
+   828→    item: string;
+   829→    attemptNo: number;
+   830→    response: string;
+   831→    score: number;
+   832→    passed: boolean;
+   833→    stage: string;
+   834→    misconception: string;
+   835→    feedback: string;
+   836→    evidenceSummary: string;
+   837→    workKind?: "LESSON" | "ASSIGNMENT" | "QUIZ";
+   838→    workKey?: string | null;
+   839→  },
+   840→) {
+   841→  const { error } = await supabase.from("learningAttempt").insert({
+   842→    ownerId,
+   843→    dayId,
+   844→    courseId,
+   845→    lessonIndex: input.lessonIndex,
+   846→    itemText: input.item,
+   847→    attemptNo: input.attemptNo,
+   848→    response: input.response,
+   849→    score: input.score,
+   850→    passed: input.passed,
+   851→    stage: input.stage,
+   852→    misconception: input.misconception || "",
+   853→    feedback: input.feedback || "",
+   854→    evidenceSummary: input.evidenceSummary || "",
+   855→    workKind: input.workKind || "LESSON",
+   856→    workKey: input.workKey ?? null,
+   857→    createdAt: new Date().toISOString(),
+   858→  });
+   859→  if (error) console.error("[db] recordLearningAttempt failed:", error.message);
+   860→}
+   861→
+   862→export async function createHumanNeed(
+   863→  ownerId: string,
+   864→  dayId: number,
+   865→  courseId: number,
+   866→  context: Record<string, unknown>,
+   867→) {
+   868→  const reason = String(context.reason || "Human support requested");
+   869→  const { data: existing, error: findErr } = await supabase
+   870→    .from("humanNeedQueue")
+   871→    .select("id")
+   872→    .eq("ownerId", ownerId)
+   873→    .eq("dayId", dayId)
+   874→    .eq("status", "OPEN")
+   875→    .limit(1)
+   876→    .maybeSingle();
+   877→  if (findErr) console.error("[db] createHumanNeed find failed:", findErr.message);
+   878→  if (existing) {
+   879→    const r = asRow<{ id: number }>(existing);
+   880→    if (r.id) {
+   881→      const { error: updErr } = await supabase
+   882→        .from("humanNeedQueue")
+   883→        .update({ reason, contextJson: JSON.stringify(context) })
+   884→        .eq("id", r.id);
+   885→      if (updErr) console.error("[db] createHumanNeed update failed:", updErr.message);
+   886→      return r.id;
+   887→    }
+   888→  }
+   889→  const { data, error } = await supabase
+   890→    .from("humanNeedQueue")
+   891→    .insert({
+   892→      ownerId,
+   893→      dayId,
+   894→      courseId,
+   895→      reason,
+   896→      status: "OPEN",
+   897→      contextJson: JSON.stringify(context),
+   898→      createdAt: new Date().toISOString(),
+   899→    })
+   900→    .select()
+   901→    .single();
+   902→  if (error) {
+   903→    console.error("[db] createHumanNeed insert failed:", error.message);
+   904→    return 0;
+   905→  }
+   906→  const row = asRow<{ id: number }>(data);
+   907→  return row.id;
+   908→}
+   909→
+   910→export async function resolveHumanNeed(ownerId: string, id: number, resolution: string) {
+   911→  const { data: row, error: findErr } = await supabase
+   912→    .from("humanNeedQueue")
+   913→    .select("dayId, contextJson")
+   914→    .eq("ownerId", ownerId)
+   915→    .eq("id", id)
+   916→    .maybeSingle();
+   917→  if (findErr || !row) {
+   918→    console.error("[db] resolveHumanNeed find failed:", findErr?.message || "not found");
+   919→    throw new Error("Queue item not found.");
+   920→  }
+   921→  const r = asRow<{ dayId: number; contextJson: string }>(row);
+   922→  const { error } = await supabase
+   923→    .from("humanNeedQueue")
+   924→    .update({ status: "RESOLVED", resolvedAt: new Date().toISOString() })
+   925→    .eq("id", id);
+   926→  if (error) console.error("[db] resolveHumanNeed update failed:", error.message);
+   927→  await appendDayEvent(ownerId, r.dayId, "HUMAN_NEED_RESOLVED", { resolution });
+   928→}
+   929→
+   930→export async function closeLearningDay(
+   931→  ownerId: string,
+   932→  dayId: number,
+   933→  input: { recap: string; homework: string; forecast: string },
+   934→) {
+   935→  const now = new Date();
+   936→  const { error } = await supabase
+   937→    .from("learningDay")
+   938→    .update({
+   939→      state: "CLOSED",
+   940→      closedAt: now.toISOString(),
+   941→      recap: input.recap,
+   942→      homework: input.homework,
+   943→      forecast: input.forecast,
+   944→      updatedAt: now.toISOString(),
+   945→    })
+   946→    .eq("id", dayId);
+   947→  if (error) console.error("[db] closeLearningDay failed:", error.message);
+   948→  await appendDayEvent(ownerId, dayId, "DAY_CLOSED", input);
+   949→}
+   950→
+   951→type MappedDay = {
+   952→  id: number;
+   953→  courseId: number;
+   954→  mode: string;
+   955→  state: string;
+   956→  currentLesson: number;
+   957→  currentItem: string;
+   958→  cycleStep: number;
+   959→  activeWorkKind: string;
+   960→  activeWorkKey: string | null;
+   961→  activeWorkTitle: string | null;
+   962→  sentiment: string | null;
+   963→  openedAt: string;
+   964→  scheduledCloseAt: string;
+   965→  breakEndsAt: string | null;
+   966→  priorState: string | null;
+   967→  closedAt: string | null;
+   968→  recap: string | null;
+   969→  homework: string | null;
+   970→  forecast: string | null;
+   971→  version: number;
+   972→  updatedAt: string;
+   973→};
+   974→
+   975→function mapDay(row: any): MappedDay | null {
+   976→  if (!row) return null;
+   977→  return {
+   978→    id: row.id,
+   979→    courseId: row.courseId,
+   980→    mode: row.mode,
+   981→    state: row.state,
+   982→    currentLesson: row.currentLesson,
+   983→    currentItem: row.currentItem,
+   984→    cycleStep: row.cycleStep,
+   985→    activeWorkKind: row.activeWorkKind || "LESSON",
+   986→    activeWorkKey: row.activeWorkKey,
+   987→    activeWorkTitle: row.activeWorkTitle,
+   988→    sentiment: row.sentiment,
+   989→    openedAt: iso(row.openedAt),
+   990→    scheduledCloseAt: iso(row.scheduledCloseAt),
+   991→    breakEndsAt: row.breakEndsAt ? iso(row.breakEndsAt) : null,
+   992→    priorState: row.priorState,
+   993→    closedAt: row.closedAt ? iso(row.closedAt) : null,
+   994→    recap: row.recap,
+   995→    homework: row.homework,
+   996→    forecast: row.forecast,
+   997→    version: row.version,
+   998→    updatedAt: iso(row.updatedAt),
+   999→  };
+  1000→}
+  1001→
+  1002→export async function getLearningDaySnapshot(ownerId: string, courseId: number) {
+  1003→  // Synthetic day snapshot — the persisted learningDay table was dropped.
+  1004→  // Until the day-state migration to lms.* lands, return a synthesized
+  1005→  // open-day state so the classroom enables the Professor + tools.
+  1006→  const course = await getCourse(ownerId, courseId);
+  1007→  if (!course) return null;
+  1008→  const firstLesson = course.companion.sections?.[0];
+  1009→  const now = new Date();
+  1010→  const dayId = syntheticDayId(ownerId, courseId);
+  1011→  const day = {
+  1012→    id: dayId,
+  1013→    ownerId,
+  1014→    courseId,
+  1015→    mode: "SPRINT",
+  1016→    state: "CHECK_IN",
+  1017→    currentLesson: 0,
+  1018→    currentItem: firstLesson?.checks?.[0] || firstLesson?.title || course.title,
+  1019→    cycleStep: 0,
+  1020→    activeWorkKind: "LESSON" as const,
+  1021→    activeWorkKey: null as string | null,
+  1022→    activeWorkTitle: firstLesson?.title || course.title,
+  1023→    breakEndsAt: null as string | null,
+  1024→    openedAt: now.toISOString(),
+  1025→    scheduledCloseAt: new Date(now.getTime() + 45 * 60000).toISOString(),
+  1026→    closedAt: null as string | null,
+  1027→    updatedAt: now.toISOString(),
+  1028→  };
+  1029→  return {
+  1030→    day,
+  1031→    events: [] as Array<{ id: number; eventType: string; payload: Record<string, unknown>; createdAt: string }>,
+  1032→    attempts: [] as Array<Record<string, unknown>>,
+  1033→    queue: [] as Array<Record<string, unknown>>,
+  1034→    metrics: { activeMinutes: 0, demonstratedLessons: 0, evidenceCount: 0 },
+  1035→  };
+  1036→}
+  1037→
+  1038→export async function listInstructorDaySnapshots(ownerId: string) {
+  1039→  const { data: rows, error } = await supabase
+  1040→    .from("learningDay")
+  1041→    .select("id, courseId")
+  1042→    .eq("ownerId", ownerId)
+  1043→    .order("id", { ascending: false })
+  1044→    .limit(60);
+  1045→  if (error) {
+  1046→    console.error("[db] listInstructorDaySnapshots failed:", error.message);
+  1047→    return [];
+  1048→  }
+  1049→  // Keep only the latest day per course (mirrors the original GROUP BY MAX(id)).
+  1050→  const seen = new Set<number>();
+  1051→  const latest = (rows ?? []).filter((r) => {
+  1052→    const courseId = asRow<{ courseId: number }>(r).courseId;
+  1053→    if (seen.has(courseId)) return false;
+  1054→    seen.add(courseId);
+  1055→    return true;
+  1056→  });
+  1057→  // Fetch course titles for each unique course id (no FK relationship to lean
+  1058→  // on for the embedded PostgREST join — we do it in JS instead).
+  1059→  const courseIds = latest.map((r) => asRow<{ courseId: number }>(r).courseId);
+  1060→  const courseInfoMap = new Map<number, { area: string; title: string }>();
+  1061→  if (courseIds.length > 0) {
+  1062→    const { data: courseRows, error: courseErr } = await supabase
+  1063→      .from("course")
+  1064→      .select("id, area, title")
+  1065→      .in("id", courseIds);
+  1066→    if (courseErr) console.error("[db] listInstructorDaySnapshots course fetch:", courseErr.message);
+  1067→    for (const c of courseRows ?? []) {
+  1068→      const r = asRow<{ id: number; area: string; title: string }>(c);
+  1069→      courseInfoMap.set(r.id, { area: r.area, title: r.title });
+  1070→    }
+  1071→  }
+  1072→  const snapshots = await Promise.all(
+  1073→    latest.map(async (r) => {
+  1074→      const courseId = asRow<{ courseId: number }>(r).courseId;
+  1075→      const courseInfo = courseInfoMap.get(courseId);
+  1076→      const snapshot = await getLearningDaySnapshot(ownerId, courseId);
+  1077→      return {
+  1078→        ...snapshot,
+  1079→        courseTitle: courseInfo?.title ?? "",
+  1080→        courseArea: courseInfo?.area ?? "",
+  1081→        learnerName: "Avery Johnson",
+  1082→      };
+  1083→    }),
+  1084→  );
+  1085→  return snapshots.slice(0, 30);
+  1086→}
+  1087→
+  1088→// ---------------- Multi-course school Day ----------------
+  1089→
+  1090→function todayInChicago(): string {
+  1091→  const parts = new Intl.DateTimeFormat("en-US", {
+  1092→    timeZone: "America/Chicago",
+  1093→    year: "numeric",
+  1094→    month: "2-digit",
+  1095→    day: "2-digit",
+  1096→  }).formatToParts(new Date());
+  1097→  const pick = (type: string) => parts.find((p) => p.type === type)?.value || "";
+  1098→  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+  1099→}
+  1100→
+  1101→export async function getSchoolSnapshot(ownerId: string) {
+  1102→  const today = todayInChicago();
+  1103→
+  1104→  // Fetch enrollment rows + course rows separately (no FK constraints to
+  1105→  // lean on for PostgREST embedded joins).
+  1106→  const [{ data: enrollmentRows, error: enrErr }, { data: courseRowsForEnr, error: courseEnrErr }] =
+  1107→    await Promise.all([
+  1108→      supabase.from("courseEnrollment").select("*").eq("ownerId", ownerId),
+  1109→      supabase.from("course").select("*").eq("ownerId", ownerId),
+  1110→    ]);
+  1111→  if (enrErr) console.error("[db] getSchoolSnapshot enrollments:", enrErr.message);
+  1112→  if (courseEnrErr) console.error("[db] getSchoolSnapshot courses:", courseEnrErr.message);
+  1113→  const courseMap = new Map<number, Row>();
+  1114→  for (const c of courseRowsForEnr ?? []) courseMap.set(asRow<{ id: number }>(c).id, c as Row);
+  1115→
+  1116→  const priorityRank: Record<string, number> = { High: 1, Medium: 2, Low: 3 };
+  1117→  const enrollments = (enrollmentRows ?? [])
+  1118→    .map((e) => {
+  1119→      const r = asRow<{
+  1120→        courseId: number;
+  1121→        level: string;
+  1122→        deficiencyFocus: string | null;
+  1123→        priority: string;
+  1124→        enrolledAt: string;
+  1125→      }>(e);
+  1126→      const course = courseMap.get(r.courseId) ?? ({} as Row);
+  1127→      return { e: r, course };
+  1128→    })
+  1129→    .sort((a, b) => {
+  1130→      const rank = (priorityRank[a.e.priority] ?? 3) - (priorityRank[b.e.priority] ?? 3);
+  1131→      if (rank !== 0) return rank;
+  1132→      return String(a.course.title || "").localeCompare(String(b.course.title || ""));
+  1133→    });
+  1134→
+  1135→  // Detect whether today's schedule exists.
+  1136→  const { data: todayBlockRow } = await supabase
+  1137→    .from("schoolScheduleBlock")
+  1138→    .select("id")
+  1139→    .eq("ownerId", ownerId)
+  1140→    .eq("schoolDate", today)
+  1141→    .limit(1)
+  1142→    .maybeSingle();
+  1143→  const hasTodayBlock = !!todayBlockRow;
+  1144→
+  1145→  const { data: latestBlock } = await supabase
+  1146→    .from("schoolScheduleBlock")
+  1147→    .select("schoolDate")
+  1148→    .eq("ownerId", ownerId)
+  1149→    .order("schoolDate", { ascending: false })
+  1150→    .limit(1)
+  1151→    .maybeSingle();
+  1152→  const latestDate = latestBlock
+  1153→    ? asRow<{ schoolDate: string }>(latestBlock).schoolDate
+  1154→    : today;
+  1155→  const displayedDate = hasTodayBlock ? today : latestDate || today;
+  1156→
+  1157→  const [scheduleResp, gradeResp, meetingResp] = await Promise.all([
+  1158→    supabase
+  1159→      .from("schoolScheduleBlock")
+  1160→      .select("*")
+  1161→      .eq("ownerId", ownerId)
+  1162→      .eq("schoolDate", displayedDate)
+  1163→      .order("sequence", { ascending: true }),
+  1164→    supabase
+  1165→      .from("gradebookEntry")
+  1166→      .select("*")
+  1167→      .eq("ownerId", ownerId),
+  1168→    supabase
+  1169→      .from("classroomMeeting")
+  1170→      .select("*")
+  1171→      .eq("ownerId", ownerId)
+  1172→      .order("startsAt", { ascending: true }),
+  1173→  ]);
+  1174→  if (scheduleResp.error) console.error("[db] getSchoolSnapshot schedule:", scheduleResp.error.message);
+  1175→  if (gradeResp.error) console.error("[db] getSchoolSnapshot grades:", gradeResp.error.message);
+  1176→  if (meetingResp.error) console.error("[db] getSchoolSnapshot meetings:", meetingResp.error.message);
+  1177→
+  1178→  const schedule = (scheduleResp.data ?? []).map((s) => {
+  1179→    const r = asRow<{
+  1180→      id: number;
+  1181→      courseId: number | null;
+  1182→      blockType: string;
+  1183→      title: string;
+  1184→      startsAt: string;
+  1185→      endsAt: string;
+  1186→      status: string;
+  1187→      deficiencyFocus: string | null;
+  1188→      sequence: number;
+  1189→    }>(s);
+  1190→    const course = r.courseId ? courseMap.get(r.courseId) : null;
+  1191→    return {
+  1192→      id: r.id,
+  1193→      courseId: r.courseId,
+  1194→      blockType: r.blockType,
+  1195→      title: r.title,
+  1196→      startsAt: r.startsAt,
+  1197→      endsAt: r.endsAt,
+  1198→      status: r.status,
+  1199→      deficiencyFocus: r.deficiencyFocus,
+  1200→      sequence: r.sequence,
+  1201→      area: course ? asRow<{ area: string }>(course).area : undefined,
+  1202→      courseTitle: course ? asRow<{ title: string }>(course).title : undefined,
+  1203→    };
+  1204→  });
+  1205→
+  1206→  const grades = (gradeResp.data ?? [])
+  1207→    .map((g) => {
+  1208→      const r = asRow<{
+  1209→        id: number;
+  1210→        courseId: number;
+  1211→        title: string;
+  1212→        category: string;
+  1213→        score: number | null;
+  1214→        possible: number;
+  1215→        status: string;
+  1216→        feedback: string;
+  1217→        gradedAt: string | null;
+  1218→      }>(g);
+  1219→      const course = courseMap.get(r.courseId);
+  1220→      return {
+  1221→        id: r.id,
+  1222→        courseId: r.courseId,
+  1223→        courseTitle: course ? asRow<{ title: string }>(course).title : "",
+  1224→        title: r.title,
+  1225→        category: r.category,
+  1226→        score: r.score,
+  1227→        possible: r.possible,
+  1228→        status: r.status,
+  1229→        feedback: r.feedback,
+  1230→        gradedAt: r.gradedAt ? iso(r.gradedAt) : null,
+  1231→      };
+  1232→    })
+  1233→    .sort((a, b) => {
+  1234→      const ga = a.gradedAt ?? "9999";
+  1235→      const gb = b.gradedAt ?? "9999";
+  1236→      if (ga !== gb) return gb.localeCompare(ga);
+  1237→      return b.id - a.id;
+  1238→    });
+  1239→
+  1240→  const meetings = (meetingResp.data ?? []).map((m) => {
+  1241→    const r = asRow<{
+  1242→      id: number;
+  1243→      courseId: number | null;
+  1244→      title: string;
+  1245→      startsAt: string;
+  1246→      endsAt: string;
+  1247→      room: string;
+  1248→      status: string;
+  1249→    }>(m);
+  1250→    const course = r.courseId ? courseMap.get(r.courseId) : null;
+  1251→    return {
+  1252→      id: r.id,
+  1253→      courseId: r.courseId,
+  1254→      title: r.title,
+  1255→      startsAt: r.startsAt,
+  1256→      endsAt: r.endsAt,
+  1257→      room: r.room,
+  1258→      status: r.status,
+  1259→      courseTitle: course ? asRow<{ title: string }>(course).title : undefined,
+  1260→    };
+  1261→  });
+  1262→
+  1263→  const assignmentStates = await listAssignmentStates(ownerId);
+  1264→  const submissions = assignmentStates
+  1265→    .filter((item) => ["Submitted", "Completed"].includes(item.status))
+  1266→    .map((item) => {
+  1267→      const enrollment = enrollments.find(
+  1268→        (en) => asRow<{ id: number }>(en.course).id === item.courseId,
+  1269→      );
+  1270→      const companionJson = enrollment
+  1271→        ? (asRow<{ companionJson: string }>(enrollment.course).companionJson || "{}")
+  1272→        : "{}";
+  1273→      let companion: Companion | null = null;
+  1274→      try {
+  1275→        companion = JSON.parse(companionJson) as Companion;
+  1276→      } catch {
+  1277→        companion = null;
+  1278→      }
+  1279→      const work = [
+  1280→        ...((companion?.independentPractice || []).map((title, index) => ({
+  1281→          key: `practice-${index}`,
+  1282→          title,
+  1283→          kind: "Assignment",
+  1284→        })) as Array<{ key: string; title: string; kind: string }>),
+  1285→        ...(companion?.appliedProject
+  1286→          ? [{ key: "project", title: companion.appliedProject.title, kind: "Project" }]
+  1287→          : []),
+  1288→        ...((companion?.sections || []).flatMap((section, lessonIndex) =>
+  1289→          (section.checks || []).map((title, index) => ({
+  1290→            key: `check-${lessonIndex}-${index}`,
+  1291→            title,
+  1292→            kind: "Quiz",
+  1293→          })),
+  1294→        ) as Array<{ key: string; title: string; kind: string }>),
+  1295→      ].find((entry) => entry.key === item.assignmentKey);
+  1296→      const courseTitle = enrollment
+  1297→        ? (asRow<{ title: string }>(enrollment.course).title || "Course")
+  1298→        : "Course";
+  1299→      return {
+  1300→        ...item,
+  1301→        title: work?.title || item.assignmentKey,
+  1302→        kind: work?.kind || "Assignment",
+  1303→        courseTitle,
+  1304→      };
+  1305→    });
+  1306→
+  1307→  return {
+  1308→    schoolDate: displayedDate,
+  1309→    currentDate: today,
+  1310→    isHistoricalSchedule: displayedDate !== today,
+  1311→    enrollments: enrollments.map(({ e, course }) => {
+  1312→      let companion: Companion | null = null;
+  1313→      try {
+  1314→        companion = JSON.parse(
+  1315→          asRow<{ companionJson: string }>(course).companionJson || "{}",
+  1316→        ) as Companion;
+  1317→      } catch {
+  1318→        companion = null;
+  1319→      }
+  1320→      const cRow = asRow<{
+  1321→        id: number;
+  1322→        title: string;
+  1323→        area: string;
+  1324→        grade: string;
+  1325→        state: string;
+  1326→        companionJson: string;
+  1327→      }>(course);
+  1328→      return {
+  1329→        courseId: cRow.id,
+  1330→        title: cRow.title,
+  1331→        area: cRow.area,
+  1332→        grade: cRow.grade,
+  1333→        state: cRow.state,
+  1334→        level: e.level,
+  1335→        deficiencyFocus: e.deficiencyFocus,
+  1336→        priority: e.priority,
+  1337→        enrolledAt: iso(e.enrolledAt),
+  1338→        lessonCount: (companion?.sections || []).length,
+  1339→        objectiveCount: (companion?.learningObjectives || []).length,
+  1340→        nextLesson: companion?.sections?.[0]?.title || cRow.title,
+  1341→      };
+  1342→    }),
+  1343→    schedule,
+  1344→    grades,
+  1345→    submissions,
+  1346→    meetings,
+  1347→    inbox: (await listWorkspaceMessages(ownerId)).slice(-50).reverse(),
+  1348→    resources: await listWorkspaceFiles(ownerId),
+  1349→    events: await listWorkspaceEvents(ownerId),
+  1350→  };
+  1351→}
+  1352→
+  1353→export async function setMeetingStatus(ownerId: string, id: number, status: string) {
+  1354→  if (!["SCHEDULED", "JOINED", "ENDED"].includes(status))
+  1355→    throw new Error("Invalid meeting status.");
+  1356→  const { error } = await supabase
+  1357→    .from("classroomMeeting")
+  1358→    .update({ status })
+  1359→    .eq("ownerId", ownerId)
+  1360→    .eq("id", id);
+  1361→  if (error) console.error("[db] setMeetingStatus failed:", error.message);
+  1362→}
+  1363→
+  1364→export async function setScheduleBlockStatus(ownerId: string, id: number, status: string) {
+  1365→  if (!["UPCOMING", "CURRENT", "COMPLETE"].includes(status))
+  1366→    throw new Error("Invalid schedule status.");
+  1367→  if (status === "CURRENT") {
+  1368→    const { data: block } = await supabase
+  1369→      .from("schoolScheduleBlock")
+  1370→      .select("schoolDate")
+  1371→      .eq("ownerId", ownerId)
+  1372→      .eq("id", id)
+  1373→      .maybeSingle();
+  1374→    if (block) {
+  1375→      const schoolDate = asRow<{ schoolDate: string }>(block).schoolDate;
+  1376→      const { error: clrErr } = await supabase
+  1377→        .from("schoolScheduleBlock")
+  1378→        .update({ status: "UPCOMING" })
+  1379→        .eq("ownerId", ownerId)
+  1380→        .eq("schoolDate", schoolDate)
+  1381→        .eq("status", "CURRENT");
+  1382→      if (clrErr) console.error("[db] setScheduleBlockStatus clear:", clrErr.message);
+  1383→    }
+  1384→  }
+  1385→  const { error } = await supabase
+  1386→    .from("schoolScheduleBlock")
+  1387→    .update({ status })
+  1388→    .eq("ownerId", ownerId)
+  1389→    .eq("id", id);
+  1390→  if (error) console.error("[db] setScheduleBlockStatus failed:", error.message);
+  1391→}
+  1392→
+  1393→export async function enrollGeneratedCourse(ownerId: string, courseId: number) {
+  1394→  const { error } = await supabase
+  1395→    .from("courseEnrollment")
+  1396→    .upsert(
+  1397→      {
+  1398→        ownerId,
+  1399→        courseId,
+  1400→        level: "Not assessed",
+  1401→        deficiencyFocus: null,
+  1402→        priority: "Low",
+  1403→        enrolledAt: new Date().toISOString(),
+  1404→      },
+  1405→      { onConflict: "ownerId,courseId" },
+  1406→    );
+  1407→  if (error) console.error("[db] enrollGeneratedCourse failed:", error.message);
+  1408→}
+  1409→
