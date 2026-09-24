@@ -1,30 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createCourse, listCourses } from "@/lib/course-api";
+import { getVisitor } from "@/lib/visitor";
+import { listCourses } from "@/lib/db";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// GET /api/courses?includeDrafts=1
-export async function GET(req: NextRequest) {
-  const includeDrafts = req.nextUrl.searchParams.get("includeDrafts") === "1";
-  const courses = await listCourses({ includeDrafts });
-  return NextResponse.json({ courses });
-}
-
-// POST /api/courses  { code, title, subtitle?, description?, accreditation?, status? }
-export async function POST(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const body = await req.json();
-    const course = await createCourse({
-      code: body?.code,
-      title: body?.title,
-      subtitle: body?.subtitle,
-      description: body?.description,
-      accreditation: body?.accreditation,
-      status: body?.status,
-    });
-    return NextResponse.json({ course }, { status: 201 });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Failed to create course";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    const visitor = getVisitor(request);
+    return NextResponse.json({ courses: await listCourses(visitor.id) });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unable to load courses." },
+      { status: 401 },
+    );
   }
 }
