@@ -726,53 +726,28 @@ async function appendDayEvent(
   if (error) console.error("[db] appendDayEvent failed:", error.message);
 }
 
+// Deterministic synthetic day ID — stable per owner+course. The persisted
+// learningDay table was part of the dropped public.* schema; until the
+// day-state migration to lms.* lands, we synthesize a day ID so the
+// classroom can open a day and enable the Professor + tools.
+function syntheticDayId(ownerId: string, courseId: number): number {
+  const str = ownerId + ":" + courseId;
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h) % 0x7fffffff || 1;
+}
+
 export async function openLearningDay(
   ownerId: string,
   courseId: number,
   mode: "SPRINT" | "SHIFT" | "FULL_DAY",
 ) {
-  // Look for an open day (closedAt IS NULL) for this owner+course, newest first.
-  const { data: existing, error: findErr } = await supabase
-    .from("learningDay")
-    .select("id")
-    .eq("ownerId", ownerId)
-    .eq("courseId", courseId)
-    .is("closedAt", null)
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (findErr) console.error("[db] openLearningDay find failed:", findErr.message);
-  if (existing) {
-    const r = asRow<{ id: number }>(existing);
-    if (r.id) return r.id;
-  }
-
-  const duration = mode === "FULL_DAY" ? 480 : mode === "SHIFT" ? 120 : 45;
-  const now = new Date();
-  const item = await courseFirstItem(ownerId, courseId);
-  const { data, error } = await supabase
-    .from("learningDay")
-    .insert({
-      ownerId,
-      courseId,
-      mode,
-      state: "CHECK_IN",
-      currentLesson: 0,
-      currentItem: item,
-      cycleStep: 0,
-      openedAt: now.toISOString(),
-      scheduledCloseAt: new Date(now.getTime() + duration * 60000).toISOString(),
-      updatedAt: now.toISOString(),
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("[db] openLearningDay insert failed:", error.message);
-    return 0;
-  }
-  const row = asRow<{ id: number }>(data);
-  await appendDayEvent(ownerId, row.id, "DAY_OPENED", { mode, durationMinutes: duration });
-  return row.id;
+  // Synthetic day — no DB write. The day state is synthesized by
+  // getLearningDaySnapshot using this same ID.
+  void mode;
+  return syntheticDayId(ownerId, courseId);
 }
 
 function resolveDate(next: string | null | undefined, current: string | null): string | null {
@@ -782,67 +757,11 @@ function resolveDate(next: string | null | undefined, current: string | null): s
 }
 
 export async function commandLearningDay(ownerId: string, dayId: number, command: DayCommand) {
-  const { data: currentRow, error: curErr } = await supabase
-    .from("learningDay")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .eq("id", dayId)
-    .maybeSingle();
-  if (curErr) {
-    console.error("[db] commandLearningDay find failed:", curErr.message);
-    throw new Error("Learning Day not found.");
-  }
-  if (!currentRow) throw new Error("Learning Day not found.");
-  const current = asRow<{
-    state: string;
-    currentLesson: number;
-    currentItem: string | null;
-    cycleStep: number;
-    sentiment: string | null;
-    breakEndsAt: string | null;
-    priorState: string | null;
-    activeWorkKind: string | null;
-    activeWorkKey: string | null;
-    activeWorkTitle: string | null;
-    version: number;
-  }>(currentRow);
-
-  const state = command.state ?? current.state;
-  const lesson = command.currentLesson ?? current.currentLesson;
-  const item = command.currentItem ?? current.currentItem;
-  const cycle = command.cycleStep ?? current.cycleStep;
-  const sentiment = command.sentiment ?? current.sentiment;
-  const breakEnds = resolveDate(command.breakEndsAt, current.breakEndsAt);
-  const prior = command.priorState === undefined ? current.priorState : command.priorState;
-  const workKind = command.activeWorkKind ?? (current.activeWorkKind || "LESSON");
-  const workKey = command.activeWorkKey === undefined ? current.activeWorkKey : command.activeWorkKey;
-  const workTitle =
-    command.activeWorkTitle === undefined ? current.activeWorkTitle : command.activeWorkTitle;
-
-  const { error: updErr } = await supabase
-    .from("learningDay")
-    .update({
-      state,
-      currentLesson: lesson,
-      currentItem: item,
-      cycleStep: cycle,
-      sentiment,
-      breakEndsAt: breakEnds,
-      priorState: prior,
-      activeWorkKind: workKind,
-      activeWorkKey: workKey,
-      activeWorkTitle: workTitle,
-      version: (current.version || 0) + 1,
-      updatedAt: new Date().toISOString(),
-    })
-    .eq("id", dayId);
-  if (updErr) console.error("[db] commandLearningDay update failed:", updErr.message);
-
-  await appendDayEvent(ownerId, dayId, command.eventType, {
-    fromState: current.state,
-    toState: state,
-    ...command.payload,
-  });
+  // The persisted learningDay table was dropped. Until the day-state
+  // migration to lms.* lands, this is a no-op — the synthetic day state
+  // is returned by getLearningDaySnapshot and doesn't need DB updates.
+  void ownerId; void dayId; void command;
+  return;
 }
 
 export async function recordLearningAttempt(
@@ -1026,139 +945,38 @@ function mapDay(row: any): MappedDay | null {
 }
 
 export async function getLearningDaySnapshot(ownerId: string, courseId: number) {
-  const { data: row, error: dayErr } = await supabase
-    .from("learningDay")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .eq("courseId", courseId)
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (dayErr) {
-    console.error("[db] getLearningDaySnapshot find failed:", dayErr.message);
-    return null;
-  }
-  if (!row) return null;
-
-  const dayId = asRow<{ id: number }>(row).id;
-
-  const [eventsResp, attemptsResp, queueResp] = await Promise.all([
-    supabase
-      .from("learningDayEvent")
-      .select("*")
-      .eq("ownerId", ownerId)
-      .eq("dayId", dayId)
-      .order("id", { ascending: true }),
-    supabase
-      .from("learningAttempt")
-      .select("*")
-      .eq("ownerId", ownerId)
-      .eq("dayId", dayId)
-      .order("id", { ascending: true }),
-    supabase
-      .from("humanNeedQueue")
-      .select("*")
-      .eq("ownerId", ownerId)
-      .eq("dayId", dayId)
-      .order("id", { ascending: false }),
-  ]);
-  if (eventsResp.error) console.error("[db] getLearningDaySnapshot events:", eventsResp.error.message);
-  if (attemptsResp.error) console.error("[db] getLearningDaySnapshot attempts:", attemptsResp.error.message);
-  if (queueResp.error) console.error("[db] getLearningDaySnapshot queue:", queueResp.error.message);
-
-  const events = (eventsResp.data ?? []).map((e) => {
-    const r = asRow<{ id: number; eventType: string; payloadJson: string; createdAt: string }>(e);
-    return {
-      id: r.id,
-      eventType: r.eventType,
-      payload: JSON.parse(r.payloadJson || "{}"),
-      createdAt: iso(r.createdAt),
-    };
-  });
-  const attempts = (attemptsResp.data ?? []).map((a) => {
-    const r = asRow<{
-      id: number;
-      lessonIndex: number;
-      itemText: string;
-      attemptNo: number;
-      response: string;
-      score: number;
-      passed: boolean;
-      stage: string;
-      misconception: string;
-      feedback: string;
-      evidenceSummary: string;
-      workKind: string;
-      workKey: string | null;
-      createdAt: string;
-    }>(a);
-    return {
-      id: r.id,
-      lessonIndex: r.lessonIndex,
-      item: r.itemText,
-      attemptNo: r.attemptNo,
-      response: r.response,
-      score: r.score,
-      passed: Boolean(r.passed),
-      stage: r.stage,
-      misconception: r.misconception,
-      feedback: r.feedback,
-      evidenceSummary: r.evidenceSummary,
-      workKind: r.workKind,
-      workKey: r.workKey,
-      createdAt: iso(r.createdAt),
-    };
-  });
-  const queue = (queueResp.data ?? []).map((q) => {
-    const r = asRow<{
-      id: number;
-      reason: string;
-      status: string;
-      contextJson: string;
-      createdAt: string;
-      resolvedAt: string | null;
-    }>(q);
-    return {
-      id: r.id,
-      reason: r.reason,
-      status: r.status,
-      context: JSON.parse(r.contextJson || "{}"),
-      createdAt: iso(r.createdAt),
-      resolvedAt: r.resolvedAt ? iso(r.resolvedAt) : null,
-    };
-  });
-
-  const passedLessons = new Set(
-    attempts.filter((a) => a.passed && a.workKind === "LESSON").map((a) => a.lessonIndex),
-  );
-  const openedAt = new Date(iso(asRow<{ openedAt: string }>(row).openedAt)).getTime();
-  const closedAtRaw = asRow<{ closedAt: string | null }>(row).closedAt;
-  const endedAt = closedAtRaw ? new Date(iso(closedAtRaw)).getTime() : Date.now();
-  let cursor = openedAt;
-  let activeMs = 0;
-  let paused = false;
-  for (const event of events) {
-    const at = new Date(event.createdAt).getTime();
-    if (event.eventType === "BREAK_STARTED") {
-      if (!paused) activeMs += Math.max(0, at - cursor);
-      paused = true;
-    } else if (event.eventType === "BREAK_ENDED") {
-      paused = false;
-      cursor = at;
-    }
-  }
-  if (!paused) activeMs += Math.max(0, endedAt - cursor);
-
+  // Synthetic day snapshot — the persisted learningDay table was dropped.
+  // Until the day-state migration to lms.* lands, return a synthesized
+  // open-day state so the classroom enables the Professor + tools.
+  const course = await getCourse(ownerId, courseId);
+  if (!course) return null;
+  const firstLesson = course.companion.sections?.[0];
+  const now = new Date();
+  const dayId = syntheticDayId(ownerId, courseId);
+  const day = {
+    id: dayId,
+    ownerId,
+    courseId,
+    mode: "SPRINT",
+    state: "CHECK_IN",
+    currentLesson: 0,
+    currentItem: firstLesson?.checks?.[0] || firstLesson?.title || course.title,
+    cycleStep: 0,
+    activeWorkKind: "LESSON" as const,
+    activeWorkKey: null as string | null,
+    activeWorkTitle: firstLesson?.title || course.title,
+    breakEndsAt: null as string | null,
+    openedAt: now.toISOString(),
+    scheduledCloseAt: new Date(now.getTime() + 45 * 60000).toISOString(),
+    closedAt: null as string | null,
+    updatedAt: now.toISOString(),
+  };
   return {
-    day: mapDay(row),
-    events,
-    attempts,
-    queue,
-    metrics: {
-      activeMinutes: Math.floor(activeMs / 60000),
-      demonstratedLessons: passedLessons.size,
-      evidenceCount: attempts.filter((a) => a.passed).length,
-    },
+    day,
+    events: [] as Array<{ id: number; eventType: string; payload: Record<string, unknown>; createdAt: string }>,
+    attempts: [] as Array<Record<string, unknown>>,
+    queue: [] as Array<Record<string, unknown>>,
+    metrics: { activeMinutes: 0, demonstratedLessons: 0, evidenceCount: 0 },
   };
 }
 

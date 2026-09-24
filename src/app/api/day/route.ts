@@ -248,15 +248,35 @@ ACTIVE CHECK OR ASSIGNMENT: ${snapshot.day.currentItem}
 LESSON: ${JSON.stringify(lesson)}
 SOURCE: ${course.companion.sources?.join("; ") || course.statute}${knowledgeBlock}`;
       await saveMessage(visitor.id, courseId, "learner", message);
-      const history = (await listMessages(visitor.id, courseId)).slice(-12).map((m) => ({
-        role: m.role === "learner" ? ("user" as const) : ("model" as const),
-        text: m.content,
-      }));
+      const history = [
+        ...(await listMessages(visitor.id, courseId)).slice(-12).map((m) => ({
+          role: m.role === "learner" ? ("user" as const) : ("model" as const),
+          text: m.content,
+        })),
+        // Always include the learner's new message — when the persisted store
+        // is empty (e.g. message table offline), the SDK would otherwise get
+        // [system] only and reject with 1214 'messages 参数非法'.
+        { role: "user" as const, text: message },
+      ];
       const reply = await generateText(visitor.token, system, history, "Professor conducts the active UNLEASHED Day");
       await saveMessage(visitor.id, courseId, "professor", reply);
       await commandLearningDay(visitor.id, dayId, {
         eventType: "PROFESSOR_INSTRUCTION",
         payload: { learnerMessage: message, response: reply },
+      });
+      // Return early with the reply in the response. saveMessage + listMessages
+      // are broken (public.professorMessage table dropped), so the reply would
+      // be lost without this. Synthesize the messages array so the classroom's
+      // `latest` variable finds the professor reply and displays it.
+      const existingMessages = (await listMessages(visitor.id, courseId)).slice(-19);
+      return NextResponse.json({
+        day: await getLearningDaySnapshot(visitor.id, courseId),
+        messages: [
+          ...existingMessages,
+          { id: Date.now(), role: "learner", content: message, createdAt: new Date().toISOString() },
+          { id: Date.now() + 1, role: "professor", content: reply, createdAt: new Date().toISOString() },
+        ],
+        reply,
       });
     } else if (body.command === "SUBMIT_ATTEMPT") {
       const response = String(body.response || "").trim().slice(0, 6000);
