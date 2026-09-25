@@ -1759,3 +1759,47 @@ Agent: main (Z.ai Code) — Appointments & Booking Engine vertical slice
 - Inline fetches: **0** ✓
 - Direct Supabase: **0** ✓
 - TanStack Query v5 optimistic updates on status transitions ✓
+
+---
+Task ID: MODULE-8-INVENTORY
+Agent: main (Z.ai Code) — Inventory & Catalog vertical slice
+
+## What was built (7 new files)
+
+### Layer 1: DB-exact types (`src/types/database/inventory.ts`)
+- `CatalogItem` (commerce_catalog_items + stock_on_hand/unit_cost joined fields)
+- `InventoryMovement` (erp_inventory_movements + item_name/item_sku joined)
+- `ErpVendor` (erp_vendors — vendor_number, name, email, phone, payment_terms, currency)
+- `ErpPurchaseOrder` (erp_purchase_orders + vendor_name joined)
+
+### Layer 2: Gated API routes
+| Route | Tables | Data |
+|---|---|---|
+| `/api/admin/inventory` | commerce_catalog_items + erp_inventory_movements | 13 catalog items with stock levels, 12 movements |
+| `/api/admin/purchase-orders` | erp_purchase_orders + erp_vendors | 0 POs, 0 vendors (empty — correct) |
+
+### Layer 3: Service (`src/services/inventoryService.ts`)
+- getCatalog, getMovements, getPurchaseOrders, getVendors via gated routes
+- Zero Supabase anon client
+
+### Layer 4: TanStack hooks (`src/hooks/useInventoryData.ts`)
+- useCatalog (30s staleTime), useInventoryMovements, usePurchaseOrders (5min), useVendors (5min)
+
+### Layer 5: 2 page components (both HTTP 200)
+| Page | Hook | Features |
+|---|---|---|
+| `/admin/inventory` | useCatalog + useInventoryMovements | 4 summary cards (items, total stock, low stock, movements), search, catalog table with stock badges (red <10, amber <20, green), POS/active badges, movement history table with type icons |
+| `/admin/purchase-orders` | usePurchaseOrders + useVendors | PO summary cards, PO table (po_number, vendor, status, dates, total), vendor directory table |
+
+### Existing verified (already working)
+- `/api/admin/products` (57 lines, gate + pgQuery) — returns 200
+- `/admin/vendors` (128 lines, REAL) — returns 200
+- `/api/admin/brands` (125 lines, gate + withPg) — brand management
+- `/api/admin/categories` (93 lines, gate + withPg) — category management
+
+## Verification
+- Lint: 0 errors ✓
+- All 3 pages: HTTP 200 ✓
+- Inventory API: 13 catalog items (Coat Conditioning Spray stock=35, Grooming Brush stock=31, Paw & Nose Balm stock=50, etc.) + 12 movements ✓
+- Inline fetches: 0 ✓
+- Direct Supabase: 0 ✓
