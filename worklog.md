@@ -1640,3 +1640,79 @@ All existing routes were already built with `requireAdminApi()` + `pgQuery` in a
 - DB-exact types verified against `information_schema` ✓
 
 ## Architecture: Component ↔ TanStack Hook ↔ crmService ↔ Gated API Route ↔ pgQuery ↔ Schema
+
+---
+Task ID: FINANCE-EPIC
+Agent: main (Z.ai Code) + subagent — 11-page Accounting/Finance vertical slice
+
+## What was built (22 new files)
+
+### Layer 1: DB-exact types (`src/types/database/finance.ts` — 221 lines)
+- TypeScript interfaces for every `acct_*` table the Finance pages need, verified against `information_schema`:
+  - `AcctBook`, `AcctChartOfAccounts`, `AcctJournalEntry`, `AcctJournalLine`
+  - `AcctEntity`, `AcctFiscalYear`, `AcctPeriod`, `AcctCurrency`
+  - `AcctArInvoice`, `AcctArReceipt`, `AcctArCreditMemo`
+  - `AcctBankAccount`, `AcctBankTransaction`
+  - `AcctTaxCode`, `AcctTaxJurisdiction`
+  - `AcctPayrollRun`, `AcctEmployee`
+  - `CommerceGiftCard`
+
+### Layer 2: Service layer (`src/services/financeService.ts` — 89 lines)
+- Calls gated API routes via `fetch()` — **zero Supabase anon client**
+- Methods: getBooks, getInvoices, getPayments, getDeposits, getRefunds, getGiftCards, getPayroll, getTaxes, getReports, getFinancialSettings, getStripeConnections
+
+### Layer 3: TanStack Query hooks (`src/hooks/useFinanceData.ts` — 108 lines)
+- 11 hooks: useBooks, useInvoices, useFinancePayments, useDeposits, useRefunds, useGiftCards, usePayroll, useTaxes, useFinanceReports, useFinancialSettings, useStripeConnections
+- SWR caching (2-10 min staleTime per domain)
+
+### Layer 4: 5 new gated API routes
+| Route | Tables | Data |
+|---|---|---|
+| `/api/admin/books` | acct_books + acct_chart_of_accounts | 0 books, 11 accounts |
+| `/api/admin/gift-cards` | commerce_gift_cards | 0 gift cards |
+| `/api/admin/taxes` | acct_tax_codes + acct_tax_jurisdictions | 0 tax codes |
+| `/api/admin/financial-settings` | acct_entities + acct_fiscal_years + acct_periods + acct_currencies + acct_books | 1 fiscal year, 1 period, 6 currencies |
+| `/api/admin/stripe-connections` | commerce_payment_methods (Stripe) | 5 payment methods |
+
+### Layer 5: 11 page components (all HTTP 200)
+| Page | Lines | Hook | Summary |
+|---|---|---|---|
+| books | 236 | useBooks | Books table + Chart of Accounts (11 accounts) |
+| invoices | 200 | useInvoices | Invoices table (2 invoices from existing route) |
+| payments | 208 | useFinancePayments | Payments table (12 from existing route) |
+| deposits | 194 | useDeposits | Deposits table (from existing route) |
+| refunds | 198 | useRefunds | Refunds table (from existing route) |
+| gift-cards | 177 | useGiftCards | Gift cards table (empty — empty state) |
+| payroll | 175 | usePayroll | Payroll runs table (empty — empty state) |
+| taxes | 229 | useTaxes | Tax codes + jurisdictions (both empty) |
+| reports | 218 | useFinanceReports | Revenue/refunds/pending/net summary |
+| financial-settings | 409 | useFinancialSettings | Entities/fiscal years/periods/currencies/books |
+| stripe-connections | 141 | useStripeConnections | 5 Stripe payment methods |
+
+### Existing API routes verified (already gated + withPg/pgQuery)
+- `/api/admin/invoices` (364 lines, gate + withPg) — returns 2 invoices
+- `/api/admin/payments` (44 lines, gate + pgQuery) — returns 12 payments
+- `/api/admin/refunds` (159 lines, gate + pgQuery) — returns refunds
+- `/api/admin/deposits` (123 lines, gate + withPg) — returns deposits
+- `/api/admin/payroll` (34 lines, gate + pgQuery) — returns payroll data
+- `/api/admin/reports` (38 lines, partial) — returns report data
+
+## Verification
+- Lint: **0 errors, 0 warnings** ✓
+- All 11 pages: **HTTP 200** ✓
+- All 5 new API routes: return real data ✓
+- Finance service direct Supabase refs: **0** ✓
+- Finance hooks inline fetch calls: **0** ✓
+- TanStack Query v5 used ✓
+- DB-exact types verified against information_schema ✓
+- Dev log: clean ✓
+
+## Architecture: Component ↔ TanStack Hook ↔ financeService ↔ Gated API Route ↔ pgQuery/withPg ↔ public.acct_* Schema
+
+## Total project vertical slices shipped:
+- 13 LMS admin pages (hooks + API routes + pages)
+- POS page refactored to usePOS (0 inline fetches)
+- Orders page fixed (security breach eliminated, useOrders hook)
+- Settings page wired (useSettings + useLocations hooks)
+- CRM vertical slice (types + service + TanStack hooks + 9 verified API routes)
+- 11 Finance pages (types + service + TanStack hooks + 5 new API routes + 11 page components)
