@@ -1,0 +1,1373 @@
+◇ injected env (0) from .env
+=== CRM + Payment tables that exist ===
+  commerce_payment_allocations
+  commerce_payment_methods
+  commerce_payments
+  crm_activity
+  crm_appointment_financial_refs
+  crm_appointment_pets
+  crm_appointment_services
+  crm_appointment_status_history
+  crm_appointment_steps
+  crm_appointments
+  crm_audit_log
+  crm_automation_enrollments
+  crm_automation_runs
+  crm_automation_workflows
+  crm_campaign_members
+  crm_campaigns
+  crm_commission_entries
+  crm_commission_plans
+  crm_commission_rules
+  crm_commission_tiers
+  crm_communication_preferences
+  crm_conversations
+  crm_customer_behavior
+  crm_customer_contact_methods
+  crm_customer_pets
+  crm_customer_preferences
+  crm_customer_tags
+  crm_customers
+  crm_document_types
+  crm_document_versions
+  crm_documents
+  crm_duplicate_candidates
+  crm_external_identities
+  crm_funnel_events
+  crm_grooming_photos
+  crm_grooming_record_services
+  crm_grooming_records
+  crm_holiday_blackouts
+  crm_households
+  crm_idempotency_keys
+  crm_lead_activities
+  crm_lead_sources
+  crm_leads
+  crm_locations
+  crm_merge_log
+  crm_message_templates
+  crm_messages
+  crm_needs_attention
+  crm_notes
+  crm_operating_hours
+  crm_permanent_alerts
+  crm_pet_tags
+  crm_pet_vaccinations
+  crm_pets
+  crm_pricing_rules
+  crm_product_recommendations
+  crm_rebooking_recommendations
+  crm_saved_views
+  crm_search_index
+  crm_segment_memberships
+  crm_segments
+  crm_service_location_availability
+  crm_service_package_items
+  crm_service_packages
+  crm_services
+  crm_settings
+  crm_shift_templates
+  crm_staff
+  crm_staff_availability
+  crm_staff_commission_assignments
+  crm_staff_documents
+  crm_staff_incident_reports
+  crm_staff_performance_notes
+  crm_staff_shifts
+  crm_staff_time_clock_entries
+  crm_staff_training_records
+  crm_surcharges
+  crm_tags
+  crm_tasks
+  crm_time_off_requests
+  crm_vaccine_types
+  crm_waitlist
+
+=== commerce_payment_allocations (0 rows) ===
+  id                                  uuid                 NOT NULL
+  payment_id                          uuid                 NOT NULL
+  sale_id                             uuid                 NOT NULL
+  amount                              numeric              NOT NULL
+
+=== commerce_payment_methods (10 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  code                                text                 NOT NULL
+  name                                text                 NOT NULL
+  method_type                         text                 NOT NULL
+  processor                           text                 NULL
+  gl_account_id                       uuid                 NULL
+  active                              boolean              NOT NULL
+  configuration                       jsonb                NOT NULL
+
+=== commerce_payments (12 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  payment_number                      text                 NOT NULL
+  sale_id                             uuid                 NULL
+  customer_id                         uuid                 NULL
+  payment_method_id                   uuid                 NOT NULL
+  amount                              numeric              NOT NULL
+  tip_amount                          numeric              NOT NULL
+  currency                            character            NOT NULL
+  status                              text                 NOT NULL
+  processor_transaction_id            text                 NULL
+  authorization_code                  text                 NULL
+  external_reference                  text                 NULL
+  acct_receipt_id                     uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  staff_id                            uuid                 NULL
+  branch_id                           uuid                 NULL
+  location_id                         uuid                 NULL
+
+=== crm_activity (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  pet_id                              uuid                 NULL
+  appointment_id                      uuid                 NULL
+  lead_id                             uuid                 NULL
+  activity_type                       text                 NOT NULL
+  channel                             text                 NULL
+  direction                           text                 NULL
+  subject                             text                 NULL
+  body                                text                 NULL
+  occurred_at                         timestamp with time zone NOT NULL
+  staff_id                            uuid                 NULL
+  external_id                         text                 NULL
+  metadata                            jsonb                NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_appointment_financial_refs (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  appointment_id                      uuid                 NOT NULL
+  invoice_external_id                 text                 NULL
+  payment_external_id                 text                 NULL
+  refund_external_id                  text                 NULL
+  order_external_id                   text                 NULL
+  accounting_system                   text                 NULL
+  amount                              numeric              NOT NULL
+  currency                            text                 NOT NULL
+  reference_type                      text                 NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  metadata                            jsonb                NOT NULL
+
+=== crm_appointment_pets (2 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  appointment_id                      uuid                 NOT NULL
+  pet_id                              uuid                 NOT NULL
+  sequence_no                         integer              NOT NULL
+  check_in_notes                      text                 NULL
+  checkout_notes                      text                 NULL
+  status                              text                 NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_appointment_services (2 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  appointment_id                      uuid                 NOT NULL
+  pet_id                              uuid                 NULL
+  service_id                          uuid                 NOT NULL
+  groomer_id                          uuid                 NULL
+  quantity                            numeric              NOT NULL
+  duration_minutes                    integer              NULL
+  unit_price                          numeric              NOT NULL
+  discount_amount                     numeric              NOT NULL
+  tax_amount                          numeric              NOT NULL
+  total                               numeric              NOT NULL
+  status                              text                 NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_appointment_status_history (2 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  appointment_id                      uuid                 NOT NULL
+  from_status                         text                 NULL
+  to_status                           text                 NOT NULL
+  changed_by                          uuid                 NULL
+  changed_at                          timestamp with time zone NOT NULL
+  reason                              text                 NULL
+  metadata                            jsonb                NOT NULL
+
+=== crm_appointment_steps (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  appointment_id                      uuid                 NOT NULL
+  step_code                           text                 NOT NULL
+  status                              text                 NOT NULL
+  started_at                          timestamp with time zone NULL
+  completed_at                        timestamp with time zone NULL
+  completed_by                        uuid                 NULL
+  notes                               text                 NULL
+  metadata                            jsonb                NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_appointments (2 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  source_appointment_id               text                 NULL
+  customer_id                         uuid                 NOT NULL
+  location_id                         uuid                 NULL
+  assigned_groomer_id                 uuid                 NULL
+  created_by                          uuid                 NULL
+  appointment_number                  text                 NULL
+  starts_at                           timestamp with time zone NOT NULL
+  ends_at                             timestamp with time zone NULL
+  checked_in_at                       timestamp with time zone NULL
+  started_at                          timestamp with time zone NULL
+  completed_at                        timestamp with time zone NULL
+  status                              text                 NOT NULL
+  cancellation_reason                 text                 NULL
+  no_show_reason                      text                 NULL
+  service_type_confirmed              boolean              NOT NULL
+  payment_method_confirmed            boolean              NOT NULL
+  deposit_amount                      numeric              NOT NULL
+  subtotal                            numeric              NOT NULL
+  tax_total                           numeric              NOT NULL
+  total                               numeric              NOT NULL
+  amount_paid                         numeric              NOT NULL
+  outstanding_amount                  numeric              NOT NULL
+  currency                            text                 NOT NULL
+  source_channel                      text                 NULL
+  booking_outcome                     text                 NULL
+  reminder_sent_at                    timestamp with time zone NULL
+  pickup_notification_sent_at         timestamp with time zone NULL
+  processed_payment_sent_at           timestamp with time zone NULL
+  thank_you_sent_at                   timestamp with time zone NULL
+  magic_link_sent_at                  timestamp with time zone NULL
+  internal_notes                      text                 NULL
+  customer_notes                      text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_audit_log (0 rows) ===
+  id                                  bigint               NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  actor_user_id                       uuid                 NULL
+  actor_staff_id                      uuid                 NULL
+  entity_type                         text                 NOT NULL
+  entity_id                           uuid                 NULL
+  action                              text                 NOT NULL
+  before_data                         jsonb                NULL
+  after_data                          jsonb                NULL
+  ip_address                          inet                 NULL
+  user_agent                          text                 NULL
+  occurred_at                         timestamp with time zone NOT NULL
+
+=== crm_automation_enrollments (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  workflow_id                         uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  pet_id                              uuid                 NULL
+  appointment_id                      uuid                 NULL
+  status                              text                 NOT NULL
+  current_step                        integer              NOT NULL
+  scheduled_for                       timestamp with time zone NULL
+  started_at                          timestamp with time zone NULL
+  completed_at                        timestamp with time zone NULL
+  last_error                          text                 NULL
+  context                             jsonb                NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_automation_runs (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  workflow_id                         uuid                 NOT NULL
+  enrollment_id                       uuid                 NULL
+  action_type                         text                 NOT NULL
+  status                              text                 NOT NULL
+  scheduled_for                       timestamp with time zone NULL
+  executed_at                         timestamp with time zone NULL
+  result                              jsonb                NOT NULL
+  error_message                       text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_automation_workflows (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  workflow_type                       text                 NOT NULL
+  status                              text                 NOT NULL
+  trigger_definition                  jsonb                NOT NULL
+  condition_definition                jsonb                NOT NULL
+  action_definition                   jsonb                NOT NULL
+  allow_reentry                       boolean              NOT NULL
+  created_by                          uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_campaign_members (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  campaign_id                         uuid                 NOT NULL
+  customer_id                         uuid                 NOT NULL
+  status                              text                 NOT NULL
+  enrolled_at                         timestamp with time zone NOT NULL
+  sent_at                             timestamp with time zone NULL
+  converted_at                        timestamp with time zone NULL
+  failure_reason                      text                 NULL
+
+=== crm_campaigns (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  campaign_type                       text                 NOT NULL
+  status                              text                 NOT NULL
+  channel                             text                 NOT NULL
+  template_id                         uuid                 NULL
+  segment_definition                  jsonb                NOT NULL
+  scheduled_at                        timestamp with time zone NULL
+  started_at                          timestamp with time zone NULL
+  completed_at                        timestamp with time zone NULL
+  created_by                          uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_commission_entries (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  plan_id                             uuid                 NULL
+  appointment_id                      uuid                 NULL
+  sale_id                             uuid                 NULL
+  service_id                          uuid                 NULL
+  earned_on                           date                 NOT NULL
+  basis_amount                        numeric              NOT NULL
+  rate_percent                        numeric              NULL
+  flat_amount                         numeric              NULL
+  tips_amount                         numeric              NOT NULL
+  retail_amount                       numeric              NOT NULL
+  commission_amount                   numeric              NOT NULL
+  entry_type                          text                 NOT NULL
+  status                              text                 NOT NULL
+  payroll_run_id                      uuid                 NULL
+  reversal_of_id                      uuid                 NULL
+  calculation_detail                  jsonb                NOT NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_commission_plans (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  description                         text                 NULL
+  calc_basis                          text                 NOT NULL
+  default_rate_percent                numeric              NOT NULL
+  flat_amount                         numeric              NOT NULL
+  includes_tips                       boolean              NOT NULL
+  includes_addons                     boolean              NOT NULL
+  includes_retail                     boolean              NOT NULL
+  retail_rate_percent                 numeric              NOT NULL
+  deduct_refunds                      boolean              NOT NULL
+  deduct_product_cost                 boolean              NOT NULL
+  minimum_guarantee                   numeric              NULL
+  payout_frequency                    text                 NOT NULL
+  is_active                           boolean              NOT NULL
+  effective_from                      date                 NOT NULL
+  effective_to                        date                 NULL
+  metadata                            jsonb                NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_commission_rules (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  plan_id                             uuid                 NOT NULL
+  service_id                          uuid                 NULL
+  service_category                    text                 NULL
+  rate_percent                        numeric              NULL
+  flat_amount                         numeric              NULL
+  is_excluded                         boolean              NOT NULL
+  priority                            integer              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_commission_tiers (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  plan_id                             uuid                 NOT NULL
+  tier_order                          integer              NOT NULL
+  min_revenue                         numeric              NOT NULL
+  max_revenue                         numeric              NULL
+  rate_percent                        numeric              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_communication_preferences (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NOT NULL
+  channel                             text                 NOT NULL
+  opted_in                            boolean              NOT NULL
+  source                              text                 NULL
+  consented_at                        timestamp with time zone NULL
+  revoked_at                          timestamp with time zone NULL
+
+=== crm_conversations (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  pet_id                              uuid                 NULL
+  channel                             text                 NOT NULL
+  status                              text                 NOT NULL
+  assigned_staff_id                   uuid                 NULL
+  subject                             text                 NULL
+  started_at                          timestamp with time zone NOT NULL
+  last_message_at                     timestamp with time zone NULL
+  resolved_at                         timestamp with time zone NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_customer_behavior (0 rows) ===
+  customer_id                         uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  frequent_visitor                    boolean              NOT NULL
+  high_lifetime_value                 boolean              NOT NULL
+  frequent_no_show                    boolean              NOT NULL
+  cancellation_risk                   boolean              NOT NULL
+  price_sensitive                     boolean              NOT NULL
+  online_booking_only                 boolean              NOT NULL
+  due_for_rebooking                   boolean              NOT NULL
+  frequency_declining                 boolean              NOT NULL
+  missing_documents                   boolean              NOT NULL
+  vaccine_expiring                    boolean              NOT NULL
+  outstanding_balance_flag            boolean              NOT NULL
+  no_upcoming_appointment             boolean              NOT NULL
+  intake_incomplete                   boolean              NOT NULL
+  birthday_this_month                 boolean              NOT NULL
+  rebooking_campaign_eligible         boolean              NOT NULL
+  win_back_candidate                  boolean              NOT NULL
+  new_customer_nurture_eligible       boolean              NOT NULL
+  inactive_90_plus                    boolean              NOT NULL
+  last_calculated_at                  timestamp with time zone NOT NULL
+
+=== crm_customer_contact_methods (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NOT NULL
+  type                                text                 NOT NULL
+  value                               text                 NOT NULL
+  normalized_value                    text                 NOT NULL
+  label                               text                 NULL
+  is_primary                          boolean              NOT NULL
+  is_verified                         boolean              NOT NULL
+  verified_at                         timestamp with time zone NULL
+  opt_in                              boolean              NULL
+  opted_in_at                         timestamp with time zone NULL
+  opted_out_at                        timestamp with time zone NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_customer_pets (2 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NOT NULL
+  pet_id                              uuid                 NOT NULL
+  relationship                        text                 NOT NULL
+  is_primary                          boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_customer_preferences (0 rows) ===
+  customer_id                         uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  preferred_days                      ARRAY                NOT NULL
+  preferred_time_start                time without time zone NULL
+  preferred_time_end                  time without time zone NULL
+  preferred_services                  ARRAY                NOT NULL
+  preferred_payment_method            text                 NULL
+  preferred_groomer_id                uuid                 NULL
+  communication_notes                 text                 NULL
+  accessibility_notes                 text                 NULL
+  parking_notes                       text                 NULL
+  updated_at                          timestamp with time zone NOT NULL
+  preferred_shampoo                   text                 NULL
+  preferred_cut_style                 text                 NULL
+  notification_frequency              text                 NULL
+
+=== crm_customer_tags (0 rows) ===
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NOT NULL
+  tag_id                              uuid                 NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_customers (7 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  household_id                        uuid                 NULL
+  source_customer_id                  text                 NULL
+  external_customer_number            text                 NULL
+  customer_type                       text                 NOT NULL
+  lifecycle_stage                     text                 NOT NULL
+  lifecycle_status                    text                 NOT NULL
+  first_name                          text                 NULL
+  middle_name                         text                 NULL
+  last_name                           text                 NULL
+  preferred_name                      text                 NULL
+  company_name                        text                 NULL
+  email                               text                 NULL
+  phone                               text                 NULL
+  mobile_phone                        text                 NULL
+  date_of_birth                       date                 NULL
+  pronouns                            text                 NULL
+  preferred_contact_method            text                 NULL
+  preferred_language                  text                 NULL
+  address_line1                       text                 NULL
+  address_line2                       text                 NULL
+  city                                text                 NULL
+  state                               text                 NULL
+  postal_code                         text                 NULL
+  country                             text                 NOT NULL
+  lead_source_id                      uuid                 NULL
+  lead_owner_id                       uuid                 NULL
+  assigned_staff_id                   uuid                 NULL
+  preferred_location_id               uuid                 NULL
+  preferred_groomer_id                uuid                 NULL
+  customer_since                      date                 NULL
+  first_contact_at                    timestamp with time zone NULL
+  last_activity_at                    timestamp with time zone NULL
+  next_follow_up_at                   timestamp with time zone NULL
+  last_visit_at                       timestamp with time zone NULL
+  next_appointment_at                 timestamp with time zone NULL
+  total_visits                        integer              NOT NULL
+  lifetime_value                      numeric              NOT NULL
+  average_ticket                      numeric              NOT NULL
+  average_visit_frequency_days        numeric              NULL
+  no_show_rate                        numeric              NOT NULL
+  cancellation_rate                   numeric              NOT NULL
+  rebook_rate                         numeric              NOT NULL
+  outstanding_balance                 numeric              NOT NULL
+  total_spend_30d                     numeric              NOT NULL
+  total_spend_365d                    numeric              NOT NULL
+  marketing_email_opt_in              boolean              NOT NULL
+  marketing_sms_opt_in                boolean              NOT NULL
+  transactional_email_opt_in          boolean              NOT NULL
+  transactional_sms_opt_in            boolean              NOT NULL
+  do_not_call                         boolean              NOT NULL
+  do_not_contact                      boolean              NOT NULL
+  is_active                           boolean              NOT NULL
+  archived_at                         timestamp with time zone NULL
+  merged_into_customer_id             uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_document_types (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  category                            text                 NOT NULL
+  required_for_booking                boolean              NOT NULL
+  requires_signature                  boolean              NOT NULL
+  expiration_days                     integer              NULL
+  is_active                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  body_template                       text                 NULL
+  body_format                         text                 NOT NULL
+  version                             integer              NOT NULL
+  effective_date                      date                 NULL
+  cms_page_id                         uuid                 NULL
+
+=== crm_document_versions (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  document_id                         uuid                 NOT NULL
+  version_no                          integer              NOT NULL
+  storage_path                        text                 NOT NULL
+  checksum                            text                 NULL
+  uploaded_by                         uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_documents (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NOT NULL
+  pet_id                              uuid                 NULL
+  document_type_id                    uuid                 NULL
+  name                                text                 NOT NULL
+  status                              text                 NOT NULL
+  storage_path                        text                 NULL
+  mime_type                           text                 NULL
+  file_size_bytes                     bigint               NULL
+  uploaded_by                         uuid                 NULL
+  uploaded_at                         timestamp with time zone NULL
+  issued_at                           date                 NULL
+  expires_at                          date                 NULL
+  signed_at                           timestamp with time zone NULL
+  signed_by_name                      text                 NULL
+  signature_provider                  text                 NULL
+  external_signature_id               text                 NULL
+  rejection_reason                    text                 NULL
+  metadata                            jsonb                NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_duplicate_candidates (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  entity_type                         text                 NOT NULL
+  record_a                            uuid                 NOT NULL
+  record_b                            uuid                 NOT NULL
+  match_score                         numeric              NOT NULL
+  match_reasons                       jsonb                NOT NULL
+  status                              text                 NOT NULL
+  reviewed_by                         uuid                 NULL
+  reviewed_at                         timestamp with time zone NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_external_identities (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  entity_type                         text                 NOT NULL
+  entity_id                           uuid                 NOT NULL
+  provider                            text                 NOT NULL
+  external_id                         text                 NOT NULL
+  metadata                            jsonb                NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_funnel_events (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  anonymous_session_id                text                 NULL
+  customer_id                         uuid                 NULL
+  lead_id                             uuid                 NULL
+  event_type                          text                 NOT NULL
+  occurred_at                         timestamp with time zone NOT NULL
+  source                              text                 NULL
+  landing_page                        text                 NULL
+  campaign                            text                 NULL
+  metadata                            jsonb                NOT NULL
+
+=== crm_grooming_photos (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  grooming_record_id                  uuid                 NOT NULL
+  pet_id                              uuid                 NOT NULL
+  storage_path                        text                 NOT NULL
+  public_url                          text                 NULL
+  photo_type                          text                 NOT NULL
+  caption                             text                 NULL
+  customer_visible                    boolean              NOT NULL
+  taken_at                            timestamp with time zone NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_grooming_record_services (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  grooming_record_id                  uuid                 NOT NULL
+  service_id                          uuid                 NOT NULL
+  duration_minutes                    integer              NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_grooming_records (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  appointment_id                      uuid                 NULL
+  customer_id                         uuid                 NOT NULL
+  pet_id                              uuid                 NOT NULL
+  groomer_id                          uuid                 NULL
+  started_at                          timestamp with time zone NULL
+  completed_at                        timestamp with time zone NULL
+  duration_minutes                    integer              NULL
+  notes                               text                 NULL
+  pet_behavior_notes                  text                 NULL
+  coat_condition                      text                 NULL
+  skin_condition                      text                 NULL
+  matting_level                       text                 NULL
+  services_summary                    text                 NULL
+  recommend_next_visit                boolean              NOT NULL
+  recommended_next_visit_date         date                 NULL
+  recommended_next_service_id         uuid                 NULL
+  customer_visible_notes              text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_holiday_blackouts (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  location_id                         uuid                 NULL
+  name                                text                 NOT NULL
+  blackout_date                       date                 NOT NULL
+  end_date                            date                 NULL
+  blackout_type                       text                 NOT NULL
+  is_closed_all_day                   boolean              NOT NULL
+  opens_at                            time without time zone NULL
+  closes_at                           time without time zone NULL
+  blocks_online_booking               boolean              NOT NULL
+  recurs_annually                     boolean              NOT NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_households (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  status                              text                 NOT NULL
+  primary_customer_id                 uuid                 NULL
+  source_household_id                 text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_idempotency_keys (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  idempotency_key                     text                 NOT NULL
+  operation                           text                 NOT NULL
+  request_hash                        text                 NULL
+  response_status                     integer              NULL
+  response_body                       jsonb                NULL
+  created_at                          timestamp with time zone NOT NULL
+  expires_at                          timestamp with time zone NULL
+
+=== crm_lead_activities (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  lead_id                             uuid                 NOT NULL
+  activity_type                       text                 NOT NULL
+  occurred_at                         timestamp with time zone NOT NULL
+  staff_id                            uuid                 NULL
+  metadata                            jsonb                NOT NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_lead_sources (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  category                            text                 NOT NULL
+  utm_source                          text                 NULL
+  utm_medium                          text                 NULL
+  utm_campaign                        text                 NULL
+  is_active                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_leads (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  lead_owner_id                       uuid                 NULL
+  lead_source_id                      uuid                 NULL
+  status                              text                 NOT NULL
+  booking_outcome                     text                 NULL
+  lost_reason                         text                 NULL
+  first_contact_at                    timestamp with time zone NULL
+  last_activity_at                    timestamp with time zone NULL
+  next_follow_up_at                   timestamp with time zone NULL
+  conversion_date                     timestamp with time zone NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_locations (1 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  code                                text                 NULL
+  address_line1                       text                 NULL
+  address_line2                       text                 NULL
+  city                                text                 NULL
+  state                               text                 NULL
+  postal_code                         text                 NULL
+  country                             text                 NOT NULL
+  phone                               text                 NULL
+  email                               text                 NULL
+  timezone                            text                 NOT NULL
+  latitude                            numeric              NULL
+  longitude                           numeric              NULL
+  is_active                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_merge_log (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  entity_type                         text                 NOT NULL
+  source_record_id                    uuid                 NOT NULL
+  surviving_record_id                 uuid                 NOT NULL
+  merged_by                           uuid                 NULL
+  snapshot                            jsonb                NOT NULL
+  merged_at                           timestamp with time zone NOT NULL
+
+=== crm_message_templates (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  channel                             text                 NOT NULL
+  subject                             text                 NULL
+  body                                text                 NOT NULL
+  variables                           jsonb                NOT NULL
+  category                            text                 NULL
+  is_system                           boolean              NOT NULL
+  is_active                           boolean              NOT NULL
+  created_by                          uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_messages (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  conversation_id                     uuid                 NULL
+  customer_id                         uuid                 NULL
+  channel                             text                 NOT NULL
+  direction                           text                 NOT NULL
+  status                              text                 NOT NULL
+  from_address                        text                 NULL
+  to_address                          text                 NULL
+  subject                             text                 NULL
+  body                                text                 NULL
+  template_id                         uuid                 NULL
+  provider                            text                 NULL
+  provider_message_id                 text                 NULL
+  sent_at                             timestamp with time zone NULL
+  delivered_at                        timestamp with time zone NULL
+  read_at                             timestamp with time zone NULL
+  failed_at                           timestamp with time zone NULL
+  failure_reason                      text                 NULL
+  metadata                            jsonb                NOT NULL
+  created_by                          uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_needs_attention (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  pet_id                              uuid                 NULL
+  appointment_id                      uuid                 NULL
+  priority                            text                 NOT NULL
+  issue_code                          text                 NOT NULL
+  issue                               text                 NOT NULL
+  recommendation                      text                 NULL
+  due_by                              timestamp with time zone NULL
+  status                              text                 NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  resolved_at                         timestamp with time zone NULL
+  resolved_by                         uuid                 NULL
+
+=== crm_notes (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  pet_id                              uuid                 NULL
+  appointment_id                      uuid                 NULL
+  grooming_record_id                  uuid                 NULL
+  created_by                          uuid                 NULL
+  note_type                           text                 NOT NULL
+  body                                text                 NOT NULL
+  is_pinned                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_operating_hours (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  location_id                         uuid                 NULL
+  day_of_week                         smallint             NOT NULL
+  opens_at                            time without time zone NULL
+  closes_at                           time without time zone NULL
+  is_closed                           boolean              NOT NULL
+  accepts_online_booking              boolean              NOT NULL
+  last_booking_at                     time without time zone NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_permanent_alerts (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  pet_id                              uuid                 NULL
+  severity                            text                 NOT NULL
+  title                               text                 NOT NULL
+  body                                text                 NOT NULL
+  is_active                           boolean              NOT NULL
+  created_by                          uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  resolved_at                         timestamp with time zone NULL
+
+=== crm_pet_tags (0 rows) ===
+  tenant_id                           uuid                 NOT NULL
+  pet_id                              uuid                 NOT NULL
+  tag_id                              uuid                 NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_pet_vaccinations (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  pet_id                              uuid                 NOT NULL
+  vaccine_type_id                     uuid                 NOT NULL
+  administered_on                     date                 NULL
+  expires_on                          date                 NULL
+  lot_number                          text                 NULL
+  veterinarian_name                   text                 NULL
+  document_id                         uuid                 NULL
+  status                              text                 NOT NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_pets (2 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  household_id                        uuid                 NULL
+  primary_customer_id                 uuid                 NULL
+  source_pet_id                       text                 NULL
+  name                                text                 NOT NULL
+  species                             text                 NOT NULL
+  breed                               text                 NULL
+  mixed_breed                         boolean              NOT NULL
+  sex                                 text                 NULL
+  altered_status                      text                 NULL
+  color                               text                 NULL
+  coat_type                           text                 NULL
+  date_of_birth                       date                 NULL
+  approximate_age_years               numeric              NULL
+  weight                              numeric              NULL
+  weight_unit                         text                 NOT NULL
+  microchip_number                    text                 NULL
+  veterinarian_name                   text                 NULL
+  veterinarian_phone                  text                 NULL
+  medical_alert                       boolean              NOT NULL
+  special_handling                    boolean              NOT NULL
+  nervous                             boolean              NOT NULL
+  aggressive                          boolean              NOT NULL
+  first_visit                         boolean              NOT NULL
+  senior                              boolean              NOT NULL
+  puppy                               boolean              NOT NULL
+  permanent_alert                     text                 NULL
+  handling_notes                      text                 NULL
+  behavioral_notes                    text                 NULL
+  medical_notes                       text                 NULL
+  service_notes                       text                 NULL
+  preferred_groomer_id                uuid                 NULL
+  status                              text                 NOT NULL
+  deceased_at                         date                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_pricing_rules (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  rule_type                           text                 NOT NULL
+  service_id                          uuid                 NULL
+  service_category                    text                 NULL
+  match_key                           text                 NULL
+  min_value                           numeric              NULL
+  max_value                           numeric              NULL
+  adjustment_type                     text                 NOT NULL
+  adjustment_value                    numeric              NOT NULL
+  priority                            integer              NOT NULL
+  is_active                           boolean              NOT NULL
+  effective_from                      date                 NULL
+  effective_to                        date                 NULL
+  metadata                            jsonb                NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_product_recommendations (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  pet_id                              uuid                 NULL
+  appointment_id                      uuid                 NULL
+  catalog_item_id                     uuid                 NULL
+  product_name                        text                 NOT NULL
+  recommended_by                      uuid                 NULL
+  reason                              text                 NULL
+  priority                            text                 NOT NULL
+  status                              text                 NOT NULL
+  presented_at                        timestamp with time zone NULL
+  responded_at                        timestamp with time zone NULL
+  resulting_sale_id                   uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_rebooking_recommendations (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NOT NULL
+  pet_id                              uuid                 NULL
+  last_appointment_id                 uuid                 NULL
+  recommended_service_id              uuid                 NULL
+  recommended_date                    date                 NULL
+  reason                              text                 NULL
+  status                              text                 NOT NULL
+  snoozed_until                       date                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_saved_views (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  owner_user_id                       uuid                 NULL
+  name                                text                 NOT NULL
+  entity_type                         text                 NOT NULL
+  filters                             jsonb                NOT NULL
+  columns                             jsonb                NOT NULL
+  sort_definition                     jsonb                NOT NULL
+  is_shared                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_search_index (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  entity_type                         text                 NOT NULL
+  entity_id                           uuid                 NOT NULL
+  search_text                         text                 NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_segment_memberships (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  segment_id                          uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  pet_id                              uuid                 NULL
+  entered_at                          timestamp with time zone NOT NULL
+  exited_at                           timestamp with time zone NULL
+
+=== crm_segments (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  description                         text                 NULL
+  entity_type                         text                 NOT NULL
+  definition                          jsonb                NOT NULL
+  segment_type                        text                 NOT NULL
+  is_active                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_service_location_availability (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  service_id                          uuid                 NOT NULL
+  location_id                         uuid                 NOT NULL
+  duration_minutes                    integer              NULL
+  price                               numeric              NULL
+  is_active                           boolean              NOT NULL
+
+=== crm_service_package_items (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  package_id                          uuid                 NOT NULL
+  service_id                          uuid                 NOT NULL
+  quantity                            integer              NOT NULL
+  sort_order                          integer              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_service_packages (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  slug                                text                 NOT NULL
+  description                         text                 NULL
+  package_type                        text                 NOT NULL
+  price                               numeric              NOT NULL
+  visit_count                         integer              NULL
+  valid_days                          integer              NULL
+  discount_percent                    numeric              NULL
+  is_active                           boolean              NOT NULL
+  bookable_online                     boolean              NOT NULL
+  sort_order                          integer              NOT NULL
+  metadata                            jsonb                NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_services (12 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  code                                text                 NULL
+  description                         text                 NULL
+  category                            text                 NULL
+  default_duration_minutes            integer              NOT NULL
+  default_price                       numeric              NOT NULL
+  deposit_required                    boolean              NOT NULL
+  default_deposit_amount              numeric              NOT NULL
+  rebooking_interval_days             integer              NULL
+  is_active                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+  service_category                    text                 NOT NULL
+  is_add_on                           boolean              NOT NULL
+  parent_service_id                   uuid                 NULL
+  bookable_online                     boolean              NOT NULL
+  image_url                           text                 NULL
+
+=== crm_settings (0 rows) ===
+  tenant_id                           uuid                 NOT NULL
+  default_timezone                    text                 NOT NULL
+  default_currency                    text                 NOT NULL
+  default_appointment_duration_minutes integer              NOT NULL
+  default_rebooking_days              integer              NOT NULL
+  inactive_after_days                 integer              NOT NULL
+  at_risk_after_days                  integer              NOT NULL
+  birthday_campaign_enabled           boolean              NOT NULL
+  vaccine_reminder_enabled            boolean              NOT NULL
+  rebooking_automation_enabled        boolean              NOT NULL
+  require_upfront_deposit             boolean              NOT NULL
+  deposit_percent                     numeric              NULL
+  deposit_flat_amount                 numeric              NULL
+  cancellation_cutoff_minutes         integer              NOT NULL
+  no_show_penalty_amount              numeric              NOT NULL
+  max_booking_horizon_days            integer              NOT NULL
+  station_turnaround_buffer_minutes   integer              NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+  online_booking_enabled              boolean              NOT NULL
+  online_booking_requires_approval    boolean              NOT NULL
+  online_booking_lead_time_hours      integer              NOT NULL
+  new_client_booking_enabled          boolean              NOT NULL
+  waitlist_enabled                    boolean              NOT NULL
+  notification_frequency              text                 NOT NULL
+
+=== crm_shift_templates (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  location_id                         uuid                 NULL
+  day_of_week                         smallint             NOT NULL
+  starts_at                           time without time zone NOT NULL
+  ends_at                             time without time zone NOT NULL
+  break_minutes                       integer              NOT NULL
+  role                                text                 NULL
+  required_headcount                  integer              NOT NULL
+  color_label                         text                 NULL
+  is_active                           boolean              NOT NULL
+  effective_from                      date                 NOT NULL
+  effective_to                        date                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_staff (3 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  user_id                             uuid                 NULL
+  display_name                        text                 NOT NULL
+  first_name                          text                 NULL
+  last_name                           text                 NULL
+  email                               text                 NULL
+  phone                               text                 NULL
+  role                                text                 NOT NULL
+  is_groomer                          boolean              NOT NULL
+  is_active                           boolean              NOT NULL
+  default_location_id                 uuid                 NULL
+  color_label                         text                 NULL
+  hire_date                           date                 NULL
+  termination_date                    date                 NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+  image_url                           text                 NULL
+  bio                                 text                 NULL
+  service_specialties                 ARRAY                NOT NULL
+  certifications                      ARRAY                NOT NULL
+  show_on_website                     boolean              NOT NULL
+  max_daily_appointments              integer              NULL
+
+=== crm_staff_availability (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  location_id                         uuid                 NULL
+  day_of_week                         smallint             NOT NULL
+  available_from                      time without time zone NOT NULL
+  available_to                        time without time zone NOT NULL
+  availability_type                   text                 NOT NULL
+  effective_from                      date                 NOT NULL
+  effective_to                        date                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_staff_commission_assignments (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  plan_id                             uuid                 NOT NULL
+  override_rate_percent               numeric              NULL
+  effective_from                      date                 NOT NULL
+  effective_to                        date                 NULL
+  is_active                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_staff_documents (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  document_type                       text                 NOT NULL
+  name                                text                 NOT NULL
+  storage_path                        text                 NULL
+  status                              text                 NOT NULL
+  uploaded_at                         timestamp with time zone NULL
+  expires_at                          date                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_staff_incident_reports (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  appointment_id                      uuid                 NULL
+  pet_id                              uuid                 NULL
+  severity                            text                 NOT NULL
+  description                         text                 NOT NULL
+  action_taken                        text                 NULL
+  created_by                          uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_staff_performance_notes (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  note_type                           text                 NOT NULL
+  body                                text                 NOT NULL
+  rating                              numeric              NULL
+  created_by                          uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_staff_shifts (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  location_id                         uuid                 NULL
+  shift_template_id                   uuid                 NULL
+  shift_date                          date                 NOT NULL
+  starts_at                           timestamp with time zone NOT NULL
+  ends_at                             timestamp with time zone NOT NULL
+  break_minutes                       integer              NOT NULL
+  role                                text                 NULL
+  status                              text                 NOT NULL
+  published_at                        timestamp with time zone NULL
+  confirmed_at                        timestamp with time zone NULL
+  checked_in_at                       timestamp with time zone NULL
+  checked_out_at                      timestamp with time zone NULL
+  is_overtime                         boolean              NOT NULL
+  swap_requested_by                   uuid                 NULL
+  swap_approved_by                    uuid                 NULL
+  notes                               text                 NULL
+  metadata                            jsonb                NOT NULL
+  created_by                          uuid                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_staff_time_clock_entries (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  clock_in                            timestamp with time zone NOT NULL
+  clock_out                           timestamp with time zone NULL
+  source                              text                 NOT NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_staff_training_records (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  training_name                       text                 NOT NULL
+  completed_at                        date                 NULL
+  expires_at                          date                 NULL
+  certificate_uri                     text                 NULL
+  status                              text                 NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_surcharges (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  code                                text                 NOT NULL
+  name                                text                 NOT NULL
+  description                         text                 NULL
+  surcharge_type                      text                 NOT NULL
+  calc_method                         text                 NOT NULL
+  amount                              numeric              NOT NULL
+  percent                             numeric              NULL
+  auto_apply                          boolean              NOT NULL
+  requires_approval                   boolean              NOT NULL
+  taxable                             boolean              NOT NULL
+  commissionable                      boolean              NOT NULL
+  applies_to_service_id               uuid                 NULL
+  is_active                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_tags (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  entity_type                         text                 NOT NULL
+  name                                text                 NOT NULL
+  slug                                text                 NOT NULL
+  description                         text                 NULL
+  is_system                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_tasks (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NULL
+  lead_id                             uuid                 NULL
+  appointment_id                      uuid                 NULL
+  assigned_to                         uuid                 NULL
+  created_by                          uuid                 NULL
+  task_type                           text                 NOT NULL
+  priority                            text                 NOT NULL
+  title                               text                 NOT NULL
+  description                         text                 NULL
+  due_at                              timestamp with time zone NULL
+  status                              text                 NOT NULL
+  completed_at                        timestamp with time zone NULL
+  snoozed_until                       timestamp with time zone NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_time_off_requests (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  staff_id                            uuid                 NOT NULL
+  request_type                        text                 NOT NULL
+  starts_on                           date                 NOT NULL
+  ends_on                             date                 NOT NULL
+  is_partial_day                      boolean              NOT NULL
+  starts_at_time                      time without time zone NULL
+  ends_at_time                        time without time zone NULL
+  hours_requested                     numeric              NULL
+  reason                              text                 NULL
+  status                              text                 NOT NULL
+  reviewed_by                         uuid                 NULL
+  reviewed_at                         timestamp with time zone NULL
+  review_note                         text                 NULL
+  blocks_booking                      boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL
+
+=== crm_vaccine_types (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  name                                text                 NOT NULL
+  code                                text                 NULL
+  validity_days                       integer              NULL
+  is_required                         boolean              NOT NULL
+  is_active                           boolean              NOT NULL
+  created_at                          timestamp with time zone NOT NULL
+
+=== crm_waitlist (0 rows) ===
+  id                                  uuid                 NOT NULL
+  tenant_id                           uuid                 NOT NULL
+  customer_id                         uuid                 NOT NULL
+  pet_id                              uuid                 NULL
+  service_id                          uuid                 NULL
+  location_id                         uuid                 NULL
+  preferred_groomer_id                uuid                 NULL
+  requested_start_at                  timestamp with time zone NULL
+  requested_end_at                    timestamp with time zone NULL
+  priority                            integer              NOT NULL
+  status                              text                 NOT NULL
+  expires_at                          timestamp with time zone NULL
+  notes                               text                 NULL
+  created_at                          timestamp with time zone NOT NULL
+  updated_at                          timestamp with time zone NOT NULL

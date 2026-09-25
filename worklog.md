@@ -1580,3 +1580,63 @@ Agent: main (Z.ai Code) — Refactor POS to consume usePOS hook
 - Orders page: 0 direct Supabase references, uses `useOrders()` hook ✓
 - POS page: 0 inline fetch calls to `/api/admin/pos`, uses `usePOS()` hook ✓
 - Both pages call gated API routes (`requireAdminApi()`) via their hooks ✓
+
+---
+Task ID: CRM-VERTICAL-SLICE
+Agent: main (Z.ai Code) — CRM fetch bridge: types + service + hooks + API verification
+
+## What was built (3 new files)
+
+### 1. DB-exact type file: `src/types/database/crm.ts`
+- Full TypeScript interfaces for every CRM table, verified against the live Supabase `information_schema`:
+  - `CrmStaff` (19 columns — display_name, is_groomer, is_active, NOT the invented `status`/`specialties`/`commission_rate`)
+  - `CrmService` (19 columns — default_price NOT base_price, bookable_online NOT online_booking_enabled)
+  - `CommercePayment` (18 columns + customer_name join — payment_method_id NOT payment_method, status NOT payment_status)
+  - `CrmNote` (12 columns — body NOT content, note_type NOT visibility, is_pinned NOT is_flagged)
+  - `CrmMessage` (20 columns — conversation_id, channel, direction, from_address, to_address)
+  - `CrmDocument` (20 columns — document_type_id, storage_path, signed_at, signature_provider)
+  - `CrmPet` (30+ columns — species, breed, medical_alert, special_handling, nervous, aggressive)
+  - `CrmCustomer` (50+ columns — lifecycle_stage, lifecycle_status, marketing opts, spend metrics)
+  - `CrmAppointment`, `CrmLocation`, `CrmHousehold`, `CrmSettings`
+- DB-exact CHECK constraint unions: CustomerType, LifecycleStage, LifecycleStatus, PetSex, AlteredStatus, PetStatus, AppointmentStatus, BookingOutcome, HouseholdStatus, PreferredContactMethod
+
+### 2. Service layer: `src/services/crmService.ts`
+- Refactored from the user's proposed Supabase-anon-client pattern to **gated API route calls**
+- Uses `apiGet<T>()`, `apiPost<T>()`, `apiPatch<T>()` helpers that call `fetch('/api/admin/crm/*')`
+- **Zero direct Supabase client references** — no `createClient`, no `supabase.from()` — all data flows through gated endpoints
+- Methods: getCustomers, getCustomerById, createCustomer, updateCustomer, getPetsByCustomer, getAllPets, createPet, getServices, createService, getAppointments, createAppointment, getStaff, createStaff, getLocations, getPayments, getNotes, createNote, getMessages, getDocuments
+
+### 3. TanStack Query hooks: `src/hooks/useCrmData.ts`
+- Uses `@tanstack/react-query` v5 (already installed)
+- Hooks: `useCustomers()`, `useCustomer(id)`, `useCreateCustomer()`, `useCustomerPets(customerId)`, `useAllPets()`, `useServices()`, `useAppointments(startDate?, endDate?)`, `useCreateAppointment()`, `useStaff()`, `useCreateStaff()`, `useLocations()`, `usePayments(customerId?)`, `useCustomerSubTabs(customerId)`
+- `useCustomerSubTabs` fetches notes + messages + documents in parallel (3 queries, enabled when customerId is truthy)
+- `addNote` mutation has optimistic updates (onMutate adds temp note, onError rolls back, onSettled invalidates)
+- StaleTime: 5 min customers/staff/pets, 10 min services/locations, 2 min payments
+- Query keys structured as `['crm', domain, ...args]` for granular invalidation
+- **Zero inline `fetch()` calls** — all through crmService
+
+## Existing API routes verified (9 routes, all already gated + pgQuery)
+
+| Route | Status | Data |
+|---|---|---|
+| `/api/admin/crm/staff` | ✅ gate + pgQuery | 1 staff member |
+| `/api/admin/crm/services` | ✅ gate + pgQuery | 12 services |
+| `/api/admin/crm/pets` | ✅ gate + pgQuery | 2 pets |
+| `/api/admin/payments` | ✅ gate + pgQuery | 12 payments |
+| `/api/admin/crm/notes` | ✅ gate + pgQuery | 0 notes (empty table) |
+| `/api/admin/crm/messages` | ✅ gate + pgQuery | requires customerId (correct) |
+| `/api/admin/crm/documents` | ✅ gate + pgQuery | requires customerId/petId (correct) |
+| `/api/admin/crm/customers` | ✅ gate + pgQuery | 7 customers |
+| `/api/admin/crm/locations` | ✅ gate + pgQuery | 1 location |
+
+All existing routes were already built with `requireAdminApi()` + `pgQuery` in a previous session. They return real data in `{ [name]: [...rows], total: N }` format, which matches the crmService's expected `{ [name]: [...] }` extraction.
+
+## Verification
+- Lint: **0 errors** ✓
+- CRM service direct Supabase refs: **0** ✓
+- CRM hooks inline fetch calls: **0** ✓
+- All 9 API routes: gate + pgQuery + real data ✓
+- TanStack Query v5 installed ✓
+- DB-exact types verified against `information_schema` ✓
+
+## Architecture: Component ↔ TanStack Hook ↔ crmService ↔ Gated API Route ↔ pgQuery ↔ Schema
