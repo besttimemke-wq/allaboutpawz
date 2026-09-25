@@ -1716,3 +1716,46 @@ Agent: main (Z.ai Code) + subagent — 11-page Accounting/Finance vertical slice
 - Settings page wired (useSettings + useLocations hooks)
 - CRM vertical slice (types + service + TanStack hooks + 9 verified API routes)
 - 11 Finance pages (types + service + TanStack hooks + 5 new API routes + 11 page components)
+
+---
+Task ID: MODULE-7-BOOKING
+Agent: main (Z.ai Code) — Appointments & Booking Engine vertical slice
+
+## What was built (7 new files)
+
+### Layer 1: DB-exact types (`src/types/database/booking.ts`)
+- Interfaces for the REAL crm_appointment* tables (not the proposed booking_* names which don't exist):
+  - `CrmAppointmentFull` (37 columns + 4 joined fields: customer_name, groomer_name, location_name, pet_names, service_names)
+  - `CrmAppointmentPet`, `CrmAppointmentService`, `CrmAppointmentStatusHistory`
+  - `CrmOperatingHours`, `CrmHolidayBlackout`, `CrmShiftTemplate`, `CrmStaffShift`
+
+### Layer 2: Gated API route (`src/app/api/admin/crm/appointments/route.ts`)
+- GET: queries `crm_appointments` with JOINs to `crm_customers` (customer name), `crm_staff` (groomer name), `crm_locations` (location name)
+- Fetches pet names from `crm_appointment_pets` JOIN `crm_pets` + service names from `crm_appointment_services` JOIN `crm_services`
+- Supports ?status=, ?startDate=, ?endDate= filters
+- PATCH: updates status/groomer/notes + records status history in `crm_appointment_status_history`
+- All gated with `requireAdminApi()` + `pgQuery`/`pgExec`
+- **Verified**: returns 2 real appointments (TEST GREGGORY, precheck + completed)
+
+### Layer 3: Service layer (`src/services/bookingService.ts`)
+- `getAppointments(filters?)` + `updateAppointment(id, updates)` via gated API routes
+- Zero Supabase anon client
+
+### Layer 4: TanStack Query hooks (`src/hooks/useBookingData.ts`)
+- `useAppointments(filters)` — 30s staleTime (appointments change frequently)
+- `useUpdateAppointment()` — optimistic updates (onMutate applies status change immediately, onError rolls back)
+
+### Layer 5: 3 page components (all HTTP 200)
+| Page | Hook | Features |
+|---|---|---|
+| `/admin/appointments` | `useAppointments` + `useUpdateAppointment` | Status filter, search, summary cards (5 status counts), inline status transitions (Check In → Start → Complete), data table with customer/pet/groomer/service/time/total |
+| `/admin/calendar` | `useAppointments(startDate, endDate)` | Month grid with prev/next navigation, day cells with appointment chips colored by status, today highlight, "+N more" overflow |
+| `/admin/schedule` | `useAppointments(today, tomorrow)` | Today's groomer assignments grouped by groomer, time-sorted appointment timeline per groomer |
+
+## Verification
+- Lint: **0 errors** ✓
+- All 3 pages: **HTTP 200** ✓
+- Appointments API: 2 real appointments with JOINed customer/pet/service data ✓
+- Inline fetches: **0** ✓
+- Direct Supabase: **0** ✓
+- TanStack Query v5 optimistic updates on status transitions ✓
