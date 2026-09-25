@@ -1342,3 +1342,173 @@ Added 6 new CSS rules to `classroom.css`:
 3. **Generate real vector embeddings** for the 270 RAG chunks.
 4. **Persist current lesson index per enrollment** so the progress dashboard can show lesson position for all courses, not just the active one.
 5. **Add caching** to the school snapshot and knowledge endpoints (they're read-heavy and change infrequently).
+
+---
+Task ID: LMS-BATCH
+Agent: sub-agent (general-purpose)
+Task: Build the fetch bridge — 11 hooks + 11 API routes for the remaining LMS admin stub pages. Two vertical slices (lms-enrollment + lms-curriculum) were already complete and used as the pattern.
+
+## What changed
+
+### Pattern followed (from existing lms-enrollment + lms-curriculum slices)
+Each of the 11 stubs now has:
+1. A hook at `src/hooks/use{Name}.ts` — `useState` + `useEffect` + `fetch` + error handling. Exposes a single named export `{Name}()` that returns `{ data, isLoading, error }` (or `{ stats }` for the dashboard).
+2. An API route at `src/app/api/admin/lms-{name}/route.ts` — `runtime = "nodejs"`, `dynamic = "force-dynamic"`, imports `pgQuery` from `@/lib/pg`, single `GET` handler, returns `{ [name]: rows }` (or `{ stats }` for the dashboard).
+
+Hooks never throw; the API routes return `{ name: [] }` when a table is empty so the UI shows "no data" instead of an error. Numeric columns are cast to `::text` in SQL so the pg driver returns strings (matching the existing slice). Learner names are pulled via LEFT JOIN to `lms.learner_profiles` on `user_id = learner_user_id` (column is `preferred_name`). Course titles are pulled via LEFT JOIN to `lms.courses` on `c.id = e.course_id`.
+
+### Files created
+
+**Hooks (11):**
+- `src/hooks/useLmsDashboard.ts` → `useLmsDashboard()` → `{ stats, isLoading, error }`
+- `src/hooks/useAiTeachingSessions.ts` → `useAiTeachingSessions()` → `{ sessions, isLoading, error }`
+- `src/hooks/useLearnerProgress.ts` → `useLearnerProgress()` → `{ lessonProgress, moduleProgress, isLoading, error }`
+- `src/hooks/useAssessments.ts` → `useAssessments()` → `{ submissions, gradeBook, quizAttempts, isLoading, error }`
+- `src/hooks/useSkills.ts` → `useSkills()` → `{ skills, skillSignoffs, credentials, badges, isLoading, error }`
+- `src/hooks/useSupport.ts` → `useSupport()` → `{ escalations, caseloads, isLoading, error }`
+- `src/hooks/useCommunications.ts` → `useCommunications()` → `{ announcements, notifications, isLoading, error }`
+- `src/hooks/useCompliance.ts` → `useCompliance()` → `{ documents, auditLog, isLoading, error }`
+- `src/hooks/useMedia.ts` → `useMedia()` → `{ media, isLoading, error }`
+- `src/hooks/useBridge.ts` → `useBridge()` → `{ syncLog, commerceQueue, isLoading, error }`
+- `src/hooks/useAiInstructor.ts` → `useAiInstructor()` → `{ personas, promptTemplates, isLoading, error }`
+
+**API routes (11):**
+- `src/app/api/admin/lms-dashboard/route.ts` → returns `{ stats: { courses, enrollments, sessions, pathways, messages, ragChunks } }`. Runs 6 sequential `COUNT(*)` queries against `lms.courses` (all), `lms.enrollments` (status='active'), `lms.ai_teaching_sessions`, `lms.pathways`, `lms.ai_tutor_messages`, `lms.ai_rag_chunks`.
+- `src/app/api/admin/lms-ai-teaching/route.ts` → `lms.ai_teaching_sessions` LEFT JOIN `lms.courses` + `lms.learner_profiles`. Returns `{ sessions: rows }`.
+- `src/app/api/admin/lms-progress/route.ts` → `lms.lesson_progress` LEFT JOIN `lms.enrollments` + `lms.courses` + `lms.learner_profiles`, plus `lms.module_progress` (raw). Returns `{ lessonProgress, moduleProgress }`.
+- `src/app/api/admin/lms-assessment/route.ts` → `lms.artifact_submissions` LEFT JOIN `lms.assignments` + `lms.enrollments` + `lms.courses` + `lms.learner_profiles`; `lms.grade_book` LEFT JOIN `lms.courses`; `lms.quiz_attempts` (raw). Returns `{ submissions, gradeBook, quizAttempts }`.
+- `src/app/api/admin/lms-skills/route.ts` → `lms.skills`; `lms.skill_signoffs` LEFT JOIN `lms.skills` + `lms.learner_profiles`; `lms.credentials` LEFT JOIN `lms.learner_profiles`; `lms.badges`. Returns `{ skills, skillSignoffs, credentials, badges }`.
+- `src/app/api/admin/lms-support/route.ts` → `lms.human_escalation_routing` LEFT JOIN `lms.learner_profiles`, ordered by status (pending first); `lms.navigator_caseloads` LEFT JOIN `lms.learner_profiles`. Returns `{ escalations, caseloads }`.
+- `src/app/api/admin/lms-communication/route.ts` → `lms.announcements` LEFT JOIN `lms.courses`; `lms.notification_queue` LEFT JOIN `lms.learner_profiles`. Returns `{ announcements, notifications }`.
+- `src/app/api/admin/lms-compliance/route.ts` → `lms.compliance_documents`; `lms.platform_audit_log`. Returns `{ documents, auditLog }`.
+- `src/app/api/admin/lms-media/route.ts` → `lms.media_assets`. Returns `{ media: rows }`.
+- `src/app/api/admin/lms-bridge/route.ts` → `lms.platform_bridge_sync_log`; `lms.commerce_sync_queue`. Returns `{ syncLog, commerceQueue }`.
+- `src/app/api/admin/lms-ai-instructor/route.ts` → `lms.ai_instructor_personas` LEFT JOIN `lms.courses`; `lms.ai_prompt_templates`. Returns `{ personas, promptTemplates }`.
+
+### Schema verification
+Read `supabase/migrations/ALL ABOUT PAWZ LMS Schemalive.sql` (6,238 lines) + `ALL ABOUT PAWZ RAG Tables + Catalog Seed Data .sql` for the real column names. All column names in the SELECT lists are confirmed against the live schema (no invented names):
+- `lms.courses`: id, code, title, slug, category, difficulty_level, is_published, total_clock_hours, total_estimated_hours, course_type, pathway_id, created_at
+- `lms.enrollments`: id, learner_user_id, course_id, status, delivery_mode, enrolled_at, completed_at, dropped_at, progress_percentage, last_activity_at
+- `lms.learner_profiles`: id, user_id, preferred_name (used for all learner name lookups)
+- `lms.ai_teaching_sessions`: id, learner_user_id, course_id, session_status, started_at, ended_at, total_turns, total_duration_seconds, delivery_mode, escalation_triggered, escalation_reason
+- `lms.lesson_progress`: id, enrollment_id, lesson_id, learner_user_id, status, progress_percentage, time_spent_seconds, started_at, completed_at, last_accessed_at
+- `lms.module_progress`: id, enrollment_id, module_id, learner_user_id, status, lessons_total, lessons_completed, progress_percentage, last_accessed_at
+- `lms.artifact_submissions`: id, assignment_id, learner_user_id, enrollment_id, status, submitted_at, is_late
+- `lms.assignments`: id, course_id, lesson_id, title
+- `lms.grade_book`: id, course_id, learner_user_id, enrollment_id, category, item_name, score, max_score, weight, is_ai_graded, is_released, created_at
+- `lms.quiz_attempts`: id, quiz_id, learner_user_id, enrollment_id, attempt_number, started_at, submitted_at, score, max_score, percentage, is_passed, status
+- `lms.skills`: id, skill_domain_id, name, slug, is_core, created_at
+- `lms.skill_signoffs`: id, learner_user_id, skill_id, course_id, signoff_level, signoff_method, verified_at, evidence_url, notes
+- `lms.credentials`: id, learner_user_id, course_id, credential_type, title, issuer_name, issue_date, expiry_date, verification_code, revoked_at, certificate_url
+- `lms.badges`: id, name, slug, badge_type, points_value, is_active, created_at
+- `lms.human_escalation_routing`: id, session_id, learner_user_id, escalation_type, priority, assigned_to, assigned_role, status, resolution_notes, resolved_at, created_at
+- `lms.navigator_caseloads`: id, navigator_user_id, learner_user_id, assigned_at, status, closed_at, closed_reason
+- `lms.announcements`: id, title, body, author_type, audience_scope, course_id, cohort_id, is_published, published_at, sticky_until, created_at
+- `lms.notification_queue`: id, user_id, notification_type, channel, subject, status, priority, scheduled_for, sent_at, retry_count, error_message, created_at
+- `lms.compliance_documents`: id, document_type, document_name, document_url, issued_by, issued_date, expiry_date, status, created_at
+- `lms.platform_audit_log`: id, actor_user_id, actor_role, action, target_entity_type, target_entity_id, ip_address, user_agent, created_at
+- `lms.media_assets`: id, title, description, media_type, file_name, file_extension, mime_type, file_size_bytes, storage_path, public_url, thumbnail_url, duration_seconds, is_accessible, is_published, created_at
+- `lms.platform_bridge_sync_log`: id, sync_type, sync_status, records_processed, records_succeeded, records_failed, started_by, started_at, completed_at
+- `lms.commerce_sync_queue`: id, sync_direction, entity_type, entity_id, sync_status, error_message, processed_at, created_at
+- `lms.ai_instructor_personas`: id, name, display_name, voice_profile, tone_default, avatar_url, is_co_instructor, is_active, course_id, created_at
+- `lms.ai_prompt_templates`: id, template_name, template_category, system_prompt, user_prompt_template, model_config_id, is_active, created_at
+- `lms.ai_tutor_messages`: (count only)
+- `lms.ai_rag_chunks`: (count only — defined in `ALL ABOUT PAWZ RAG Tables + Catalog Seed Data .sql`)
+
+## Verification results
+- `bun run lint` → exit 0, 0 errors ✓
+- `bunx tsc --noEmit` → 0 errors in any new file (`src/hooks/use*.ts` + `src/app/api/admin/lms-*/route.ts`). The pre-existing tsc errors are in unrelated files (chart.tsx, types.ts, supabase.ts, dawg-mock-data.ts, store.ts, usps-client.ts, supabase/functions/send-email/index.ts) and existed before this task.
+- All 11 hooks export a single named function; all 11 routes export `GET` with `runtime = "nodejs"` + `dynamic = "force-dynamic"`.
+- Page components were NOT created — that work is tracked separately (the stubs at `src/app/(portals)/admin/lms-*/page.tsx` will be wired up in a separate pass).
+
+## Unresolved issues / risks
+1. **Empty tables are expected**: Many of these tables (escalations, caseloads, announcements, audit_log, sync_log) are likely empty in the current seeded DB. The hooks return empty arrays, which the page components will render as "No records yet" — the API never throws for an empty result.
+2. **Pool max:1 serializes the dashboard's 6 count queries**: The dashboard endpoint runs 6 sequential COUNT(*) queries because pg.ts has `max:1`. Total latency ≈ 6 × ~50ms = ~300ms. Acceptable for an admin overview but could be combined into a single UNION query if needed.
+3. **No auth gate on the API routes**: These routes are not protected — the existing lms-enrollment and lms-curriculum routes aren't either, so this matches the pattern. Auth is handled at the page level by the admin portal layout.
+4. **Page components still need to be wired**: The 11 stub pages at `src/app/(portals)/admin/lms-*/page.tsx` still show "No data yet" placeholders. They need to import the new hooks and render the data tables — that's the next task.
+
+## Priority recommendations for next phase
+1. **Wire the 11 stub pages to use the new hooks** — replace the placeholder content with real data tables that call `useLmsDashboard()`, `useAiTeachingSessions()`, etc.
+2. **Add pagination or LIMIT tuning** — all routes cap at 200 rows. If any table grows past 200, the admin UI will need pagination.
+3. **Add a single-shot dashboard query** — combine the 6 dashboard COUNTs into one SQL statement to halve the latency.
+
+---
+Task ID: LMS-PAGES
+Agent: sub-agent (general-purpose)
+Task: Overwrite the 11 remaining LMS admin stub pages with full page components that use the fetch hooks and render real data tables. Pattern copied from the existing lms-enrollment + lms-curriculum slices.
+
+## What changed
+
+### Pattern followed (from lms-enrollment + lms-curriculum)
+Each page is now `'use client'`, calls its hook via destructuring, derives filtered rows with `useState` search inputs, and renders:
+1. A page header (h1 + description + a counts Badge in the top-right)
+2. A summary-cards grid (`grid grid-cols-2 md:grid-cols-4 gap-4`) — each card uses `Card / CardHeader / CardTitle / CardContent`
+3. A search input (or one search input per table for multi-table pages)
+4. One or more `Card`-wrapped `Table`s with three-way state: `isLoading` → `<Loader2 className="animate-spin" />`, `error` → `<AlertCircle className="text-destructive" />`, `length === 0` → "No X found." empty state, otherwise the rows.
+
+All pages use only shadcn/ui components (`Card`, `Badge`, `Button`, `Input`, `Table`, `Tabs`) and lucide-react icons. No bespoke styling — the cards inherit the project's Tailwind theme variables (`bg-card`, `border-border`, `text-foreground`, `text-muted-foreground`). All tables with potentially many rows (audit log, sync log, media library) are wrapped in `max-h-96 overflow-y-auto custom-scrollbar` so long lists scroll within the card.
+
+### Files overwritten (11)
+
+1. **`src/app/(portals)/admin/lms-dashboard/page.tsx`** — replaces the old tabbed portal with a single-page dashboard.
+   - `useLmsDashboard()` → `{ stats, isLoading, error }`
+   - 6 stat cards in a `lg:grid-cols-6` grid: Courses, Enrollments, AI Sessions, Pathways, AI Messages, RAG Chunks. Each card shows the stat icon (lucide) + a loading spinner / "Err" / the numeric value depending on state.
+   - "Quick Links" section: 12 cards (one per other LMS admin page) wrapped in `<Link href="/admin/lms-{name}">`. Each card has an icon-tile, label, and one-line description. Hover state lifts border + reveals an `ArrowRight`.
+   - Error banner only shown when the dashboard endpoint actually fails (not while loading).
+
+2. **`src/app/(portals)/admin/lms-ai-teaching/page.tsx`** — `useAiTeachingSessions()` → 4 summary cards (Total / Active / Completed / Escalated) + 1 search + 1 table. Columns: Learner, Course, Status, Started, Turns, Mode, Escalation. Escalation column shows a `destructive` "Escalated" badge + the reason in muted text under it.
+
+3. **`src/app/(portals)/admin/lms-progress/page.tsx`** — `useLearnerProgress()` → 4 summary cards + 2 tables (Lesson Progress + Module Progress). Each table has its own search input. Lesson table columns: Learner, Course, Lesson, Status, Progress, Time (min), Last Active. Module table columns: Module, Enrollment, Status, Completed, Total, Progress, Last Active. Both tables show "No records yet" when empty (not error).
+
+4. **`src/app/(portals)/admin/lms-assessment/page.tsx`** — `useAssessments()` → 3 summary cards (Submissions, Grade Book Entries, Quiz Attempts) + 3-tabbed interface using shadcn `Tabs`. Each tab has its own search + `Card`-wrapped `Table`. Tabs: Submissions (Learner, Assignment, Course, Status, Late, Submitted), Grade Book (Course, Category, Item, Score, Weight, Graded, Released), Quiz Attempts (Quiz, Learner, Attempt #, Status, Score, Pct, Passed, Submitted).
+
+5. **`src/app/(portals)/admin/lms-skills/page.tsx`** — `useSkills()` → 4 summary cards (Skills, Signoffs, Credentials, Badges) + 4-tabbed interface. Tabs: Skills (Name, Slug, Domain, Core, Created), Signoffs (Learner, Skill, Level, Method, Verified, Notes), Credentials (Learner, Title, Type, Issuer, Issued, Expires, Status), Badges (Name, Slug, Type, Points, Status, Created). Each tab has its own search.
+
+6. **`src/app/(portals)/admin/lms-support/page.tsx`** — `useSupport()` → 4 summary cards + 2 tables (Escalation Queue + Navigator Caseloads), each with its own search. Escalation columns: Learner, Type, Priority, Assigned To, Role, Status, Created. Caseload columns: Navigator, Learner, Status, Assigned, Closed, Closed Reason.
+
+7. **`src/app/(portals)/admin/lms-communication/page.tsx`** — `useCommunications()` → 4 summary cards (Announcements, Published, Notifications Sent, Pending Send) + 2 tables (Announcements + Notification Queue). Announcement columns: Title, Author, Audience, Course, Status, Published. Notification columns: Recipient, Type, Channel, Subject, Priority, Status, Retries, Sent.
+
+8. **`src/app/(portals)/admin/lms-compliance/page.tsx`** — `useCompliance()` → 4 summary cards + 2 tables (Compliance Documents + Audit Log). The audit log table is wrapped in `max-h-96 overflow-y-auto custom-scrollbar` because it has 9 rows + a wide timestamp-first column. Doc columns: Document, Type, Issued By, Issued, Expires, Status. Audit columns: Timestamp, Action, Actor, Role, Target, IP.
+
+9. **`src/app/(portals)/admin/lms-media/page.tsx`** — `useMedia()` → 4 summary cards (Total Assets, Videos, Audio Files, Published) + 1 search + 1 table (wrapped in `max-h-96` overflow). Columns: Title (with `MediaIcon` for video/audio/image/document), Type, File, Size (formatted via `formatBytes`), Duration, Accessible (A11y badge), Status, Created. Note: lucide `Image` imported as `ImageIcon` to avoid the `jsx-a11y/alt-text` lint rule false positive.
+
+10. **`src/app/(portals)/admin/lms-bridge/page.tsx`** — `useBridge()` → 4 summary cards (Sync Runs, Successful, Failed, Pending Queue) + 2 tables (Sync Log + Commerce Sync Queue). Sync Log table is wrapped in `max-h-96 overflow-y-auto`. Sync Log columns: Sync Type, Status, Processed, Succeeded, Failed (red), Started By, Started, Completed. Queue columns: Direction, Entity Type, Entity ID, Status, Error, Processed, Queued.
+
+11. **`src/app/(portals)/admin/lms-ai-instructor/page.tsx`** — `useAiInstructor()` → 4 summary cards (Personas, Active Personas, Co-Instructors, Prompt Templates) + 2 tables (Instructor Personas + Prompt Templates). Persona columns: Name, Display, Voice, Tone, Course, Role (Co-Instructor/Primary), Status. Template columns: Template Name, Category, System Prompt (truncated with `title=` tooltip), Model Config, Status, Created.
+
+### Empty-state handling
+Every table distinguishes between loading, error, and empty:
+- **Loading** (`isLoading === true`): `<Loader2 className="size-4 animate-spin" />` + "Loading X…"
+- **Error** (`error` truthy and `isLoading === false`): `<AlertCircle className="size-4 text-destructive" />` + "System Error: {error}"
+- **Empty** (`isLoading === false` and no error and 0 rows): "No X yet." — phrased as "yet" because the underlying tables are expected to be empty in the current seeded DB.
+
+For multi-table pages (progress, support, communication, compliance, bridge, ai-instructor), the error banner is rendered once at the top of the page (not per-table) — all tables show their empty state when the API returns empty arrays (the hooks never throw on empty data).
+
+### Verification results
+- `bun run lint` → exit 0, **0 errors, 0 warnings** ✓
+- All 11 page routes compiled by Turbopack and returned 200 OK on the dev server:
+  - `GET /admin/lms-dashboard` → 200 (1472ms compile)
+  - `GET /admin/lms-ai-teaching` → 200 (602ms compile)
+  - `GET /admin/lms-progress` → 200 (602ms compile)
+  - `GET /admin/lms-assessment` → 200 (625ms compile)
+  - `GET /admin/lms-skills` → 200 (542ms compile)
+  - `GET /admin/lms-support` → 200 (567ms compile)
+  - `GET /admin/lms-communication` → 200 (558ms compile)
+  - `GET /admin/lms-compliance` → 200 (575ms compile)
+  - `GET /admin/lms-media` → 200 (546ms compile)
+  - `GET /admin/lms-bridge` → 200 (527ms compile)
+  - `GET /admin/lms-ai-instructor` → 200 (498ms compile)
+- Dev log: clean — no compile errors, no runtime errors after all 11 page renders.
+
+## Unresolved issues / risks
+1. **Action buttons are decorative**: the `View` / `Edit` ghost buttons in the enrollment/curriculum reference pages (and the new ai-teaching page) are not wired to detail views. They're placeholders to keep visual parity with the existing slices.
+2. **No pagination**: every table renders all rows the API returns (capped at 200 by the routes). If any LMS table grows past 200, the admin UI will silently truncate.
+3. **Old dashboard tabbed portal is gone**: the previous `lms-dashboard/page.tsx` was a 483-line tabbed portal with `OverviewTab`, `DomainTabShell`, etc. It's been replaced entirely. If the old tabbed UX needs to come back, it can be recovered from git history (the new page matches the lms-enrollment/lms-curriculum standalone pattern instead).
+4. **No filtering by status**: search is substring match across the displayed columns. Admins can't filter to "only pending escalations" with one click — they'd have to type "pending" in the search box. A future enhancement would add a status filter dropdown.
+5. **Tabs reset state on switch**: for the tabbed pages (assessment, skills), search input state for an inactive tab is preserved in React state (not lost on tab switch) because each `TabsContent` stays mounted.
+
+## Priority recommendations for next phase
+1. **Wire the action buttons** — the `View`/`Edit` ghost buttons should route to detail pages (e.g. `/admin/lms-enrollment/[id]`).
+2. **Add status filter dropdowns** for queues (escalations, notification queue, sync log) — much faster than substring search.
+3. **Add pagination controls** when any table approaches the 200-row API cap.
+4. **Restore the tabbed LMS portal as `/admin/lms`** if the team misses the single-page tabbed overview — the new dashboard page is now a Quick Links hub instead.
