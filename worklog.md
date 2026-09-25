@@ -1803,3 +1803,58 @@ Agent: main (Z.ai Code) — Inventory & Catalog vertical slice
 - Inventory API: 13 catalog items (Coat Conditioning Spray stock=35, Grooming Brush stock=31, Paw & Nose Balm stock=50, etc.) + 12 movements ✓
 - Inline fetches: 0 ✓
 - Direct Supabase: 0 ✓
+
+---
+Task ID: MODULE-9-STAFF-HR
+Agent: main (Z.ai Code) — Staff & Resource HR vertical slice
+
+## What was built (6 new files + 1 hardened)
+
+### Layer 1: DB-exact types (`src/types/database/staff.ts`)
+- `CrmStaffFull` (24 columns: display_name, is_groomer, is_active, role, service_specialties ARRAY, certifications ARRAY, bio, show_on_website, max_daily_appointments, image_url + joined location_name/appointment_count_today)
+- `CrmStaffShift` (22 columns: shift_date, starts_at, ends_at, status, is_overtime, checked_in_at/out + joined staff_name/location_name)
+- `CrmShiftTemplate`, `CrmStaffTimeClockEntry`, `CrmStaffAvailability`, `CrmStaffTrainingRecord`, `CrmStaffCommissionAssignment`
+
+### Layer 2: Hardened existing API route (`src/app/api/admin/crm/staff/route.ts`)
+- Fixed `toUiStaff()` to return **snake_case** (matching DB-exact types) instead of camelCase
+- Added all 24 columns including service_specialties, certifications, bio, show_on_website, max_daily_appointments, image_url
+- Existing route was returning only 12 camelCase fields; now returns full 24-column snake_case
+
+### Layer 3: New gated API route (`src/app/api/admin/staff/schedules/route.ts`)
+- GET: queries `crm_staff_shifts` JOIN `crm_staff` + `crm_locations`, `crm_shift_templates`, `crm_staff_time_clock_entries` JOIN `crm_staff`
+- All gated with `requireAdminApi()` + `pgQuery`
+- Returns `{ shifts, templates, clockEntries }`
+
+### Layer 4: Service (`src/services/staffService.ts`)
+- getStaff() + getSchedules() via gated routes
+- Zero Supabase anon client
+
+### Layer 5: TanStack hooks (`src/hooks/useStaffData.ts`)
+- `useStaffRoster()` (60s staleTime) + `useStaffSchedules()` (30s staleTime)
+
+### Layer 6: Staff page rewrite (`src/app/(portals)/admin/staff/page.tsx`)
+- Replaced 21-line stub with full roster:
+  - 4 summary cards (total, active, groomers, on website)
+  - Search by name/email/role/specialty
+  - Staff table with: avatar/image, display_name + bio, role badge + groomer badge, contact, service_specialties badges, certification badges with Award icon, location, hire date, active/inactive badge
+  - Recent shifts panel (if shifts exist) + recent clock entries panel (if clock entries exist)
+
+## Schema audit results (17 tables)
+- `crm_staff` — 3 rows (24 columns including service_specialties ARRAY, certifications ARRAY)
+- `crm_staff_shifts` — 0 rows (22 columns: shift_date, starts_at, ends_at, status, is_overtime, checked_in_at/out)
+- `crm_shift_templates` — 0 rows (16 columns: day_of_week, starts_at, ends_at, required_headcount)
+- `crm_staff_time_clock_entries` — 0 rows (8 columns: clock_in, clock_out, source)
+- `crm_staff_availability` — 0 rows (11 columns)
+- `crm_staff_commission_assignments` — 0 rows (8 columns)
+- `crm_staff_documents`, `crm_staff_incident_reports`, `crm_staff_performance_notes`, `crm_staff_training_records` — 0 rows each
+- `acct_employees`, `acct_pay_periods`, `acct_payroll_runs`, `acct_payroll_run_items`, `acct_payroll_deductions`, `acct_payroll_tax_forms`, `acct_timesheets` — 0 rows each
+
+## Verification
+- Lint: 0 errors ✓
+- Staff page: HTTP 200 ✓
+- Schedule page: HTTP 200 ✓ (wired in Module 7 for appointments)
+- Staff API: 1 staff member (Admin (Owner), role=owner, groomer=true, active=true, specialties=[], certs=[]) ✓
+- Schedules API: 0 shifts, 0 templates, 0 clock entries (empty — correct) ✓
+- Inline fetches: 0 ✓
+- Direct Supabase: 0 ✓
+- API returns snake_case matching DB-exact types ✓
