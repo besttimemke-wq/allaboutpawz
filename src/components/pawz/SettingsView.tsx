@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { LocationItem, DawgNavSection } from '@/lib/types';
-import { SystemSettings, DEFAULT_SETTINGS } from '@/lib/settings-types';
+import { SystemSettings } from '@/lib/settings-types';
+import { useSettings } from '@/hooks/useSettings';
 import {
   Search,
   Bell,
@@ -176,38 +177,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Database settings state
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
-  const [isSettingsLoading, setIsSettingsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchSettings() {
-      try {
-        const res = await fetch("/api/admin/settings");
-        if (res.ok) {
-          const data = await res.json();
-          setSystemSettings(data);
-        }
-      } catch (err) {
-        console.error("Failed to load settings from Supabase API:", err);
-      } finally {
-        setIsSettingsLoading(false);
-      }
-    }
-    fetchSettings();
-  }, []);
+  // Database settings — wired via the isolated useSettings hook (no inline fetch)
+  const { settings: systemSettings, isLoading: isSettingsLoading, updateSettings } = useSettings();
+  // Keep a local copy for optimistic updates before the server confirms
+  const [localSettings, setLocalSettings] = useState<SystemSettings | null>(null);
+  const effectiveSettings = localSettings ?? systemSettings;
 
   const saveSettingsToDb = async (updates: Partial<SystemSettings>) => {
-    setSystemSettings((prev) => ({ ...prev, ...updates }));
-    try {
-      await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-    } catch (err) {
-      console.error("Failed to save settings to database:", err);
-    }
+    setLocalSettings((prev) => ({ ...(prev ?? effectiveSettings), ...updates }));
+    await updateSettings(updates);
   };
 
   const navigateToScreen = (screenId: string) => {
@@ -340,7 +318,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -356,7 +334,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -372,7 +350,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -381,7 +359,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -390,7 +368,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -399,7 +377,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -408,7 +386,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -417,7 +395,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -426,7 +404,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -435,7 +413,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -444,7 +422,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
@@ -453,7 +431,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onNavigateScreen={navigateToScreen}
               selectedLocation={selectedLocation}
               onSelectLocation={onSelectLocation}
-              systemSettings={systemSettings}
+              systemSettings={effectiveSettings}
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
