@@ -1,121 +1,210 @@
 'use client';
-/* eslint-disable */
-import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = (supabaseUrl && supabaseKey && !supabaseUrl.startsWith('your-'))
-  ? createClient(supabaseUrl, supabaseKey) : null;
-
-type Order = {
-  id: string; customer_email: string; total_amount: string; status: string;
-  fulfillment_status: string; fulfillment_method: string | null;
-  tracking_number: string | null; carrier: string | null;
-  shipping_address: string | null; created_at: string;
-};
+import React, { useState } from 'react';
+import { useOrders, type Order } from '@/hooks/useOrders';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import { Search, Loader2, AlertCircle, Save, X, Edit, Truck } from 'lucide-react';
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { orders, isLoading, error, updateOrder } = useOrders();
+  const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ fulfillment_status: '', tracking_number: '', carrier: '' });
 
-  useEffect(() => { loadOrders(); }, []);
+  const filtered = orders.filter((o: Order) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (o.email?.toLowerCase().includes(q)) ||
+      (o.customer_email?.toLowerCase().includes(q)) ||
+      (o.status?.toLowerCase().includes(q)) ||
+      (o.fulfillment_status?.toLowerCase().includes(q)) ||
+      (o.tracking_number?.toLowerCase().includes(q))
+    );
+  });
 
-  async function loadOrders() {
-    if (!supabase) { setLoading(false); return; }
-    const { data } = await supabase.from('commerce_orders').select('*').order('created_at', { ascending: false });
-    if (data) setOrders(data);
-    setLoading(false);
-  }
+  const startEdit = (o: Order) => {
+    setEditingId(o.id);
+    setEditForm({
+      fulfillment_status: o.fulfillment_status || 'pending',
+      tracking_number: o.tracking_number || '',
+      carrier: o.carrier || '',
+    });
+  };
 
-  async function updateOrder(id: string) {
-    if (!supabase) return;
-    await supabase.from('commerce_orders').update({
-      fulfillment_status: editForm.fulfillment_status,
-      tracking_number: editForm.tracking_number,
-      carrier: editForm.carrier,
-    }).eq('id', id);
+  const saveEdit = async (id: string) => {
+    await updateOrder(id, editForm);
     setEditingId(null);
-    loadOrders();
-  }
+  };
 
-  if (loading) return <div className="p-6">Loading orders...</div>;
+  const summary = {
+    total: orders.length,
+    paid: orders.filter(o => o.payment_status === 'paid').length,
+    pending: orders.filter(o => o.fulfillment_status === 'pending').length,
+    shipped: orders.filter(o => o.fulfillment_status === 'shipped').length,
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
-        <p className="text-sm text-muted-foreground mt-1">{orders.length} orders from commerce_orders</p>
+    <div className="flex flex-col w-full h-full p-6 space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Orders</h1>
+          <p className="text-[13px] text-muted-foreground mt-1">Manage shop orders, fulfillment, and tracking.</p>
+        </div>
+        <Badge variant="secondary" className="gap-1.5">
+          <Truck className="size-3" />
+          {orders.length} orders
+        </Badge>
       </div>
 
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="p-3 text-left">Order ID</th>
-              <th className="p-3 text-left">Customer</th>
-              <th className="p-3 text-left">Total</th>
-              <th className="p-3 text-left">Payment</th>
-              <th className="p-3 text-left">Fulfillment</th>
-              <th className="p-3 text-left">Tracking</th>
-              <th className="p-3 text-left">Date</th>
-              <th className="p-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map(o => (
-              <tr key={o.id} className="border-t border-border hover:bg-muted/50">
-                <td className="p-3 font-mono text-xs">{o.id.slice(0, 8)}</td>
-                <td className="p-3">{o.customer_email || '—'}</td>
-                <td className="p-3 font-semibold">{o.total_amount}</td>
-                <td className="p-3">
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${o.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {o.status}
-                  </span>
-                </td>
-                <td className="p-3">
-                  {editingId === o.id ? (
-                    <select value={editForm.fulfillment_status} onChange={e => setEditForm({ ...editForm, fulfillment_status: e.target.value })} className="border border-border rounded p-1 text-xs">
-                      <option value="pending">Pending</option>
-                      <option value="processing">Processing</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  ) : (
-                    <span className={`px-2 py-1 rounded text-xs ${o.fulfillment_status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-muted'}`}>
-                      {o.fulfillment_status}
-                    </span>
-                  )}
-                </td>
-                <td className="p-3">
-                  {editingId === o.id ? (
-                    <div className="flex gap-1">
-                      <input value={editForm.carrier} onChange={e => setEditForm({ ...editForm, carrier: e.target.value })} placeholder="UPS" className="border border-border rounded p-1 text-xs w-16" />
-                      <input value={editForm.tracking_number} onChange={e => setEditForm({ ...editForm, tracking_number: e.target.value })} placeholder="1Z..." className="border border-border rounded p-1 text-xs w-32" />
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{o.carrier ? `${o.carrier}: ${o.tracking_number}` : '—'}</span>
-                  )}
-                </td>
-                <td className="p-3 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</td>
-                <td className="p-3">
-                  {editingId === o.id ? (
-                    <div className="flex gap-2">
-                      <button onClick={() => updateOrder(o.id)} className="text-green-600 hover:underline text-xs">Save</button>
-                      <button onClick={() => setEditingId(null)} className="text-muted-foreground text-xs">Cancel</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => { setEditingId(o.id); setEditForm({ fulfillment_status: o.fulfillment_status || 'pending', tracking_number: o.tracking_number || '', carrier: o.carrier || '' }); }} className="text-blue-600 hover:underline text-xs">Edit</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Orders', value: summary.total },
+          { label: 'Paid', value: summary.paid },
+          { label: 'Fulfillment Pending', value: summary.pending },
+          { label: 'Shipped', value: summary.shipped },
+        ].map(card => (
+          <Card key={card.label}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{card.label}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">{card.value}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by email, status, or tracking number…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* Data Table */}
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              <span className="text-sm">Loading orders…</span>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-destructive">
+              <AlertCircle className="size-4" />
+              <span className="text-sm">System Error: {error}</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <span className="text-sm">No orders found.</span>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Fulfillment</TableHead>
+                  <TableHead>Tracking</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((o: Order) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-mono text-xs">{o.id.slice(0, 8)}</TableCell>
+                    <TableCell>{o.email || o.customer_email || '—'}</TableCell>
+                    <TableCell className="font-semibold tabular-nums">
+                      {o.total_amount ? `$${Number(o.total_amount).toFixed(2)}` : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={o.payment_status === 'paid' ? 'default' : 'outline'}>
+                        {o.payment_status || '—'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {editingId === o.id ? (
+                        <select
+                          value={editForm.fulfillment_status}
+                          onChange={(e) => setEditForm({ ...editForm, fulfillment_status: e.target.value })}
+                          className="border border-border rounded p-1 text-xs bg-background"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="processing">Processing</option>
+                          <option value="shipped">Shipped</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      ) : (
+                        <Badge variant={o.fulfillment_status === 'delivered' ? 'secondary' : 'outline'}>
+                          {o.fulfillment_status || '—'}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === o.id ? (
+                        <div className="flex gap-1">
+                          <Input
+                            value={editForm.carrier}
+                            onChange={(e) => setEditForm({ ...editForm, carrier: e.target.value })}
+                            placeholder="UPS"
+                            className="w-16 text-xs h-7"
+                          />
+                          <Input
+                            value={editForm.tracking_number}
+                            onChange={(e) => setEditForm({ ...editForm, tracking_number: e.target.value })}
+                            placeholder="1Z..."
+                            className="w-32 text-xs h-7"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {o.carrier ? `${o.carrier}: ${o.tracking_number}` : '—'}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {o.created_at ? new Date(o.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {editingId === o.id ? (
+                        <div className="flex gap-1 justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => saveEdit(o.id)} className="gap-1 text-green-600 h-7">
+                            <Save className="size-3" /> Save
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7">
+                            <X className="size-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="ghost" onClick={() => startEdit(o)} className="gap-1 h-7">
+                          <Edit className="size-3" /> Edit
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

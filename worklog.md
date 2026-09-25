@@ -1512,3 +1512,50 @@ For multi-table pages (progress, support, communication, compliance, bridge, ai-
 2. **Add status filter dropdowns** for queues (escalations, notification queue, sync log) — much faster than substring search.
 3. **Add pagination controls** when any table approaches the 200-row API cap.
 4. **Restore the tabbed LMS portal as `/admin/lms`** if the team misses the single-page tabbed overview — the new dashboard page is now a Quick Links hub instead.
+
+---
+Task ID: POS-ORDERS-AUDIT
+Agent: main (Z.ai Code) — Enterprise directive: audit + fix POS and Orders
+
+## ORDERS — CRITICAL SECURITY BREACH FIXED
+
+### Violations found
+1. **Direct Supabase client in page component** (line 4-9): `createClient(supabaseUrl, supabaseKey)` with the anon key — bypassed the admin gate entirely
+2. **`/* eslint-disable */`** on line 2 — entire file lint-suppressed
+3. **Dedicated API route unused**: `/api/admin/orders` (121 lines, has `requireAdminApi()`, queries commerce_orders with JOINs) existed but the page didn't call it
+4. No isolated hook — `loadOrders()` and `updateOrder()` were inline
+5. No Zustand state
+
+### Fixes applied
+1. **Created `src/hooks/useOrders.ts`** — isolated hook with `useOrders()`, returns `{ orders, isLoading, error, updateOrder, reload }`. Calls `/api/admin/orders` (the gated API route). Includes `updateOrder` callback that PATCHes the route.
+2. **Added PATCH handler to `/api/admin/orders/route.ts`** — `PATCH /api/admin/orders` with `requireAdminApi()` gate, updates fulfillment_status/tracking_number/carrier via `withPg()` against `public.commerce_orders`
+3. **Rewrote `src/app/(portals)/admin/orders/page.tsx`** — uses `useOrders()` hook, 0 references to `createClient`/`supabase`/`NEXT_PUBLIC_SUPABASE`, removed `/* eslint-disable */`, uses shadcn/ui Table/Badge/Button/Input/Card components
+4. **Verified**: 0 direct Supabase references, lint passes, API returns 7 real orders
+
+## POS — ARCHITECTURAL VIOLATION (security sound, hook mandate violated)
+
+### Audit results
+- ✅ **API route is domain-specific** (not a god-route): delegates to `src/lib/enterprise/pos.ts` (986 lines)
+- ✅ **Queries real `public.commerce_*` tables**: commerce_catalog_items, commerce_payment_methods, commerce_registers, commerce_register_sessions, commerce_gift_cards
+- ✅ **Has `requireAdminApi()` gate**: properly protected
+- ✅ **No mock data**: catalog comes from real DB (20 items: Coat Conditioning Spray $22, Grooming Brush $26, etc.)
+- ❌ **Fetch logic embedded in page** (785 lines): `useEffect(() => { load(); })` calls `fetch('/api/admin/pos')` directly
+- ❌ **No isolated `usePOS()` hook**: all fetch/mutation logic inline
+- ❌ **No Zustand state**: all cart state is local `useState` (cart, heldCarts, customerEmail, payment)
+
+### Fix applied
+1. **Created `src/hooks/usePOS.ts`** — isolated hook with `usePOS()`, returns `{ catalog, categories, paymentMethods, registers, summary, isLoading, error, completeSale, openRegister, closeRegister, queryGiftCard, reload }`
+2. POS page refactoring to use the hook is **remaining** — the 785-line page still has inline fetch logic that needs to be replaced with the hook calls
+
+## Verification
+- Orders API: returns 7 real orders from `public.commerce_orders` ✓
+- POS API: returns 20 catalog items, 4 categories, 10 payment methods, 1 register ✓
+- Orders page: 0 direct Supabase references, uses `useOrders()` hook ✓
+- POS hook: `src/hooks/usePOS.ts` created (4,110 bytes) ✓
+- Lint: 0 errors ✓
+- Admin gate: working (401 without session, open with `ALLOW_OPEN_ADMIN_API=1`) ✓
+
+## Remaining
+1. POS page refactoring to use `usePOS()` hook (replace inline fetch calls)
+2. Settings page (50 lines, PARTIAL) — needs wiring
+3. 11 Finance stub pages — need the same vertical slice treatment

@@ -121,3 +121,68 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ orders: rows || [] })
 }
+
+// ============================================================================
+// PATCH /api/admin/orders — update fulfillment status, tracking, carrier.
+// Body: { id, fulfillment_status?, tracking_number?, carrier? }
+// ============================================================================
+export async function PATCH(req: NextRequest) {
+  const gate = await requireAdminApi()
+  if (gate) return gate
+
+  try {
+    const body = await req.json()
+    const { id, fulfillment_status, tracking_number, carrier } = body as {
+      id: string
+      fulfillment_status?: string
+      tracking_number?: string
+      carrier?: string
+    }
+
+    if (!id) return NextResponse.json({ error: "Order id is required." }, { status: 400 })
+
+    const updates: string[] = []
+    const params: (string | null)[] = []
+    let pIdx = 1
+
+    if (fulfillment_status !== undefined) {
+      updates.push(`fulfillment_status = $${pIdx++}`)
+      params.push(fulfillment_status)
+    }
+    if (tracking_number !== undefined) {
+      updates.push(`tracking_number = $${pIdx++}`)
+      params.push(tracking_number)
+    }
+    if (carrier !== undefined) {
+      updates.push(`carrier = $${pIdx++}`)
+      params.push(carrier)
+    }
+
+    if (updates.length === 0) {
+      return NextResponse.json({ error: "No fields to update." }, { status: 400 })
+    }
+
+    updates.push(`updated_at = now()`)
+    params.push(id)
+
+    const affected = await withPg(async (client) => {
+      const res = await client.query(
+        `UPDATE public.commerce_orders SET ${updates.join(", ")} WHERE id = $${pIdx}`,
+        params,
+      )
+      return res.rowCount ?? 0
+    })
+
+    if (affected === 0) {
+      return NextResponse.json({ error: "Order not found." }, { status: 404 })
+    }
+
+    return NextResponse.json({ ok: true, affected })
+  } catch (error) {
+    console.error("Orders PATCH error:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal Server Error" },
+      { status: 500 },
+    )
+  }
+}
