@@ -1,48 +1,29 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+// Note: useEffect is still used for localStorage cart backup and keyboard shortcut
 import { cn } from '@/lib/utils';
 import {
   Search, ShoppingCart, User, Package, Scissors, Repeat, RefreshCw,
-  Plus, Minus, X, DollarSign, Receipt, Lock, Tag, Percent, Wallet,
-  Gift, Check, Pause, Trash2, CreditCard,
+  Plus, Minus, X, DollarSign, Receipt, Lock, Wallet,
+  Gift, Check, Pause, Trash2,
 } from 'lucide-react';
+import { usePOS, type PosCatalogItem, type PosPaymentMethod, type PosSaleLine } from '@/hooks/usePOS';
 
-type CatalogItem = {
-  id: string; sku: string; name: string;
-  itemType: 'product' | 'service' | 'subscription';
-  price: number; compareAtPrice: number | null; stock: number | null;
-  categoryName?: string;
-};
-
-type Category = { id: string | null; name: string; itemCount: number };
-type PaymentMethod = { id: string; code: string; name: string; methodType: string };
-type Register = {
-  id: string; registerNumber: string; name: string;
-  activeSession: { id: string; openingCash: number; expectedCash: number; openedAt: string } | null;
-};
-
-type CartLine = {
-  key: string; catalogItemId?: string; serviceId?: string; subscriptionPlanId?: string;
-  description: string; quantity: number; unitPrice: number; discountAmount: number;
-  itemType: 'product' | 'service' | 'subscription';
-};
-
-type TodaySummary = {
-  salesCount: number; grossSales: number; discounts: number;
-  tax: number; netSales: number; cashSales: number; cardSales: number;
-};
+type CartLine = PosSaleLine & { key: string };
 
 // ---- localStorage cart backup (survives browser crash/refresh) ----
 const CART_STORAGE_KEY = (sessionId: string) => `pos-cart-${sessionId}`;
 
 export default function PosPage() {
-  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [registers, setRegisters] = useState<Register[]>([]);
-  const [summary, setSummary] = useState<TodaySummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  // ── Fetch bridge: all data + mutations come from the isolated hook ──
+  const {
+    catalog, categories, paymentMethods, registers, summary,
+    isLoading, error: hookError,
+    openRegister, completeSale, queryGiftCard, reload,
+  } = usePOS();
+
+  // ── Local UI state (cart, search, modals) — not server state ──
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -60,24 +41,7 @@ export default function PosPage() {
   const activeRegister = registers[0];
   const activeSession = activeRegister?.activeSession;
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/pos');
-      if (!res.ok) return;
-      const data = await res.json();
-      setCatalog(data.catalog || []);
-      setCategories(data.categories || []);
-      setPaymentMethods(data.paymentMethods || []);
-      setRegisters(data.registers || []);
-      setSummary(data.todaySummary || null);
-    } catch {} finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
   // ---- localStorage cart backup ----
-  // Mirror the active cart to localStorage keyed by register_session_id.
-  // If the browser crashes or the cashier hits refresh, the cart survives.
   useEffect(() => {
     if (activeSession?.id) {
       const saved = localStorage.getItem(CART_STORAGE_KEY(activeSession.id));
@@ -114,7 +78,7 @@ export default function PosPage() {
     return true;
   });
 
-  const addToCart = (item: CatalogItem) => {
+  const addToCart = (item: PosCatalogItem) => {
     setCart((prev) => {
       const key = `${item.itemType}-${item.id}`;
       const existing = prev.find((l) => l.key === key);
@@ -147,54 +111,38 @@ export default function PosPage() {
   const taxTotal = Math.round((subtotal - discountTotal) * taxRate * 100) / 100;
   const total = subtotal - discountTotal + taxTotal;
 
+  // ── Register open via hook ──
   const openDrawer = async () => {
     if (!activeRegister || busy) return;
     setBusy(true); setError(null);
     try {
-      const res = await fetch('/api/admin/pos', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'open_register', registerId: activeRegister.id, openingCash: Number(openingCash) }),
-      });
-      if (!res.ok) { const d = await res.json(); setError(d.error || 'Failed'); setBusy(false); return; }
-      setShowOpenDrawer(false); load();
-    } catch { setError('Failed'); } finally { setBusy(false); }
+      await openRegister(activeRegister.id, Number(openingCash));
+      setShowOpenDrawer(false);
+    } catch (e: any) { setError(e.message); }
+    finally { setBusy(false); }
   };
 
-  const completeSale = async (payments: any[]) => {
+  // ── Sale completion via hook ──
+  const handleCompleteSale = async (payments: any[]) => {
     if (!activeSession || busy) return;
     setBusy(true); setError(null);
     try {
-      // Generate a client-side idempotency key — blocks double-submission.
-      const idempotencyKey = crypto.randomUUID();
-      const res = await fetch('/api/admin/pos', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'complete_sale',
-          idempotencyKey,
-          registerSessionId: activeSession.id,
-          lines: cart.map((l) => ({
-            catalogItemId: l.catalogItemId, serviceId: l.serviceId,
-            subscriptionPlanId: l.subscriptionPlanId, description: l.description,
-            quantity: l.quantity, unitPrice: l.unitPrice, discountAmount: l.discountAmount,
-            itemType: l.itemType,
-          })),
-          discountTotal, taxTotal, payments,
-        }),
+      const result = await completeSale({
+        registerSessionId: activeSession.id,
+        lines: cart.map(({ key: _k, ...line }) => line),
+        discountTotal, taxTotal, payments,
+        customerEmail: customerEmail || undefined,
       });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Sale failed'); setBusy(false); return; }
-      setLastSale(data.sale);
+      setLastSale(result.sale);
       setCart([]);
       if (activeSession?.id) localStorage.removeItem(CART_STORAGE_KEY(activeSession.id));
-      setShowPayment(false); load();
-    } catch { setError('Sale failed'); } finally { setBusy(false); }
+      setShowPayment(false);
+    } catch (e: any) { setError(e.message); }
+    finally { setBusy(false); }
   };
 
   // ---- thermal receipt printing (raw ESC/POS via Web Serial) ----
   const printReceipt = async (receiptRaw: string) => {
-    // Try Web Serial API (Chrome) for direct thermal printer connection.
-    // Falls back to a new window with pre-formatted text if Web Serial
-    // isn't available (non-Chrome browsers, no printer connected).
     if ('serial' in navigator) {
       try {
         const port = await (navigator as any).serial.requestPort();
@@ -204,11 +152,8 @@ export default function PosPage() {
         writer.releaseLock();
         await port.close();
         return;
-      } catch (e) {
-        // User cancelled or printer not available — fall through to window print
-      }
+      } catch {}
     }
-    // Fallback: open a plain-text window (no HTML margins, monospace)
     const w = window.open('', '_blank', 'width=400,height=600');
     if (w) {
       w.document.write(`<pre style="font-family:monospace;font-size:11px;margin:0;padding:8px;">${receiptRaw.replace(/</g, '&lt;')}</pre>`);
@@ -217,7 +162,7 @@ export default function PosPage() {
     }
   };
 
-  if (loading) return <div className="p-6 text-muted-foreground">Loading POS…</div>;
+  if (isLoading) return <div className="p-6 text-muted-foreground">Loading POS…</div>;
 
   // ---- No active session → open drawer screen ----
   if (!activeSession) {
@@ -253,24 +198,17 @@ export default function PosPage() {
 
   return (
     <div className="flex h-full bg-background overflow-hidden">
-      {/* =========================================== */}
-      {/* LEFT: Catalog & Inputs (65% width) */}
-      {/* =========================================== */}
+      {/* LEFT: Catalog & Inputs */}
       <div className="flex-1 flex flex-col overflow-hidden border-r border-border" style={{ flexBasis: '65%' }}>
-        {/* Search/barcode bar */}
         <div className="p-3 border-b border-border">
           <div className="flex items-center gap-2">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <input
-                ref={searchInputRef}
-                type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              <input ref={searchInputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search or scan barcode… (press / to focus)"
-                className="w-full border border-border rounded-lg pl-9 pr-3 py-2.5 text-[13px] focus:outline-none focus:border-ink"
-                autoFocus
-              />
+                className="w-full border border-border rounded-lg pl-9 pr-3 py-2.5 text-[13px] focus:outline-none focus:border-ink" autoFocus />
             </div>
-            <button onClick={load} className="p-2.5 rounded-lg border border-border hover:bg-muted cursor-pointer" title="Refresh">
+            <button onClick={reload} className="p-2.5 rounded-lg border border-border hover:bg-muted cursor-pointer" title="Refresh">
               <RefreshCw className="size-4 text-muted-foreground" />
             </button>
             <button onClick={() => setShowQuickAdd(true)} className="px-3 py-2.5 rounded-lg bg-ink text-white text-[12px] font-semibold hover:opacity-90 cursor-pointer flex items-center gap-1.5" title="Quick add item">
@@ -279,35 +217,27 @@ export default function PosPage() {
           </div>
         </div>
 
-        {/* Category navigation */}
         <div className="px-3 py-2 border-b border-border overflow-x-auto custom-scrollbar">
           <div className="flex items-center gap-1">
             {categories.map((cat) => (
-              <button
-                key={cat.name} onClick={() => setActiveCategory(cat.name === 'All Items' ? null : cat.name)}
-                className={cn(
-                  'px-3 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap transition-colors cursor-pointer',
+              <button key={cat.name} onClick={() => setActiveCategory(cat.name === 'All Items' ? null : cat.name)}
+                className={cn('px-3 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap transition-colors cursor-pointer',
                   (activeCategory === null && cat.name === 'All Items') || activeCategory === cat.name
-                    ? 'bg-ink text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted',
-                )}
-              >
+                    ? 'bg-ink text-white' : 'bg-muted/50 text-muted-foreground hover:bg-muted')}>
                 {cat.name} <span className="opacity-60">({cat.itemCount})</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Product quick-keys grid */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-[13px]">No items found.</div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5">
               {filtered.map((item) => (
-                <button
-                  key={item.id} onClick={() => addToCart(item)}
-                  className="flex flex-col items-start p-3 bg-card border border-border rounded-lg hover:border-ink hover:shadow-sm transition-all text-left cursor-pointer"
-                >
+                <button key={item.id} onClick={() => addToCart(item)}
+                  className="flex flex-col items-start p-3 bg-card border border-border rounded-lg hover:border-ink hover:shadow-sm transition-all text-left cursor-pointer">
                   <div className="flex items-center gap-1 mb-1">
                     {item.itemType === 'product' && <Package className="size-3.5 text-muted-foreground" />}
                     {item.itemType === 'service' && <Scissors className="size-3.5 text-muted-foreground" />}
@@ -326,11 +256,8 @@ export default function PosPage() {
         </div>
       </div>
 
-      {/* =========================================== */}
-      {/* RIGHT: Cart & Summary (35% width) */}
-      {/* =========================================== */}
+      {/* RIGHT: Cart & Summary */}
       <div className="flex flex-col bg-card overflow-hidden" style={{ flexBasis: '35%', maxWidth: '480px' }}>
-        {/* Cart header */}
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-[14px] font-semibold flex items-center gap-2">
@@ -342,7 +269,6 @@ export default function PosPage() {
               </span>
             )}
           </div>
-          {/* Customer */}
           <div className="relative">
             <User className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)}
@@ -351,7 +277,6 @@ export default function PosPage() {
           </div>
         </div>
 
-        {/* Held carts */}
         {heldCarts.length > 0 && (
           <div className="px-3 py-2 border-b border-border bg-muted/30">
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Held Tickets ({heldCarts.length})</p>
@@ -366,7 +291,6 @@ export default function PosPage() {
           </div>
         )}
 
-        {/* Cart lines */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground">
@@ -402,7 +326,6 @@ export default function PosPage() {
           )}
         </div>
 
-        {/* Order totals + action buttons */}
         {cart.length > 0 && (
           <div className="border-t border-border p-3 space-y-2.5">
             <div className="space-y-0.5 text-[12px]">
@@ -411,7 +334,6 @@ export default function PosPage() {
               <div className="flex justify-between text-muted-foreground"><span>Tax (9.25%)</span><span>${taxTotal.toFixed(2)}</span></div>
               <div className="flex justify-between text-[16px] font-bold pt-1 border-t border-border"><span>Total</span><span>${total.toFixed(2)}</span></div>
             </div>
-            {/* Action buttons */}
             <div className="flex gap-1.5">
               <button onClick={clearCart} className="flex-1 py-2 border border-border rounded-lg text-[11px] font-medium hover:bg-muted cursor-pointer flex items-center justify-center gap-1">
                 <Trash2 className="size-3" /> Clear
@@ -427,7 +349,6 @@ export default function PosPage() {
           </div>
         )}
 
-        {/* Today's summary */}
         {summary && (
           <div className="border-t border-border p-2.5 bg-muted/30">
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -439,16 +360,15 @@ export default function PosPage() {
         )}
       </div>
 
-      {/* Payment drawer */}
       {showPayment && (
         <PaymentDrawer
           total={total} subtotal={subtotal} taxTotal={taxTotal} discountTotal={discountTotal}
-          paymentMethods={paymentMethods} onComplete={completeSale} onClose={() => setShowPayment(false)}
+          paymentMethods={paymentMethods} onComplete={handleCompleteSale} onClose={() => setShowPayment(false)}
+          onQueryGiftCard={queryGiftCard}
           busy={busy} error={error}
         />
       )}
 
-      {/* Sale success + receipt printing */}
       {lastSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90 p-4">
           <div className="w-full max-w-sm bg-card rounded-2xl border border-border p-6 space-y-4 text-center">
@@ -474,23 +394,10 @@ export default function PosPage() {
         </div>
       )}
 
-      {/* Quick Add Item modal — cashier creates a new item on the fly */}
       {showQuickAdd && (
         <QuickAddItem
           onClose={() => setShowQuickAdd(false)}
-          onCreated={(item) => {
-            // Add the new item to the cart immediately
-            setCart((prev) => {
-              const key = `product-${item.id}`;
-              return [...prev, {
-                key, catalogItemId: item.id, description: item.name,
-                quantity: 1, unitPrice: item.price, discountAmount: 0,
-                itemType: 'product' as const,
-              }];
-            });
-            setShowQuickAdd(false);
-            load(); // refresh catalog
-          }}
+          onCreated={() => { setShowQuickAdd(false); reload(); }}
         />
       )}
     </div>
@@ -499,12 +406,14 @@ export default function PosPage() {
 
 // ---- Payment Drawer (cash/change, check, gift card, card) ----
 function PaymentDrawer({
-  total, subtotal, taxTotal, discountTotal, paymentMethods, onComplete, onClose, busy, error,
+  total, subtotal, taxTotal, discountTotal, paymentMethods, onComplete, onClose, onQueryGiftCard, busy, error,
 }: {
   total: number; subtotal: number; taxTotal: number; discountTotal: number;
-  paymentMethods: PaymentMethod[];
+  paymentMethods: PosPaymentMethod[];
   onComplete: (payments: any[]) => void;
-  onClose: () => void; busy: boolean; error: string | null;
+  onClose: () => void;
+  onQueryGiftCard: (cardNumber: string) => Promise<any>;
+  busy: boolean; error: string | null;
 }) {
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   const [amount, setAmount] = useState(total.toFixed(2));
@@ -514,26 +423,25 @@ function PaymentDrawer({
   const [giftCardBalance, setGiftCardBalance] = useState<number | null>(null);
   const [checkRef, setCheckRef] = useState('');
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (paymentMethods.length > 0 && !selectedMethod) setSelectedMethod(paymentMethods[0].id);
-  }, [paymentMethods, selectedMethod]);
+  // Derived default: when paymentMethods load and no method is selected,
+  // default to the first. This avoids a setState-in-effect.
+  const effectiveMethod = selectedMethod || paymentMethods[0]?.id || '';
 
   const remaining = Math.max(0, total - payments.reduce((s, p) => s + p.amount, 0));
-  const selectedPM = paymentMethods.find(m => m.id === selectedMethod);
+  const selectedPM = paymentMethods.find(m => m.id === effectiveMethod);
   const isCash = selectedPM?.methodType === 'cash';
   const isCheck = selectedPM?.methodType === 'check';
   const isGiftCard = selectedPM?.code === 'STORE_CREDIT';
   const changeDue = Math.max(0, Number(amount) - remaining);
 
   const checkGiftCard = async () => {
-    const res = await fetch('/api/admin/pos', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'query_gift_card', cardNumber: giftCardNumber }),
-    });
-    const data = await res.json();
-    if (res.ok) setGiftCardBalance(data.card.balance);
-    else { setGiftCardBalance(null); alert(data.error || 'Gift card not found'); }
+    try {
+      const data = await onQueryGiftCard(giftCardNumber);
+      setGiftCardBalance(data.card.balance);
+    } catch (e: any) {
+      setGiftCardBalance(null);
+      alert(e.message || 'Gift card not found');
+    }
   };
 
   const addPayment = () => {
@@ -556,7 +464,7 @@ function PaymentDrawer({
   const grouped = paymentMethods.reduce((acc, m) => {
     (acc[m.methodType] = acc[m.methodType] || []).push(m);
     return acc;
-  }, {} as Record<string, PaymentMethod[]>);
+  }, {} as Record<string, PosPaymentMethod[]>);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90 p-4">
@@ -567,7 +475,6 @@ function PaymentDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {/* Totals */}
           <div className="bg-muted/40 rounded-lg p-3 space-y-0.5 text-[12px]">
             <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
             {discountTotal > 0 && <div className="flex justify-between text-muted-foreground"><span>Discounts</span><span>−${discountTotal.toFixed(2)}</span></div>}
@@ -575,7 +482,6 @@ function PaymentDrawer({
             <div className="flex justify-between text-[17px] font-bold pt-1 border-t border-border"><span>Total Due</span><span>${total.toFixed(2)}</span></div>
           </div>
 
-          {/* Tendered so far */}
           {payments.length > 0 && (
             <div className="space-y-1">
               {payments.map((p, i) => {
@@ -589,7 +495,6 @@ function PaymentDrawer({
             </div>
           )}
 
-          {/* Payment method selector */}
           <div className="space-y-2">
             {Object.entries(grouped).map(([type, methods]) => (
               <div key={type}>
@@ -598,7 +503,7 @@ function PaymentDrawer({
                   {methods.map((m) => (
                     <button key={m.id} onClick={() => setSelectedMethod(m.id)}
                       className={cn('py-2 px-2 rounded-lg text-[12px] font-medium border transition-colors cursor-pointer',
-                        selectedMethod === m.id ? 'bg-ink text-white border-ink' : 'border-border hover:bg-muted')}>
+                        effectiveMethod === m.id ? 'bg-ink text-white border-ink' : 'border-border hover:bg-muted')}>
                       {m.name}
                     </button>
                   ))}
@@ -607,7 +512,6 @@ function PaymentDrawer({
             ))}
           </div>
 
-          {/* Gift card input */}
           {isGiftCard && (
             <div className="space-y-2">
               <div className="flex gap-2">
@@ -623,14 +527,12 @@ function PaymentDrawer({
             </div>
           )}
 
-          {/* Check reference */}
           {isCheck && (
             <input type="text" value={checkRef} onChange={(e) => setCheckRef(e.target.value)}
               placeholder="Check # / reference…"
               className="w-full border border-border rounded-lg px-3 py-2 text-[12px] focus:outline-none focus:border-ink" />
           )}
 
-          {/* Amount + tip */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Amount</label>
@@ -650,16 +552,13 @@ function PaymentDrawer({
             </div>
           </div>
 
-          {/* Change due (cash/check) */}
           {(isCash || isCheck) && changeDue > 0 && (
             <div className="bg-success/10 border border-success/20 rounded-lg p-3 text-center">
               <p className="text-[11px] text-muted-foreground uppercase">Change Due</p>
               <p className="text-[20px] font-bold text-success">${changeDue.toFixed(2)}</p>
-              <p className="text-[9px] text-muted-foreground mt-1">Cash drawer will open automatically</p>
             </div>
           )}
 
-          {/* Quick cash buttons */}
           {(isCash || isCheck) && (
             <div className="grid grid-cols-5 gap-1.5">
               {[20, 50, 100, 'Exact', 'Next'].map((q) => (
@@ -677,14 +576,13 @@ function PaymentDrawer({
           {error && <p className="text-[12px] text-destructive text-center">{error}</p>}
         </div>
 
-        {/* Actions */}
         <div className="border-t border-border p-4 flex gap-2">
           {remaining > 0.01 && (
             <button onClick={addPayment} className="flex-1 py-2.5 border border-border rounded-lg text-[13px] font-semibold hover:bg-muted cursor-pointer">Add Payment</button>
           )}
           <button
-            onClick={() => onComplete(payments.length > 0 ? payments : [{ paymentMethodId: selectedMethod, amount: Number(amount) || total, tipAmount: Number(tip) || 0, giftCardNumber: isGiftCard ? giftCardNumber : undefined, checkReference: isCheck ? checkRef : undefined }])}
-            disabled={busy || !selectedMethod}
+            onClick={() => onComplete(payments.length > 0 ? payments : [{ paymentMethodId: effectiveMethod, amount: Number(amount) || total, tipAmount: Number(tip) || 0, giftCardNumber: isGiftCard ? giftCardNumber : undefined, checkReference: isCheck ? checkRef : undefined }])}
+            disabled={busy || !effectiveMethod}
             className="flex-1 py-2.5 bg-ink text-white rounded-lg text-[13px] font-semibold hover:opacity-90 disabled:opacity-60 cursor-pointer">
             {busy ? 'Processing…' : remaining > 0.01 ? 'Complete (Split)' : 'Complete Sale'}
           </button>
@@ -697,7 +595,7 @@ function PaymentDrawer({
 // ---- Quick Add Item — create a new catalog item from the register ----
 function QuickAddItem({ onClose, onCreated }: {
   onClose: () => void;
-  onCreated: (item: { id: string; name: string; price: number }) => void;
+  onCreated: () => void;
 }) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -722,7 +620,7 @@ function QuickAddItem({ onClose, onCreated }: {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed'); setBusy(false); return; }
-      onCreated({ id: data.product.id, name: data.product.name, price: data.product.priceCents / 100 });
+      onCreated();
     } catch { setError('Failed'); setBusy(false); }
   };
 
@@ -738,34 +636,27 @@ function QuickAddItem({ onClose, onCreated }: {
           </button>
         </div>
         <p className="text-[12px] text-muted-foreground">
-          Create a new item to sell right now. It'll be added to the cart + the catalog.
+          Create a new item to sell right now. It'll be added to the catalog.
         </p>
         <div className="space-y-3">
           <div>
             <label className="block text-[11px] font-medium text-foreground mb-1">Item Name</label>
-            <input
-              type="text" value={name} onChange={(e) => setName(e.target.value)}
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Oatmeal Shampoo (new arrival)"
-              className="w-full border border-border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-ink"
-              autoFocus
-            />
+              className="w-full border border-border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-ink" autoFocus />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-foreground mb-1">Price ($)</label>
             <div className="relative">
               <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-              <input
-                type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
+              <input type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
                 placeholder="0.00"
-                className="w-full border border-border rounded-lg pl-8 pr-3 py-2 text-[13px] focus:outline-none focus:border-ink"
-              />
+                className="w-full border border-border rounded-lg pl-8 pr-3 py-2 text-[13px] focus:outline-none focus:border-ink" />
             </div>
           </div>
           <label className="flex items-center gap-2 text-[12px] text-muted-foreground cursor-pointer">
-            <input
-              type="checkbox" checked={ecoEnabled} onChange={(e) => setEcoEnabled(e.target.checked)}
-              className="rounded border-border"
-            />
+            <input type="checkbox" checked={ecoEnabled} onChange={(e) => setEcoEnabled(e.target.checked)}
+              className="rounded border-border" />
             Also sell on the website (storefront)
           </label>
         </div>
@@ -776,7 +667,7 @@ function QuickAddItem({ onClose, onCreated }: {
           </button>
           <button onClick={create} disabled={busy}
             className="flex-1 py-2.5 bg-ink text-white rounded-lg text-[13px] font-semibold hover:opacity-90 disabled:opacity-60 cursor-pointer">
-            {busy ? 'Creating…' : 'Add to Cart'}
+            {busy ? 'Creating…' : 'Add to Catalog'}
           </button>
         </div>
       </div>

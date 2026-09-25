@@ -4,32 +4,38 @@ export interface PosCatalogItem {
   id: string;
   sku: string;
   name: string;
-  item_type: string;
-  price: number | string;
-  stock: number | string | null;
-  pos_enabled: boolean;
+  itemType: 'product' | 'service' | 'subscription';
+  price: number;
+  compareAtPrice: number | null;
+  stock: number | null;
+  categoryName?: string;
 }
 
 export interface PosCategory {
-  id: string;
+  id: string | null;
   name: string;
+  itemCount: number;
 }
 
 export interface PosPaymentMethod {
   id: string;
   code: string;
   name: string;
-  method_type: string;
-  processor: string | null;
+  methodType: string;
 }
 
 export interface PosRegister {
   id: string;
-  register_number: string;
+  registerNumber: string;
   name: string;
   status: string;
   active: boolean;
-  activeSession: any | null;
+  activeSession: {
+    id: string;
+    openingCash: number;
+    expectedCash: number;
+    openedAt: string;
+  } | null;
 }
 
 export interface PosTodaySummary {
@@ -42,14 +48,33 @@ export interface PosTodaySummary {
   cardSales: number;
 }
 
-export interface PosSaleInput {
-  items: Array<{ sku: string; name: string; quantity: number; unitPrice: number }>;
+export interface PosSaleLine {
+  catalogItemId?: string;
+  serviceId?: string;
+  subscriptionPlanId?: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discountAmount: number;
+  itemType: 'product' | 'service' | 'subscription';
+}
+
+export interface PosPayment {
   paymentMethodId: string;
-  customerId?: string;
-  customerEmail?: string;
-  registerId: string;
-  tip?: number;
-  notes?: string;
+  amount: number;
+  tipAmount?: number;
+  giftCardNumber?: string;
+  checkReference?: string;
+}
+
+export interface PosSaleResult {
+  sale: {
+    receiptNumber: string;
+    total: number;
+    changeDue: number;
+    journalEntryId?: string;
+    receiptRaw?: string;
+  };
 }
 
 export function usePOS() {
@@ -63,17 +88,18 @@ export function usePOS() {
 
   const load = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/pos');
-      if (!response.ok) {
-        if (response.status === 401) throw new Error('Admin sign-in required.');
-        throw new Error('Failed to fetch POS data');
+      const res = await fetch('/api/admin/pos');
+      if (!res.ok) {
+        if (res.status === 401) throw new Error('Admin sign-in required.');
+        return;
       }
-      const data = await response.json();
+      const data = await res.json();
       setCatalog(data.catalog || []);
       setCategories(data.categories || []);
       setPaymentMethods(data.paymentMethods || []);
       setRegisters(data.registers || []);
       setSummary(data.todaySummary || null);
+      setError(null);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -85,48 +111,69 @@ export function usePOS() {
     load();
   }, [load]);
 
-  const completeSale = useCallback(async (sale: PosSaleInput) => {
-    const response = await fetch('/api/admin/pos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'complete_sale', ...sale }),
-    });
-    if (!response.ok) throw new Error('Failed to complete sale');
-    const result = await response.json();
-    await load();
-    return result;
-  }, [load]);
-
-  const openRegister = useCallback(async (registerId: string, openingCash: string) => {
-    const response = await fetch('/api/admin/pos', {
+  const openRegister = useCallback(async (registerId: string, openingCash: number) => {
+    const res = await fetch('/api/admin/pos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'open_register', registerId, openingCash }),
     });
-    if (!response.ok) throw new Error('Failed to open register');
+    if (!res.ok) {
+      const d = await res.json();
+      throw new Error(d.error || 'Failed to open register');
+    }
     await load();
-    return response.json();
+    return res.json();
   }, [load]);
 
   const closeRegister = useCallback(async (sessionId: string, countedCash: string) => {
-    const response = await fetch('/api/admin/pos', {
+    const res = await fetch('/api/admin/pos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'close_register', sessionId, countedCash }),
     });
-    if (!response.ok) throw new Error('Failed to close register');
+    if (!res.ok) throw new Error('Failed to close register');
     await load();
-    return response.json();
+    return res.json();
+  }, [load]);
+
+  const completeSale = useCallback(async (params: {
+    registerSessionId: string;
+    lines: PosSaleLine[];
+    discountTotal: number;
+    taxTotal: number;
+    payments: PosPayment[];
+    customerEmail?: string;
+  }): Promise<PosSaleResult> => {
+    const idempotencyKey = crypto.randomUUID();
+    const res = await fetch('/api/admin/pos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'complete_sale',
+        idempotencyKey,
+        registerSessionId: params.registerSessionId,
+        lines: params.lines,
+        discountTotal: params.discountTotal,
+        taxTotal: params.taxTotal,
+        payments: params.payments,
+        customerEmail: params.customerEmail,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Sale failed');
+    await load();
+    return data as PosSaleResult;
   }, [load]);
 
   const queryGiftCard = useCallback(async (cardNumber: string) => {
-    const response = await fetch('/api/admin/pos', {
+    const res = await fetch('/api/admin/pos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'query_gift_card', cardNumber }),
     });
-    if (!response.ok) throw new Error('Gift card not found');
-    return response.json();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gift card not found');
+    return data;
   }, []);
 
   return {
@@ -137,9 +184,9 @@ export function usePOS() {
     summary,
     isLoading,
     error,
-    completeSale,
     openRegister,
     closeRegister,
+    completeSale,
     queryGiftCard,
     reload: load,
   };

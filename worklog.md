@@ -1559,3 +1559,24 @@ Agent: main (Z.ai Code) — Enterprise directive: audit + fix POS and Orders
 1. POS page refactoring to use `usePOS()` hook (replace inline fetch calls)
 2. Settings page (50 lines, PARTIAL) — needs wiring
 3. 11 Finance stub pages — need the same vertical slice treatment
+
+---
+Task ID: POS-REFACTOR
+Agent: main (Z.ai Code) — Refactor POS to consume usePOS hook
+
+## What changed
+
+### POS page refactored to consume `usePOS()` hook
+- **Before**: 786-line monolith with 5 inline `fetch('/api/admin/pos')` calls (GET load, POST open_register, POST complete_sale, POST query_gift_card, reload)
+- **After**: 676 lines, **0 inline fetch calls to `/api/admin/pos`** — all data + mutations flow through the `usePOS()` hook
+- The hook (`src/hooks/usePOS.ts`) handles: `load()` (GET), `openRegister()` (POST open_register), `completeSale()` (POST complete_sale with idempotency key), `queryGiftCard()` (POST query_gift_card), `closeRegister()` (POST close_register), `reload()`
+- Cart state (cart lines, held carts, customer email, search, modals) remains local `useState` — it's UI state, not server state
+- `PaymentDrawer` sub-component receives `onQueryGiftCard` as a prop from the hook instead of calling fetch directly
+- `QuickAddItem` sub-component still POSTs to `/api/admin/products` (a different endpoint — product creation, not POS) — this is correct, it's a separate domain
+- Fixed lint: replaced `useEffect` + `setState` pattern with derived `effectiveMethod` value (no setState-in-effect)
+- **Verified**: `grep -c "fetch.*api/admin/pos" pos/page.tsx` = 0, `grep -c "usePOS" pos/page.tsx` = 2, lint = 0 errors
+
+### Commerce portal — zero inline fetches confirmed
+- Orders page: 0 direct Supabase references, uses `useOrders()` hook ✓
+- POS page: 0 inline fetch calls to `/api/admin/pos`, uses `usePOS()` hook ✓
+- Both pages call gated API routes (`requireAdminApi()`) via their hooks ✓
