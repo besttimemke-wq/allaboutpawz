@@ -1858,3 +1858,47 @@ Agent: main (Z.ai Code) — Staff & Resource HR vertical slice
 - Inline fetches: 0 ✓
 - Direct Supabase: 0 ✓
 - API returns snake_case matching DB-exact types ✓
+
+---
+Task ID: MODULE-10-MARKETING
+Agent: main (Z.ai Code) — Marketing & Automation vertical slice
+
+## What was built (8 new files)
+
+### Layer 1: DB-exact types (`src/types/database/marketing.ts`)
+- CrmCampaign (14 cols: campaign_type, status, channel, template_id, segment_definition, scheduled_at + joined template_name/member_count)
+- CrmCampaignMember, CrmAutomationWorkflow (12 cols: workflow_type, trigger_definition, condition_definition, action_definition, allow_reentry)
+- CrmAutomationEnrollment, CrmMessageTemplate (13 cols: channel, subject, body, variables, is_system), CrmSegment (10 cols: entity_type, definition, segment_type)
+
+### Layer 2: Gated API routes (2 new)
+| Route | Tables | Data |
+|---|---|---|
+| `/api/admin/marketing/campaigns` | crm_campaigns JOIN crm_message_templates + crm_segments + crm_segment_memberships | 0 campaigns, 0 templates, 0 segments |
+| `/api/admin/marketing/automations` | crm_automation_workflows + crm_automation_enrollments + crm_automation_runs | 0 workflows, 0 enrollments, 0 runs |
+
+### Layer 3: Service (`src/services/marketingService.ts`)
+- getCampaigns() + getAutomations() via gated routes. Zero Supabase anon client.
+
+### Layer 4: TanStack hooks (`src/hooks/useMarketingData.ts`)
+- useCampaigns() (60s staleTime), useAutomations() (30s staleTime)
+
+### Layer 5: 3 page components (all HTTP 200)
+| Page | Hook | Features |
+|---|---|---|
+| `/admin/marketing` | useCampaigns + useAutomations | Overview dashboard: 4 stat cards (campaigns, templates, segments, automations), campaign list preview, automation list preview, enrollment activity |
+| `/admin/marketing/campaigns` | useCampaigns | 3-tab view (Campaigns / Templates / Segments), stat cards, search, tables with status badges, channel tags |
+| `/admin/marketing/automations` | useAutomations | 3 stat cards (workflows, active enrollments, total runs), workflow table (name, type, status, enrollments, re-entry, created), recent enrollments panel |
+
+## Schema audit results (9 tables, all empty)
+- crm_campaigns (0 rows), crm_campaign_members (0 rows)
+- crm_automation_workflows (0 rows), crm_automation_enrollments (0 rows), crm_automation_runs (0 rows)
+- crm_message_templates (0 rows), crm_segments (0 rows), crm_segment_memberships (0 rows)
+- crm_communication_preferences (0 rows)
+
+## Verification
+- Lint: 0 errors ✓
+- All 3 pages: HTTP 200 ✓
+- Campaigns API: 0 campaigns/templates/segments (empty — correct) ✓
+- Automations API: 0 workflows/enrollments/runs (empty — correct) ✓
+- Inline fetches: 0 ✓
+- Direct Supabase: 0 ✓
