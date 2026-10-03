@@ -808,6 +808,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, postageLabel: result });
       }
 
+      case "edit_vendor": {
+        // po_edit_vendor → edit_vendor
+        // Update a vendor's contact info, payment terms, or active status.
+        const vendorId = String(payload.vendor_id || "");
+        const name = payload.name ? String(payload.name) : null;
+        const email = payload.email !== undefined ? String(payload.email) : null;
+        const phone = payload.phone !== undefined ? String(payload.phone) : null;
+        const taxIdentifier = payload.tax_identifier !== undefined ? String(payload.tax_identifier) : null;
+        const paymentTerms = payload.payment_terms !== undefined ? String(payload.payment_terms) : null;
+        const currency = payload.currency !== undefined ? String(payload.currency) : null;
+        const isActive = payload.is_active !== undefined ? Boolean(payload.is_active) : null;
+        const updated = await pgExec(
+          `UPDATE public.erp_vendors
+              SET name = COALESCE($1, name),
+                  email = COALESCE($2, email),
+                  phone = COALESCE($3, phone),
+                  tax_identifier = COALESCE($4, tax_identifier),
+                  payment_terms = COALESCE($5, payment_terms),
+                  currency = COALESCE($6, currency),
+                  is_active = COALESCE($7, is_active),
+                  updated_at = now()
+            WHERE id = $8::uuid AND tenant_id = $9`,
+          [name, email, phone, taxIdentifier, paymentTerms, currency, isActive, vendorId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "erp", tableName: "erp_vendors", recordId: vendorId, afterData: { name, email, phone, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, vendorId, updated, message: updated ? "Vendor updated" : "Vendor not found" });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action} (short: ${shortAction})` }, { status: 400 });
     }

@@ -184,6 +184,15 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   { id: 'po-create', domain: 'purchasing', label: 'Create PO', icon: 'Inbox', actionType: 'mutation', mutationKey: 'commerce:actions' },
   { id: 'po-receive', domain: 'purchasing', label: 'Receive Order', icon: 'PackageCheck', actionType: 'mutation', mutationKey: 'commerce:actions' },
   { id: 'po-view-vendor', domain: 'purchasing', label: 'View Vendor', icon: 'Building2', actionType: 'route', targetPath: '/admin/settings' },
+  { id: 'po-edit-vendor', domain: 'purchasing', label: 'Edit Vendor', icon: 'Pencil', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'vendor_id', label: 'Vendor ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'name', label: 'Vendor Name', type: 'text' },
+    { name: 'email', label: 'Email', type: 'email' },
+    { name: 'phone', label: 'Phone', type: 'text' },
+    { name: 'payment_terms', label: 'Payment Terms', type: 'text', placeholder: 'Net 30' },
+    { name: 'currency', label: 'Currency', type: 'text', placeholder: 'USD' },
+    { name: 'is_active', label: 'Active', type: 'select', options: ['true', 'false'] },
+  ] },
   // 7. Accounting
   { id: 'accts-mark-paid', domain: 'accounting', subCategory: 'Invoices', label: 'Mark as Paid', icon: 'Check', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
     { name: 'invoice_id', label: 'Invoice ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
