@@ -11,9 +11,10 @@ const nextConfig: NextConfig = {
   // kernel OOM-killer SIGKILLs next-server (observed at 2.2–3.4GB RSS). With a
   // limit, Turbopack recycles itself and keeps serving.
   experimental: {
-    // 4GB host, no swap: keep Turbopack lean so the OOM killer never
-    // SIGKILLs next-server. 512MB is enough for dev compilation.
-    turbopackMemoryLimit: 512_000_000,
+    // 4GB host, no swap: need enough memory for page compilation.
+    // API routes compile fine at 512MB but full React page tree needs more.
+    // 1GB is the sweet spot — enough for pages, not so much that OOM fires.
+    turbopackMemoryLimit: 1_000_000_000,
   },
   typescript: {
     ignoreBuildErrors: true,
