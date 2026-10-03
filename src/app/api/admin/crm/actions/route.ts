@@ -321,6 +321,114 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, formId, customerId, petId, name, status });
       }
 
+      case "update_documents": {
+        // cust_update_documents → update_documents
+        // Update a customer's document (rename, change status, add notes).
+        // CHECK: status IN ('pending','submitted','signed','approved','expired','rejected','archived')
+        const documentId = String(payload.document_id || "");
+        const name = payload.name ? String(payload.name) : null;
+        const status = payload.status ? String(payload.status) : null;
+        const notes = payload.notes ? String(payload.notes) : null;
+        const updated = await pgExec(
+          `UPDATE public.crm_documents
+              SET name = COALESCE($1, name),
+                  status = COALESCE($2, status),
+                  metadata = CASE WHEN $3 IS NOT NULL THEN jsonb_set(COALESCE(metadata, '{}'::jsonb), '{notes}', $4::jsonb) ELSE metadata END,
+                  updated_at = now()
+            WHERE id = $5::uuid AND tenant_id = $6`,
+          [name, status, notes, JSON.stringify(notes), documentId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "crm", tableName: "crm_documents", recordId: documentId, afterData: { name, status, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, documentId, updated, message: updated ? "Document updated" : "Document not found" });
+      }
+
+      case "view_documents": {
+        // cust_view_documents → view_documents
+        // Read-only: list all documents for a customer (or all if no customer_id).
+        const customerId = payload.customer_id ? String(payload.customer_id) : null;
+        const rows = await pgQuery<{
+          id: string; name: string; status: string; document_type_id: string | null;
+          storage_path: string | null; mime_type: string | null;
+          uploaded_at: string | null; signed_at: string | null; expires_at: date | null;
+        }>(
+          `SELECT id, name, status, document_type_id, storage_path, mime_type,
+                  uploaded_at::text, signed_at::text, expires_at
+             FROM public.crm_documents
+            WHERE tenant_id = $1 ${customerId ? "AND customer_id = $2::uuid" : ""}
+            ORDER BY created_at DESC LIMIT 100`,
+          customerId ? [TENANT_ID(), customerId] : [TENANT_ID()],
+        );
+        const documents = rows.map(r => ({
+          id: r.id, name: r.name, status: r.status,
+          documentTypeId: r.document_type_id, storagePath: r.storage_path,
+          mimeType: r.mime_type, uploadedAt: r.uploaded_at,
+          signedAt: r.signed_at, expiresAt: r.expires_at,
+        }));
+        const result = { customerId, documents, total: documents.length };
+        await auditAction({ action, domain: "crm", tableName: "crm_documents", recordId: null, afterData: { total: documents.length, customerId }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, documents: result });
+      }
+
+      case "add_to_campaign": {
+        // cust_add_to_campaign → add_to_campaign
+        // Enroll a customer in a marketing campaign via crm_campaign_members.
+        const campaignId = String(payload.campaign_id || "");
+        const customerId = String(payload.customer_id || "");
+        if (!campaignId || !customerId) {
+          return NextResponse.json({ ok: false, error: "campaign_id and customer_id are required" }, { status: 400 });
+        }
+        // CHECK: status IN ('queued','sent','delivered','opened','clicked','converted','failed','unsubscribed','skipped')
+        const rows = await pgQuery<{ id: string }>(
+          `INSERT INTO public.crm_campaign_members
+             (id, tenant_id, campaign_id, customer_id, status, enrolled_at)
+           VALUES (gen_random_uuid(), $1, $2::uuid, $3::uuid, 'queued', now())
+           RETURNING id`,
+          [TENANT_ID(), campaignId, customerId],
+        );
+        const memberId = rows[0]?.id ?? null;
+        await auditAction({ action, domain: "crm", tableName: "crm_campaign_members", recordId: memberId, afterData: { campaignId, customerId }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, memberId, campaignId, customerId, message: "Customer added to campaign" });
+      }
+
+      case "print_history": {
+        // cust_print_history → print_history
+        // Read-only: return a customer's appointment + payment history in a
+        // print-friendly format. Joins crm_appointments with crm_appointment_services
+        // for service detail.
+        const customerId = payload.customer_id ? String(payload.customer_id) : null;
+        if (!customerId) {
+          return NextResponse.json({ ok: false, error: "customer_id is required" }, { status: 400 });
+        }
+        const appts = await pgQuery<{
+          id: string; appointment_number: string; starts_at: string; status: string;
+          total: string; amount_paid: string; outstanding: string;
+        }>(
+          `SELECT id, appointment_number, starts_at::text, status,
+                  total::text, amount_paid::text, outstanding_amount::text
+             FROM public.crm_appointments
+            WHERE tenant_id = $1 AND customer_id = $2::uuid
+            ORDER BY starts_at DESC LIMIT 100`,
+          [TENANT_ID(), customerId],
+        );
+        const history = appts.map(r => ({
+          appointmentId: r.id, appointmentNumber: r.appointment_number,
+          date: r.starts_at, status: r.status,
+          total: Number(r.total), amountPaid: Number(r.amount_paid),
+          outstanding: Number(r.outstanding),
+        }));
+        const result = {
+          customerId,
+          appointments: history,
+          totals: {
+            totalVisits: history.length,
+            totalSpend: history.reduce((s, h) => s + h.amountPaid, 0),
+            totalOutstanding: history.reduce((s, h) => s + h.outstanding, 0),
+          },
+        };
+        await auditAction({ action, domain: "crm", tableName: "crm_appointments", recordId: null, afterData: { customerId, totalVisits: history.length }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, printHistory: result });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action} (short: ${shortAction})` }, { status: 400 });
     }

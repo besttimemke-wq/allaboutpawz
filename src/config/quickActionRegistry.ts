@@ -67,6 +67,26 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   { id: 'cust-rebooking-link', domain: 'customer', label: 'Send Rebooking Link', icon: 'Link2', actionType: 'mutation', mutationKey: 'crm:actions' },
   { id: 'cust-magic-link', domain: 'customer', label: 'Send Magic Link', icon: 'Link', actionType: 'mutation', mutationKey: 'system:actions' },
   { id: 'cust-merge', domain: 'customer', label: 'Merge Customer', icon: 'GitMerge', actionType: 'mutation', mutationKey: 'crm:actions' },
+  { id: 'cust-merge-household', domain: 'customer', label: 'Merge Household', icon: 'Users', actionType: 'mutation', mutationKey: 'crm:actions', requiresPayload: true, payloadFields: [
+    { name: 'customer_ids', label: 'Customer IDs (comma-separated)', type: 'textarea', required: true, placeholder: 'uuid1, uuid2' },
+    { name: 'name', label: 'Household Name', type: 'text', placeholder: 'Smith Household' },
+  ] },
+  { id: 'cust-update-documents', domain: 'customer', label: 'Update Documents', icon: 'FileEdit', actionType: 'mutation', mutationKey: 'crm:actions', requiresPayload: true, payloadFields: [
+    { name: 'document_id', label: 'Document ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'name', label: 'Document Name', type: 'text' },
+    { name: 'status', label: 'Status', type: 'select', options: ['pending', 'submitted', 'signed', 'approved', 'expired', 'rejected', 'archived'] },
+    { name: 'notes', label: 'Notes', type: 'text' },
+  ] },
+  { id: 'cust-view-documents', domain: 'customer', label: 'View Documents', icon: 'FolderOpen', actionType: 'mutation', mutationKey: 'crm:actions', requiresPayload: true, payloadFields: [
+    { name: 'customer_id', label: 'Customer ID', type: 'uuid', placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'cust-add-to-campaign', domain: 'customer', label: 'Add to Campaign', icon: 'Megaphone', actionType: 'mutation', mutationKey: 'crm:actions', requiresPayload: true, payloadFields: [
+    { name: 'campaign_id', label: 'Campaign ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'customer_id', label: 'Customer ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'cust-print-history', domain: 'customer', label: 'Print History', icon: 'Printer', actionType: 'mutation', mutationKey: 'crm:actions', requiresPayload: true, payloadFields: [
+    { name: 'customer_id', label: 'Customer ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
   { id: 'cust-grooming-history', domain: 'customer', label: 'View Grooming History', icon: 'History', actionType: 'route', targetPath: '/admin/grooming-records' },
   { id: 'cust-payment-history', domain: 'customer', label: 'View Payment History', icon: 'Receipt', actionType: 'route', targetPath: '/admin/payments' },
   // 3. Appointment
