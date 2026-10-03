@@ -141,13 +141,37 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   { id: 'apt-create-invoice', domain: 'appointment', label: 'Create Invoice', icon: 'FileText', actionType: 'mutation', mutationKey: 'finance:actions' },
   // 4. Orders & Inventory
   { id: 'order-create', domain: 'orders', label: 'Create Order', icon: 'Plus', actionType: 'mutation', mutationKey: 'commerce:actions' },
-  { id: 'order-view', domain: 'orders', label: 'View Order Details', icon: 'Eye', actionType: 'route' },
+  { id: 'order-view', domain: 'orders', label: 'View Order Details', icon: 'Eye', actionType: 'route', targetPath: '/admin/orders' },
   { id: 'order-create-po', domain: 'orders', label: 'Create PO', icon: 'Inbox', actionType: 'mutation', mutationKey: 'commerce:actions' },
-  { id: 'order-packing-slip', domain: 'orders', label: 'Packing Slip', icon: 'FileText', actionType: 'print', mutationKey: 'commerce:actions' },
-  { id: 'order-shipping-label', domain: 'orders', label: 'Shipping Label', icon: 'Truck', actionType: 'mutation', mutationKey: 'commerce:actions' },
-  { id: 'order-resend-alert', domain: 'orders', label: 'Resend Alert', icon: 'Bell', actionType: 'mutation', mutationKey: 'commerce:actions' },
-  { id: 'order-restock', domain: 'orders', label: 'Restock / Add New Inventory', icon: 'Package', actionType: 'mutation', mutationKey: 'commerce:actions' },
-  { id: 'order-export-csv', domain: 'orders', label: 'Export CSV', icon: 'Download', actionType: 'export' },
+  { id: 'order-packing-slip', domain: 'orders', label: 'Packing Slip', icon: 'FileText', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'order_id', label: 'Order ID', type: 'text', required: true, placeholder: 'order-id' },
+  ] },
+  { id: 'order-shipping-label', domain: 'orders', label: 'Shipping Label', icon: 'Truck', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'order_id', label: 'Order ID', type: 'text', required: true, placeholder: 'order-id' },
+    { name: 'sku_id', label: 'SKU ID (optional)', type: 'uuid' },
+  ] },
+  { id: 'order-resend-alert', domain: 'orders', label: 'Resend Alert', icon: 'Bell', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'order_id', label: 'Order ID', type: 'text', required: true, placeholder: 'order-id' },
+    { name: 'customer_id', label: 'Customer ID (optional)', type: 'uuid' },
+  ] },
+  { id: 'order-restock', domain: 'orders', label: 'Restock / Add New Inventory', icon: 'Package', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'sku_id', label: 'SKU ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'quantity', label: 'Quantity', type: 'number', required: true, placeholder: '10' },
+    { name: 'unit_cost', label: 'Unit Cost', type: 'number', placeholder: '15.50' },
+  ] },
+  { id: 'order-export-csv', domain: 'orders', label: 'Export CSV (Inventory)', icon: 'Download', actionType: 'mutation', mutationKey: 'commerce:actions' },
+  { id: 'order-export-ledger', domain: 'orders', label: 'Export Inventory Ledger', icon: 'FileText', actionType: 'mutation', mutationKey: 'commerce:actions' },
+  { id: 'order-review-return', domain: 'orders', label: 'Review Return', icon: 'ClipboardCheck', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'rma_id', label: 'RMA / Return ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'decision', label: 'Decision', type: 'select', options: ['inspection', 'approved_for_refund', 'rejected', 'restocked', 'completed', 'cancelled'], defaultValue: 'inspection' },
+    { name: 'notes', label: 'Review Notes', type: 'textarea' },
+  ] },
+  { id: 'order-track-return', domain: 'orders', label: 'Track Return', icon: 'Search', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'rma_id', label: 'RMA / Return ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'order-view-return', domain: 'orders', label: 'View Return', icon: 'Eye', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'rma_id', label: 'RMA / Return ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
   // 5. Fulfillment
   { id: 'fulfill-advance', domain: 'fulfillment', label: 'Advance Fulfillment Stage', icon: 'ArrowRight', actionType: 'mutation', mutationKey: 'commerce:actions' },
   { id: 'fulfill-batch-slips', domain: 'fulfillment', label: 'Batch Slips', icon: 'Files', actionType: 'print' },

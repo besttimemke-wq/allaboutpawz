@@ -462,6 +462,195 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, count: results.length, discounts: results });
       }
 
+      // ───────────────────────────────────────────────────────────────────
+      // RETURNS — review, track, view. Uses erp_return_authorizations
+      // (the RMA table) + erp_return_lines for itemized breakdowns.
+      // ───────────────────────────────────────────────────────────────────
+
+      case "review_return": {
+        // order_review_return → review_return
+        // Update a return authorization's status + notes. The admin
+        // inspects the return and either approves (status='inspection')
+        // or rejects (status='rejected').
+        // erp_return_status enum: requested, approved, awaiting_package,
+        // in_transit, received, inspection, approved_for_refund,
+        // rejected, restocked, refunded, exchanged, completed, cancelled
+        const rmaId = String(payload.rma_id || payload.return_id || "");
+        const decision = String(payload.decision || "inspection");
+        const notes = payload.notes ? String(payload.notes) : null;
+        // Validate the decision against the enum
+        const VALID_DECISIONS = new Set(["inspection", "approved_for_refund", "rejected", "restocked", "completed", "cancelled"]);
+        const newStatus = VALID_DECISIONS.has(decision) ? decision : "inspection";
+        const updated = await pgExec(
+          `UPDATE public.erp_return_authorizations
+              SET status = $1::erp_return_status, notes = COALESCE($2, notes),
+                  approved_at = CASE WHEN $1 IN ('approved_for_refund','restocked','completed') THEN now() ELSE approved_at END,
+                  updated_at = now()
+            WHERE id = $3::uuid AND tenant_id = $4`,
+          [newStatus, notes, rmaId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "erp", tableName: "erp_return_authorizations", recordId: rmaId, afterData: { newStatus, notes, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, rmaId, newStatus, updated, message: updated ? `Return ${newStatus}` : "Return not found" });
+      }
+
+      case "track_return": {
+        // order_track_return → track_return
+        // Read-only: return the RMA status + key dates so the admin can
+        // see where the return is in the pipeline.
+        const rmaId = String(payload.rma_id || payload.return_id || "");
+        const rows = await pgQuery<{
+          id: string; rma_number: string; status: string; order_id: string;
+          requested_at: string; approved_at: string | null; received_at: string | null; completed_at: string | null;
+        }>(
+          `SELECT id, rma_number, status::text, order_id,
+                  requested_at::text, approved_at::text, received_at::text, completed_at::text
+             FROM public.erp_return_authorizations
+            WHERE id = $1::uuid AND tenant_id = $2`,
+          [rmaId, TENANT_ID()],
+        );
+        if (rows.length === 0) {
+          return NextResponse.json({ ok: false, error: "Return not found" }, { status: 404 });
+        }
+        const r = rows[0];
+        const result = {
+          rmaId: r.id, rmaNumber: r.rma_number, status: r.status, orderId: r.order_id,
+          requestedAt: r.requested_at, approvedAt: r.approved_at,
+          receivedAt: r.received_at, completedAt: r.completed_at,
+        };
+        await auditAction({ action, domain: "erp", tableName: "erp_return_authorizations", recordId: rmaId, afterData: { status: r.status }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, returnTracking: result });
+      }
+
+      case "view_return": {
+        // order_view_return → view_return
+        // Read-only: return the full RMA details + itemized return lines
+        // (sku, qty requested/received/approved).
+        const rmaId = String(payload.rma_id || payload.return_id || "");
+        const rmaRows = await pgQuery<{
+          id: string; rma_number: string; status: string; order_id: string;
+          crm_customer_id: string | null; reason_code: string | null;
+          requested_at: string; approved_at: string | null; received_at: string | null;
+          completed_at: string | null; notes: string | null;
+        }>(
+          `SELECT id, rma_number, status::text, order_id, crm_customer_id,
+                  reason_code, requested_at::text, approved_at::text, received_at::text,
+                  completed_at::text, notes
+             FROM public.erp_return_authorizations
+            WHERE id = $1::uuid AND tenant_id = $2`,
+          [rmaId, TENANT_ID()],
+        );
+        if (rmaRows.length === 0) {
+          return NextResponse.json({ ok: false, error: "Return not found" }, { status: 404 });
+        }
+        const r = rmaRows[0];
+        // Get the return line items
+        const lineRows = await pgQuery<{
+          id: string; sku_id: string; quantity_requested: string;
+          quantity_received: string; quantity_approved: string;
+        }>(
+          `SELECT id, sku_id, quantity_requested::text, quantity_received::text, quantity_approved::text
+             FROM public.erp_return_lines
+            WHERE rma_id = $1::uuid AND tenant_id = $2`,
+          [rmaId, TENANT_ID()],
+        );
+        const lines = lineRows.map(l => ({
+          lineId: l.id, skuId: l.sku_id,
+          quantityRequested: Number(l.quantity_requested),
+          quantityReceived: Number(l.quantity_received),
+          quantityApproved: Number(l.quantity_approved),
+        }));
+        const result = {
+          rmaId: r.id, rmaNumber: r.rma_number, status: r.status, orderId: r.order_id,
+          customerId: r.crm_customer_id, reasonCode: r.reason_code,
+          requestedAt: r.requested_at, approvedAt: r.approved_at,
+          receivedAt: r.received_at, completedAt: r.completed_at, notes: r.notes,
+          lines,
+        };
+        await auditAction({ action, domain: "erp", tableName: "erp_return_authorizations", recordId: rmaId, afterData: { status: r.status, lineCount: lines.length }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, returnDetails: result });
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // INVENTORY EXPORTS — CSV stock levels + ledger movement log
+      // ───────────────────────────────────────────────────────────────────
+
+      case "export_csv":
+      case "inv_export_csv": {
+        // inv_export_csv → export_csv
+        // Return current stock levels from erp_inventory_balances as a
+        // structured array (the frontend can render as a CSV download).
+        const rows = await pgQuery<{
+          id: string; sku_id: string; warehouse_id: string | null;
+          on_hand: string; reserved: string; allocated: string;
+          picked: string; packed: string; in_transit: string;
+          unit_cost: string; inventory_status: string;
+        }>(
+          `SELECT id, sku_id, warehouse_id,
+                  on_hand::text, reserved::text, allocated::text,
+                  picked::text, packed::text, in_transit::text,
+                  unit_cost::text, inventory_status::text
+             FROM public.erp_inventory_balances
+            WHERE tenant_id = $1
+            ORDER BY sku_id`,
+          [TENANT_ID()],
+        );
+        const inventory = rows.map(r => ({
+          id: r.id, skuId: r.sku_id, warehouseId: r.warehouse_id,
+          onHand: Number(r.on_hand), reserved: Number(r.reserved),
+          allocated: Number(r.allocated), picked: Number(r.picked),
+          packed: Number(r.packed), inTransit: Number(r.in_transit),
+          available: Number(r.on_hand) - Number(r.reserved) - Number(r.allocated),
+          unitCost: Number(r.unit_cost),
+          inventoryValue: Number(r.on_hand) * Number(r.unit_cost),
+          inventoryStatus: r.inventory_status,
+        }));
+        const result = {
+          totalSkus: inventory.length,
+          totalOnHand: inventory.reduce((s, r) => s + r.onHand, 0),
+          totalValue: inventory.reduce((s, r) => s + r.inventoryValue, 0),
+          inventory,
+        };
+        await auditAction({ action, domain: "erp", tableName: "erp_inventory_balances", recordId: null, afterData: { totalSkus: inventory.length, totalValue: result.totalValue }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, csvData: result });
+      }
+
+      case "inv_export_ledger":
+      case "export_ledger": {
+        // inv_export_ledger → export_ledger
+        // Return the full inventory movement history from erp_inventory_movements.
+        // This is the stock ledger — every receipt, sale, transfer, adjustment.
+        const rows = await pgQuery<{
+          id: string; movement_type: string; sku_id: string; warehouse_id: string | null;
+          quantity: string; unit_cost: string; total_cost: string | null;
+          source_type: string | null; source_id: string | null;
+          reference: string | null; reason: string | null;
+          occurred_at: string;
+        }>(
+          `SELECT id, movement_type::text, sku_id, warehouse_id,
+                  quantity::text, unit_cost::text, total_cost::text,
+                  source_type, source_id, reference, reason, occurred_at::text
+             FROM public.erp_inventory_movements
+            WHERE tenant_id = $1
+            ORDER BY occurred_at DESC LIMIT 500`,
+          [TENANT_ID()],
+        );
+        const movements = rows.map(r => ({
+          id: r.id, movementType: r.movement_type, skuId: r.sku_id,
+          warehouseId: r.warehouse_id, quantity: Number(r.quantity),
+          unitCost: Number(r.unit_cost), totalCost: Number(r.total_cost || 0),
+          sourceType: r.source_type, sourceId: r.source_id,
+          reference: r.reference, reason: r.reason, occurredAt: r.occurred_at,
+        }));
+        const result = {
+          totalMovements: movements.length,
+          totalQuantity: movements.reduce((s, m) => s + Math.abs(m.quantity), 0),
+          totalCost: movements.reduce((s, m) => s + Math.abs(m.totalCost), 0),
+          movements,
+        };
+        await auditAction({ action, domain: "erp", tableName: "erp_inventory_movements", recordId: null, afterData: { totalMovements: movements.length, totalQuantity: result.totalQuantity }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, ledgerData: result });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action} (short: ${shortAction})` }, { status: 400 });
     }
