@@ -479,6 +479,103 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, catalog: result });
       }
 
+      case "edit_service": {
+        const serviceId = String(payload.service_id || "");
+        const name = payload.name ? String(payload.name) : null;
+        const description = payload.description !== undefined ? String(payload.description) : null;
+        const defaultPrice = payload.default_price !== undefined ? Number(payload.default_price) : null;
+        const defaultDuration = payload.default_duration_minutes !== undefined ? Number(payload.default_duration_minutes) : null;
+        const category = payload.category ? String(payload.category) : null;
+        const bookableOnline = payload.bookable_online !== undefined ? Boolean(payload.bookable_online) : null;
+        const isActive = payload.is_active !== undefined ? Boolean(payload.is_active) : null;
+        const imageUrl = payload.image_url !== undefined ? String(payload.image_url) : null;
+        const updated = await pgExec(
+          `UPDATE public.crm_services
+              SET name = COALESCE($1, name),
+                  description = COALESCE($2, description),
+                  default_price = COALESCE($3, default_price),
+                  default_duration_minutes = COALESCE($4, default_duration_minutes),
+                  category = COALESCE($5, category),
+                  bookable_online = COALESCE($6, bookable_online),
+                  is_active = COALESCE($7, is_active),
+                  image_url = COALESCE($8, image_url),
+                  updated_at = now()
+            WHERE id = $9::uuid AND tenant_id = $10`,
+          [name, description, defaultPrice, defaultDuration, category, bookableOnline, isActive, imageUrl, serviceId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "crm", tableName: "crm_services", recordId: serviceId, afterData: { name, defaultPrice, defaultDuration, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, serviceId, updated });
+      }
+
+      case "add_package": {
+        const name = String(payload.name || "Service Package");
+        const description = payload.description ? String(payload.description) : null;
+        const defaultPrice = Number(payload.default_price || 0);
+        const defaultDuration = Number(payload.default_duration_minutes || 60);
+        const code = String(payload.code || `PKG-${Date.now().toString(36).toUpperCase()}`);
+        const bookableOnline = Boolean(payload.bookable_online ?? true);
+        const rows = await pgQuery<{ id: string }>(
+          `INSERT INTO public.crm_services
+             (id, tenant_id, name, code, description, category, service_category,
+              default_duration_minutes, default_price, deposit_required,
+              default_deposit_amount, is_active, is_add_on, bookable_online, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'package', 'package',
+                   $5, $6, false, 0, true, false, $7, now(), now())
+           RETURNING id`,
+          [TENANT_ID(), name, code, description, defaultDuration, defaultPrice, bookableOnline],
+        );
+        const packageId = rows[0]?.id ?? null;
+        await auditAction({ action, domain: "crm", tableName: "crm_services", recordId: packageId, afterData: { name, code, defaultPrice, serviceCategory: "package" }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, packageId, name, code, defaultPrice, message: "Service package created" });
+      }
+
+      case "add_addon": {
+        const name = String(payload.name || "Add-on Service");
+        const description = payload.description ? String(payload.description) : null;
+        const defaultPrice = Number(payload.default_price || 0);
+        const defaultDuration = Number(payload.default_duration_minutes || 15);
+        const code = String(payload.code || `ADD-${Date.now().toString(36).toUpperCase()}`);
+        const parentServiceId = payload.parent_service_id ? String(payload.parent_service_id) : null;
+        const bookableOnline = Boolean(payload.bookable_online ?? true);
+        const rows = await pgQuery<{ id: string }>(
+          `INSERT INTO public.crm_services
+             (id, tenant_id, name, code, description, category, service_category,
+              default_duration_minutes, default_price, deposit_required,
+              default_deposit_amount, is_active, is_add_on, parent_service_id,
+              bookable_online, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'add_on', 'add_on',
+                   $5, $6, false, 0, true, true, $7::uuid, $8, now(), now())
+           RETURNING id`,
+          [TENANT_ID(), name, code, description, defaultDuration, defaultPrice, parentServiceId, bookableOnline],
+        );
+        const addOnId = rows[0]?.id ?? null;
+        await auditAction({ action, domain: "crm", tableName: "crm_services", recordId: addOnId, afterData: { name, code, defaultPrice, isAddOn: true, parentServiceId }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, addOnId, name, code, defaultPrice, message: "Add-on service created" });
+      }
+
+      case "edit_policies_page": {
+        const slug = String(payload.slug || "policies");
+        const title = String(payload.title || "Policies");
+        const body = payload.body !== undefined ? String(payload.body) : null;
+        const locale = String(payload.locale || "en");
+        const rows = await pgQuery<{ id: string }>(
+          `INSERT INTO public.cms_pages
+             (id, tenant_id, slug, title, page_type, body, body_format, blocks,
+              sort_order, status, version, locale, metadata, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, 'policy', $4, 'markdown',
+                   '{}'::jsonb, 0, 'published', 1, $5, '{}'::jsonb, now(), now())
+           ON CONFLICT (tenant_id, slug, locale)
+           DO UPDATE SET title = EXCLUDED.title,
+                         body = COALESCE(EXCLUDED.body, cms_pages.body),
+                         updated_at = now()
+           RETURNING id`,
+          [TENANT_ID(), slug, title, body, locale],
+        );
+        const pageId = rows[0]?.id ?? null;
+        await auditAction({ action, domain: "crm", tableName: "cms_pages", recordId: pageId, afterData: { slug, title, pageType: "policy" }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, pageId, slug, title, message: "Policies page updated" });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action} (short: ${shortAction})` }, { status: 400 });
     }

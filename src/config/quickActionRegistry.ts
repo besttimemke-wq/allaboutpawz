@@ -540,6 +540,33 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
     { name: 'active', label: 'Active', type: 'select', options: ['true', 'false'] },
   ] },
   { id: 'cms-services-catalog-view', domain: 'cms', subCategory: 'Services', label: 'View Services Catalog', icon: 'BookOpen', actionType: 'mutation', mutationKey: 'cms:actions' },
+  { id: 'cms-edit-service', domain: 'cms', subCategory: 'Services', label: 'Edit Service', icon: 'Pencil', actionType: 'mutation', mutationKey: 'cms:actions', requiresPayload: true, payloadFields: [
+    { name: 'service_id', label: 'Service ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'name', label: 'Service Name', type: 'text' },
+    { name: 'default_price', label: 'Default Price', type: 'number', placeholder: '65.00' },
+    { name: 'default_duration_minutes', label: 'Duration (minutes)', type: 'number', placeholder: '90' },
+    { name: 'description', label: 'Description', type: 'textarea' },
+    { name: 'is_active', label: 'Active', type: 'select', options: ['true', 'false'] },
+  ] },
+  { id: 'cms-add-package', domain: 'cms', subCategory: 'Services', label: 'Add Package', icon: 'Package', actionType: 'mutation', mutationKey: 'cms:actions', requiresPayload: true, payloadFields: [
+    { name: 'name', label: 'Package Name', type: 'text', required: true, placeholder: 'Full Spa Package' },
+    { name: 'default_price', label: 'Price', type: 'number', required: true, placeholder: '150.00' },
+    { name: 'default_duration_minutes', label: 'Duration (minutes)', type: 'number', defaultValue: '60' },
+    { name: 'description', label: 'Description', type: 'textarea' },
+  ] },
+  { id: 'cms-add-addon', domain: 'cms', subCategory: 'Services', label: 'Add Add-on', icon: 'PlusCircle', actionType: 'mutation', mutationKey: 'cms:actions', requiresPayload: true, payloadFields: [
+    { name: 'name', label: 'Add-on Name', type: 'text', required: true, placeholder: 'Teeth Brushing' },
+    { name: 'default_price', label: 'Price', type: 'number', required: true, placeholder: '15.00' },
+    { name: 'default_duration_minutes', label: 'Duration (minutes)', type: 'number', defaultValue: '15' },
+    { name: 'parent_service_id', label: 'Parent Service ID (optional)', type: 'uuid' },
+    { name: 'description', label: 'Description', type: 'textarea' },
+  ] },
+  { id: 'cms-view-public-website', domain: 'cms', subCategory: 'Website', label: 'View Public Website', icon: 'Globe', actionType: 'route', targetPath: '/' },
+  { id: 'cms-edit-policies-page', domain: 'cms', subCategory: 'Policies', label: 'Edit Policies Page', icon: 'FileText', actionType: 'mutation', mutationKey: 'cms:actions', requiresPayload: true, payloadFields: [
+    { name: 'slug', label: 'Page Slug', type: 'text', defaultValue: 'policies' },
+    { name: 'title', label: 'Page Title', type: 'text', defaultValue: 'Policies' },
+    { name: 'body', label: 'Page Body (Markdown)', type: 'textarea' },
+  ] },
   // 10. Staff
   { id: 'staff-add-member', domain: 'staff', label: 'Add Team Member', icon: 'UserPlus', actionType: 'mutation', mutationKey: 'system:actions' },
   { id: 'staff-build-schedule', domain: 'staff', label: 'Build Schedule', icon: 'Calendar', actionType: 'route', targetPath: '/admin/schedule' },
