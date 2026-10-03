@@ -1303,6 +1303,227 @@ Present this card number at checkout to redeem. Book your next grooming at aapaw
         return NextResponse.json({ ok: true, report: result });
       }
 
+      // ───────────────────────────────────────────────────────────────────
+      // MODULE 7 REMAINING NODES — invoice ops, deposit ops, refund ops,
+      // card balance check, receipt printing, tax forms.
+      // ───────────────────────────────────────────────────────────────────
+
+      case "print_receipt": {
+        // Generate a payment receipt for printing.
+        const paymentId = String(payload.payment_id || "");
+        const rows = await pgQuery<{ payment_number: string; amount: string; status: string; customer_id: string | null; created_at: string }>(
+          `SELECT payment_number, amount::text, status, customer_id, created_at::text
+             FROM public.commerce_payments WHERE id = $1::uuid AND tenant_id = $2`,
+          [paymentId, TENANT_ID()],
+        );
+        if (rows.length === 0) return NextResponse.json({ ok: false, error: "Payment not found" }, { status: 404 });
+        const r = rows[0];
+        await auditAction({ action, domain: "commerce", tableName: "commerce_payments", recordId: paymentId, afterData: { paymentNumber: r.payment_number, amount: Number(r.amount) }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, receipt: { paymentId, paymentNumber: r.payment_number, amount: Number(r.amount), status: r.status, customerId: r.customer_id, date: r.created_at } });
+      }
+
+      case "edit_invoice": {
+        const invoiceId = String(payload.invoice_id || "");
+        const dueDate = payload.due_date !== undefined ? String(payload.due_date) : null;
+        const notes = payload.notes !== undefined ? String(payload.notes) : null;
+        const terms = payload.terms ? String(payload.terms) : null;
+        const updated = await pgExec(
+          `UPDATE public.acct_ar_invoices SET due_date = COALESCE($1::date, due_date),
+              notes = COALESCE($2, notes), terms = COALESCE($3, terms), updated_at = now()
+            WHERE id = $4::uuid AND tenant_id = $5`,
+          [dueDate, notes, terms, invoiceId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "acct", tableName: "acct_ar_invoices", recordId: invoiceId, afterData: { dueDate, notes, terms, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, invoiceId, updated });
+      }
+
+      case "duplicate_invoice": {
+        const invoiceId = String(payload.invoice_id || "");
+        const orig = await pgQuery<{ invoice_number: string; customer_id: string | null; entity_id: string | null; total: string; due_date: string | null; notes: string | null }>(
+          `SELECT invoice_number, customer_id, entity_id, total::text, due_date::text, notes
+             FROM public.acct_ar_invoices WHERE id = $1::uuid AND tenant_id = $2`,
+          [invoiceId, TENANT_ID()],
+        );
+        if (orig.length === 0) return NextResponse.json({ ok: false, error: "Invoice not found" }, { status: 404 });
+        const o = orig[0];
+        const newNum = `INV-${Date.now().toString(36).toUpperCase()}`;
+        const rows = await pgQuery<{ id: string }>(
+          `INSERT INTO public.acct_ar_invoices (id, tenant_id, entity_id, customer_id, invoice_number, invoice_date, due_date, currency, subtotal, total, amount_paid, status, notes, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2::uuid, $3::uuid, $4, CURRENT_DATE, $5, 'USD', $6, $6, 0, 'draft', $7, now(), now()) RETURNING id`,
+          [TENANT_ID(), o.entity_id, o.customer_id, newNum, o.due_date, Number(o.total), o.notes],
+        );
+        const newId = rows[0]?.id ?? null;
+        await auditAction({ action, domain: "acct", tableName: "acct_ar_invoices", recordId: newId, afterData: { clonedFrom: invoiceId, newNumber: newNum }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, originalId: invoiceId, newInvoiceId: newId, newInvoiceNumber: newNum });
+      }
+
+      case "delete_invoice": {
+        // Delete = soft-delete via status='void' (same as void_invoice handler above).
+        const invoiceId = String(payload.invoice_id || "");
+        const updated = await pgExec(
+          `UPDATE public.acct_ar_invoices SET status = 'void', updated_at = now() WHERE id = $1::uuid AND tenant_id = $2`,
+          [invoiceId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "acct", tableName: "acct_ar_invoices", recordId: invoiceId, afterData: { status: "void", updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, invoiceId, status: "void", updated });
+      }
+
+      case "transfer_deposit": {
+        const depositId = String(payload.deposit_id || "");
+        const newCustomerId = payload.new_customer_id ? String(payload.new_customer_id) : null;
+        const reason = payload.reason ? String(payload.reason) : "Transfer";
+        if (!newCustomerId) return NextResponse.json({ ok: false, error: "new_customer_id required" }, { status: 400 });
+        const updated = await pgExec(
+          `UPDATE public.commerce_deposits SET customer_id = $1::uuid, transferred_from_id = customer_id,
+              transferred_to_id = $1::uuid, transferred_at = now(), transfer_reason = $2, updated_at = now()
+            WHERE id = $3::uuid AND tenant_id = $4`,
+          [newCustomerId, reason, depositId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "acct", tableName: "commerce_deposits", recordId: depositId, afterData: { newCustomerId, reason, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, depositId, newCustomerId, updated });
+      }
+
+      case "edit_deposit": {
+        const depositId = String(payload.deposit_id || "");
+        const amount = payload.amount !== undefined ? Number(payload.amount) : null;
+        const method = payload.method ? String(payload.method) : null;
+        const notes = payload.notes !== undefined ? String(payload.notes) : null;
+        const updated = await pgExec(
+          `UPDATE public.commerce_deposits SET amount = COALESCE($1, amount),
+              method = COALESCE($2, method), notes = COALESCE($3, notes), updated_at = now()
+            WHERE id = $4::uuid AND tenant_id = $5`,
+          [amount, method, notes, depositId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "acct", tableName: "commerce_deposits", recordId: depositId, afterData: { amount, method, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, depositId, updated });
+      }
+
+      case "receipt_deposit": {
+        const depositId = String(payload.deposit_id || "");
+        const rows = await pgQuery<{ deposit_number: string; amount: string; status: string; customer_id: string | null; collected_at: string; method: string | null }>(
+          `SELECT deposit_number, amount::text, status, customer_id, collected_at::text, method
+             FROM public.commerce_deposits WHERE id = $1::uuid AND tenant_id = $2`,
+          [depositId, TENANT_ID()],
+        );
+        if (rows.length === 0) return NextResponse.json({ ok: false, error: "Deposit not found" }, { status: 404 });
+        const r = rows[0];
+        await auditAction({ action, domain: "acct", tableName: "commerce_deposits", recordId: depositId, afterData: { depositNumber: r.deposit_number, amount: Number(r.amount) }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, receipt: { depositId, depositNumber: r.deposit_number, amount: Number(r.amount), status: r.status, customerId: r.customer_id, collectedAt: r.collected_at, method: r.method } });
+      }
+
+      case "approve_refund": {
+        const paymentId = String(payload.payment_id || "");
+        const updated = await pgExec(
+          `UPDATE public.commerce_payments SET status = 'succeeded' WHERE id = $1::uuid AND tenant_id = $2 AND status IN ('pending','processing')`,
+          [paymentId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "commerce", tableName: "commerce_payments", recordId: paymentId, afterData: { status: "succeeded", updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, paymentId, status: "succeeded", updated });
+      }
+
+      case "reject_refund": {
+        const paymentId = String(payload.payment_id || "");
+        const reason = payload.reason ? String(payload.reason) : null;
+        const updated = await pgExec(
+          `UPDATE public.commerce_payments SET status = 'cancelled' WHERE id = $1::uuid AND tenant_id = $2`,
+          [paymentId, TENANT_ID()],
+        );
+        if (reason) {
+          await pgExec(`UPDATE public.commerce_payments SET external_reference = COALESCE(external_reference || ' | ', '') || $1 WHERE id = $2::uuid`, [`Rejected: ${reason}`, paymentId]);
+        }
+        await auditAction({ action, domain: "commerce", tableName: "commerce_payments", recordId: paymentId, afterData: { status: "cancelled", reason, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, paymentId, status: "cancelled", updated });
+      }
+
+      case "edit_refund": {
+        const orderId = String(payload.order_id || "");
+        const amount = payload.amount !== undefined ? Number(payload.amount) : null;
+        const reason = payload.reason ? String(payload.reason) : null;
+        const updated = await pgExec(
+          `UPDATE public.commerce_orders SET total_amount = COALESCE($1::text, total_amount), notes = COALESCE($2, notes), updated_at = now()
+            WHERE id = $3 AND tenant_id = $4`,
+          [amount, reason, orderId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "commerce", tableName: "commerce_orders", recordId: orderId, afterData: { amount, reason, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, orderId, updated });
+      }
+
+      case "dispute_refund": {
+        const paymentId = String(payload.payment_id || "");
+        const reason = String(payload.reason || "customer_dispute");
+        const amount = Number(payload.amount || 0);
+        const rows = await pgQuery<{ id: string }>(
+          `INSERT INTO public.commerce_disputes (id, tenant_id, dispute_number, payment_id, reason, status, amount, opened_at, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3::uuid, $4, 'open', $5, now(), now(), now()) RETURNING id`,
+          [TENANT_ID(), `DIS-${Date.now().toString(36).toUpperCase()}`, paymentId, reason, amount],
+        );
+        const disputeId = rows[0]?.id ?? null;
+        await pgExec(`UPDATE public.commerce_payments SET status = 'disputed' WHERE id = $1::uuid AND tenant_id = $2`, [paymentId, TENANT_ID()]);
+        await auditAction({ action, domain: "commerce", tableName: "commerce_disputes", recordId: disputeId, afterData: { paymentId, reason, amount }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, disputeId, paymentId, reason, amount, message: "Dispute opened" });
+      }
+
+      case "receipt_refund": {
+        const paymentId = String(payload.payment_id || "");
+        const rows = await pgQuery<{ payment_number: string; amount: string; status: string; customer_id: string | null; created_at: string }>(
+          `SELECT payment_number, amount::text, status, customer_id, created_at::text
+             FROM public.commerce_payments WHERE id = $1::uuid AND tenant_id = $2`,
+          [paymentId, TENANT_ID()],
+        );
+        if (rows.length === 0) return NextResponse.json({ ok: false, error: "Refund not found" }, { status: 404 });
+        const r = rows[0];
+        await auditAction({ action, domain: "commerce", tableName: "commerce_payments", recordId: paymentId, afterData: { paymentNumber: r.payment_number }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, refundReceipt: { paymentId, paymentNumber: r.payment_number, amount: Number(r.amount), status: r.status, customerId: r.customer_id, date: r.created_at } });
+      }
+
+      case "refund_notes": {
+        const paymentId = String(payload.payment_id || "");
+        const note = String(payload.note || "");
+        const custRows = await pgQuery<{ customer_id: string | null }>(`SELECT customer_id FROM public.commerce_payments WHERE id = $1::uuid AND tenant_id = $2`, [paymentId, TENANT_ID()]);
+        if (custRows[0]?.customer_id) {
+          await logCustomerNote({ customerId: custRows[0].customer_id, body: `Refund note for payment ${paymentId.slice(0,8)}: ${note}`, noteType: "internal" });
+        }
+        await auditAction({ action, domain: "crm", tableName: "crm_notes", recordId: paymentId, afterData: { note: note.slice(0, 80) }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, paymentId, note, message: "Note added" });
+      }
+
+      case "view_original_refund": {
+        const paymentId = String(payload.payment_id || "");
+        const rows = await pgQuery<{ payment_number: string; amount: string; status: string; external_reference: string | null; created_at: string }>(
+          `SELECT payment_number, amount::text, status, external_reference, created_at::text
+             FROM public.commerce_payments WHERE id = $1::uuid AND tenant_id = $2`,
+          [paymentId, TENANT_ID()],
+        );
+        if (rows.length === 0) return NextResponse.json({ ok: false, error: "Payment not found" }, { status: 404 });
+        const r = rows[0];
+        await auditAction({ action, domain: "commerce", tableName: "commerce_payments", recordId: paymentId, afterData: { paymentNumber: r.payment_number }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, originalPayment: { paymentId, paymentNumber: r.payment_number, amount: Number(r.amount), status: r.status, externalReference: r.external_reference, date: r.created_at } });
+      }
+
+      case "check_card_balance": {
+        const cardNumber = String(payload.card_number || "");
+        const rows = await pgQuery<{ balance: string; status: string; issued_at: string; expires_at: string | null }>(
+          `SELECT balance::text, status, issued_at::text, expires_at::text
+             FROM public.commerce_gift_cards WHERE card_number = $1 AND tenant_id = $2`,
+          [cardNumber, TENANT_ID()],
+        );
+        if (rows.length === 0) return NextResponse.json({ ok: false, error: "Card not found" }, { status: 404 });
+        const r = rows[0];
+        await auditAction({ action, domain: "acct", tableName: "commerce_gift_cards", recordId: null, afterData: { cardNumber, balance: Number(r.balance), status: r.status }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, cardNumber, balance: Number(r.balance), status: r.status, issuedAt: r.issued_at, expiresAt: r.expires_at });
+      }
+
+      case "view_tax_forms": {
+        const rows = await pgQuery<{ id: string; form_type: string; year: string; quarter: string; status: string; filed_at: string | null }>(
+          `SELECT id, form_type, year::text, quarter::text, status, filed_at::text
+             FROM public.payroll_tax_forms WHERE tenant_id = $1 ORDER BY year DESC, quarter DESC LIMIT 50`,
+          [TENANT_ID()],
+        );
+        const forms = rows.map(r => ({ id: r.id, formType: r.form_type, year: r.year, quarter: r.quarter, status: r.status, filedAt: r.filed_at }));
+        await auditAction({ action, domain: "acct", tableName: "payroll_tax_forms", recordId: null, afterData: { count: forms.length }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, taxForms: forms, total: forms.length });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action} (short: ${shortAction})` }, { status: 400 });
     }

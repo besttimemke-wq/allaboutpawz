@@ -348,6 +348,76 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   { id: 'accts-register-z-report', domain: 'accounting', subCategory: 'Register', label: 'Z Report (End-of-Day)', icon: 'FileCheck', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
     { name: 'session_id', label: 'Session ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
   ] },
+  // Module 7 remaining nodes
+  { id: 'accts-print-receipt', domain: 'accounting', subCategory: 'Payments', label: 'Print Receipt', icon: 'Printer', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'payment_id', label: 'Payment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'accts-edit-invoice', domain: 'accounting', subCategory: 'Invoices', label: 'Edit Invoice', icon: 'Pencil', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'invoice_id', label: 'Invoice ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'due_date', label: 'Due Date', type: 'date' },
+    { name: 'notes', label: 'Notes', type: 'text' },
+    { name: 'terms', label: 'Terms', type: 'text', placeholder: 'Net 30' },
+  ] },
+  { id: 'accts-duplicate-invoice', domain: 'accounting', subCategory: 'Invoices', label: 'Duplicate Invoice', icon: 'Copy', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'invoice_id', label: 'Invoice ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'accts-delete-invoice', domain: 'accounting', subCategory: 'Invoices', label: 'Delete Invoice (Void)', icon: 'Trash2', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'invoice_id', label: 'Invoice ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'accts-transfer-deposit', domain: 'accounting', subCategory: 'Deposits', label: 'Transfer Deposit', icon: 'ArrowRightLeft', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'deposit_id', label: 'Deposit ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'new_customer_id', label: 'New Customer ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'reason', label: 'Transfer Reason', type: 'text' },
+  ] },
+  { id: 'accts-edit-deposit', domain: 'accounting', subCategory: 'Deposits', label: 'Edit Deposit', icon: 'Pencil', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'deposit_id', label: 'Deposit ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'amount', label: 'Amount', type: 'number' },
+    { name: 'method', label: 'Method', type: 'text' },
+    { name: 'notes', label: 'Notes', type: 'text' },
+  ] },
+  { id: 'accts-receipt-deposit', domain: 'accounting', subCategory: 'Deposits', label: 'Deposit Receipt', icon: 'Receipt', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'deposit_id', label: 'Deposit ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'accts-approve-refund', domain: 'accounting', subCategory: 'Refunds', label: 'Approve Refund', icon: 'Check', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'payment_id', label: 'Payment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'accts-reject-refund', domain: 'accounting', subCategory: 'Refunds', label: 'Reject Refund', icon: 'X', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'payment_id', label: 'Payment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'reason', label: 'Rejection Reason', type: 'text' },
+  ] },
+  { id: 'accts-edit-refund', domain: 'accounting', subCategory: 'Refunds', label: 'Edit Refund', icon: 'Pencil', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'order_id', label: 'Order ID', type: 'text', required: true, placeholder: 'order-id' },
+    { name: 'amount', label: 'Amount', type: 'number' },
+    { name: 'reason', label: 'Reason', type: 'text' },
+  ] },
+  { id: 'accts-dispute-refund', domain: 'accounting', subCategory: 'Refunds', label: 'Dispute Refund', icon: 'AlertTriangle', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'payment_id', label: 'Payment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'reason', label: 'Dispute Reason', type: 'text', required: true },
+    { name: 'amount', label: 'Dispute Amount', type: 'number' },
+  ] },
+  { id: 'accts-receipt-refund', domain: 'accounting', subCategory: 'Refunds', label: 'Refund Receipt', icon: 'Receipt', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'payment_id', label: 'Payment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'accts-refund-notes', domain: 'accounting', subCategory: 'Refunds', label: 'Add Refund Notes', icon: 'StickyNote', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'payment_id', label: 'Payment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'note', label: 'Note', type: 'textarea', required: true },
+  ] },
+  { id: 'accts-view-original-refund', domain: 'accounting', subCategory: 'Refunds', label: 'View Original Transaction', icon: 'Eye', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'payment_id', label: 'Payment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'accts-check-card-balance', domain: 'accounting', subCategory: 'Gift Cards', label: 'Check Card Balance', icon: 'CreditCard', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'card_number', label: 'Card Number', type: 'text', required: true, placeholder: 'GC-XXXX' },
+  ] },
+  { id: 'accts-view-tax-forms', domain: 'accounting', subCategory: 'Payroll', label: 'View Tax Forms', icon: 'FileText', actionType: 'mutation', mutationKey: 'finance:actions' },
+  // Register POS shortcuts (delegation to existing handlers)
+  { id: 'reg-print-receipts', domain: 'accounting', subCategory: 'Register', label: 'Register: Print Receipt', icon: 'Printer', actionType: 'mutation', mutationKey: 'finance:actions', requiresPayload: true, payloadFields: [
+    { name: 'payment_id', label: 'Payment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'reg-refunds', domain: 'accounting', subCategory: 'Register', label: 'Register: Process Refund', icon: 'RotateCcw', actionType: 'mutation', mutationKey: 'finance:actions' },
+  { id: 'reg-credits', domain: 'accounting', subCategory: 'Register', label: 'Register: Issue Credit', icon: 'Ticket', actionType: 'mutation', mutationKey: 'finance:actions' },
+  { id: 'reg-discounts', domain: 'accounting', subCategory: 'Register', label: 'Register: Apply Discount', icon: 'Percent', actionType: 'mutation', mutationKey: 'commerce:actions' },
+  { id: 'reg-gift-card', domain: 'accounting', subCategory: 'Register', label: 'Register: Sell Gift Card', icon: 'Gift', actionType: 'mutation', mutationKey: 'finance:actions' },
+  { id: 'reg-coupons', domain: 'accounting', subCategory: 'Register', label: 'Register: Accept Coupon', icon: 'Ticket', actionType: 'mutation', mutationKey: 'commerce:actions' },
   // 8. Settings
   { id: 'set-add-location', domain: 'settings', subCategory: 'Organization', label: 'Add Location', icon: 'MapPin', actionType: 'mutation', mutationKey: 'system:actions' },
   { id: 'set-switch-location', domain: 'settings', subCategory: 'Organization', label: 'Switch Location', icon: 'ArrowLeftRight', actionType: 'mutation', mutationKey: 'system:actions' },
