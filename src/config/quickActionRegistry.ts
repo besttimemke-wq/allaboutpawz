@@ -90,15 +90,55 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   { id: 'cust-grooming-history', domain: 'customer', label: 'View Grooming History', icon: 'History', actionType: 'route', targetPath: '/admin/grooming-records' },
   { id: 'cust-payment-history', domain: 'customer', label: 'View Payment History', icon: 'Receipt', actionType: 'route', targetPath: '/admin/payments' },
   // 3. Appointment
-  { id: 'apt-check-in', domain: 'appointment', label: 'Check In', icon: 'LogIn', actionType: 'mutation', mutationKey: 'appointment:actions' },
-  { id: 'apt-in-service', domain: 'appointment', label: 'In Service', icon: 'Play', actionType: 'mutation', mutationKey: 'appointment:actions' },
-  { id: 'apt-complete', domain: 'appointment', label: 'Complete', icon: 'Check', actionType: 'mutation', mutationKey: 'appointment:actions' },
-  { id: 'apt-reschedule', domain: 'appointment', label: 'Reschedule', icon: 'CalendarClock', actionType: 'mutation', mutationKey: 'appointment:actions' },
-  { id: 'apt-cancel', domain: 'appointment', label: 'Cancel', icon: 'X', actionType: 'mutation', mutationKey: 'appointment:actions' },
-  { id: 'apt-no-show', domain: 'appointment', label: 'No Show', icon: 'UserX', actionType: 'mutation', mutationKey: 'appointment:actions' },
-  { id: 'apt-send-reminder', domain: 'appointment', label: 'Send Reminder', icon: 'Bell', actionType: 'mutation', mutationKey: 'appointment:actions' },
+  { id: 'apt-check-in', domain: 'appointment', label: 'Check In', icon: 'LogIn', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'apt-in-service', domain: 'appointment', label: 'In Service', icon: 'Play', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'apt-complete', domain: 'appointment', label: 'Complete', icon: 'Check', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'apt-reschedule', domain: 'appointment', label: 'Reschedule', icon: 'CalendarClock', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'new_starts_at', label: 'New Start Date/Time', type: 'date', required: true },
+    { name: 'new_ends_at', label: 'New End Date/Time (optional)', type: 'date' },
+  ] },
+  { id: 'apt-cancel', domain: 'appointment', label: 'Cancel', icon: 'X', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'reason', label: 'Cancellation Reason', type: 'text', placeholder: 'customer_request' },
+  ] },
+  { id: 'apt-no-show', domain: 'appointment', label: 'No Show', icon: 'UserX', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'reason', label: 'No-Show Reason', type: 'text', placeholder: 'did not arrive' },
+  ] },
+  { id: 'apt-hold', domain: 'appointment', label: 'Hold', icon: 'Pause', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'apt-confirm', domain: 'appointment', label: 'Confirm Appointment', icon: 'CheckCircle', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'apt-send-reminder', domain: 'appointment', label: 'Send Reminder', icon: 'Bell', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'apt-duplicate', domain: 'appointment', label: 'Duplicate', icon: 'Copy', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'apt-follow-up', domain: 'appointment', label: 'Follow Up', icon: 'Phone', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'appointment_id', label: 'Appointment ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'note', label: 'Follow-Up Note', type: 'text', placeholder: 'Call customer to rebook' },
+  ] },
+  { id: 'apt-add-to-waitlist', domain: 'appointment', label: 'Add to Waitlist', icon: 'List', actionType: 'mutation', mutationKey: 'appointment:actions', requiresPayload: true, payloadFields: [
+    { name: 'customer_id', label: 'Customer ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'pet_id', label: 'Pet ID (optional)', type: 'uuid' },
+    { name: 'service_id', label: 'Service ID (optional)', type: 'uuid' },
+    { name: 'preferred_date', label: 'Preferred Date', type: 'date' },
+  ] },
   { id: 'apt-issue-refund', domain: 'appointment', label: 'Issue Refund', icon: 'RotateCcw', actionType: 'mutation', mutationKey: 'finance:actions' },
-  { id: 'apt-add-to-waitlist', domain: 'appointment', label: 'Add to Waitlist', icon: 'List', actionType: 'mutation', mutationKey: 'appointment:actions' },
+  { id: 'apt-view-customer', domain: 'appointment', label: 'View Customer', icon: 'Eye', actionType: 'route', targetPath: '/admin/customers' },
+  { id: 'apt-send-magic-link', domain: 'appointment', label: 'Send Magic Link', icon: 'Link', actionType: 'mutation', mutationKey: 'system:actions' },
+  { id: 'apt-take-payment', domain: 'appointment', label: 'Take Payment', icon: 'CreditCard', actionType: 'mutation', mutationKey: 'finance:actions' },
+  { id: 'apt-create-invoice', domain: 'appointment', label: 'Create Invoice', icon: 'FileText', actionType: 'mutation', mutationKey: 'finance:actions' },
   // 4. Orders & Inventory
   { id: 'order-create', domain: 'orders', label: 'Create Order', icon: 'Plus', actionType: 'mutation', mutationKey: 'commerce:actions' },
   { id: 'order-view', domain: 'orders', label: 'View Order Details', icon: 'Eye', actionType: 'route' },
