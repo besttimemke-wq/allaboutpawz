@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Card,
@@ -123,6 +123,27 @@ export default function FrontDeskDashboardPage() {
   const router = useRouter();
   const [queue, setQueue] = useState<CheckInRow[]>(TODAY_QUEUE);
   const [messages, setMessages] = useState(MESSAGES);
+  const [kpis, setKpis] = useState<any>(null);
+
+  useEffect(() => {
+    // Fetch real appointments — replaces hardcoded TODAY_QUEUE when available
+    fetch('/api/bookings?limit=20').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.appointments && d.appointments.length > 0) {
+        setQueue(d.appointments.map((a: any) => ({
+          id: a.id || '—',
+          name: a.dogName || a.petName || '—',
+          owner: a.customerName || a.ownerName || '—',
+          service: a.serviceName || a.service || 'Grooming',
+          time: a.time || '—',
+          status: (a.status === 'CONFIRMED' || a.status === 'confirmed' || a.status === 'Checked In' || a.status === 'checked_in') ? 'checked_in' as const : 'scheduled' as const,
+        })));
+      }
+    }).catch(() => {});
+    // Fetch real KPIs
+    fetch('/api/admin/dashboard').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.kpis) setKpis(d.kpis);
+    }).catch(() => {});
+  }, []);
 
   const setStatus = (id: string, status: CheckInRow['status']) =>
     setQueue((q) => q.map((r) => (r.id === id ? { ...r, status } : r)));

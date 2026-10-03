@@ -10,7 +10,7 @@ import { repo } from "./repo"
 const apiKey = process.env.RESEND_API_KEY || ""
 const resend = apiKey ? new Resend(apiKey) : null
 const FROM = "All About Pawz <notifications@confirmation.aapawz.com>"
-const salonNotifyTo = "notifications@confirmation.aapawz.com"
+const salonNotifyTo = "booking@aapawz.com"
 
 // The live single-tenant id — the same default every app write uses
 // (customers, bookings, memberships). email_messages/communications have

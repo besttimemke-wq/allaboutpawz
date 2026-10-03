@@ -1,5 +1,7 @@
 import { Montserrat, Hanken_Grotesk } from "next/font/google";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { QuickActionProvider } from "@/providers/QuickActionProvider";
+import { GlobalCommandPalette } from "@/components/common/GlobalCommandPalette";
 
 // ============================================================================
 // (portals) route-group layout — shared chrome for the All About Pawz portals
@@ -13,6 +15,11 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 // queries against the /api routes) so no render path ever waits on the
 // database — cached data paints instantly, fresh data arrives in the
 // background.
+//
+// The QuickActionProvider (Cmd+K palette) wraps the whole portals group so
+// the palette is available on every portal page. The GlobalCommandPalette
+// component is mounted once here so it can be opened with Cmd+K from
+// anywhere inside a portal.
 // ============================================================================
 
 /* Montserrat Medium — sidebar + topbar (--font-bar) */
@@ -40,7 +47,12 @@ export default function PortalsLayout({
 }>) {
   return (
     <div className={`pawz-theme ${montserrat.variable} ${hankenGrotesk.variable}`}>
-      <QueryProvider>{children}</QueryProvider>
+      <QueryProvider>
+        <QuickActionProvider>
+          {children}
+          <GlobalCommandPalette />
+        </QuickActionProvider>
+      </QueryProvider>
     </div>
   );
 }

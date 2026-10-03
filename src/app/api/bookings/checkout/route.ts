@@ -6,7 +6,7 @@ import { callbackBase } from "@/lib/site-url"
 import { syncCrmAppointment, writeCommercePayment, withPg } from "@/lib/crm/enterprise"
 import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 
-const salonNotifyTo = "notifications@confirmation.aapawz.com"
+const salonNotifyTo = "booking@aapawz.com"
 
 function bookingRequestHtml(name: string, dog: string, service: string, date: string, time: string) {
   return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">

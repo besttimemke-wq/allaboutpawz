@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -43,6 +43,18 @@ interface LineItem {
 export default function FrontDeskOrdersPage() {
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState<LineItem[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/orders?limit=50').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.appointments) {
+        // Replace hardcoded data with real appointments
+      } else if (d?.customers) {
+        // Replace with real customers
+      } else if (d?.orders) {
+        // Replace with real orders
+      }
+    }).catch(() => {});
+  }, []);
   const [tendered, setTendered] = useState<'card' | 'cash'>('card');
   const [saleDone, setSaleDone] = useState<string | null>(null);
 

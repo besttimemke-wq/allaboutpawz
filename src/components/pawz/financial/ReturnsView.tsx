@@ -23,48 +23,58 @@ interface ReturnsViewProps {
 export const ReturnsView: React.FC<ReturnsViewProps> = ({ onNavigateSection }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'action' | 'transit' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [liveRmas, setLiveRmas] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch REAL refunds from the POS API (which has the refund action)
-    // + also fetch orders to cross-reference
-    Promise.all([
-      fetch('/api/admin/pos').then(r => r.ok ? r.json() : { catalog: [] }).catch(() => ({ catalog: [] })),
-      fetch('/api/admin/orders').then(r => r.ok ? r.json() : { orders: [] }).catch(() => ({ orders: [] })),
-    ]).then(([posData, ordersData]) => {
-      const orders = ordersData.orders || [];
-      // Map orders with return/cancelled/refunded status to RMA display
-      const fromOrders = orders
-        .filter((o: any) => {
-          const fs = String(o.fulfillmentStatus || '').toUpperCase();
-          const ps = String(o.paymentStatus || '').toUpperCase();
-          return fs === 'CANCELLED' || fs === 'RETURNED' || fs === 'REFUNDED' || ps === 'REFUNDED';
-        })
-        .map((o: any) => ({
-          id: `RMA-${o.id?.slice(0, 8).toUpperCase() || '???'}`,
-          time: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-          orderRef: `#${o.id?.slice(0, 8).toUpperCase() || '???'}`,
-          customer: o.customerName || o.email || 'Guest',
-          pet: '—',
-          item: (o.items || []).map((it: any) => `${it.quantity}× ${it.name}`).join(', ') || '—',
-          condition: '—',
-          reason: o.notes || 'Customer return',
-          resolution: `$${parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')).toFixed(2)}`,
-          status: (o.fulfillmentStatus || 'Pending').toUpperCase(),
-          orderId: o.id,
-        }));
-      setLiveRmas(fromOrders);
-    }).catch(() => {}).finally(() => setLoading(false));
+    fetch('/api/admin/refunds?limit=50').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.giftCards) { /* wire to state */ }
+      else if (d?.orders) { /* wire to state */ }
+      else if (d?.refunds) { /* wire to state */ }
+    }).catch(() => {});
   }, []);
 
-  const rmas = liveRmas;
+  const rmas = [
+    {
+      id: 'RMA-2025-042',
+      time: 'Created 2h ago',
+      orderRef: '#ORD-2025-1012',
+      customer: 'Chris Evans',
+      pet: 'Dodger (Golden Retriever)',
+      item: 'Ergonomic De-shedding Slicker Brush (Medium)',
+      condition: 'Unopened original packaging',
+      reason: 'Duplicate Gift',
+      resolution: 'Store Credit ($32.50)',
+      status: 'Awaiting Package',
+    },
+    {
+      id: 'RMA-2025-041',
+      time: 'Delivered to Salon',
+      orderRef: '#ORD-2025-0994',
+      customer: 'Amanda Garcia',
+      pet: 'Bella (French Bulldog)',
+      item: 'Blueberry Spa Facial Foam Cleanser (250ml)',
+      condition: 'Opened / Safety seal broken',
+      reason: 'Opened / Scent Disliked',
+      resolution: 'Original Card ($18.00)',
+      status: 'Pending Inspection',
+    },
+    {
+      id: 'RMA-2025-040',
+      time: 'Returned Item Received',
+      orderRef: '#ORD-2025-0988',
+      customer: 'Mike Ross',
+      pet: 'Harvey (Labrador)',
+      item: 'All-Weather Insulated Winter Vest (Size: Large)',
+      condition: 'Like New with tags attached',
+      reason: 'Wrong Size',
+      resolution: 'Direct Exchange (Size: XL)',
+      status: 'Replacement Packed',
+    },
+  ];
 
   const filteredRmas = rmas.filter((rma) => {
-    const st = String(rma.status || '').toUpperCase();
-    if (activeTab === 'action' && !(st.includes('PENDING') || st.includes('ACTION') || st.includes('INSPECT'))) return false;
-    if (activeTab === 'transit' && !st.includes('AWAITING')) return false;
-    if (activeTab === 'completed' && !(st.includes('COMPLETE') || st.includes('REFUND') || st.includes('CANCEL'))) return false;
+    if (activeTab === 'action' && rma.status !== 'Pending Inspection') return false;
+    if (activeTab === 'transit' && rma.status !== 'Awaiting Package') return false;
+    if (activeTab === 'completed' && rma.status !== 'Replacement Packed') return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -271,28 +281,12 @@ export const ReturnsView: React.FC<ReturnsViewProps> = ({ onNavigateSection }) =
                     </span>
                   </td>
                   <td className="py-3 px-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => { window.location.href = `/admin/order-details?id=${(rma as any).orderId || rma.orderRef?.replace('#','')}`; }}
-                        className="px-2 py-1 border border-border bg-card hover:bg-muted text-[10px] font-semibold uppercase cursor-pointer"
-                        title="View original order"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => { window.location.href = `/admin/shipping?orderId=${(rma as any).orderId || ''}`; }}
-                        className="px-2 py-1 border border-border bg-card hover:bg-muted text-[10px] font-semibold uppercase cursor-pointer"
-                        title="Track return shipment"
-                      >
-                        Track
-                      </button>
-                      <button
-                        onClick={() => alert(`Reviewing ${rma.id} — RMA inspection form opens here.`)}
-                        className="px-2.5 py-1 border border-border bg-primary text-primary-foreground hover:bg-primary/90 text-[10px] font-semibold uppercase transition-colors cursor-pointer"
-                      >
-                        Review
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => alert(`Inspecting and resolving ${rma.id}`)}
+                      className="px-2.5 py-1 border border-border bg-primary text-primary-foreground hover:bg-primary/90 text-[10px] font-semibold uppercase transition-colors cursor-pointer"
+                    >
+                      Inspect
+                    </button>
                   </td>
                 </tr>
               ))}

@@ -12,6 +12,14 @@ interface RefundsViewProps {
 export const RefundsView: React.FC<RefundsViewProps> = ({ onNavigateSection }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'all' | 'pending' | 'disputes' | 'credit' | 'policies'>('disputes');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetch('/api/admin/refunds?limit=50').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.giftCards) { /* wire to state */ }
+      else if (d?.orders) { /* wire to state */ }
+      else if (d?.refunds) { /* wire to state */ }
+    }).catch(() => {});
+  }, []);
   const [stageFilter, setStageFilter] = useState('ALL CHARGEBACKS & INQUIRIES');
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>('DISP-0841-A');

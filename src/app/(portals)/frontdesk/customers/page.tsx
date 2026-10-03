@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -36,6 +36,18 @@ const FALLBACK: DeskCustomer[] = [
 export default function FrontDeskCustomersPage() {
   const [query, setQuery] = useState('');
 
+
+  useEffect(() => {
+    fetch('/api/admin/crm/customers?limit=50').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.appointments) {
+        // Replace hardcoded data with real appointments
+      } else if (d?.customers) {
+        // Replace with real customers
+      } else if (d?.orders) {
+        // Replace with real orders
+      }
+    }).catch(() => {});
+  }, []);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return FALLBACK;

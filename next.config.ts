@@ -11,7 +11,9 @@ const nextConfig: NextConfig = {
   // kernel OOM-killer SIGKILLs next-server (observed at 2.2–3.4GB RSS). With a
   // limit, Turbopack recycles itself and keeps serving.
   experimental: {
-    turbopackMemoryLimit: 1_600_000_000,
+    // 4GB host, no swap: keep Turbopack lean so the OOM killer never
+    // SIGKILLs next-server. 512MB is enough for dev compilation.
+    turbopackMemoryLimit: 512_000_000,
   },
   typescript: {
     ignoreBuildErrors: true,

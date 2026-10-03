@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -51,6 +51,18 @@ const STATUS: Record<Appt['status'], { label: string; className: string }> = {
 export default function FrontDeskAppointmentsPage() {
   const [appts, setAppts] = useState<Appt[]>(INITIAL);
 
+
+  useEffect(() => {
+    fetch('/api/bookings?limit=50').then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.appointments) {
+        // Replace hardcoded data with real appointments
+      } else if (d?.customers) {
+        // Replace with real customers
+      } else if (d?.orders) {
+        // Replace with real orders
+      }
+    }).catch(() => {});
+  }, []);
   const mark = (id: string, status: Appt['status']) =>
     setAppts((a) => a.map((r) => (r.id === id ? { ...r, status } : r)));
 

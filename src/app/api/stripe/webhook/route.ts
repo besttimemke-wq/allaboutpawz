@@ -102,6 +102,8 @@ export async function POST(request: NextRequest) {
     try {
       revalidatePath("/admin/orders")
       revalidatePath("/admin/dashboard")
+      revalidatePath("/admin/appointments")
+      revalidatePath("/admin/bookings")
       revalidatePath("/customer/orders")
       revalidatePath("/customer/dashboard")
       revalidatePath("/shop")
@@ -129,15 +131,15 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
 
   // 1. Write to the unified payment ledger
   try {
-    await supabase.from("payment_transactions").upsert({
+    const { error: ledgerError } = await supabase.from("payment_transactions").upsert({
       provider: "stripe",
       provider_transaction_id: session?.payment_intent,
-      transaction_type: "payment",
-      status: "completed",
+      transaction_type: "PAYMENT",
+      status: "SUCCEEDED",
       amount: amountTotal,
       currency: (session?.currency || "usd").toUpperCase(),
-      customer_id: session?.metadata?.customer_id || null,
       order_id: commerceOrderId || session?.metadata?.order_id || null,
+      booking_id: session?.metadata?.bookingId || null,
       metadata: {
         stripe_session_id: session?.id,
         flow_type: sourceFlow,
@@ -145,10 +147,92 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
         customer_email: customerEmail,
       },
       processed_at: new Date().toISOString(),
-      tenant_id: TENANT_ID,
+      tenant_id: TENANT_ID(),
     }, { onConflict: "provider_transaction_id" })
+    if (ledgerError) console.error("[stripe/webhook] ledger write failed:", ledgerError.message)
   } catch (e: any) {
     console.error("[stripe/webhook] ledger write failed:", e?.message)
+  }
+
+  // 1b. Handle booking deposits — flip booking to CONFIRMED, update CRM
+  //     appointment, update payment row, send confirmation email.
+  //     The checkout route sets metadata.type = "booking_deposit" and
+  //     metadata.bookingId. This handler fires when the customer pays the
+  //     $25 deposit via Stripe Checkout. Without this, the booking stays
+  //     PAYMENT_PENDING forever — customer paid but appointment never confirms.
+  const bookingId = session?.metadata?.bookingId
+  if (session?.metadata?.type === "booking_deposit" && bookingId) {
+    console.log(`[stripe/webhook] processing booking deposit: bookingId=${bookingId}`)
+
+    try {
+      // Read the booking to get details for the confirmation email
+      const bookingData = await withPg(async (client) => {
+        const { rows } = await client.query(
+          `SELECT * FROM public.bookings WHERE id = $1 LIMIT 1`,
+          [String(bookingId)],
+        )
+        return rows[0] || null
+      }).catch(() => null)
+
+      if (bookingData) {
+        // 1. Update booking to CONFIRMED
+        await withPg(async (client) => {
+          await client.query(
+            `UPDATE public.bookings SET status = 'CONFIRMED', "paymentStatus" = 'PAID' WHERE id = $1`,
+            [String(bookingId)],
+          )
+        }).catch((e: any) =>
+          console.error("[stripe/webhook] booking update failed:", e?.message),
+        )
+
+        // 2. Update CRM appointment to confirmed (linked via source_appointment_id)
+        await withPg(async (client) => {
+          await client.query(
+            `UPDATE public.crm_appointments SET status = 'confirmed', updated_at = now() WHERE source_appointment_id = $1 AND tenant_id = $2`,
+            [String(bookingId), TENANT_ID()],
+          )
+        }).catch((e: any) =>
+          console.error("[stripe/webhook] CRM appt update failed:", e?.message),
+        )
+
+        // 3. Update commerce_payments to succeeded (linked via external_reference = Stripe session ID)
+        await withPg(async (client) => {
+          await client.query(
+            `UPDATE public.commerce_payments SET status = 'succeeded' WHERE external_reference = $1`,
+            [session.id],
+          )
+        }).catch((e: any) =>
+          console.error("[stripe/webhook] payment update failed:", e?.message),
+        )
+
+        // 4. Send booking confirmation email (customer + salon copy)
+        try {
+          const { sendBookingConfirmation } = await import("@/lib/email")
+          await sendBookingConfirmation({
+            ownerName: session?.metadata?.ownerName || bookingData.ownerName || "",
+            dogName: session?.metadata?.dogName || bookingData.dogName || null,
+            service: bookingData.service || "Grooming appointment",
+            size: bookingData.size || null,
+            date: bookingData.date || null,
+            time: bookingData.time || null,
+            email: customerEmail || bookingData.email || null,
+            phone: bookingData.phone || null,
+            notes: bookingData.notes || null,
+            bookingId: String(bookingId),
+          })
+          console.log(
+            `[stripe/webhook] booking confirmation email sent for ${bookingId}`,
+          )
+        } catch (e: any) {
+          console.error(
+            "[stripe/webhook] booking confirmation email failed:",
+            e?.message,
+          )
+        }
+      }
+    } catch (e: any) {
+      console.error("[stripe/webhook] booking deposit handler failed:", e?.message)
+    }
   }
 
   // 2. Update commerce_orders (if this was a shop flow)
