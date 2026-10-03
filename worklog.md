@@ -1737,3 +1737,18 @@ Stage Summary:
 - GitHub main now carries the stable convergence point. Both lineages united: full remote module history + our verified-stable local dev script.
 - Token discipline maintained end-to-end: transient, single-use, zero persistence.
 - NEXT: module-by-module gap audit (working papers ready: audit_report_DEEP-AUDIT-API.md, worklog-remote.md, upload/ Admin Sidebar & Route Map + feature-tree specs) — pending owner re-supplying .env production keys to reactivate live-data verification.
+
+---
+Task ID: PUSH-STABLE-2
+Agent: Main agent (Z.ai Code)
+Task: Resolve GitHub push-protection block and land the stable point on main.
+
+Work Log:
+- First push attempt REJECTED by GitHub Push Protection: the earlier history-preserving merge (-s ours) made our LOCAL lineage ancestors of HEAD, and 3 legacy local commits (backup snapshot + tool commits, pre-dating the 9/22 sanitization) still carry the old full .env (Supabase PAT / Stripe / Resend / Vercel / Google OAuth lines). Remote's own 334-commit history is clean (other lineage purged twice via filter-branch); only OUR local history is dirty.
+- Resolution (tree unchanged, ancestry fixed): tagged local-lineage-backup-2026-10-03 at the merged state (dirty history stays local-only, never pushed), then `git reset --soft origin/main` and recommitted the identical tree as ONE clean commit d048bce on top of the remote's history. Verified staged delta vs origin/main = exactly the 8 intentional files; full-tree scan for PAT patterns in the new commit = zero hits.
+- Token discipline maintained: PAT used transiently in the push URL only; never in .git/config (origin stays credential-less), never in files, never in this log; push output piped through redaction filter.
+
+Stage Summary:
+- Stable point landed on GitHub main as d048bce (fast-forward on the remote's 334-commit history — no force, no history loss on the server).
+- Our local secret-bearing history preserved ONLY in local tags (backup-pre-import-2026-10-03, local-lineage-backup-2026-10-03) — never to be pushed.
+- GitHub's secret scanner independently confirmed the only dirty commits were our 3 legacy local ones; current tree is clean.
