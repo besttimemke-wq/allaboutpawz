@@ -651,6 +651,163 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, ledgerData: result });
       }
 
+      // ───────────────────────────────────────────────────────────────────
+      // FULFILLMENT PRINT ACTIONS — packing slip, batch slips, postage
+      // labels. These return structured data the frontend renders as a
+      // printable view or PDF. Uses erp_orders + erp_order_lines for
+      // line-item detail and commerce_orders for shipping info.
+      // ───────────────────────────────────────────────────────────────────
+
+      case "packing_slip": {
+        // order_packing_slip → packing_slip
+        // Generate a single packing slip: order header + line items.
+        const orderId = String(payload.order_id || "");
+        // Try erp_orders first (UUID-based, has line items)
+        const erpRows = await pgQuery<{
+          id: string; order_number: string; status: string;
+          order_date: string; customer_email: string | null; customer_phone: string | null;
+          fulfillment_method: string; total: string;
+        }>(
+          `SELECT id, order_number, status::text, order_date::text,
+                  customer_email, customer_phone, fulfillment_method::text, total::text
+             FROM public.erp_orders
+            WHERE id = $1::uuid AND tenant_id = $2`,
+          [orderId, TENANT_ID()],
+        );
+        if (erpRows.length > 0) {
+          const o = erpRows[0];
+          const lineRows = await pgQuery<{
+            id: string; sku_id: string; description: string | null;
+            quantity: string; unit_price: string;
+          }>(
+            `SELECT id, sku_id, description, quantity::text, unit_price::text
+               FROM public.erp_order_lines
+              WHERE order_id = $1::uuid AND tenant_id = $2
+              ORDER BY id`,
+            [orderId, TENANT_ID()],
+          );
+          const lines = lineRows.map(l => ({
+            lineId: l.id, skuId: l.sku_id, description: l.description,
+            quantity: Number(l.quantity), unitPrice: Number(l.unit_price),
+            lineTotal: Number(l.quantity) * Number(l.unit_price),
+          }));
+          await auditAction({ action, domain: "erp", tableName: "erp_orders", recordId: orderId, afterData: { orderNumber: o.order_number, lineCount: lines.length }, actorUserId: actorId, ipAddress: ip });
+          return NextResponse.json({ ok: true, packingSlip: {
+            orderId: o.id, orderNumber: o.order_number, status: o.status,
+            orderDate: o.order_date, customerEmail: o.customer_email,
+            customerPhone: o.customer_phone, fulfillmentMethod: o.fulfillment_method,
+            total: Number(o.total), lines, lineCount: lines.length,
+          }});
+        }
+        // Fallback to commerce_orders (text-based ID)
+        const coRows = await pgQuery<{ id: string; customer_email: string | null; total_amount: string; status: string; fulfillment_status: string }>(
+          `SELECT id, customer_email, total_amount::text, status, fulfillment_status
+             FROM public.commerce_orders WHERE id = $1 AND tenant_id = $2`,
+          [orderId, TENANT_ID()],
+        );
+        if (coRows.length === 0) {
+          return NextResponse.json({ ok: false, error: "Order not found" }, { status: 404 });
+        }
+        const co = coRows[0];
+        await auditAction({ action, domain: "commerce", tableName: "commerce_orders", recordId: orderId, afterData: { lineCount: 0 }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, packingSlip: {
+          orderId: co.id, orderNumber: co.id, status: co.status,
+          fulfillmentStatus: co.fulfillment_status, customerEmail: co.customer_email,
+          total: Number(co.total_amount), lines: [], lineCount: 0,
+        }});
+      }
+
+      case "batch_slips": {
+        // fulfill_batch_slips → batch_slips
+        // Generate packing slips for multiple orders at once. If no
+        // order_ids provided, selects all orders in 'released' or
+        // 'picking' or 'packing' fulfillment status.
+        const orderIds = (payload.order_ids as string[]) || null;
+        let orders: Array<{ id: string; order_number: string; status: string; customer_email: string | null; total: string }> = [];
+        if (orderIds && orderIds.length > 0) {
+          const rows = await pgQuery<{ id: string; order_number: string; status: string; customer_email: string | null; total: string }>(
+            `SELECT id, order_number, status::text, customer_email, total::text
+               FROM public.erp_orders
+              WHERE tenant_id = $1 AND id = ANY($2::uuid[])
+              ORDER BY order_date DESC`,
+            [TENANT_ID(), orderIds],
+          );
+          orders = rows as any[];
+        } else {
+          // Auto-select orders needing fulfillment
+          const rows = await pgQuery<{ id: string; order_number: string; status: string; customer_email: string | null; total: string }>(
+            `SELECT id, order_number, status::text, customer_email, total::text
+               FROM public.erp_orders
+              WHERE tenant_id = $1 AND status IN ('released','picking','packing','partially_shipped')
+              ORDER BY order_date DESC LIMIT 50`,
+            [TENANT_ID()],
+          );
+          orders = rows as any[];
+        }
+        // For each order, get its lines
+        const slips = [];
+        for (const o of orders) {
+          const lineRows = await pgQuery<{ id: string; sku_id: string; description: string | null; quantity: string; unit_price: string }>(
+            `SELECT id, sku_id, description, quantity::text, unit_price::text
+               FROM public.erp_order_lines
+              WHERE order_id = $1::uuid AND tenant_id = $2 ORDER BY id`,
+            [o.id, TENANT_ID()],
+          );
+          slips.push({
+            orderId: o.id, orderNumber: o.order_number, status: o.status,
+            customerEmail: o.customer_email, total: Number(o.total),
+            lines: lineRows.map(l => ({
+              lineId: l.id, skuId: l.sku_id, description: l.description,
+              quantity: Number(l.quantity), unitPrice: Number(l.unit_price),
+            })),
+            lineCount: lineRows.length,
+          });
+        }
+        const result = { slipCount: slips.length, totalLines: slips.reduce((s, sl) => s + sl.lineCount, 0), slips };
+        await auditAction({ action, domain: "erp", tableName: "erp_orders", recordId: null, afterData: { slipCount: slips.length, totalLines: result.totalLines }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, batchSlips: result });
+      }
+
+      case "postage":
+      case "print_postage":
+      case "print_postage_labels": {
+        // fulfill_postage → postage
+        // Generate postage label data: carrier, tracking number,
+        // shipping address from commerce_orders.
+        const orderId = String(payload.order_id || "");
+        // Try commerce_orders first (has tracking_number, carrier, shipping_address)
+        const coRows = await pgQuery<{
+          id: string; tracking_number: string | null; carrier: string | null;
+          shipping_address: string | null; fulfillment_method: string | null;
+          customer_email: string | null; total_amount: string;
+          fulfillment_status: string;
+        }>(
+          `SELECT id, tracking_number, carrier, shipping_address,
+                  fulfillment_method, customer_email, total_amount::text,
+                  fulfillment_status
+             FROM public.commerce_orders
+            WHERE id = $1 AND tenant_id = $2`,
+          [orderId, TENANT_ID()],
+        );
+        if (coRows.length === 0) {
+          return NextResponse.json({ ok: false, error: "Order not found" }, { status: 404 });
+        }
+        const o = coRows[0];
+        // Parse shipping_address if it's JSON
+        let shippingAddress: Record<string, unknown> | null = null;
+        try {
+          if (o.shipping_address) shippingAddress = JSON.parse(o.shipping_address);
+        } catch { shippingAddress = { raw: o.shipping_address }; }
+        const result = {
+          orderId: o.id, carrier: o.carrier, trackingNumber: o.tracking_number,
+          fulfillmentMethod: o.fulfillment_method, fulfillmentStatus: o.fulfillment_status,
+          customerEmail: o.customer_email, total: Number(o.total_amount),
+          shippingAddress,
+        };
+        await auditAction({ action, domain: "commerce", tableName: "commerce_orders", recordId: orderId, afterData: { carrier: o.carrier, trackingNumber: o.tracking_number }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, postageLabel: result });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action} (short: ${shortAction})` }, { status: 400 });
     }

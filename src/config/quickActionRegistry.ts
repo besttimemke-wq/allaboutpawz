@@ -174,8 +174,12 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   ] },
   // 5. Fulfillment
   { id: 'fulfill-advance', domain: 'fulfillment', label: 'Advance Fulfillment Stage', icon: 'ArrowRight', actionType: 'mutation', mutationKey: 'commerce:actions' },
-  { id: 'fulfill-batch-slips', domain: 'fulfillment', label: 'Batch Slips', icon: 'Files', actionType: 'print' },
-  { id: 'fulfill-postage', domain: 'fulfillment', label: 'Print Postage Labels', icon: 'Printer', actionType: 'print' },
+  { id: 'fulfill-batch-slips', domain: 'fulfillment', label: 'Batch Slips', icon: 'Files', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'order_ids', label: 'Order IDs (optional — leave empty for auto)', type: 'text', placeholder: 'uuid1,uuid2' },
+  ] },
+  { id: 'fulfill-postage', domain: 'fulfillment', label: 'Print Postage Labels', icon: 'Printer', actionType: 'mutation', mutationKey: 'commerce:actions', requiresPayload: true, payloadFields: [
+    { name: 'order_id', label: 'Order ID', type: 'text', required: true, placeholder: 'order-id' },
+  ] },
   // 6. Purchasing
   { id: 'po-create', domain: 'purchasing', label: 'Create PO', icon: 'Inbox', actionType: 'mutation', mutationKey: 'commerce:actions' },
   { id: 'po-receive', domain: 'purchasing', label: 'Receive Order', icon: 'PackageCheck', actionType: 'mutation', mutationKey: 'commerce:actions' },
