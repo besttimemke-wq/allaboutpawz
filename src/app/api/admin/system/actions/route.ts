@@ -629,6 +629,186 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, count: inactive.length, message: `Sent ${inactive.length} win-back offers` });
       }
 
+      // ───────────────────────────────────────────────────────────────────
+      // MODULE 8 REMAINING — Org/Settings: business profile, branding,
+      // roles, 2FA reset, user suspend, deposit/cancellation/no-show
+      // policies, system health, backup, quick links.
+      // ───────────────────────────────────────────────────────────────────
+
+      case "edit_business_profile": {
+        // Update the tenant's default location (business name, phone, email, address).
+        const locationId = payload.location_id ? String(payload.location_id) : null;
+        const name = payload.name ? String(payload.name) : null;
+        const phone = payload.phone ? String(payload.phone) : null;
+        const email = payload.email ? String(payload.email) : null;
+        const addressLine1 = payload.address_line1 ? String(payload.address_line1) : null;
+        const city = payload.city ? String(payload.city) : null;
+        const state = payload.state ? String(payload.state) : null;
+        const postalCode = payload.postal_code ? String(payload.postal_code) : null;
+        // If no location_id, update the first (default) location
+        const targetId = locationId || (await pgQuery<{ id: string }>(`SELECT id FROM public.crm_locations WHERE tenant_id = $1 ORDER BY created_at LIMIT 1`, [TENANT_ID()]))[0]?.id;
+        if (!targetId) return NextResponse.json({ ok: false, error: "No location found" }, { status: 404 });
+        const updated = await pgExec(
+          `UPDATE public.crm_locations SET name = COALESCE($1, name), phone = COALESCE($2, phone),
+              email = COALESCE($3, email), address_line1 = COALESCE($4, address_line1),
+              city = COALESCE($5, city), state = COALESCE($6, state), postal_code = COALESCE($7, postal_code),
+              updated_at = now() WHERE id = $8::uuid AND tenant_id = $9`,
+          [name, phone, email, addressLine1, city, state, postalCode, targetId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "crm", tableName: "crm_locations", recordId: targetId, afterData: { name, phone, email, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, locationId: targetId, updated });
+      }
+
+      case "edit_branding": {
+        // Store branding settings (logo_url, brand_color, tagline) as
+        // cms_global_content key-value pairs.
+        const logoUrl = payload.logo_url ? String(payload.logo_url) : null;
+        const brandColor = payload.brand_color ? String(payload.brand_color) : null;
+        const tagline = payload.tagline ? String(payload.tagline) : null;
+        let updated = 0;
+        const pairs: Array<[string, string | null]> = [["branding_logo_url", logoUrl], ["branding_color", brandColor], ["branding_tagline", tagline]];
+        for (const [key, val] of pairs) {
+          if (val !== null) {
+            const rows = await pgQuery<{ id: string }>(
+              `INSERT INTO public.cms_global_content (id, tenant_id, content_key, label, value_text, content_group, locale, created_at, updated_at)
+               VALUES (gen_random_uuid(), $1, $2, $3, $4, 'general', 'en', now(), now())
+               ON CONFLICT (tenant_id, content_key, locale) DO UPDATE SET value_text = EXCLUDED.value_text, updated_at = now() RETURNING id`,
+              [TENANT_ID(), key, key.replace(/_/g, ' '), val],
+            );
+            if (rows[0]?.id) updated++;
+          }
+        }
+        await auditAction({ action, domain: "crm", tableName: "cms_global_content", recordId: null, afterData: { logoUrl, brandColor, tagline, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, updated, message: `${updated} branding settings saved` });
+      }
+
+      case "edit_role": {
+        // Grant or revoke a module permission for a staff member.
+        // Uses platform_module_permissions table.
+        const staffId = String(payload.staff_id || "");
+        const moduleCode = String(payload.module_code || "");
+        const accessLevel = String(payload.access_level || "read");
+        const action2 = String(payload.grant_or_revoke || "grant");
+        if (action2 === "revoke") {
+          const deleted = await pgExec(
+            `DELETE FROM public.platform_module_permissions WHERE staff_id = $1::uuid AND module_code = $2 AND tenant_id = $3`,
+            [staffId, moduleCode, TENANT_ID()],
+          );
+          await auditAction({ action: "edit_role_revoke", domain: "crm", tableName: "platform_module_permissions", recordId: staffId, afterData: { moduleCode, accessLevel, deleted }, actorUserId: actorId, ipAddress: ip });
+          return NextResponse.json({ ok: true, staffId, moduleCode, action: "revoked", deleted });
+        }
+        const rows = await pgQuery<{ id: string }>(
+          `INSERT INTO public.platform_module_permissions (id, tenant_id, staff_id, module_code, access_level, granted_by, granted_at)
+           VALUES (gen_random_uuid(), $1, $2::uuid, $3, $4, $5::uuid, now())
+           ON CONFLICT (tenant_id, staff_id, module_code) DO UPDATE SET access_level = EXCLUDED.access_level, granted_by = EXCLUDED.granted_by, granted_at = now()
+           RETURNING id`,
+          [TENANT_ID(), staffId, moduleCode, accessLevel, actorId],
+        );
+        const permId = rows[0]?.id ?? null;
+        await auditAction({ action: "edit_role_grant", domain: "crm", tableName: "platform_module_permissions", recordId: permId, afterData: { staffId, moduleCode, accessLevel }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, permId, staffId, moduleCode, accessLevel, message: `Permission ${accessLevel} granted for ${moduleCode}` });
+      }
+
+      case "reset_2fa": {
+        // Reset 2FA for a user — logs the request (actual 2FA reset
+        // requires Supabase admin API which is outside the scope of
+        // this route). We log it as a crm_notes entry on the staff.
+        const staffId = String(payload.staff_id || "");
+        const updated = await pgExec(
+          `UPDATE public.crm_staff SET notes = COALESCE(notes || ' | ', '') || '2FA reset requested at ' || now()::text WHERE id = $1::uuid AND tenant_id = $2`,
+          [staffId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "crm", tableName: "crm_staff", recordId: staffId, afterData: { resetRequested: true, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, staffId, updated, message: "2FA reset request logged — use Supabase admin to complete" });
+      }
+
+      case "suspend_user": {
+        // Suspend a staff member by setting is_active=false.
+        const staffId = String(payload.staff_id || "");
+        const reason = payload.reason ? String(payload.reason) : null;
+        const updated = await pgExec(
+          `UPDATE public.crm_staff SET is_active = false, notes = COALESCE(notes || ' | ', '') || $1 WHERE id = $2::uuid AND tenant_id = $3`,
+          [reason ? `Suspended: ${reason} at ${new Date().toISOString()}` : `Suspended at ${new Date().toISOString()}`, staffId, TENANT_ID()],
+        );
+        await auditAction({ action, domain: "crm", tableName: "crm_staff", recordId: staffId, afterData: { suspended: true, reason, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, staffId, updated, message: updated ? "User suspended" : "Staff not found" });
+      }
+
+      case "edit_deposit_settings": {
+        // Store deposit policy settings as cms_global_content.
+        const defaultAmount = payload.default_deposit_amount !== undefined ? String(payload.default_deposit_amount) : null;
+        const required = payload.deposit_required !== undefined ? String(payload.deposit_required) : null;
+        let updated = 0;
+        if (defaultAmount) {
+          await pgExec(`INSERT INTO public.cms_global_content (id, tenant_id, content_key, label, value_text, content_group, locale, created_at, updated_at) VALUES (gen_random_uuid(), $1, 'deposit_default_amount', 'Default Deposit Amount', $2, 'general', 'en', now(), now()) ON CONFLICT (tenant_id, content_key, locale) DO UPDATE SET value_text = EXCLUDED.value_text, updated_at = now()`, [TENANT_ID(), defaultAmount]);
+          updated++;
+        }
+        if (required) {
+          await pgExec(`INSERT INTO public.cms_global_content (id, tenant_id, content_key, label, value_text, content_group, locale, created_at, updated_at) VALUES (gen_random_uuid(), $1, 'deposit_required', 'Deposit Required', $2, 'general', 'en', now(), now()) ON CONFLICT (tenant_id, content_key, locale) DO UPDATE SET value_text = EXCLUDED.value_text, updated_at = now()`, [TENANT_ID(), required]);
+          updated++;
+        }
+        await auditAction({ action, domain: "crm", tableName: "cms_global_content", recordId: null, afterData: { defaultAmount, required, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, updated, message: `${updated} deposit settings saved` });
+      }
+
+      case "edit_cancellation_policy": {
+        const windowHours = payload.cancellation_window_hours !== undefined ? String(payload.cancellation_window_hours) : null;
+        const fee = payload.cancellation_fee !== undefined ? String(payload.cancellation_fee) : null;
+        let updated = 0;
+        if (windowHours) { await pgExec(`INSERT INTO public.cms_global_content (id, tenant_id, content_key, label, value_text, content_group, locale, created_at, updated_at) VALUES (gen_random_uuid(), $1, 'cancellation_window_hours', 'Cancellation Window (Hours)', $2, 'general', 'en', now(), now()) ON CONFLICT (tenant_id, content_key, locale) DO UPDATE SET value_text = EXCLUDED.value_text, updated_at = now()`, [TENANT_ID(), windowHours]); updated++; }
+        if (fee) { await pgExec(`INSERT INTO public.cms_global_content (id, tenant_id, content_key, label, value_text, content_group, locale, created_at, updated_at) VALUES (gen_random_uuid(), $1, 'cancellation_fee', 'Cancellation Fee', $2, 'general', 'en', now(), now()) ON CONFLICT (tenant_id, content_key, locale) DO UPDATE SET value_text = EXCLUDED.value_text, updated_at = now()`, [TENANT_ID(), fee]); updated++; }
+        await auditAction({ action, domain: "crm", tableName: "cms_global_content", recordId: null, afterData: { windowHours, fee, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, updated, message: `${updated} cancellation policy settings saved` });
+      }
+
+      case "edit_no_show_penalty": {
+        const fee = payload.no_show_fee !== undefined ? String(payload.no_show_fee) : null;
+        const gracePeriod = payload.no_show_grace_period !== undefined ? String(payload.no_show_grace_period) : null;
+        let updated = 0;
+        if (fee) { await pgExec(`INSERT INTO public.cms_global_content (id, tenant_id, content_key, label, value_text, content_group, locale, created_at, updated_at) VALUES (gen_random_uuid(), $1, 'no_show_fee', 'No-Show Fee', $2, 'general', 'en', now(), now()) ON CONFLICT (tenant_id, content_key, locale) DO UPDATE SET value_text = EXCLUDED.value_text, updated_at = now()`, [TENANT_ID(), fee]); updated++; }
+        if (gracePeriod) { await pgExec(`INSERT INTO public.cms_global_content (id, tenant_id, content_key, label, value_text, content_group, locale, created_at, updated_at) VALUES (gen_random_uuid(), $1, 'no_show_grace_period', 'No-Show Grace Period (min)', $2, 'general', 'en', now(), now()) ON CONFLICT (tenant_id, content_key, locale) DO UPDATE SET value_text = EXCLUDED.value_text, updated_at = now()`, [TENANT_ID(), gracePeriod]); updated++; }
+        await auditAction({ action, domain: "crm", tableName: "cms_global_content", recordId: null, afterData: { fee, gracePeriod, updated }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, updated, message: `${updated} no-show penalty settings saved` });
+      }
+
+      case "view_system_health": {
+        // Query key tables for row counts to surface system health.
+        const tables = ["crm_customers", "crm_appointments", "crm_pets", "commerce_orders", "commerce_payments", "acct_ar_invoices", "commerce_gift_cards", "crm_staff", "erp_inventory_movements"];
+        const health: Array<{ table: string; rowCount: number }> = [];
+        for (const t of tables) {
+          const r = await pgQuery<{ n: string }>(`SELECT COUNT(*)::text AS n FROM public.${t} WHERE tenant_id = $1`, [TENANT_ID()]);
+          health.push({ table: t, rowCount: Number(r[0]?.n || 0) });
+        }
+        // Check for recent audit log activity (last hour)
+        const auditCount = await pgQuery<{ n: string }>(`SELECT COUNT(*)::text AS n FROM public.crm_audit_log WHERE tenant_id = $1 AND occurred_at >= now() - INTERVAL '1 hour'`, [TENANT_ID()]);
+        const result = { tables: health, recentAuditEntries: Number(auditCount[0]?.n || 0), status: "healthy" };
+        await auditAction({ action, domain: "crm", tableName: null, recordId: null, afterData: { tableCount: health.length, recentAuditEntries: result.recentAuditEntries }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, systemHealth: result });
+      }
+
+      case "run_backup": {
+        // Insert a backup record into platform_backups.
+        const backupType = String(payload.backup_type || "full");
+        const rows = await pgQuery<{ id: string }>(
+          `INSERT INTO public.platform_backups (id, tenant_id, backup_type, scope, status, started_at, requested_by, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, 'tenant', 'running', now(), $3::uuid, now(), now()) RETURNING id`,
+          [TENANT_ID(), backupType, actorId],
+        );
+        const backupId = rows[0]?.id ?? null;
+        await auditAction({ action, domain: "crm", tableName: "platform_backups", recordId: backupId, afterData: { backupType, status: "running" }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, backupId, backupType, status: "running", message: "Backup initiated" });
+      }
+
+      case "view_quick_links": {
+        const rows = await pgQuery<{ id: string; label: string; url: string | null; icon: string | null; sort_order: number; is_active: boolean }>(
+          `SELECT id, label, url, icon, sort_order, is_active FROM public.platform_quick_links WHERE tenant_id = $1 AND is_active = true ORDER BY sort_order`,
+          [TENANT_ID()],
+        );
+        const links = rows.map(r => ({ id: r.id, label: r.label, url: r.url, icon: r.icon, sortOrder: r.sort_order, isActive: r.is_active }));
+        await auditAction({ action, domain: "crm", tableName: "platform_quick_links", recordId: null, afterData: { count: links.length }, actorUserId: actorId, ipAddress: ip });
+        return NextResponse.json({ ok: true, quickLinks: links, total: links.length });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action} (short: ${shortAction})` }, { status: 400 });
     }

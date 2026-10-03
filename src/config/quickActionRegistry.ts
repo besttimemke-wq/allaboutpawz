@@ -425,6 +425,51 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
   { id: 'set-toggle-booking', domain: 'settings', subCategory: 'Booking', label: 'Toggle Online Self-Booking', icon: 'ToggleLeft', actionType: 'mutation', mutationKey: 'system:actions' },
   { id: 'set-edit-hours', domain: 'settings', subCategory: 'Booking', label: 'Edit Operating Hours', icon: 'Clock', actionType: 'route', targetPath: '/admin/settings' },
   { id: 'set-add-blackout', domain: 'settings', subCategory: 'Booking', label: 'Add Holiday Blackout', icon: 'CalendarX', actionType: 'mutation', mutationKey: 'system:actions' },
+  // Module 8 remaining nodes
+  { id: 'set-edit-business-profile', domain: 'settings', subCategory: 'Organization', label: 'Edit Business Profile', icon: 'Building', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'name', label: 'Business Name', type: 'text' },
+    { name: 'phone', label: 'Phone', type: 'text' },
+    { name: 'email', label: 'Email', type: 'email' },
+    { name: 'address_line1', label: 'Address', type: 'text' },
+    { name: 'city', label: 'City', type: 'text' },
+    { name: 'state', label: 'State', type: 'text' },
+    { name: 'postal_code', label: 'Postal Code', type: 'text' },
+  ] },
+  { id: 'set-edit-branding', domain: 'settings', subCategory: 'Organization', label: 'Edit Branding', icon: 'Palette', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'logo_url', label: 'Logo URL', type: 'text' },
+    { name: 'brand_color', label: 'Brand Color', type: 'text', placeholder: '#FF6B35' },
+    { name: 'tagline', label: 'Tagline', type: 'text' },
+  ] },
+  { id: 'set-edit-role', domain: 'settings', subCategory: 'Admin Users', label: 'Edit Role / Permissions', icon: 'Shield', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'staff_id', label: 'Staff ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'module_code', label: 'Module', type: 'select', options: ['customers', 'appointments', 'communications', 'payments', 'invoices', 'deposits', 'refunds_disputes', 'gift_cards_credits', 'inventory', 'products_services', 'purchasing', 'reports', 'staff_groomer_management', 'administration'], required: true },
+    { name: 'access_level', label: 'Access Level', type: 'select', options: ['none', 'read', 'write', 'full'], defaultValue: 'read' },
+    { name: 'grant_or_revoke', label: 'Action', type: 'select', options: ['grant', 'revoke'], defaultValue: 'grant' },
+  ] },
+  { id: 'set-reset-2fa', domain: 'settings', subCategory: 'Admin Users', label: 'Reset 2FA', icon: 'KeyRound', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'staff_id', label: 'Staff ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+  ] },
+  { id: 'set-suspend-user', domain: 'settings', subCategory: 'Admin Users', label: 'Suspend User', icon: 'UserX', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'staff_id', label: 'Staff ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
+    { name: 'reason', label: 'Reason', type: 'text' },
+  ] },
+  { id: 'set-edit-deposit-settings', domain: 'settings', subCategory: 'Booking', label: 'Edit Deposit Settings', icon: 'DollarSign', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'default_deposit_amount', label: 'Default Deposit Amount', type: 'number', placeholder: '25.00' },
+    { name: 'deposit_required', label: 'Deposit Required', type: 'select', options: ['true', 'false'] },
+  ] },
+  { id: 'set-edit-cancellation-policy', domain: 'settings', subCategory: 'Booking', label: 'Edit Cancellation Policy', icon: 'CalendarX', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'cancellation_window_hours', label: 'Cancellation Window (Hours)', type: 'number', placeholder: '24' },
+    { name: 'cancellation_fee', label: 'Cancellation Fee', type: 'number', placeholder: '15.00' },
+  ] },
+  { id: 'set-edit-no-show-penalty', domain: 'settings', subCategory: 'Booking', label: 'Edit No-Show Penalty', icon: 'UserX', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'no_show_fee', label: 'No-Show Fee', type: 'number', placeholder: '25.00' },
+    { name: 'no_show_grace_period', label: 'Grace Period (Minutes)', type: 'number', placeholder: '15' },
+  ] },
+  { id: 'set-view-system-health', domain: 'settings', subCategory: 'System', label: 'View System Health', icon: 'Activity', actionType: 'mutation', mutationKey: 'system:actions' },
+  { id: 'set-run-backup', domain: 'settings', subCategory: 'System', label: 'Run Backup', icon: 'DatabaseBackup', actionType: 'mutation', mutationKey: 'system:actions', requiresPayload: true, payloadFields: [
+    { name: 'backup_type', label: 'Backup Type', type: 'select', options: ['full', 'incremental', 'schema_only'], defaultValue: 'full' },
+  ] },
+  { id: 'set-view-quick-links', domain: 'settings', subCategory: 'System', label: 'View Quick Links', icon: 'Link', actionType: 'mutation', mutationKey: 'system:actions' },
   // 9. CMS
   { id: 'cms-add-service', domain: 'cms', subCategory: 'Services', label: 'Add New Service', icon: 'Plus', actionType: 'mutation', mutationKey: 'system:actions' },
   { id: 'cms-edit-pricing', domain: 'cms', subCategory: 'Services', label: 'Edit Pricing Rules', icon: 'DollarSign', actionType: 'mutation', mutationKey: 'system:actions' },
