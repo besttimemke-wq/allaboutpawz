@@ -81,10 +81,13 @@ export async function POST(req: NextRequest) {
       const fromStatus = currentRows[0].status;
       const customerId = currentRows[0].customer_id;
       // Update the appointment status + relevant timestamp column
+      // Map ACTION KEY (not status value) → timestamp column.
+      // check_in → checked_in_at, in_service → started_at, complete → completed_at.
+      // These keys MUST match the STATUS_MAP keys, NOT the status values.
       const timestampCol: Record<string, string> = {
-        checked_in: "checked_in_at",
+        check_in: "checked_in_at",
         in_service: "started_at",
-        completed: "completed_at",
+        complete: "completed_at",
       };
       const tsUpdate = timestampCol[shortAction] ? `, ${timestampCol[shortAction]} = now()` : "";
       // For no_show and cancel, capture the reason
@@ -242,9 +245,13 @@ export async function POST(req: NextRequest) {
         if (!customerId) {
           return NextResponse.json({ ok: false, error: "customer_id is required" }, { status: 400 });
         }
+        // crm_waitlist columns: requested_start_at (not preferred_date), priority NOT NULL
         const rows = await pgQuery<{ id: string }>(
-          `INSERT INTO public.crm_waitlist (id, tenant_id, customer_id, pet_id, service_id, preferred_date, notes, status, created_at)
-           VALUES (gen_random_uuid(), $1, $2::uuid, $3::uuid, $4::uuid, $5, $6, 'waiting', now())
+          `INSERT INTO public.crm_waitlist
+             (id, tenant_id, customer_id, pet_id, service_id, requested_start_at,
+              notes, status, priority, created_at, updated_at)
+           VALUES (gen_random_uuid(), $1, $2::uuid, $3::uuid, $4::uuid, $5::timestamptz,
+                   $6, 'waiting', 5, now(), now())
            RETURNING id`,
           [TENANT_ID(), customerId, petId, serviceId, preferredDate, notes],
         );

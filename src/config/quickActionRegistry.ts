@@ -132,7 +132,7 @@ export const QUICK_ACTIONS: QuickActionItem[] = [
     { name: 'customer_id', label: 'Customer ID', type: 'uuid', required: true, placeholder: '00000000-0000-...' },
     { name: 'pet_id', label: 'Pet ID (optional)', type: 'uuid' },
     { name: 'service_id', label: 'Service ID (optional)', type: 'uuid' },
-    { name: 'preferred_date', label: 'Preferred Date', type: 'date' },
+    { name: 'preferred_date', label: 'Preferred Date/Time', type: 'date' },
   ] },
   { id: 'apt-issue-refund', domain: 'appointment', label: 'Issue Refund', icon: 'RotateCcw', actionType: 'mutation', mutationKey: 'finance:actions' },
   { id: 'apt-view-customer', domain: 'appointment', label: 'View Customer', icon: 'Eye', actionType: 'route', targetPath: '/admin/customers' },
