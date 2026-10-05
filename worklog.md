@@ -1752,3 +1752,20 @@ Stage Summary:
 - Stable point landed on GitHub main as d048bce (fast-forward on the remote's 334-commit history — no force, no history loss on the server).
 - Our local secret-bearing history preserved ONLY in local tags (backup-pre-import-2026-10-03, local-lineage-backup-2026-10-03) — never to be pushed.
 - GitHub's secret scanner independently confirmed the only dirty commits were our 3 legacy local ones; current tree is clean.
+
+---
+Task ID: HOTFIX-BOOKING-42804
+Agent: Main agent (Z.ai Code)
+Task: Production incident — booking flow throwing Supabase 400 (42804 text→uuid on acct_customer_id), customers abandoning. Root-cause and fix.
+
+Work Log:
+- ENVIRONMENT EVENT: sandbox rolled back to the Sept-22 pre-import snapshot mid-session (git HEAD, files, node_modules all reverted; worklog-remote.md gone). Recovered by re-adding origin (credential-less URL), fetching, and `git reset --hard origin/main` (45a364d — the pushed stable point, which contains everything). bun install no-op; dev server restarted on our Turbopack script. Nothing lost — GitHub was the source of truth.
+- ROOT CAUSE (static analysis, definitive): migration 0013's trigger_crm_sync AFTER INSERT ON crm_customers → handle_crm_to_auth_sync() inserts (SELECT id FROM public.customers WHERE email match) into platform_customer_identity_links.acct_customer_id. Salon customers.id is TEXT (default gen_random_uuid()::text), column is UUID + NOT NULL + FK to acct_customers → 42804 on email match, NULL-violation otherwise. Every crm_customers INSERT (ensureCrmCustomer via syncCrmAppointment on booking, enrollCustomer via webhook/walk-in/OAuth, admin CRM routes) fires it. acct_customer_id appears NOWHERE else in the codebase; platform_customer_identity_links has ZERO application readers — the trigger is pure liability.
+- FIX SHIPPED (commit 3915dc7): (1) supabase/migrations/0014_drop_broken_crm_identity_trigger.sql — DROP TRIGGER IF EXISTS + DROP FUNCTION IF EXISTS, idempotent + transactional, with a commented diagnostic SELECT listing all triggers on golden-path tables (live DB is ahead of local migrations; any other dashboard-installed trigger will show there). (2) src/lib/crm/enterprise.ts ensureCrmCustomer — INSERT wrapped in try/catch: on failure, console.error + re-select (concurrent creator) + degrade to null; booking/walk-in/webhook golden paths survive ANY live-side trigger failure. (3) src/lib/auth/enroll-customer.ts — same guard; portal_customer_accounts insert skipped when crmId null (customer_id NOT NULL); auth invite (customer-visible) runs outside that transaction and always completes.
+- Verified: bun run lint 0 errors; dev server compiles + serves / and /shop 200 after guards.
+- PUSHED to GitHub main (fast-forward 45a364d → 3915dc7, transient PAT per owner protocol, output redacted, zero persistence).
+- NOTE ON SURFACING: the error format the owner saw ("Supabase 400: {json}") comes from repo.ts's PostgREST wrapper — but no PostgREST write targets crm_customers in current code, so production is likely ALSO running a live-only trigger on a salon table (dashboard/Management-API DDL beyond local files). The 0014 diagnostic SELECT enumerates those; report back any hits for a follow-up drop.
+
+Stage Summary:
+- ROOT CAUSE FIXED IN CODE + MIGRATION; LIVE DATABASE REMAINS TO BE PATCHED — the trigger must be dropped on Supabase live (SQL editor) or by this agent once the owner supplies the Supabase service key / runs: the two DROP statements from 0014. Until then, the code guards keep the booking golden path alive even with the broken trigger still installed.
+- Local .env keys: still absent post-sanitization (DATABASE_URL only). The GitHub PAT is not a Supabase key — to apply + verify the live fix end-to-end (and run the module audit against live data), the Supabase service-role key (and Stripe/Resend when needed) must be pasted once.
