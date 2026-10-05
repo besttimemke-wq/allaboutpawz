@@ -1,6 +1,7 @@
 import "server-only"
 import { Resend } from "resend"
 import { repo } from "./repo"
+import { SITE_URL } from "./site-url"
 
 // ---------------------------------------------------------------------------
 // Email via Resend npm package, called from Next.js server routes.
@@ -281,6 +282,63 @@ export async function sendPortalInvite(opts: {
     subject: "Your portal invite — All About Pawz",
     html: inviteHtml({
       actionLink: opts.actionLink,
+      role: opts.role,
+      firstName: opts.firstName,
+      lastName: opts.lastName,
+    }),
+  })
+}
+
+// ---- Provisioned-account welcome (Resend, transactional) ------------------
+// Sent when the owner creates an account WITH a password from the CRM: the
+// account is already confirmed and usable, so this email carries NO auth
+// token — just the right sign-in door for the person's role. If they ever
+// forget the password, the copy points them at the standard reset flow,
+// which runs through Supabase (the only system that can mint reset links).
+export function provisionedWelcomeHtml(opts: {
+  signinUrl: string
+  role: string
+  firstName?: string | null
+  lastName?: string | null
+}): string {
+  const fullName = [opts.firstName, opts.lastName].filter(Boolean).join(" ").trim()
+  const greet = fullName ? `Hi ${fullName},` : "Hi there,"
+  const roleLine = opts.role
+    ? `<p style="margin:8px 0 0;color:#555;font-size:14px">Your account is set up as <strong style="color:#9a7b3c;text-transform:capitalize">${escapeHtml(opts.role)}</strong>.</p>`
+    : ""
+  return `<!doctype html><html><body style="font-family:Georgia,'Playfair Display',serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
+<p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Your Account Is Ready</p>
+<h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">${greet}</h1>
+<p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
+${roleLine}
+<p style="margin:16px 0">Your All About Pawz portal account is set up and ready to use. The salon team created it for you and gave you a temporary password — sign in below and make yourself at home.</p>
+<a href="${escapeHtml(opts.signinUrl)}" style="display:inline-block;background:#1a1a1a;color:#faf7f2;padding:14px 32px;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:0.14em;font-family:sans-serif;text-transform:uppercase;border-radius:4px">Sign In To Your Portal</a>
+<p style="margin:16px 0 8px;font-size:13px;color:#555">After signing in with your temporary password, you can change it any time using the <em>Forgot password</em> link on the sign-in page — that reset email comes straight from our account system and is safe to click.</p>
+<hr style="border:none;border-top:1px solid #e0d6bf;margin:24px 0"/>
+<p style="font-size:11px;color:#999">If you weren't expecting this account, contact the salon before using it.</p>
+</body></html>`
+}
+
+// The right door for the person's role — the same doors the portals use.
+function signinDoorFor(role: string): string {
+  if (["owner", "admin", "manager"].includes(role)) return `${SITE_URL}/admin-login`
+  if (role === "customer") return `${SITE_URL}/access-customer`
+  if (role === "groomer") return `${SITE_URL}/access-groomer`
+  return `${SITE_URL}/access-frontdesk`
+}
+
+export async function sendPortalWelcome(opts: {
+  to: string
+  role: string
+  firstName?: string | null
+  lastName?: string | null
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  return sendEmail({
+    to: opts.to,
+    template: "portal_welcome",
+    subject: "Your portal account is ready — All About Pawz",
+    html: provisionedWelcomeHtml({
+      signinUrl: signinDoorFor(opts.role),
       role: opts.role,
       firstName: opts.firstName,
       lastName: opts.lastName,

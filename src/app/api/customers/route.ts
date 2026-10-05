@@ -149,16 +149,22 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Persist in Supabase
+    // NULL-only backfill on the UPDATE path: a non-empty incoming value
+    // overwrites, an empty one never erases what the salon (or the
+    // customer's last visit) already has on file. The wizard's email-first
+    // step intentionally creates the CRM row early (name + email only) so
+    // abandonment is attributable — that partial create must never wipe
+    // an existing returning customer's contact details.
     const data: any = {
       firstName,
-      lastName: lastName || "",
+      lastName: lastName || (found?.lastName ?? ""),
       email,
-      phone: phone || "",
-      address: address || "",
-      addressLine2: addressLine2 || "",
-      city: city || "",
-      state: state || "",
-      postalCode: postalCode || "",
+      phone: phone || (found?.phone ?? ""),
+      address: address || (found?.address ?? ""),
+      addressLine2: addressLine2 || (found?.addressLine2 ?? ""),
+      city: city || (found?.city ?? ""),
+      state: state || (found?.state ?? ""),
+      postalCode: postalCode || (found?.postalCode ?? ""),
       stripeCustomerId: (stripeCustomer as Stripe.Customer)?.id || found?.stripeCustomerId || null,
       customerStatus: "ACTIVE",
     };
