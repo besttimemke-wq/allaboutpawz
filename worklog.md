@@ -1790,3 +1790,22 @@ Stage Summary:
 - Survey delivered as audit_report_LIVE-SURVEY.md — the working paper for the module-by-module gap closing.
 - GitHub push PENDING: previous PAT invalid; hotfix commit 3915dc7 + worklog + this survey are local; owner must supply fresh PAT or push manually.
 - NEXT: Phase 0 registry reconciliation (merge 237-action live spec into quickActionRegistry.ts), then the Phase 1 handler sprint.
+
+---
+Task ID: E2E-ADMIN-INVITE-1
+Agent: Main agent (Z.ai Code)
+Task: Dev server had died — restart on the stable script, log a user into the CRM, then test admin-panel user creation/invite E2E before the owner pushes.
+
+Work Log:
+- DEV SERVER DEATH root cause: it was started with `bun run dev` (the `next dev | tee dev.log` pipeline) directly in a session — dies with the session (the daemon script's own comment: "the tee pipeline causes death"). This is what killed it when the owner clicked Start Booking, NOT booking code. Restarted via `bun run dev:daemon` (setsid, fully detached, PID recorded in .next/dev-daemon.pid) — survives session churn. Stable scripts unchanged: dev = Turbopack on 3000 (owner directive: no --webpack).
+- E2E TEST ADMIN provisioned on live Supabase (mirrors POST /api/admin/users exactly): auth user e2e.admin@allaboutpawz.com (email_confirmed) + tenant_memberships role admin + staff row; email appended to local .env ADMIN_EMAILS (gitignored, local-only). Credentials reported to owner in chat ONLY (not stored in any tracked file). To remove: Revoke Access in Users & Access + delete auth user in Supabase dashboard.
+- E2E VERIFIED with agent-browser: / renders (title correct, 0 errors); BOOK APPOINTMENT -> /book/appointment wizard renders all 9 steps (server survived the full flow); /admin-login -> real password grant -> role resolved server-side -> /admin/dashboard with full module nav (CRM/Orders/Accounting/LMS); Users & Access loads live data (owner + groomer + invited customer rows).
+- BUG FOUND during the invite test: POST /api/admin/users 500 "tenant_memberships_user_id_fkey" (23503). Root cause chain: Supabase inviteUserByEmail intermittently 500s "Error sending invite email" (AuthRetryableFetchError — live SMTP is FLAKY, recovers on retry); the route SWALLOWED that error, then fabricated gen_random_uuid() as user_id -> FK violation. Probe matrix: inviteUserByEmail flaky; createUser(password, email_confirm:false) works (sends no email); project has Confirm-email ON (unconfirmed users cannot sign in — "Email not confirmed").
+- FIX (commit 0c0028d): auth-stage errors captured + logged; no auth user -> 502 with actionable message ("Enter a temporary password to provision without email, or retry"); gen_random_uuid() fallback REMOVED (pg + no-pg branches); inviteSent only true when an email actually went out; password path reports honest delivery. bun run lint clean (0/0).
+- E2E RE-VERIFIED post-fix: blank-password invite -> 200 "Invitation email sent" + row INVITED in list (SMTP had recovered — proves flakiness); temp-password create -> 200 honest message; Re-send invitation email button -> 200 "Invitation re-sent". Test rows kept for owner inspection: e2e-fresh@example.org (INVITED, invite flow), e2e-staff@example.org (INVITED, temp-password flow; unconfirmed so cannot sign in). Mobile 390px home verified; screenshot .zshots/e2e-users-invite.png (gitignored).
+- ENVIRONMENT FINDING for the owner: Supabase built-in email service is intermittently erroring on this project. Invites eventually succeed on retry; when it fails the panel now says so clearly. Recommend configuring custom SMTP (Supabase dashboard -> Auth -> SMTP) for reliable invites.
+
+Stage Summary:
+- Dev server alive on the stable daemon script; CRM login + admin user creation/invite/re-send all E2E-green; provisioning 500 FK bug fixed and committed (0c0028d, local only — push needs owner PAT).
+- Test artifacts on live DB: e2e.admin (ACTIVE admin — owner's replay login), e2e-fresh + e2e-staff (INVITED demo rows, unconfirmed, harmless). Cleanup path documented above.
+- Supabase SMTP flakiness documented — the one environmental blocker for fully-self-service email invites; everything else works.
