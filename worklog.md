@@ -1769,3 +1769,24 @@ Work Log:
 Stage Summary:
 - ROOT CAUSE FIXED IN CODE + MIGRATION; LIVE DATABASE REMAINS TO BE PATCHED — the trigger must be dropped on Supabase live (SQL editor) or by this agent once the owner supplies the Supabase service key / runs: the two DROP statements from 0014. Until then, the code guards keep the booking golden path alive even with the broken trigger still installed.
 - Local .env keys: still absent post-sanitization (DATABASE_URL only). The GitHub PAT is not a Supabase key — to apply + verify the live fix end-to-end (and run the module audit against live data), the Supabase service-role key (and Stripe/Resend when needed) must be pasted once.
+
+---
+Task ID: KEYS-LIVEFIX-SURVEY
+Agent: Main agent (Z.ai Code)
+Task: Install owner-supplied production keys; apply the 42804 hotfix to the LIVE database; run the live Supabase survey for the CRM ship audit.
+
+Work Log:
+- .env written with all production keys under the exact names the code reads (owner's paste had label typos — corrected: SUPABSE_/SUBABASE_ → SUPABASE_, STRIPE_Secret → STRIPE_SECRET_KEY, publishable → NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, USPS labels → USPS_* names). .env verified GITIGNORED + 0 tracked env files; values never logged/committed. REVALIDATE_SECRET generated (see .env). AI_GATEWAY_API_KEY (vck_) included for future AI features.
+- Server restart → /api/cms/status: supabaseConfigured TRUE, resendReady TRUE. /book 200.
+- LIVE PATCH via pg pooler (script read creds from env; no secrets inline; temp scripts deleted after): (1) trigger_crm_sync (0013) confirmed present on live → DROPPED → probe INSERT into crm_customers (the previously-failing statement) SUCCESS, row cleaned. (2) SECOND live-only landmine found by diagnostics: trigger_sync_customer_identities AFTER INSERT ON customers (NOT in any migration — dashboard-installed) inserting NEW.id TEXT into uuid acct_customer_id — the PRIMARY wizard CONTACT-step killer, fired only for returning customers (email matched a crm_customers row). DROPPED + function dropped. Salon INSERT with CRM-matched email → SUCCESS, cleaned. (3) FULL write-trigger sweep across ALL public tables: ZERO remaining write-triggers (only benign touch_updated_at).
+- E2E through the real API: seeded CRM row (returning-customer conditions) → POST /api/customers → 201 SUCCESS (wizard CONTACT step unblocked), Stripe live customer created + deleted, both probe rows removed, zero residue.
+- LIVE SURVEY (ground truth): 403 public tables (+32 views), 347 public functions, 4 RPCs called by code (financial reports — verified working). platform_quick_action_registry = 237 rows (THE spec; owner's "213+" figure) vs code registry 184 (166 mutations + 16 routes + 2 other). Handler cases: 208 across 7 routes. WIRING MATRIX: 140/166 mutations wired; 26 broken (apt status pipeline ×7, gift-card lifecycle ×8, register slips ×6, financial report aliases ×6 — RPCs exist, case names mismatch). 133 live actions lack same-named code entries (name drift + genuinely-new families: cp_* customer portal ~17, emp_* employee portal ~14, sys_search_* ×8, sys_run_* ×8, rpt_* ~20, org_* ~16). Tables never referenced in src: 219/403 (acct 67, crm 45, erp 37, commerce 36, platform 10, misc 24). TanStack: 24 query hooks + mutation engine. platform_module_permissions: 0 rows (RBAC unenforced). dogs table: 0 rows.
+- Wrote audit_report_LIVE-SURVEY.md (repo root, next to DEEP-AUDIT-API): incident closure, scale census, three-registry matrix, unwired tables by module, ship-readiness math (158/237 = 67% — matches owner's 70% estimate; fixing the 26 broken → 78%), and the 2-day execution plan (Phase 0 registry reconciliation → Phase 1 cross-cutting spine → Phase 2 portals → Phase 3 RBAC hardening), handlers-first, no stubs, no subagents.
+- Temp scripts deleted. This worklog entry is sanitized (no key values anywhere).
+
+Stage Summary:
+- BOOKING FLOW FIXED IN PRODUCTION (both triggers dropped, E2E-proven 201, zero residue). Golden-path code guards already shipped in 3915dc7 as defense-in-depth.
+- App fully live-configured locally (Supabase + Stripe live + Resend + USPS + PostHog + Google OAuth).
+- Survey delivered as audit_report_LIVE-SURVEY.md — the working paper for the module-by-module gap closing.
+- GitHub push PENDING: previous PAT invalid; hotfix commit 3915dc7 + worklog + this survey are local; owner must supply fresh PAT or push manually.
+- NEXT: Phase 0 registry reconciliation (merge 237-action live spec into quickActionRegistry.ts), then the Phase 1 handler sprint.
