@@ -70,3 +70,4 @@ nohup.out
 
 # --- agent session artifacts (may capture file contents incl. secrets) ---
 agent-ctx/
+.zshots/

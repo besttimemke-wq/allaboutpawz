@@ -279,38 +279,52 @@ export async function POST(req: NextRequest) {
 
     let authUserId: string | null = null;
     let inviteSent = false;
+    let authStageError: string | null = null;
     if (supabaseAdmin) {
       const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
       const found = existing?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
       if (found) {
         authUserId = found.id;
         // Existing account that never confirmed its email — re-send the
-        // invitation so they can still set a password.
+        // invitation so they can still set a password. Failure is NOT fatal
+        // (the account exists; provisioning proceeds) but is logged and
+        // reported honestly instead of claiming the email went out.
         if (!found.email_confirmed_at) {
-          await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+          const { error: resendError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
             data: found.user_metadata || {},
           });
-          inviteSent = true;
+          if (resendError) {
+            console.error("[POST /api/admin/users] re-invite failed:", resendError.message);
+            authStageError = resendError.message;
+          } else {
+            inviteSent = true;
+          }
         }
       } else {
         // THE INVITE FLOW (the owner's spec): Supabase emails the user a link
         // to set their own password — no silent random password, no
         // pre-confirmed email. If the admin typed a temporary password it is
-        // set on the account, and the email STILL goes out unconfirmed so
-        // the user lands on set-password and chooses their own.
+        // set on the account; createUser sends NO email, so the password
+        // itself is the delivery. Errors here ARE fatal for provisioning
+        // (no auth user → no membership row) and are surfaced, never swallowed.
         if (password) {
           const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({
             email, password, email_confirm: false, user_metadata: { full_name: name, role },
           });
-          if (!error && newUser?.user) {
+          if (error) {
+            authStageError = error.message;
+            console.error("[POST /api/admin/users] createUser failed:", error.message);
+          } else if (newUser?.user) {
             authUserId = newUser.user.id;
-            inviteSent = true; // email_confirm:false + autoconfirm off → Supabase emails the link
           }
         } else {
           const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
             data: { full_name: name, role },
           });
-          if (!error && invited?.user) {
+          if (error) {
+            authStageError = error.message;
+            console.error("[POST /api/admin/users] invite failed:", error.message);
+          } else if (invited?.user) {
             authUserId = invited.user.id;
             inviteSent = true;
           }
@@ -322,7 +336,20 @@ export async function POST(req: NextRequest) {
       if (!authUserId) {
         const dbUser = await pgClient.query("SELECT id::text FROM auth.users WHERE email = $1 LIMIT 1", [email]);
         if (dbUser.rows.length > 0) authUserId = dbUser.rows[0].id;
-        else authUserId = (await pgClient.query("SELECT gen_random_uuid()::text as id")).rows[0].id;
+      }
+      // No auth account could be created, invited, or found. The membership
+      // table is FK-bound to auth.users, so provisioning CANNOT proceed —
+      // a fabricated UUID would only surface as a 23503 FK violation.
+      if (!authUserId) {
+        await pgClient.end();
+        return NextResponse.json(
+          {
+            error: authStageError
+              ? `Supabase could not create the account (${authStageError}). Enter a temporary password to provision it without email, or retry when the email service recovers.`
+              : "No Supabase auth account exists for that email. Enter a temporary password and retry.",
+          },
+          { status: 502 },
+        );
       }
 
       const targetScope = ["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee";
@@ -346,7 +373,11 @@ export async function POST(req: NextRequest) {
       await pgClient.end();
       const inviteNote = inviteSent
         ? ` Invitation email sent to ${email} — they set their own password from the link.`
-        : "";
+        : password && !authStageError
+          ? ` Account created with the temporary password you entered — share it securely with ${email}.`
+          : authStageError
+            ? ` Provisioned from the existing account (invitation email failed: ${authStageError}).`
+            : "";
       return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, message: `Provisioned ${email} with ${role} access.${inviteNote}` });
     }
 
@@ -354,21 +385,29 @@ export async function POST(req: NextRequest) {
     if (!supabaseAdmin) {
       return NextResponse.json({ error: "Supabase connection not configured" }, { status: 500 });
     }
+    if (!authUserId) {
+      return NextResponse.json(
+        {
+          error: authStageError
+            ? `Supabase could not create the account (${authStageError}). Enter a temporary password to provision it without email, or retry when the email service recovers.`
+            : "No Supabase auth account exists for that email. Enter a temporary password and retry.",
+        },
+        { status: 502 },
+      );
+    }
 
     const targetScope = ["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee";
 
     if (targetScope === "admin" || targetScope === "employee") {
       const validRole = ["owner", "admin", "manager", "staff", "viewer", "groomer", "front_desk"].includes(role) ? role : "staff";
-      if (authUserId) {
-        await supabaseAdmin.from("tenant_memberships").upsert({
-          tenant_id: targetTenant,
-          user_id: authUserId,
-          role: validRole,
-          active: true,
-          status: "active",
-          mfa_enabled: !!enforce2FA,
-        }, { onConflict: "tenant_id,user_id" });
-      }
+      await supabaseAdmin.from("tenant_memberships").upsert({
+        tenant_id: targetTenant,
+        user_id: authUserId,
+        role: validRole,
+        active: true,
+        status: "active",
+        mfa_enabled: !!enforce2FA,
+      }, { onConflict: "tenant_id,user_id" });
       await supabaseAdmin.from("staff").insert({
         name: name || email.split("@")[0],
         email,
@@ -395,7 +434,9 @@ export async function POST(req: NextRequest) {
 
     const inviteNote = inviteSent
       ? ` Invitation email sent to ${email} — they set their own password from the link.`
-      : "";
+      : password && !authStageError
+        ? ` Account created with the temporary password you entered — share it securely with ${email}.`
+        : "";
     return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, message: `Provisioned ${email} with ${role} access via Supabase.${inviteNote}` });
   } catch (err: any) {
     console.error("[POST /api/admin/users]", err);
