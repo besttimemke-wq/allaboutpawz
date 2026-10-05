@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 import { requireAdminApi } from "@/lib/admin/gate";
+import { sendPortalInvite } from "@/lib/email";
 
 const SB_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "")?.replace(/\/$/, "");
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
@@ -17,6 +18,40 @@ async function getPgClient() {
   const client = new pg.Client({ connectionString: cs, ssl: { rejectUnauthorized: false } });
   await client.connect();
   return client;
+}
+
+// Deliver a portal invite email: RESEND FIRST (branded template, from
+// notifications@confirmation.aapawz.com, audit-trailed in email_messages —
+// the exact pipeline /api/auth/invite and every transactional email uses),
+// with Supabase's built-in mailer as the fallback. The action_link is the
+// signed invite URL Supabase generates — generateLink sends NO email itself,
+// which is what lets us own the delivery.
+async function deliverInviteEmail(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  opts: { email: string; name: string; role: string },
+): Promise<{ ok: boolean; via: "resend" | "supabase" | "none"; error?: string }> {
+  let actionLink = "";
+  try {
+    const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({ type: "invite", email: opts.email });
+    actionLink = (linkData as any)?.properties?.action_link || "";
+  } catch { /* link generation is best-effort; fallback below */ }
+  if (actionLink) {
+    const parts = (opts.name || "").trim().split(/\s+/).filter(Boolean);
+    const result = await sendPortalInvite({
+      to: opts.email,
+      actionLink,
+      role: opts.role,
+      firstName: parts[0] || null,
+      lastName: parts.length > 1 ? parts.slice(1).join(" ") : null,
+    }).catch((e: any) => ({ ok: false, error: e?.message || String(e) }));
+    if (result?.ok) return { ok: true, via: "resend" };
+    console.error("[POST /api/admin/users] Resend invite failed:", result?.error);
+  }
+  const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(opts.email, {
+    data: { full_name: opts.name, role: opts.role },
+  });
+  if (inviteError) return { ok: false, via: "none", error: inviteError.message };
+  return { ok: true, via: "supabase" };
 }
 
 export async function GET(req: NextRequest) {
@@ -266,13 +301,15 @@ export async function POST(req: NextRequest) {
       if (!found) {
         return NextResponse.json({ error: "No account found for that email." }, { status: 404 });
       }
-      const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-        data: found.user_metadata || {},
+      const delivered = await deliverInviteEmail(supabaseAdmin, {
+        email,
+        name: (found.user_metadata?.full_name as string) || "",
+        role: (found.user_metadata?.role as string) || "staff",
       });
-      if (inviteError) {
-        return NextResponse.json({ error: inviteError.message }, { status: 500 });
+      if (!delivered.ok) {
+        return NextResponse.json({ error: delivered.error || "Invitation email failed to send." }, { status: 500 });
       }
-      return NextResponse.json({ success: true, email, message: `Invitation re-sent to ${email}.` });
+      return NextResponse.json({ success: true, email, message: `Invitation re-sent to ${email}.${delivered.via === "supabase" ? " (via Supabase mailer)" : ""}` });
     }
 
     if (!role) return NextResponse.json({ error: "Role is required" }, { status: 400 });
@@ -290,43 +327,43 @@ export async function POST(req: NextRequest) {
         // (the account exists; provisioning proceeds) but is logged and
         // reported honestly instead of claiming the email went out.
         if (!found.email_confirmed_at) {
-          const { error: resendError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-            data: found.user_metadata || {},
+          const delivered = await deliverInviteEmail(supabaseAdmin, {
+            email,
+            name: (found.user_metadata?.full_name as string) || name || "",
+            role: (found.user_metadata?.role as string) || role,
           });
-          if (resendError) {
-            console.error("[POST /api/admin/users] re-invite failed:", resendError.message);
-            authStageError = resendError.message;
-          } else {
+          if (delivered.ok) {
             inviteSent = true;
+          } else {
+            authStageError = delivered.error || "invitation email failed";
+            console.error("[POST /api/admin/users] re-invite failed:", authStageError);
           }
         }
       } else {
-        // THE INVITE FLOW (the owner's spec): Supabase emails the user a link
-        // to set their own password — no silent random password, no
-        // pre-confirmed email. If the admin typed a temporary password it is
-        // set on the account; createUser sends NO email, so the password
-        // itself is the delivery. Errors here ARE fatal for provisioning
-        // (no auth user → no membership row) and are surfaced, never swallowed.
-        if (password) {
-          const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({
-            email, password, email_confirm: false, user_metadata: { full_name: name, role },
-          });
-          if (error) {
-            authStageError = error.message;
-            console.error("[POST /api/admin/users] createUser failed:", error.message);
-          } else if (newUser?.user) {
-            authUserId = newUser.user.id;
-          }
-        } else {
-          const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-            data: { full_name: name, role },
-          });
-          if (error) {
-            authStageError = error.message;
-            console.error("[POST /api/admin/users] invite failed:", error.message);
-          } else if (invited?.user) {
-            authUserId = invited.user.id;
+        // THE INVITE FLOW (the owner's spec): create the account WITHOUT email
+        // confirmation, then deliver the invitation email through the SAME
+        // Resend pipeline every transactional email uses (branded template,
+        // audit trail, notifications@confirmation.aapawz.com sender) — with
+        // Supabase's built-in mailer as fallback. If the admin typed a
+        // temporary password it is set on the account; the invite link still
+        // lets the user choose their own password on first sign-in.
+        const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          ...(password ? { password } : {}),
+          email_confirm: false,
+          user_metadata: { full_name: name, role },
+        });
+        if (error) {
+          authStageError = error.message;
+          console.error("[POST /api/admin/users] createUser failed:", error.message);
+        } else if (newUser?.user) {
+          authUserId = newUser.user.id;
+          const delivered = await deliverInviteEmail(supabaseAdmin, { email, name: name || "", role });
+          if (delivered.ok) {
             inviteSent = true;
+          } else {
+            authStageError = delivered.error || "invitation email failed";
+            console.error("[POST /api/admin/users] invite delivery failed:", authStageError);
           }
         }
       }
@@ -373,8 +410,8 @@ export async function POST(req: NextRequest) {
       await pgClient.end();
       const inviteNote = inviteSent
         ? ` Invitation email sent to ${email} — they set their own password from the link.`
-        : password && !authStageError
-          ? ` Account created with the temporary password you entered — share it securely with ${email}.`
+        : password
+          ? ` Account created with the temporary password you entered${authStageError ? ` (invitation email failed: ${authStageError})` : ` — share it securely with ${email}`}.`
           : authStageError
             ? ` Provisioned from the existing account (invitation email failed: ${authStageError}).`
             : "";
@@ -434,9 +471,11 @@ export async function POST(req: NextRequest) {
 
     const inviteNote = inviteSent
       ? ` Invitation email sent to ${email} — they set their own password from the link.`
-      : password && !authStageError
-        ? ` Account created with the temporary password you entered — share it securely with ${email}.`
-        : "";
+      : password
+        ? ` Account created with the temporary password you entered${authStageError ? ` (invitation email failed: ${authStageError})` : ` — share it securely with ${email}`}.`
+        : authStageError
+          ? ` Provisioned from the existing account (invitation email failed: ${authStageError}).`
+          : "";
     return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, message: `Provisioned ${email} with ${role} access via Supabase.${inviteNote}` });
   } catch (err: any) {
     console.error("[POST /api/admin/users]", err);
