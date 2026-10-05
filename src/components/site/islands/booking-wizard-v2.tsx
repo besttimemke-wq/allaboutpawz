@@ -60,6 +60,13 @@ export function BookingWizardV2({
   const [redirecting, setRedirecting] = useState(false)
   const [success, setSuccess] = useState<"booking" | "consultation" | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
+  // Abandoned-deposit recovery — set when Stripe bounces the customer back
+  // via ?cancelled=1. The wizard state rehydrates from localStorage, so the
+  // banner offers a one-click resume of the SAME PAYMENT_PENDING booking
+  // (no duplicate rows) via POST /api/bookings/resume.
+  const [resumable, setResumable] = useState(false)
+  const [resuming, setResuming] = useState(false)
+  const [resumeError, setResumeError] = useState<string | null>(null)
 
   // Hydrate from localStorage (avoid SSR mismatch). The ROUTE owns the
   // flow — /book/appointment and /book/consultation each render their own
@@ -106,6 +113,11 @@ export function BookingWizardV2({
       // GA4 generate_lead — the consultation request is a salon lead.
       track.generateLead("consultation", { breed: selectedBreed?.name })
       identifyViewer(s.email)
+    }
+    // Stripe cancel-back — the deposit checkout was abandoned. The wizard
+    // state (all 9 steps + bookingId) rehydrates from localStorage below.
+    if (params.get("cancelled") === "1") {
+      setResumable(true)
     }
      
   }, [])
@@ -183,6 +195,17 @@ export function BookingWizardV2({
     // Step 3 → create dog
     if (s.step === 3) {
       try {
+        // Classic columns (breed/size/weight/age) are what the admin Pets
+        // views render — fill them from the same wizard data so the row is
+        // complete, not just the newer id-based columns.
+        const ageFromBirth = (bd: string) => {
+          if (!bd) return null
+          const months = Math.floor((Date.now() - new Date(bd).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+          if (months < 0) return null
+          if (months < 12) return months > 0 ? `${months} months` : "Under 1 month"
+          const years = Math.floor(months / 12)
+          return `${years} ${years === 1 ? "year" : "years"}`
+        }
         const res = await fetch("/api/cms/dogs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -191,6 +214,10 @@ export function BookingWizardV2({
             name: s.dogName,
             breedId: s.breedId,
             breedName: selectedBreed?.name || "",
+            breed: selectedBreed?.name || "",
+            size: dogSize,
+            weight: s.weightLbs ? `${s.weightLbs} lbs` : null,
+            age: ageFromBirth(s.birthDate),
             sex: s.sex || null,
             birthDate: s.birthDate || null,
             weightLbs: s.weightLbs ? parseFloat(s.weightLbs) : null,
@@ -332,13 +359,15 @@ export function BookingWizardV2({
           return
         }
         const data = await res.json()
+        // Persist the booking id BEFORE the Stripe redirect so an abandoned
+        // checkout can be resumed (same row, fresh session) from localStorage.
+        if (data.bookingId) s.patch({ bookingId: data.bookingId })
         if (data.url) {
           setRedirecting(true)
           window.location.href = data.url
           return
         }
         if (data.bookingId) {
-          s.patch({ bookingId: data.bookingId })
           setSuccess("booking")
         }
       }
@@ -425,6 +454,60 @@ export function BookingWizardV2({
 
   return (
     <div className="space-y-6">
+      {/* Abandoned-deposit recovery — Stripe sent the customer back without
+          paying. Everything they entered is intact; offer to finish the SAME
+          booking (no duplicate rows, fresh Stripe session). */}
+      {resumable && !isConsult && s.bookingId && (
+        <div className="border border-gold/40 bg-cream-deep px-4 py-4">
+          <p className="eyebrow">YOUR BOOKING IS SAVED</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink">
+            Your appointment request for <strong>{s.dogName || "your pup"}</strong>
+            {s.date ? <> on <strong>{s.date}</strong></> : null} is reserved — only the $25
+            deposit is still pending. Complete it below or review your details first;
+            nothing you entered was lost.
+          </p>
+          {resumeError && (
+            <p className="mt-2 text-[12px] text-red-700">{resumeError}</p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={resuming}
+              onClick={async () => {
+                setResuming(true)
+                setResumeError(null)
+                try {
+                  const res = await fetch("/api/bookings/resume", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ bookingId: s.bookingId }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (res.ok && data.url) {
+                    setRedirecting(true)
+                    window.location.href = data.url
+                    return
+                  }
+                  setResumeError(data.error || "Could not reopen the deposit checkout — continue below and resubmit.")
+                  setResumable(false)
+                } catch {
+                  setResumeError("Network error — continue below and resubmit.")
+                  setResumable(false)
+                } finally {
+                  setResuming(false)
+                }
+              }}
+              className="btn-gold"
+            >
+              {resuming ? "OPENING CHECKOUT…" : "COMPLETE $25 DEPOSIT"}
+            </button>
+            <button type="button" onClick={() => setResumable(false)} className="btn-ghost">
+              REVIEW MY BOOKING FIRST
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Mode line — reflects which flow page you're on */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="eyebrow">{isConsult ? "FREE CONSULTATION REQUEST" : "RESERVE YOUR VISIT"}</p>

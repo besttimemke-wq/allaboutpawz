@@ -40,6 +40,7 @@ function getStripe(): Stripe | null {
 //
 // Events handled:
 //   checkout.session.completed → shop order paid → ledger + inventory + CRM + receipt
+//   checkout.session.expired → abandoned checkout → booking/payment row marked ABANDONED
 //   payment_intent.succeeded → POS sale paid → ledger + CRM + receipt
 //   charge.refunded → refund processed → reversal ledger entry + CRM note
 //   invoice.paid → subscription invoice paid → ledger + CRM + subscription status
@@ -79,6 +80,9 @@ export async function POST(request: NextRequest) {
       case "checkout.session.completed":
         await handleCheckoutCompleted(supabase, event)
         break
+      case "checkout.session.expired":
+        await handleCheckoutExpired(event)
+        break
       case "payment_intent.succeeded":
         await handlePaymentIntentSucceeded(supabase, event)
         break
@@ -113,6 +117,52 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     console.error("[stripe/webhook] error:", err?.message)
     return NextResponse.json({ error: err?.message || "Webhook failed" }, { status: 500 })
+  }
+}
+
+// ============================================================================
+// checkout.session.expired — abandoned checkout
+// The customer never completed payment (Stripe expires the session ~24h after
+// creation). For booking deposits: keep the booking in PAYMENT_PENDING (it is
+// still resumable — POST /api/bookings/resume issues a fresh session) but mark
+// paymentStatus ABANDONED so the admin surfaces can distinguish "actively
+// awaiting payment" from "customer walked away". The commerce_payments row is
+// flipped to abandoned so the pending-payments list stays truthful. No email
+// here: the in-wizard recovery banner + the owner's manual follow-up own the
+// outreach (an automated recovery email needs scheduler infrastructure that
+// does not exist yet).
+// ============================================================================
+async function handleCheckoutExpired(event: Stripe.Event) {
+  const session = event.data?.object as Stripe.Checkout.Session
+  const bookingId = session?.metadata?.bookingId
+  console.log(`[stripe/webhook] checkout.session.expired: type=${session?.metadata?.type} bookingId=${bookingId || "-"}`)
+
+  if (session?.metadata?.type !== "booking_deposit" || !bookingId) {
+    // Shop-bag expirations are logged only for now — order rows keep their
+    // own pending state and the bag survives client-side.
+    return
+  }
+
+  try {
+    await withPg(async (client) => {
+      // Only abandon when this is STILL the active session — a resumed
+      // booking points at a newer session id and must not be touched.
+      await client.query(
+        `UPDATE public.bookings
+         SET "paymentStatus" = 'ABANDONED', "updatedAt" = now()
+         WHERE id = $1 AND status = 'PAYMENT_PENDING'
+           AND ("stripeCheckoutSessionId" IS NULL OR "stripeCheckoutSessionId" = $2)`,
+        [String(bookingId), String(session.id || "")],
+      )
+      await client.query(
+        `UPDATE public.commerce_payments
+         SET status = 'abandoned'
+         WHERE payment_number = $1 AND status = 'pending'`,
+        [`PAY-${String(bookingId).slice(0, 8).toUpperCase()}`],
+      ).catch(() => {/* payment row is best-effort */})
+    })
+  } catch (e: any) {
+    console.error("[stripe/webhook] expired-session handling failed:", e?.message)
   }
 }
 

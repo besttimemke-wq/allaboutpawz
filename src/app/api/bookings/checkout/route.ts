@@ -3,7 +3,7 @@ import Stripe from "stripe"
 import { repo } from "@/lib/repo"
 import { sendEmail } from "@/lib/email"
 import { callbackBase } from "@/lib/site-url"
-import { syncCrmAppointment, writeCommercePayment, withPg } from "@/lib/crm/enterprise"
+import { syncCrmAppointment, writeCommercePayment, withPg, TENANT_ID } from "@/lib/crm/enterprise"
 import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 
 const salonNotifyTo = "booking@aapawz.com"
@@ -102,11 +102,18 @@ export async function POST(req: NextRequest) {
       const existing = existingProfiles.find((p) => p.dogId === dogId)
       const profileData: any = {
         dogId,
+        // tenant_id is NOT NULL on the enterprise tables — without it the
+        // insert 400s (23502) and every coat/handling field silently vanished
+        // (non-fatal try/catch) while the customer paid. Same fix below for
+        // the grooming-request row.
+        tenant_id: TENANT_ID(),
         coatTypeId: groomingProfile.coatTypeId || null,
         coatTextureId: groomingProfile.coatTextureId || null,
         coatLengthId: groomingProfile.coatLengthId || null,
         coatConditionId: groomingProfile.coatConditionId || null,
-        sheddingLevel: groomingProfile.sheddingLevel || null,
+        // The wizard sends sheddingLevelId (the lookup id) — the column keeps
+        // the id as text, consistent with every other id column on this table.
+        sheddingLevel: groomingProfile.sheddingLevelId || groomingProfile.sheddingLevel || null,
         currentHaircutStyleId: groomingProfile.currentHaircutStyleId || null,
         currentBodyLengthId: groomingProfile.currentBodyLengthId || null,
         temperament: groomingProfile.temperament || null,
@@ -138,6 +145,7 @@ export async function POST(req: NextRequest) {
     try {
       const gr = (await repo.create("appointment_grooming_requests", {
         bookingId: booking.id,
+        tenant_id: TENANT_ID(),
         styleId: groomingRequest.styleId || null,
         bodyLengthId: groomingRequest.bodyLengthId || null,
         bodyStyleId: groomingRequest.bodyStyleId || null,
@@ -233,7 +241,7 @@ export async function POST(req: NextRequest) {
       success_url: booking?.id
         ? `${origin}/book/appointment?success=booking&booking_id=${booking.id}`
         : `${origin}/book/appointment?success=booking`,
-      cancel_url: `${origin}/book?cancelled=1`,
+      cancel_url: `${origin}/book/appointment?cancelled=1`,
       metadata: {
         bookingId: booking?.id || "",
         type: "booking_deposit",

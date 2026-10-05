@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { repo, type CmsResource } from "@/lib/repo"
+import { repo, type CmsResource, supabaseConfig, supabaseReady, usingSupabase } from "@/lib/repo"
 import { sendBookingConfirmation, sendConsultationRequest } from "@/lib/email"
 import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 import { requireAdminApi } from "@/lib/admin/gate"
@@ -74,6 +74,45 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ slug: stri
 export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await ctx.params
   const [resource] = slug
+
+  // ---- Public image upload (booking-wizard pet photo) --------------------
+  // POST /api/cms/upload (multipart/form-data, field "file") → Supabase
+  // Storage cms-media bucket. The wizard uploads BEFORE the dog row exists,
+  // then links the URL via PATCH /api/dogs/[id]/photo after creation. Same
+  // contract as /api/dogs/[id]/photo: images only, 5 MB cap, public URL back.
+  if (resource === "upload") {
+    if (!supabaseReady || !(await usingSupabase())) {
+      return NextResponse.json({ error: "Upload requires Supabase. Set NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env." }, { status: 503 })
+    }
+    const form = await req.formData().catch(() => null)
+    const file = form?.get("file")
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 })
+    }
+    const MAX = 5 * 1024 * 1024
+    if (file.size > MAX) return NextResponse.json({ error: "Image too large (5 MB max)" }, { status: 413 })
+    if (!/^image\//.test(file.type || "")) return NextResponse.json({ error: "File must be an image" }, { status: 415 })
+
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg"
+    const path = `wizard/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const buf = Buffer.from(await file.arrayBuffer())
+    const upRes = await fetch(`${supabaseConfig.url}/storage/v1/object/cms-media/${path}`, {
+      method: "POST",
+      headers: {
+        apikey: supabaseConfig.key!,
+        Authorization: `Bearer ${supabaseConfig.key}`,
+        "Content-Type": file.type || "image/jpeg",
+        "x-upsert": "true",
+      },
+      body: buf,
+    })
+    if (!upRes.ok) {
+      const t = await upRes.text().catch(() => upRes.statusText)
+      return NextResponse.json({ error: `Upload failed (${upRes.status}): ${t}` }, { status: 502 })
+    }
+    const publicUrl = `${supabaseConfig.url}/storage/v1/object/public/cms-media/${path}`
+    return NextResponse.json({ url: publicUrl, path })
+  }
 
   if (resource === "settings") {
     // Settings writes are admin-only — the public site only reads them via GET.
