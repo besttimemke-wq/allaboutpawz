@@ -1809,3 +1809,19 @@ Stage Summary:
 - Dev server alive on the stable daemon script; CRM login + admin user creation/invite/re-send all E2E-green; provisioning 500 FK bug fixed and committed (0c0028d, local only — push needs owner PAT).
 - Test artifacts on live DB: e2e.admin (ACTIVE admin — owner's replay login), e2e-fresh + e2e-staff (INVITED demo rows, unconfirmed, harmless). Cleanup path documented above.
 - Supabase SMTP flakiness documented — the one environmental blocker for fully-self-service email invites; everything else works.
+
+---
+Task ID: EMAIL-PIPELINE-UNIFY
+Agent: Main agent (Z.ai Code)
+Task: Owner reported invite-email confusion — believed app transactional email was "overwriting" Supabase invite email; asked whether to create two API keys (one for Supabase, one for booking@aapawz.com). Diagnose and fix.
+
+Work Log:
+- READ THE OWNER'S 2 SCREENSHOTS via VLM: Supabase Auth → Emails → Templates tab (all 13 templates listed, Security section toggles ON) + Sign In/Providers tab (Confirm email ON, new signups ON). Owner is RIGHT: templates and enablement are fine. The SMTP Settings tab was NOT open — custom SMTP never shown/configured. Management API token 401 (expired) so live config could not be pulled; Resend list endpoint 401 (send-only key).
+- ROOT TRUTH (code-level, decisive): TWO invite paths existed with DIFFERENT mailers. /api/auth/invite (CRM enrollment) = generateLink(type:invite) + sendPortalInvite → RESEND branded template from notifications@confirmation.aapawz.com, audit-trailed in email_messages. /api/admin/users (admin panel Users & Access) = inviteUserByEmail → SUPABASE BUILT-IN mailer (test-grade, intermittent AuthRetryableFetchError "Error sending invite email"). Nothing was overwritten — two systems, two screens, same email name. The delivered "Booking confirmed — Deposit Test ZAI" the owner cited is the Resend pipeline (booking_confirmation template, SENT in email_messages at Oct 2 15:25; booking_notification to booking@aapawz.com likewise) — separate from Supabase auth mail entirely.
+- FIX (commit 43341e7): POST /api/admin/users now delivers invites via the SAME Resend pipeline: createUser (password optional, email_confirm:false) → generateLink invite (no Supabase email) → sendPortalInvite (branded, audited) → inviteUserByEmail ONLY as fallback. Re-send-invitation branch and existing-unconfirmed branch use the same deliverInviteEmail() helper. Messages stay honest (via-supabase note when fallback fired).
+- E2E VERIFIED with audit rows (email_messages): blank-password invite → portal_invite SENT provider=true; re-send invitation → portal_invite SENT; temp-password create → portal_invite SENT (branded link + temp password both work). Live booking the owner made during the session (booking_request_received + booking_notification, 22:15) confirmed in the same audit trail — invites and transactional mail are now literally one pipeline.
+- REMAINING Supabase-native emails (password-reset links, email-change confirms, magic links) still use the built-in mailer until the owner configures custom SMTP in the dashboard (Auth → Emails → SMTP Settings: smtp.resend.com / 465 / user "resend" / a dedicated second Resend key / sender no-reply@aapawz.com — domain already verified). Two-key separation recommended: usage visibility, independent rotation, blast-radius isolation. This matches the owner's two-key instinct — for SMTP config, not for any overwrite fix.
+
+Stage Summary:
+- No overwrite existed; the divergence was two mailers on two screens. Admin invites now ride the branded Resend pipeline (commit 43341e7, local — push pending owner PAT). Supabase templates/settings were never the problem; the built-in SENDING service was.
+- Owner action item (optional, for password-reset/magic-link reliability): configure Supabase SMTP with a dedicated second Resend key per the steps above.
