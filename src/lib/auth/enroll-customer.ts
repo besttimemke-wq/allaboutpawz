@@ -111,17 +111,28 @@ async function ensureCrmIdentity(opts: {
     } else {
       const first = (opts.firstName || opts.email.split("@")[0] || "").trim()
       const last = (opts.lastName || "").trim()
-      const created = await client.query(
-        `INSERT INTO public.crm_customers (tenant_id, first_name, last_name, email, phone, source_customer_id)
-         VALUES ($1, $2, $3, lower($4), $5, $6)
-         RETURNING id::text`,
-        [TENANT_ID, first, last, opts.email, opts.phone || null, opts.appCustomerId || null],
-      )
-      crmId = created.rows[0].id
+      try {
+        const created = await client.query(
+          `INSERT INTO public.crm_customers (tenant_id, first_name, last_name, email, phone, source_customer_id)
+           VALUES ($1, $2, $3, lower($4), $5, $6)
+           RETURNING id::text`,
+          [TENANT_ID, first, last, opts.email, opts.phone || null, opts.appCustomerId || null],
+        )
+        crmId = created.rows[0].id
+      } catch (e: any) {
+        // PRODUCTION GUARD (2026-10 booking incident): live-side trigger on
+        // crm_customers must not kill enrollment. The auth invite (the
+        // customer-visible deliverable) runs outside this transaction and
+        // already succeeded by this point.
+        console.error("[enrollCustomer] crm_customers insert failed (trigger?):", e.message)
+        crmId = null
+      }
     }
 
     // 2. portal_customer_accounts — the login registry (UNIQUE auth_user_id
-    //    + UNIQUE customer_id; find by either, create when absent).
+    //    + UNIQUE customer_id; find by either, create when absent). Skipped
+    //    when the crm registry row could not be established (customer_id is
+    //    NOT NULL) — it back-fills on the next enrollment touch.
     let portalId: string | null = null
     const portal = await client.query(
       `SELECT id::text FROM public.portal_customer_accounts
@@ -137,7 +148,7 @@ async function ensureCrmIdentity(opts: {
          WHERE id = $1 AND auth_user_id IS NULL`,
         [portalId, opts.authUserId],
       )
-    } else {
+    } else if (crmId) {
       const created = await client.query(
         `INSERT INTO public.portal_customer_accounts (tenant_id, customer_id, auth_user_id, status, invited_at)
          VALUES ($1, $2::uuid, $3::uuid, 'invited', now())

@@ -144,13 +144,30 @@ export async function ensureCrmCustomer(
   }
   const first = (opts.firstName || email.split("@")[0] || "").trim()
   const last = (opts.lastName || "").trim()
-  const created = await client.query(
-    `INSERT INTO public.crm_customers (tenant_id, first_name, last_name, email, phone, source_customer_id, lifecycle_stage)
-     VALUES ($1, $2, $3, lower($4), $5, $6, 'new_customer')
-     RETURNING id::text`,
-    [tenant, first, last, email, (opts.phone || "").trim() || null, opts.appCustomerId || null],
-  )
-  return created.rows[0].id
+  try {
+    const created = await client.query(
+      `INSERT INTO public.crm_customers (tenant_id, first_name, last_name, email, phone, source_customer_id, lifecycle_stage)
+       VALUES ($1, $2, $3, lower($4), $5, $6, 'new_customer')
+       RETURNING id::text`,
+      [tenant, first, last, email, (opts.phone || "").trim() || null, opts.appCustomerId || null],
+    )
+    return created.rows[0].id
+  } catch (e: any) {
+    // PRODUCTION GUARD (2026-10 booking incident): a live-side trigger on
+    // crm_customers (0013 identity-sync, 42804 text→uuid) must NEVER block
+    // the booking/enrollment golden path. Statement-level atomicity means a
+    // failed INSERT leaves no row; re-select covers a concurrent creator,
+    // otherwise degrade to null (callers treat null as "no registry row" and
+    // the salon-side booking still saves; the registry back-fills next touch).
+    console.error("[ensureCrmCustomer] insert failed (trigger?):", e.message)
+    const retry = await client
+      .query(
+        `SELECT id::text FROM public.crm_customers WHERE tenant_id = $1 AND lower(email) = lower($2) LIMIT 1`,
+        [tenant, email],
+      )
+      .catch(() => null)
+    return retry?.rows?.[0]?.id ?? null
+  }
 }
 
 // crm_pets.sex CHECK: male | female | unknown (lowercase only).
