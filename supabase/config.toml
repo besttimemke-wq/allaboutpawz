@@ -23,6 +23,50 @@ additional_redirect_urls = ["https://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
 
+# ---------------------------------------------------------------------------
+# Branded auth email templates (All About Pawz design system).
+#
+# Source of truth: src/lib/email/templates/auth.ts — regenerate the files
+# below with:  bun run scripts/export-supabase-email-templates.ts
+#
+# These blocks apply to LOCAL Supabase CLI dev (`supabase stop && supabase
+# start`). The HOSTED production project (aapawz.com) does not read this
+# file — paste the same templates there via the dashboard:
+#   Supabase Dashboard → your project → Authentication → Email Templates
+# (or use Admin → Settings → Email Templates on the site, which gives you
+# copy buttons and step-by-step instructions for every template).
+#
+# The seven security notification emails (password/email/phone changed,
+# sign-in method linked/removed, MFA added/removed) are fixed-system emails
+# in GoTrue with no config block — their branded HTML is exported alongside
+# these files as supabase/templates/supabase_security_*.html for reference
+# and dashboard paste-in.
+# ---------------------------------------------------------------------------
+
+[auth.email.template.confirmation]
+subject = "Confirm your email — All About Pawz"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.invite]
+subject = "Your All About Pawz portal invitation"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Your All About Pawz sign-in code"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new email address — All About Pawz"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.recovery]
+subject = "Reset your All About Pawz password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.reauthentication]
+subject = "Verify it's you — All About Pawz security check"
+content_path = "./supabase/templates/reauthentication.html"
+
 [storage]
 enabled = true
 file_size_limit = "50MiB"
