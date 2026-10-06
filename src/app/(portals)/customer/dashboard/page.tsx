@@ -121,6 +121,10 @@ interface UpcomingAppointment {
   time: string;
   dogName: string;
   service: string;
+  amountDueCents?: number;
+  balanceDue?: string | null;
+  paymentStatus?: string;
+  questionnaireComplete?: boolean;
 }
 
 type AddressForm = {
@@ -289,6 +293,7 @@ export default function CustomerDashboardPage() {
 
   // ---- Next upcoming appointment (real booking registry) ----
   const [nextAppt, setNextAppt] = useState<UpcomingAppointment | null>(null);
+  const [upcomingAppts, setUpcomingAppts] = useState<UpcomingAppointment[]>([]);
   const [apptLoading, setApptLoading] = useState(true);
 
   // ---- Real pets (the salon's own records — same registry the groomers see) ----
@@ -325,7 +330,9 @@ export default function CustomerDashboardPage() {
       .then((d) => {
         if (!alive) return;
         // The API sorts upcoming ascending by date/time — [0] is the next visit.
-        setNextAppt(Array.isArray(d?.upcoming) && d.upcoming[0] ? d.upcoming[0] : null);
+        const upcoming = Array.isArray(d?.upcoming) ? d.upcoming : [];
+        setUpcomingAppts(upcoming);
+        setNextAppt(upcoming[0] || null);
         setApptLoading(false);
       })
       .catch(() => {
@@ -570,6 +577,120 @@ export default function CustomerDashboardPage() {
           Manage your pets, appointments, and orders.
         </p>
       </div>
+
+      {/*
+        Action Required — the post-booking "what happens next" center.
+        The customer always sees what to do next (finish pre check-in, pay,
+        manage dog records) until every step is complete.
+      */}
+      {upcomingAppts.length > 0 &&
+        (() => {
+          const appt = upcomingAppts[0];
+          const owes = (appt.amountDueCents || 0) > 0;
+          const needsCheckIn = !appt.questionnaireComplete;
+          const allDone = !owes && !needsCheckIn;
+          return (
+            <section
+              className="bg-card border border-border rounded-xl shadow-card overflow-hidden"
+              aria-label="What happens next"
+            >
+              <div className="bg-ink px-5 py-4">
+                <h2 className="font-bar text-[15px] font-semibold uppercase tracking-wide text-white">
+                  {allDone ? "You're all set for" : 'Action required —'} {appt.dogName}&apos;s visit
+                </h2>
+                <p className="text-[12px] text-white/70 mt-1">
+                  {appt.service} · {appt.date}
+                  {appt.time ? ` at ${appt.time}` : ''}
+                </p>
+              </div>
+              <div className="p-5 space-y-5">
+                <p className="text-[13px] text-muted-foreground">Here&apos;s what happens next:</p>
+                <ol className="space-y-4">
+                  <li className="flex gap-3">
+                    <CheckCircle2
+                      className={cn(
+                        'size-5 shrink-0 mt-0.5',
+                        appt.questionnaireComplete ? 'text-ink' : 'text-muted-foreground/40'
+                      )}
+                    />
+                    <div className="flex-1">
+                      <p className="text-[13px] font-medium text-foreground">
+                        1. Complete your pre check-in
+                      </p>
+                      <p className="text-[12px] text-muted-foreground mt-0.5">
+                        A 5-minute questionnaire — health, temperament, vaccination status. It
+                        saves time at check-in and keeps your pup safe.
+                      </p>
+                      {!appt.questionnaireComplete && (
+                        <Link
+                          href="/customer/appointments"
+                          className="mt-2 inline-flex items-center gap-1.5 bg-ink text-white px-3.5 py-2 rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity"
+                        >
+                          Finish Pre Check-In
+                          <ArrowRight className="size-3.5" />
+                        </Link>
+                      )}
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <CreditCard
+                      className={cn(
+                        'size-5 shrink-0 mt-0.5',
+                        owes ? 'text-ink' : 'text-muted-foreground/40'
+                      )}
+                    />
+                    <div className="flex-1">
+                      <p className="text-[13px] font-medium text-foreground">
+                        2. Payment{owes && appt.balanceDue ? ` — ${appt.balanceDue} due` : ' — confirmed'}
+                      </p>
+                      <p className="text-[12px] text-muted-foreground mt-0.5">
+                        Pay your deposit or balance online now, or at your visit — your choice.
+                      </p>
+                      {owes && (
+                        <Link
+                          href="/customer/appointments"
+                          className="mt-2 inline-flex items-center gap-1.5 bg-ink text-white px-3.5 py-2 rounded-lg text-[12px] font-semibold hover:opacity-90 transition-opacity"
+                        >
+                          Continue Payment
+                          <ArrowRight className="size-3.5" />
+                        </Link>
+                      )}
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <MapPin className="size-5 shrink-0 mt-0.5 text-muted-foreground/40" />
+                    <div>
+                      <p className="text-[13px] font-medium text-foreground">3. Arrive at the salon</p>
+                      <p className="text-[12px] text-muted-foreground mt-0.5">
+                        699 Waring Rd, Memphis, TN · (901) 722-1114
+                      </p>
+                    </div>
+                  </li>
+                </ol>
+                <div className="border-t border-border pt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+                  <Link
+                    href="/customer/pets"
+                    className="text-[12px] font-semibold text-ink underline-offset-4 hover:underline"
+                  >
+                    Manage dog information
+                  </Link>
+                  <Link
+                    href="/customer/pets"
+                    className="text-[12px] font-semibold text-ink underline-offset-4 hover:underline"
+                  >
+                    Upload vaccination records
+                  </Link>
+                  <Link
+                    href="/customer/appointments"
+                    className="text-[12px] font-semibold text-ink underline-offset-4 hover:underline"
+                  >
+                    View all appointments
+                  </Link>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
 
       {unauthorized ? (
         // 401 — the layout normally redirects, but if the session expired
