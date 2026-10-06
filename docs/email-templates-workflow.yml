@@ -1,0 +1,67 @@
+# ---------------------------------------------------------------------------
+# GitHub Action: email-templates → Supabase (AUTO-PUSH, NO DASHBOARD PASTING)
+#
+# This is the live workflow file — parked here because the current push
+# credential lacks GitHub's `workflow` scope (GitHub refuses workflow-file
+# creation without it, via both git push and the Contents API).
+#
+# PROMOTE IT (one-time, 60 seconds — pick any):
+#   A. GitHub web UI: repo → Add file → Create new file → name it
+#      `.github/workflows/email-templates.yml` → paste this file's content
+#      (skip this header comment) → Commit.
+#   B. A PAT with `workflow` scope: `git mv docs/email-templates-workflow.yml
+#      .github/workflows/email-templates.yml` after deleting this header,
+#      then commit + push.
+#   C. Ask the engineering agent — with a workflow-scoped token it creates
+#      the file via the Contents API in one call.
+#
+# After promotion it runs automatically on every merge to main that touches
+# the email system. Requires the repo secret SUPABASE_ACCESS_TOKEN (arm it
+# with scripts/github-put-secret.py — probe-tested end-to-end).
+# ---------------------------------------------------------------------------
+
+# Pushes the branded email templates to the HOSTED Supabase project via the
+# Supabase Management API whenever the email system changes on main — no
+# dashboard copy-paste, ever.
+#
+# Requires the repo secret SUPABASE_ACCESS_TOKEN (account-level sbp_ token,
+# generate at https://supabase.com/dashboard/account/tokens).
+# Arm it without opening the GitHub UI:
+#   GITHUB_TOKEN=<pat> SECRET_NAME=SUPABASE_ACCESS_TOKEN SECRET_VALUE=<sbp_...> \
+#     /tmp/ghsec-venv/bin/python3 scripts/github-put-secret.py
+#
+# The push script has zero npm dependencies (bun runs the TS registry chain
+# natively), so no install step is needed.
+name: Email templates → Supabase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/email/**"
+      - "supabase/templates/**"
+      - "scripts/push-supabase-email-templates.ts"
+      - ".github/workflows/email-templates.yml"
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Push branded templates to the hosted Supabase project
+        run: bun run scripts/push-supabase-email-templates.ts
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: https://qdgfkxbkqcnuhckhvhzd.supabase.co
+
+      - name: Failure hint
+        if: failure()
+        run: |
+          echo "::error::Supabase template push failed."
+          echo "401 → the SUPABASE_ACCESS_TOKEN repo secret is missing/revoked."
+          echo "Generate a fresh token at https://supabase.com/dashboard/account/tokens"
+          echo "and re-arm it with scripts/github-put-secret.py, then re-run this workflow."

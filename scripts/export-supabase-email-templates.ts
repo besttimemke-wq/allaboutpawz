@@ -56,7 +56,9 @@ console.log(written.join("\n"))
 console.log(`
 Next steps:
   • Local CLI dev: supabase stop && supabase start  (config.toml picks these up)
-  • Hosted project: paste from the Email Template Studio (Admin → Settings →
-    Email Templates) or copy these files directly into
-    Supabase Dashboard → Authentication → Email Templates.
+  • Hosted production project: bun run email-templates:push — pushes all
+    Supabase-channel templates to the live project via the Management API
+    (no dashboard copy-paste). The email-templates GitHub Action does it
+    automatically on merge to main once promoted from
+    docs/email-templates-workflow.yml (see its header).
 `)

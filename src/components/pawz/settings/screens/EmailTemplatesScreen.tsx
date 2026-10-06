@@ -427,7 +427,7 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
           </span>
           <span className="inline-flex items-center gap-1.5 border border-gold/40 bg-gold/10 px-2.5 py-1.5 text-[10px] uppercase font-semibold text-gold-deep">
             <ClipboardPaste className="size-3" />
-            {supabaseCount} Supabase paste-in
+            {supabaseCount} Supabase auto-push
           </span>
           <span className="inline-flex items-center gap-1.5 border border-success/30 bg-success/10 px-2.5 py-1.5 text-[10px] uppercase font-semibold text-success">
             <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
@@ -544,7 +544,7 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
                           : 'border-ink bg-ink text-cream'
                       }`}
                     >
-                      {selected.channel === 'supabase' ? 'Supabase paste-in' : 'Resend pipeline'}
+                      {selected.channel === 'supabase' ? 'Supabase auto-push' : 'Resend pipeline'}
                     </span>
                     {selected.channel === 'resend' && (
                       <span
@@ -789,21 +789,45 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
                   </div>
                 </div>
               ) : (
-                /* Supabase install instructions — amber callout */
+                /* Supabase install callout — automated push first, manual paste as fallback */
                 <div className="p-4 border-b border-border bg-card">
                   <div className="border border-warning/30 bg-warning/10 rounded-md">
                     <div className="px-4 py-2.5 border-b border-warning/20 flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
                         <ClipboardPaste className="size-4 text-warning shrink-0" />
                         <span className="text-[11px] font-semibold uppercase tracking-wider text-warning">
-                          This template pastes into the Supabase dashboard
+                          Supabase dashboard template
                         </span>
                       </div>
                       <span className="text-[9px] uppercase font-bold tracking-wide tabular-nums px-1.5 py-0.5 border border-warning/30 bg-card text-warning rounded-sm">
-                        Paste-in · no code
+                        Auto-push · no pasting
                       </span>
                     </div>
                     <div className="p-4 space-y-3">
+                      <div className="space-y-2">
+                        <p className="text-[12.5px] text-ink-soft leading-relaxed">
+                          All Supabase templates on this screen are pushed to the hosted project in
+                          one command — no dashboard copy-paste:
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <code className="px-2 py-1 bg-card border border-warning/25 text-gold-deep tabular-nums rounded-sm text-[11px]">
+                            bun run email-templates:push
+                          </code>
+                          <span className="text-[11px] text-muted-foreground">
+                            (scripts/push-supabase-email-templates.ts — Management API PATCH, with
+                            rollback snapshot + verify)
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          A GitHub Action also pushes automatically on every merge to main that
+                          touches the email system — needs
+                          the repo secret <span className="font-semibold">SUPABASE_ACCESS_TOKEN</span> (fresh
+                          token: supabase.com/dashboard/account/tokens).
+                        </p>
+                      </div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-warning border-t border-warning/20 pt-3">
+                        Manual fallback — only if you prefer the dashboard
+                      </p>
                       <ol className="list-decimal pl-5 space-y-2 text-[12.5px] text-ink-soft">
                         <li>
                           Click{' '}
