@@ -11,7 +11,8 @@
     "dev:daemon": "bash scripts/dev-daemon.sh",
     "email-templates:export": "bun run scripts/export-supabase-email-templates.ts",
     "email-templates:push": "bun run scripts/push-supabase-email-templates.ts",
-    "email-templates:check": "bun run scripts/push-supabase-email-templates.ts --check"
+    "email-templates:check": "bun run scripts/push-supabase-email-templates.ts --check",
+    "vercel-env:sync": "bun run scripts/vercel-env-sync.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
