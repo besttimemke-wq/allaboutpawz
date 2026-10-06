@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
 import { sendEmail } from "@/lib/email"
+import { bookingNotificationHtml } from "@/lib/email/templates/internal"
+import { detailsCard, eyebrow, h1, noteBox, p, taglineFlourish, frame, esc } from "@/lib/email/design"
 import { callbackBase } from "@/lib/site-url"
 import { syncCrmAppointment, writeCommercePayment, withPg, TENANT_ID } from "@/lib/crm/enterprise"
 import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
@@ -10,33 +12,24 @@ import { friendlyDbError } from "@/lib/db-errors"
 const salonNotifyTo = "booking@aapawz.com"
 
 function bookingRequestHtml(name: string, dog: string, service: string, date: string, time: string) {
-  return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
-    <p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Request Received</p>
-    <h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">Hi ${name},</h1>
-    <p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
-    <p>We received your appointment request. Here are the details:</p>
-    <div style="background:#fff;border:1px solid #e0d6bf;padding:16px;margin:16px 0">
-      <p><strong>Dog:</strong> ${dog}</p>
-      <p><strong>Service:</strong> ${service}</p>
-      <p><strong>Requested Date:</strong> ${date}</p>
-      <p><strong>Requested Time:</strong> ${time}</p>
-    </div>
-    <p>Once your deposit is processed, we'll send you a confirmation email with all the details.</p>
-  </body></html>`
-}
-
-function bookingSalonNotificationHtml(name: string, dog: string, service: string, date: string, time: string, email: string, phone: string) {
-  return `<!doctype html><html><body style="font-family:sans-serif;max-width:560px;margin:auto;color:#1a1a1a">
-    <h2 style="color:#9a7b3c">New appointment request</h2>
-    <p><strong>${name}</strong> requested an appointment for <strong>${dog}</strong>.</p>
-    <div style="background:#f6f6f6;border-left:3px solid #9a7b3c;padding:12px;margin:12px 0">
-      <p><strong>Service:</strong> ${service}</p>
-      <p><strong>Date:</strong> ${date}</p>
-      <p><strong>Time:</strong> ${time}</p>
-    </div>
-    <p style="font-size:13px">Email: ${email || "—"}<br/>Phone: ${phone || "—"}</p>
-    <a href="https://aapawz.com/admin/bookings" style="display:inline-block;background:#1a1a1a;color:#fff;padding:10px 20px;text-decoration:none;font-size:12px;font-weight:700;text-transform:uppercase">Review in Operations</a>
-  </body></html>`
+  const first = String(name || "").split(/\s+/)[0] || "there"
+  return frame({
+    preheader: `Request received — ${dog ? `${esc(dog)}'s ` : ""}appointment is in our queue.`,
+    body: [
+      eyebrow("Request received"),
+      h1(`We got it, ${esc(first)}`),
+      taglineFlourish(),
+      p(`Thanks for booking with All About Pawz — here's what you asked for. The moment your $25 deposit clears, we'll email a full confirmation with everything you need.`),
+      detailsCard("Your request", [
+        ...(dog ? [{ label: "Dog", value: esc(dog) }] : []),
+        { label: "Service", value: esc(service) },
+        { label: "Requested date", value: esc(date || "—") },
+        { label: "Requested time", value: esc(time || "—") },
+      ]),
+      noteBox(`Deposit not showing as paid? Keep an eye out for a <strong style="color:#1a1a1a">Finish your booking</strong> email — it picks up exactly where you left off, nothing gets re-typed.`),
+    ].join(""),
+    reason: `You're receiving this because you just submitted a booking request at aapawz.com.`,
+  })
 }
 
 // POST /api/bookings/checkout
@@ -192,7 +185,15 @@ export async function POST(req: NextRequest) {
     to: salonNotifyTo,
     template: "booking_notification",
     subject: `New appointment request — ${ownerName} (${dogName})`,
-    html: bookingSalonNotificationHtml(ownerName, dogName, serviceName || service || "", date, time, email || "", phone || ""),
+    html: bookingNotificationHtml({
+      ownerName,
+      dogName: dogName || undefined,
+      service: serviceName || service || "Grooming appointment",
+      date: date || undefined,
+      time: time || undefined,
+      email: email || "",
+      phone: phone || "",
+    }),
     relatedBookingId: booking?.id,
   }).catch(() => {})
 

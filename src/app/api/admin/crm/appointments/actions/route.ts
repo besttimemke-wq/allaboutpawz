@@ -21,9 +21,67 @@ import { requireAdminApi } from "@/lib/admin/gate";
 import { pgExec, pgQuery } from "@/lib/pg";
 import { TENANT_ID } from "@/lib/crm/enterprise";
 import { auditAction, getActorIdFromRequest, logCustomerNote } from "@/lib/quick-actions/audit";
+import { sendAppointmentCanceled, sendAppointmentRescheduled, sendAppointmentReminder } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// ---------------------------------------------------------------------------
+// Customer email context for an appointment — joins the CRM record to the
+// customer + pets (+ the originating wizard booking for service details).
+// ---------------------------------------------------------------------------
+interface ApptEmailContext {
+  email: string | null;
+  firstName: string;
+  ownerName: string;
+  dogName: string | null;
+  service: string;
+  size: string | null;
+  dateLabel: string;
+  timeLabel: string | null;
+}
+
+async function apptEmailContext(appointmentId: string): Promise<ApptEmailContext | null> {
+  const rows = await pgQuery<{
+    starts_at: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+    booking_service: string | null;
+    booking_size: string | null;
+    dog_name: string | null;
+    pet_names: string | null;
+  }>(
+    `SELECT a.starts_at,
+            c.first_name, c.last_name, c.email,
+            b.service AS booking_service, b.size AS booking_size, b."dogName" AS dog_name,
+            (SELECT string_agg(p.name, ', ') FROM public.crm_appointment_pets ap
+               JOIN public.crm_pets p ON p.id = ap.pet_id AND p.tenant_id = a.tenant_id
+              WHERE ap.appointment_id = a.id) AS pet_names
+       FROM public.crm_appointments a
+       LEFT JOIN public.crm_customers c ON c.id = a.customer_id AND c.tenant_id = a.tenant_id
+       LEFT JOIN public.bookings b ON b.id::text = a.source_appointment_id
+      WHERE a.id = $1::uuid AND a.tenant_id = $2`,
+    [appointmentId, TENANT_ID()],
+  );
+  const r = rows[0];
+  if (!r) return null;
+  const startsAt = r.starts_at ? new Date(r.starts_at) : null;
+  return {
+    email: r.email || null,
+    firstName: (r.first_name || "").trim(),
+    ownerName: [r.first_name, r.last_name].filter(Boolean).join(" ").trim(),
+    dogName: r.dog_name || r.pet_names || null,
+    service: r.booking_service || "Grooming appointment",
+    size: r.booking_size || null,
+    dateLabel: startsAt
+      ? startsAt.toLocaleDateString("en-US", { timeZone: "America/Chicago", weekday: "long", month: "long", day: "numeric" })
+      : "your appointment",
+    timeLabel: startsAt
+      ? startsAt.toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" })
+      : null,
+  };
+}
 
 export async function POST(req: NextRequest) {
   const gate = await requireAdminApi();
@@ -118,6 +176,28 @@ export async function POST(req: NextRequest) {
         });
       }
       await auditAction({ action, domain: "crm", tableName: "crm_appointments", recordId: appointmentId, afterData: { fromStatus, toStatus: newStatus }, actorUserId: actorId, ipAddress: ip });
+
+      // Branded cancellation email — fire-and-forget so the action never waits on mail.
+      if (shortAction === "cancel" && customerId) {
+        apptEmailContext(appointmentId)
+          .then((ctx) => {
+            if (!ctx?.email) return;
+            return sendAppointmentCanceled({
+              customerId,
+              email: ctx.email,
+              ownerName: ctx.ownerName,
+              dogName: ctx.dogName,
+              service: ctx.service,
+              size: ctx.size,
+              date: ctx.dateLabel,
+              time: ctx.timeLabel,
+              reason,
+              canceledBy: "salon",
+              bookingId: appointmentId,
+            });
+          })
+          .catch((e) => console.error("[appointments/actions] cancel email failed:", e?.message));
+      }
       return NextResponse.json({ ok: true, appointmentId, fromStatus, toStatus: newStatus });
     }
 
@@ -138,6 +218,14 @@ export async function POST(req: NextRequest) {
         if (!appointmentId || !newStartsAt) {
           return NextResponse.json({ ok: false, error: "appointment_id and new_starts_at are required" }, { status: 400 });
         }
+        // Capture the OLD slot (and email context) BEFORE the update so the
+        // reschedule email can show old → new.
+        const oldRows = await pgQuery<{ starts_at: string; customer_id: string | null }>(
+          `SELECT starts_at, customer_id FROM public.crm_appointments WHERE id = $1::uuid AND tenant_id = $2`,
+          [appointmentId, TENANT_ID()],
+        );
+        const oldStartsAt = oldRows[0]?.starts_at || null;
+        const rescheduleCustomerId = oldRows[0]?.customer_id || null;
         const updated = await pgExec(
           `UPDATE public.crm_appointments
               SET starts_at = $1::timestamptz,
@@ -154,6 +242,34 @@ export async function POST(req: NextRequest) {
           [TENANT_ID(), appointmentId, actorId, `Rescheduled to ${newStartsAt}`],
         );
         await auditAction({ action, domain: "crm", tableName: "crm_appointments", recordId: appointmentId, afterData: { newStartsAt, newEndsAt, toStatus: "rescheduled", updated }, actorUserId: actorId, ipAddress: ip });
+
+        // Branded reschedule confirmation (old → new) — fire-and-forget.
+        if (rescheduleCustomerId) {
+          apptEmailContext(appointmentId)
+            .then((ctx) => {
+              if (!ctx?.email) return;
+              const oldDate = oldStartsAt
+                ? new Date(oldStartsAt).toLocaleDateString("en-US", { timeZone: "America/Chicago", weekday: "long", month: "long", day: "numeric" })
+                : "the original time";
+              const oldTime = oldStartsAt
+                ? new Date(oldStartsAt).toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" })
+                : null;
+              return sendAppointmentRescheduled({
+                customerId: rescheduleCustomerId,
+                email: ctx.email,
+                ownerName: ctx.ownerName,
+                dogName: ctx.dogName,
+                service: ctx.service,
+                size: ctx.size,
+                oldDate,
+                oldTime,
+                date: ctx.dateLabel,
+                time: ctx.timeLabel,
+                bookingId: appointmentId,
+              });
+            })
+            .catch((e) => console.error("[appointments/actions] reschedule email failed:", e?.message));
+        }
         return NextResponse.json({ ok: true, appointmentId, toStatus: "rescheduled", updated });
       }
 
@@ -217,7 +333,31 @@ export async function POST(req: NextRequest) {
           });
         }
         await auditAction({ action, domain: "crm", tableName: "crm_appointments", recordId: appointmentId, afterData: { reminderSent: true, updated }, actorUserId: actorId, ipAddress: ip });
-        return NextResponse.json({ ok: true, appointmentId, updated, message: "Reminder sent" });
+
+        // Actually SEND the branded reminder email — fire-and-forget.
+        let reminderSent = false;
+        if (custRows[0]?.customer_id) {
+          try {
+            const ctx = await apptEmailContext(appointmentId);
+            if (ctx?.email) {
+              const result = await sendAppointmentReminder({
+                customerId: custRows[0].customer_id,
+                email: ctx.email,
+                ownerName: ctx.ownerName,
+                dogName: ctx.dogName,
+                service: ctx.service,
+                size: ctx.size,
+                date: ctx.dateLabel,
+                time: ctx.timeLabel,
+                bookingId: appointmentId,
+              });
+              reminderSent = result.ok;
+            }
+          } catch (e: any) {
+            console.error("[appointments/actions] reminder email failed:", e?.message);
+          }
+        }
+        return NextResponse.json({ ok: true, appointmentId, updated, reminderSent, message: reminderSent ? "Reminder email sent" : "Reminder logged (no email on file)" });
       }
 
       case "follow_up": {

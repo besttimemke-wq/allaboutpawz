@@ -18,6 +18,7 @@ import {
   Tag,
   Globe,
   UserCheck,
+  Mail,
   MessageSquare,
   Package,
   Sliders,
@@ -48,6 +49,7 @@ import { OrgSocialDirectoriesScreen } from './settings/screens/OrgSocialDirector
 import { OmsAddProductScreen } from './settings/screens/OmsAddProductScreen';
 import { SystemHealthTelemetryScreen } from './settings/screens/SystemHealthTelemetryScreen';
 import { AnalyticsReportingScreen } from './settings/screens/AnalyticsReportingScreen';
+import { EmailTemplatesScreen } from './settings/screens/EmailTemplatesScreen';
 import { EscrowDepositsForfeituresScreen } from './settings/screens/EscrowDepositsForfeituresScreen';
 
 // Secondary LMS Tab
@@ -83,6 +85,7 @@ export type SettingsTabId =
   | 'payments-tax'
   | 'website'
   | 'cms-wizard'
+  | 'email-templates'
   | 'portal'
   | 'customer-portal'
   | 'communications'
@@ -147,6 +150,12 @@ const TAB_CATEGORIES: TabCategory[] = [
       { id: 'legal-waivers', label: 'Legal & Waivers', icon: FileText },
       { id: 'customer-portal', label: 'Customer Portal Settings', icon: UserCheck },
       { id: 'revenue-stripe', label: 'Payments & Gateway Settings', icon: CreditCard },
+    ],
+  },
+  {
+    title: '4.2 COMMUNICATIONS & EMAIL',
+    tabs: [
+      { id: 'email-templates', label: 'Email Templates', icon: Mail, badge: '35' },
     ],
   },
   {
@@ -455,6 +464,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onSelectLocation={onSelectLocation}
               systemSettings={systemSettings}
               saveSettingsToDb={saveSettingsToDb}
+            />
+          )}
+          {activeTab === 'email-templates' && (
+            <EmailTemplatesScreen
+              onNavigateScreen={navigateToScreen}
+              selectedLocation={selectedLocation}
+              onSelectLocation={onSelectLocation}
             />
           )}
         </main>

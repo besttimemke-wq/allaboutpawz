@@ -23,7 +23,43 @@ import { createServerSupabase } from "@/lib/auth/server";
 //   2. The door contract (bifurcated pages): { email, password, portal } —
 //      same resolution, then the door is validated server-side.
 // The client NEVER decides its own role in either contract.
+//
+// NEW-DEVICE SECURITY NOTICE: the first sign-in from a browser/device without
+// a pawz_did cookie fires the branded "New device signed in" email
+// (template login_new_device) and plants the 1-year recognition cookie.
+// Clearing cookies or a new device triggers it again — by design.
 // ============================================================================
+
+const DEVICE_COOKIE = "pawz_did";
+const DEVICE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+/** Compact human summary of a User-Agent for the new-device email. */
+function describeUserAgent(ua: string): string {
+  if (!ua) return "A new device or browser";
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /OPR\//.test(ua)
+      ? "Opera"
+      : /Chrome\//.test(ua)
+        ? "Chrome"
+        : /Firefox\//.test(ua)
+          ? "Firefox"
+          : /Safari\//.test(ua)
+            ? "Safari"
+            : "A browser";
+  const os = /iPhone|iPad|iPod/.test(ua)
+    ? /iPad/.test(ua) ? "iPad" : "iPhone"
+    : /Android/.test(ua)
+      ? "Android"
+      : /Windows/.test(ua)
+        ? "Windows"
+        : /Mac OS X/.test(ua)
+          ? "Mac"
+          : /Linux/.test(ua)
+            ? "Linux"
+            : "an unknown device";
+  return `${browser} on ${os}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -82,6 +118,25 @@ export async function POST(req: NextRequest) {
     //    repo's rule: route by the resolved salon record. Door flow → the
     //    door's destination, with the same-site ?redirect= override.
     cookieStore.set(SESSION_COOKIE_NAME, signSession(resolved), sessionCookieOptions(requestHost(req)));
+
+    // 5. New-device security notice — first sign-in from this browser.
+    //    Fire-and-forget: a mail hiccup must NEVER block sign-in.
+    if (!cookieStore.get(DEVICE_COOKIE)) {
+      const deviceId = crypto.randomUUID();
+      cookieStore.set(DEVICE_COOKIE, deviceId, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: DEVICE_COOKIE_MAX_AGE,
+      });
+      const { sendNewDeviceLogin } = await import("@/lib/email");
+      sendNewDeviceLogin({
+        to: resolved.email || email,
+        firstName: resolved.name || "",
+        device: describeUserAgent(req.headers.get("user-agent") || ""),
+      }).catch((e) => console.error("[login] new-device notice failed:", e?.message));
+    }
 
     let redirectTo = autoDestination(resolved);
     if (portal) {

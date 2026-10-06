@@ -71,7 +71,7 @@ export default function FulfillmentPage() {
   const viewOrder = (id: string) => { window.location.assign(`/admin/order-details?id=${id}`); };
 
   const sendAlert = async (orderId: string) => {
-    // Resend alert — calls the existing email infrastructure
+    // Branded order status email — server renders the template
     try {
       const order = orders.find(o => o.id === orderId);
       if (!order?.email) return;
@@ -80,9 +80,11 @@ export default function FulfillmentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: order.email,
-          subject: `Your order #${orderId.slice(0, 8).toUpperCase()} — All About Pawz`,
           template: 'order_alert',
-          html: `<p>Hi ${order.customerName || 'there'},</p><p>Your order is being processed. We'll notify you when it ships.</p><p>Order: #${orderId.slice(0, 8).toUpperCase()}</p>`,
+          orderNumber: orderId.slice(0, 8).toUpperCase(),
+          statusNote: "Your order is being processed. We'll notify you the moment it ships.",
+          firstName: String(order.customerName || '').split(/\s+/)[0] || undefined,
+          customerId: (order as { customerId?: string }).customerId || undefined,
         }),
       });
     } catch {}

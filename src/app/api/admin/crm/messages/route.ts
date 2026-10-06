@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/gate";
 import { withPg, TENANT_ID, platformAudit } from "@/lib/crm/enterprise";
+import { sendSalonMessage } from "@/lib/email";
 
 const VALID_CHANNELS = new Set(["sms","email","phone","in_person","mail","other"]);
 function toIso(v: any): string | null { if (!v) return null; const d = new Date(v); return isNaN(d.getTime()) ? String(v) : d.toISOString(); }
@@ -30,21 +31,19 @@ export async function POST(req: NextRequest) {
       const row = ins.rows[0];
       try { await client.query("SAVEPOINT audit_sp"); await platformAudit(client, { action: "crm.message.sent", targetType: "crm_message", targetId: String(row.id), actorRole: "admin", metadata: { customerId, channel, bodyPreview: msgBody.slice(0, 100) } }); await client.query("RELEASE SAVEPOINT audit_sp"); } catch { await client.query("ROLLBACK TO SAVEPOINT audit_sp").catch(() => {}); }
       await client.query("COMMIT");
-      // Actually send the email via Resend if channel is email. Non-fatal.
+      // Actually send the email via the branded Resend pipeline. Non-fatal.
+      // (The old code fetch()'ed a RELATIVE "/api/send-email" URL from the
+      // server — which can never resolve — so emails silently never sent.)
       if (channel === "email") {
         try {
-          await fetch("/api/send-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: body.toAddress || undefined,
-              subject: body.subject || msgBody.slice(0, 80),
-              html: `<p>${msgBody.replace(/\n/g, "<br>")}</p>`,
-              customerId,
-            }),
+          await sendSalonMessage({
+            to: String(body.toAddress || "").trim(),
+            customerId,
+            subject: String(body.subject || msgBody.slice(0, 80)),
+            message: msgBody,
           });
         } catch (emailErr) {
-          console.warn("[crm/messages POST] email send via Resend failed (non-fatal):", emailErr instanceof Error ? emailErr.message : emailErr);
+          console.warn("[crm/messages POST] email send failed (non-fatal):", emailErr instanceof Error ? emailErr.message : emailErr);
         }
       }
       return NextResponse.json({ message: { id: String(row.id), channel, body: msgBody, status: "sent", createdAt: toIso(row.created_at) } }, { status: 201 });

@@ -327,16 +327,44 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
       console.error("[stripe/webhook] CRM enrollment failed:", e?.message)
     }
 
-    // 6. Send receipt email
+    // 6. Send branded order confirmation (items + totals from the cart
+    //    metadata the shop checkout embeds in the session).
     if (sourceFlow === "shop") {
       try {
-        const { sendEmail } = await import("@/lib/email")
-        await sendEmail({
-          to: customerEmail,
-          template: "payment_receipt",
-          subject: `Your order receipt — All About Pawz`,
-          html: `<p>Thank you for your purchase!</p><p>Order: ${commerceOrderId?.slice(0, 8) || "N/A"}</p><p>Total: $${amountTotal.toFixed(2)}</p><p>We'll send a tracking number once your order ships.</p>`,
-          relatedOrderId: commerceOrderId,
+        const { sendOrderReceipt } = await import("@/lib/email")
+        const cartRaw = session?.metadata?.cart_items
+        const cartItems: { productId?: string; name?: string; quantity?: number; unitPrice?: string }[] =
+          typeof cartRaw === "string" ? JSON.parse(cartRaw) : (Array.isArray(cartRaw) ? cartRaw : [])
+        const items = cartItems
+          .filter((it) => it?.name)
+          .map((it) => ({ name: String(it.name), qty: Number(it.quantity) || 1, price: String(it.unitPrice || "$0.00") }))
+        const subtotalNum = cartItems.reduce(
+          (sum, it) => sum + (parseFloat(String(it?.unitPrice || "0").replace(/[^0-9.]/g, "")) || 0) * (Number(it?.quantity) || 1),
+          0,
+        )
+        const delta = Math.round((amountTotal - subtotalNum) * 100) / 100
+
+        const custName = String(session?.customer_details?.name || "").trim()
+        const shipAddr = session?.customer_details?.address
+        const shipTo = shipAddr?.city
+          ? `${shipAddr.city}${shipAddr.state ? `, ${shipAddr.state}` : ""}`
+          : session?.metadata?.deliveryMethod === "pickup"
+            ? "Pickup at the salon"
+            : undefined
+
+        await sendOrderReceipt({
+          email: customerEmail,
+          firstName: custName.split(/\s+/)[0] || undefined,
+          orderNumber: commerceOrderId ? `ORD-${commerceOrderId.replace(/-/g, "").slice(0, 6).toUpperCase()}` : "ORD",
+          items: items.length
+            ? items
+            : [{ name: "Shop order", qty: 1, price: `$${amountTotal.toFixed(2)}` }],
+          subtotal: `$${subtotalNum.toFixed(2)}`,
+          shipping: session?.metadata?.deliveryMethod === "pickup" ? "Pickup" : "Free",
+          tax: delta > 0 ? `$${delta.toFixed(2)}` : "$0.00",
+          total: `$${amountTotal.toFixed(2)}`,
+          shipTo,
+          orderId: commerceOrderId || undefined,
         })
       } catch (e: any) {
         console.error("[stripe/webhook] receipt email failed:", e?.message)

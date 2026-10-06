@@ -2,10 +2,48 @@ import "server-only"
 import { Resend } from "resend"
 import { repo } from "./repo"
 import { SITE_URL } from "./site-url"
+import { BRAND, detailsCard, eyebrow, frame, h1, p, pawDivider, taglineFlourish, esc } from "./email/design"
+import {
+  bookingConfirmedHtml,
+  appointmentReminderHtml,
+  appointmentCanceledHtml,
+  appointmentRescheduledHtml,
+  abandonedBookingHtml,
+  consultationRequestHtml,
+  type AppointmentData,
+  type CanceledData,
+  type RescheduledData,
+  type AbandonedData,
+  type ConsultationData,
+} from "./email/templates/appointments"
+import {
+  paymentConfirmationHtml,
+  orderConfirmationHtml,
+  subscriptionBillingHtml,
+  membershipActiveHtml,
+  type PaymentData,
+  type OrderData,
+  type SubscriptionBillingData,
+  type MembershipData,
+} from "./email/templates/commerce"
+import {
+  customerWelcomeHtml,
+  newAccountCreatedHtml,
+  teamMemberInviteHtml,
+  welcomeBackHtml,
+  newDeviceLoginHtml,
+  type NewDeviceData,
+} from "./email/templates/accounts"
+import { enrollmentWelcomeHtml, classReminderHtml, completionCongratulationsHtml } from "./email/templates/learning"
+import { bookingNotificationHtml, consultationNotificationHtml, enrollmentNotificationHtml } from "./email/templates/internal"
+import { getTemplateDef } from "./email/templates"
 
 // ---------------------------------------------------------------------------
 // Email via Resend npm package, called from Next.js server routes.
 // RESEND_API_KEY is in the server environment. No Edge Function. No secrets panel.
+//
+// Every template renders through src/lib/email/design.ts — the All About Pawz
+// branded frame — so nothing plain-text or "single box" ever leaves the salon.
 // ---------------------------------------------------------------------------
 
 const apiKey = process.env.RESEND_API_KEY || ""
@@ -121,7 +159,17 @@ export async function sendEmail(opts: {
   }
 }
 
-// ---- Templated emails ----
+function firstNameOf(fullName?: string | null): string {
+  return String(fullName || "").trim().split(/\s+/)[0] || ""
+}
+
+function refOf(id?: string): string | undefined {
+  return id ? `BK-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}` : undefined
+}
+
+// ---------------------------------------------------------------------------
+// Senders — one per business email. Every one renders the branded templates.
+// ---------------------------------------------------------------------------
 
 export async function sendCustomerWelcome(customer: { id: string; firstName: string; lastName: string; email: string }) {
   return sendEmail({
@@ -129,7 +177,7 @@ export async function sendCustomerWelcome(customer: { id: string; firstName: str
     to: customer.email,
     template: "customer_welcome",
     subject: "Welcome to All About Pawz",
-    html: welcomeHtml(customer.firstName),
+    html: customerWelcomeHtml({ firstName: customer.firstName || firstNameOf(customer.lastName) || "there" }),
   })
 }
 
@@ -139,15 +187,24 @@ export async function sendBookingConfirmation(b: {
   phone?: string | null; notes?: string | null; bookingId?: string
 }) {
   const customerEmail = b.email
-  const summary = `Service: ${b.service}${b.size ? ` (${b.size})` : ""}<br/>Date: ${b.date || "TBD"}${b.time ? ` at ${b.time}` : ""}<br/>Dog: ${b.dogName || "—"}${b.notes ? `<br/>Notes: ${b.notes}` : ""}`
+  const data: AppointmentData = {
+    firstName: firstNameOf(b.ownerName) || "there",
+    dogName: b.dogName || undefined,
+    service: b.service,
+    size: b.size || undefined,
+    date: b.date || "Date to be confirmed",
+    time: b.time || undefined,
+    notes: b.notes || undefined,
+    bookingRef: refOf(b.bookingId),
+  }
 
   if (customerEmail) {
     await sendEmail({
       customerId: b.customerId,
       to: customerEmail,
-      template: "booking_confirmation",
-      subject: "Your appointment is confirmed — All About Pawz",
-      html: bookingConfirmedHtml(b.ownerName, summary, b.bookingId),
+      template: "booking_confirmed",
+      subject: b.dogName ? `${b.dogName}'s appointment is confirmed` : "Your appointment is confirmed",
+      html: bookingConfirmedHtml(data),
       relatedBookingId: b.bookingId,
     })
   }
@@ -156,8 +213,19 @@ export async function sendBookingConfirmation(b: {
     customerId: b.customerId,
     to: salonNotifyTo,
     template: "booking_notification",
-    subject: `Booking confirmed — ${b.ownerName} (${b.dogName || "dog"})`,
-    html: bookingSalonHtml(b.ownerName, summary, customerEmail || "", b.phone || "", b.bookingId),
+    subject: `New booking — ${b.ownerName}${b.dogName ? ` (${b.dogName})` : ""}${b.date ? ` · ${b.date}${b.time ? ` ${b.time}` : ""}` : ""}`,
+    html: bookingNotificationHtml({
+      ownerName: b.ownerName,
+      dogName: b.dogName || undefined,
+      service: b.service,
+      size: b.size || undefined,
+      date: b.date || undefined,
+      time: b.time || undefined,
+      email: customerEmail || "",
+      phone: b.phone || "",
+      notes: b.notes || undefined,
+      bookingRef: refOf(b.bookingId),
+    }),
     relatedBookingId: b.bookingId,
   })
 }
@@ -168,15 +236,21 @@ export async function sendConsultationRequest(c: {
   email?: string | null; phone?: string | null; consultationId?: string
 }) {
   const customerEmail = c.email
-  const summary = `Name: ${c.name}${c.dogName ? `<br/>Dog: ${c.dogName}` : ""}${c.breed ? ` (${c.breed})` : ""}${c.preferredTime ? `<br/>Preferred time: ${c.preferredTime}` : ""}${c.concerns ? `<br/>Concerns: ${c.concerns}` : ""}`
+  const data: ConsultationData = {
+    firstName: firstNameOf(c.name) || "there",
+    dogName: c.dogName || undefined,
+    breed: c.breed || undefined,
+    concerns: c.concerns || undefined,
+    preferredTime: c.preferredTime || undefined,
+  }
 
   if (customerEmail) {
     await sendEmail({
       customerId: c.customerId,
       to: customerEmail,
       template: "consultation_request",
-      subject: "Consultation request received — All About Pawz",
-      html: consultationHtml(c.name, summary),
+      subject: "We got your consultation request",
+      html: consultationRequestHtml(data),
       relatedBookingId: c.consultationId,
     })
   }
@@ -185,139 +259,172 @@ export async function sendConsultationRequest(c: {
     to: salonNotifyTo,
     template: "consultation_notification",
     subject: `New consultation request — ${c.name}`,
-    html: consultationSalonHtml(c.name, summary, customerEmail || "", c.phone || ""),
+    html: consultationNotificationHtml({
+      name: c.name,
+      dogName: c.dogName || undefined,
+      breed: c.breed || undefined,
+      concerns: c.concerns || undefined,
+      preferredTime: c.preferredTime || undefined,
+      email: customerEmail || "",
+      phone: c.phone || "",
+    }),
     relatedBookingId: c.consultationId,
   })
 }
 
 export async function sendPaymentReceipt(p: {
   customerId?: string; amount: string; type: string; email?: string; bookingId?: string
+  firstName?: string
 }) {
   if (!p.email) return
+  const data: PaymentData = {
+    firstName: p.firstName || "there",
+    amount: p.amount,
+    whatFor: p.type,
+    ref: p.bookingId ? `PAY-${p.bookingId.replace(/-/g, "").slice(0, 6).toUpperCase()}` : undefined,
+    depositCredit: /deposit/i.test(p.type || ""),
+  }
   await sendEmail({
     customerId: p.customerId,
     to: p.email,
-    template: "payment_receipt",
-    subject: "Payment receipt — All About Pawz",
-    html: `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a"><h1 style="font-size:24px">Payment Received</h1><p>Thank you — we've received your payment.</p><div style="background:#fff;border:1px solid #e0d6bf;padding:16px;margin:16px 0"><p style="font-size:18px;font-weight:bold">${p.amount}</p><p style="font-size:12px;color:#666">${p.type}</p></div></body></html>`,
+    template: "payment_confirmation",
+    subject: `Receipt — your ${p.amount} payment`,
+    html: paymentConfirmationHtml(data),
     relatedBookingId: p.bookingId,
   })
 }
 
-// ---- Templates ----
+// ---- Shop order confirmation (Stripe webhook) -------------------------------
 
-function welcomeHtml(name: string) {
-  return `<!doctype html><html><body style="font-family:Georgia,'Playfair Display',serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a"><p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Welcome</p><h1 style="font-size:32px;line-height:1.1;margin:8px 0 0">Hi ${name},</h1><p style="font-style:italic;color:#9a7b3c;font-size:22px;margin:4px 0 16px">From Pawz to PAWfection</p><p>Welcome to All About Pawz. We've created your customer account so you can manage your dogs, appointments, payments, and grooming history in one place.</p><p style="margin-top:16px">We look forward to caring for your pup.</p><a href="https://aapawz.com/account" style="display:inline-block;background:#1a1a1a;color:#faf7f2;padding:12px 28px;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:0.12em;font-family:sans-serif;text-transform:uppercase">Access My Account</a></body></html>`
-}
-
-function bookingConfirmedHtml(name: string, summary: string, bookingId?: string) {
-  return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a"><p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Booking Confirmed</p><h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">Your appointment is confirmed, ${name}.</h1><p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p><div style="background:#fff;border:1px solid #e0d6bf;padding:16px;margin:16px 0">${summary}</div>${bookingId ? `<p style="font-size:11px;color:#666">Booking ref: ${bookingId.slice(0, 8)}</p>` : ""}<p style="margin-top:16px">See you soon!</p></body></html>`
-}
-
-function bookingSalonHtml(name: string, summary: string, email: string, phone: string, bookingId?: string) {
-  return `<!doctype html><html><body style="font-family:sans-serif;max-width:560px;margin:auto;color:#1a1a1a"><h2 style="color:#9a7b3c">Booking confirmed — ${name}</h2><p>${name}'s booking is now confirmed${bookingId ? ` (ref: ${bookingId.slice(0, 8)})` : ""}.</p><div style="background:#f6f6f6;border-left:3px solid #9a7b3c;padding:12px;margin:12px 0">${summary}</div><p style="font-size:13px">Email: ${email || "—"}<br/>Phone: ${phone || "—"}</p><a href="https://aapawz.com/admin/bookings" style="display:inline-block;background:#1a1a1a;color:#fff;padding:10px 20px;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">Review in Operations</a></body></html>`
-}
-
-function consultationHtml(name: string, summary: string) {
-  return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a"><p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Consultation Requested</p><h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">Hi ${name},</h1><p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p><p>Thank you for requesting a consultation. We'll reach out personally to schedule your visit.</p><div style="background:#fff;border:1px solid #e0d6bf;padding:16px;margin:16px 0">${summary}</div></body></html>`
-}
-
-function consultationSalonHtml(name: string, summary: string, email: string, phone: string) {
-  return `<!doctype html><html><body style="font-family:sans-serif;max-width:560px;margin:auto;color:#1a1a1a"><h2 style="color:#9a7b3c">New consultation request — ${name}</h2><div style="background:#f6f6f6;border-left:3px solid #9a7b3c;padding:12px;margin:12px 0">${summary}</div><p style="font-size:13px">Email: ${email || "—"}<br/>Phone: ${phone || "—"}</p></body></html>`
-}
-
-// ---- Portal invite (Resend) ----------------------------------------------
-// Used by /api/auth/invite to deliver the Supabase magic-link invitation
-// via Resend instead of Supabase's built-in mailer. The action_link is the
-// signed URL Supabase generates — clicking it sets the user's password and
-// lands them in the portal.
-export function inviteHtml(opts: {
-  actionLink: string
-  role: string
-  firstName?: string | null
-  lastName?: string | null
-}): string {
-  const fullName = [opts.firstName, opts.lastName].filter(Boolean).join(" ").trim()
-  const greet = fullName ? `Hi ${fullName},` : "Hi there,"
-  const roleLine = opts.role
-    ? `<p style="margin:8px 0 0;color:#555;font-size:14px">You've been invited to join the All About Pawz portal as <strong style="color:#9a7b3c;text-transform:capitalize">${escapeHtml(opts.role)}</strong>.</p>`
-    : `<p style="margin:8px 0 0;color:#555;font-size:14px">You've been invited to join the All About Pawz portal.</p>`
-  return `<!doctype html><html><body style="font-family:Georgia,'Playfair Display',serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
-<p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Portal Invitation</p>
-<h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">${greet}</h1>
-<p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
-${roleLine}
-<p style="margin:16px 0">Click the button below to accept your invitation and set up your password. This link is single-use and expires in 24 hours.</p>
-<a href="${escapeHtml(opts.actionLink)}" style="display:inline-block;background:#1a1a1a;color:#faf7f2;padding:14px 32px;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:0.14em;font-family:sans-serif;text-transform:uppercase;border-radius:4px">Accept Invite &amp; Set Password</a>
-<p style="margin:24px 0 8px;font-size:12px;color:#666">If the button above doesn't work, copy and paste this link into your browser:</p>
-<p style="font-size:11px;color:#9a7b3c;word-break:break-all">${escapeHtml(opts.actionLink)}</p>
-<hr style="border:none;border-top:1px solid #e0d6bf;margin:24px 0"/>
-<p style="font-size:11px;color:#999">If you weren't expecting this invitation, you can safely ignore this email.</p>
-</body></html>`
-}
-
-function escapeHtml(s: string): string {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-}
-
-// Convenience wrapper — builds the invite HTML and dispatches through the
-// audit-trailed sendEmail() pipeline. Safe to call even when RESEND_API_KEY
-// is not set: the audit row is still written and the caller can fall back
-// to Supabase's own mailer.
-export async function sendPortalInvite(opts: {
-  to: string
-  actionLink: string
-  role: string
-  firstName?: string | null
-  lastName?: string | null
-}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+export async function sendOrderReceipt(o: {
+  customerId?: string; email: string; firstName?: string; orderNumber: string
+  items: { name: string; qty: string | number; price: string }[]
+  subtotal: string; shipping: string; tax: string; total: string
+  shipTo?: string; orderId?: string
+}) {
+  const data: OrderData = {
+    firstName: o.firstName || "there",
+    orderNumber: o.orderNumber,
+    items: o.items,
+    subtotal: o.subtotal,
+    shipping: o.shipping,
+    tax: o.tax,
+    total: o.total,
+    shipTo: o.shipTo,
+  }
   return sendEmail({
-    to: opts.to,
-    template: "portal_invite",
-    subject: "Your portal invite — All About Pawz",
-    html: inviteHtml({
-      actionLink: opts.actionLink,
-      role: opts.role,
-      firstName: opts.firstName,
-      lastName: opts.lastName,
-    }),
+    customerId: o.customerId,
+    to: o.email,
+    template: "order_confirmation",
+    subject: `Order ${o.orderNumber} confirmed — thank you!`,
+    html: orderConfirmationHtml(data),
+    relatedOrderId: o.orderId,
   })
 }
 
-// ---- Provisioned-account welcome (Resend, transactional) ------------------
-// Sent when the owner creates an account WITH a password from the CRM: the
-// account is already confirmed and usable, so this email carries NO auth
-// token — just the right sign-in door for the person's role. If they ever
-// forget the password, the copy points them at the standard reset flow,
-// which runs through Supabase (the only system that can mint reset links).
-export function provisionedWelcomeHtml(opts: {
-  signinUrl: string
-  role: string
-  firstName?: string | null
-  lastName?: string | null
-}): string {
-  const fullName = [opts.firstName, opts.lastName].filter(Boolean).join(" ").trim()
-  const greet = fullName ? `Hi ${fullName},` : "Hi there,"
-  const roleLine = opts.role
-    ? `<p style="margin:8px 0 0;color:#555;font-size:14px">Your account is set up as <strong style="color:#9a7b3c;text-transform:capitalize">${escapeHtml(opts.role)}</strong>.</p>`
-    : ""
-  return `<!doctype html><html><body style="font-family:Georgia,'Playfair Display',serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
-<p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Your Account Is Ready</p>
-<h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">${greet}</h1>
-<p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
-${roleLine}
-<p style="margin:16px 0">Your All About Pawz portal account is set up and ready to use. The salon team created it for you and gave you a temporary password — sign in below and make yourself at home.</p>
-<a href="${escapeHtml(opts.signinUrl)}" style="display:inline-block;background:#1a1a1a;color:#faf7f2;padding:14px 32px;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:0.14em;font-family:sans-serif;text-transform:uppercase;border-radius:4px">Sign In To Your Portal</a>
-<p style="margin:16px 0 8px;font-size:13px;color:#555">After signing in with your temporary password, you can change it any time using the <em>Forgot password</em> link on the sign-in page — that reset email comes straight from our account system and is safe to click.</p>
-<hr style="border:none;border-top:1px solid #e0d6bf;margin:24px 0"/>
-<p style="font-size:11px;color:#999">If you weren't expecting this account, contact the salon before using it.</p>
-</body></html>`
+// ---- Abandoned booking recovery (daily sweep) ---------------------------------
+
+export async function sendAbandonedBooking(b: {
+  customerId?: string; email: string; ownerName?: string; dogName?: string | null
+  service?: string | null; date?: string | null; time?: string | null
+  resumeUrl: string; bookingId?: string
+}) {
+  const data: AbandonedData = {
+    firstName: firstNameOf(b.ownerName) || "there",
+    dogName: b.dogName || undefined,
+    service: b.service || "grooming appointment",
+    date: b.date || "",
+    time: b.time || undefined,
+    resumeUrl: b.resumeUrl,
+  }
+  return sendEmail({
+    customerId: b.customerId,
+    to: b.email,
+    template: "abandoned_booking",
+    subject: `Finish your booking${b.dogName ? ` — ${b.dogName}'s appointment is saved` : " — your appointment is saved"}`,
+    html: abandonedBookingHtml(data),
+    relatedBookingId: b.bookingId,
+  })
 }
+
+// ---- Appointment lifecycle ------------------------------------------------------
+
+export async function sendAppointmentReminder(b: {
+  customerId?: string; email: string; ownerName?: string; dogName?: string | null
+  service: string; size?: string | null; date: string; time?: string | null
+  bookingId?: string
+}) {
+  return sendEmail({
+    customerId: b.customerId,
+    to: b.email,
+    template: "appointment_reminder",
+    subject: `${b.time ? `${b.time} — ` : ""}${b.dogName ? `${b.dogName}'s groom` : "Your groom"} is almost here`,
+    html: appointmentReminderHtml({
+      firstName: firstNameOf(b.ownerName) || "there",
+      dogName: b.dogName || undefined,
+      service: b.service,
+      size: b.size || undefined,
+      date: b.date,
+      time: b.time || undefined,
+      bookingRef: refOf(b.bookingId),
+    }),
+    relatedBookingId: b.bookingId,
+  })
+}
+
+export async function sendAppointmentCanceled(b: {
+  customerId?: string; email: string; ownerName?: string; dogName?: string | null
+  service: string; size?: string | null; date: string; time?: string | null
+  reason?: string | null; canceledBy?: "salon" | "customer"; bookingId?: string
+}) {
+  const data: CanceledData = {
+    firstName: firstNameOf(b.ownerName) || "there",
+    dogName: b.dogName || undefined,
+    service: b.service,
+    size: b.size || undefined,
+    date: b.date,
+    time: b.time || undefined,
+    reason: b.reason || undefined,
+    canceledBy: b.canceledBy,
+    bookingRef: refOf(b.bookingId),
+  }
+  return sendEmail({
+    customerId: b.customerId,
+    to: b.email,
+    template: "appointment_canceled",
+    subject: `Your ${b.date} appointment was canceled`,
+    html: appointmentCanceledHtml(data),
+    relatedBookingId: b.bookingId,
+  })
+}
+
+export async function sendAppointmentRescheduled(b: {
+  customerId?: string; email: string; ownerName?: string; dogName?: string | null
+  service: string; size?: string | null; oldDate: string; oldTime?: string | null
+  date: string; time?: string | null; bookingId?: string
+}) {
+  const data: RescheduledData = {
+    firstName: firstNameOf(b.ownerName) || "there",
+    dogName: b.dogName || undefined,
+    service: b.service,
+    size: b.size || undefined,
+    oldDate: b.oldDate,
+    oldTime: b.oldTime || undefined,
+    date: b.date,
+    time: b.time || undefined,
+    bookingRef: refOf(b.bookingId),
+  }
+  return sendEmail({
+    customerId: b.customerId,
+    to: b.email,
+    template: "appointment_rescheduled",
+    subject: `New time confirmed — ${b.date}${b.time ? ` at ${b.time}` : ""}`,
+    html: appointmentRescheduledHtml(data),
+    relatedBookingId: b.bookingId,
+  })
+}
+
+// ---- Accounts & security ---------------------------------------------------------
 
 // The right door for the person's role — the same doors the portals use.
 function signinDoorFor(role: string): string {
@@ -327,21 +434,259 @@ function signinDoorFor(role: string): string {
   return `${SITE_URL}/access-frontdesk`
 }
 
+// Kept for backward compatibility with earlier call sites.
+export function inviteHtml(opts: { actionLink: string; role: string; firstName?: string | null; lastName?: string | null }): string {
+  return teamMemberInviteHtml({
+    fullName: [opts.firstName, opts.lastName].filter(Boolean).join(" ").trim() || undefined,
+    role: opts.role,
+    actionLink: opts.actionLink,
+  })
+}
+
+// Portal invite (Resend) — delivers the Supabase magic-link invitation via the
+// audit-trailed pipeline. Falls back to Supabase's own mailer when Resend
+// isn't configured (caller decides).
+export async function sendPortalInvite(opts: {
+  to: string
+  actionLink: string
+  role: string
+  firstName?: string | null
+  lastName?: string | null
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const fullName = [opts.firstName, opts.lastName].filter(Boolean).join(" ").trim()
+  return sendEmail({
+    to: opts.to,
+    template: "team_member_invite",
+    subject: `You're invited — ${opts.role ? opts.role.charAt(0).toUpperCase() + opts.role.slice(1) : "team member"} at All About Pawz`,
+    html: teamMemberInviteHtml({
+      fullName: fullName || undefined,
+      role: opts.role,
+      actionLink: opts.actionLink,
+    }),
+  })
+}
+
+// Kept for backward compatibility with earlier call sites.
+export function provisionedWelcomeHtml(opts: { signinUrl: string; role: string; firstName?: string | null; lastName?: string | null }): string {
+  return newAccountCreatedHtml({
+    firstName: [opts.firstName, opts.lastName].filter(Boolean).join(" ").trim() || "there",
+    role: opts.role,
+    signinUrl: opts.signinUrl,
+    hasTempPassword: true,
+  })
+}
+
 export async function sendPortalWelcome(opts: {
   to: string
   role: string
   firstName?: string | null
   lastName?: string | null
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const firstName = firstNameOf(opts.firstName) || "there"
+  const rolePretty = opts.role ? opts.role.charAt(0).toUpperCase() + opts.role.slice(1) : "Team"
   return sendEmail({
     to: opts.to,
-    template: "portal_welcome",
-    subject: "Your portal account is ready — All About Pawz",
-    html: provisionedWelcomeHtml({
-      signinUrl: signinDoorFor(opts.role),
+    template: "new_account_created",
+    subject: `Your All About Pawz ${rolePretty} account is ready`,
+    html: newAccountCreatedHtml({
+      firstName,
       role: opts.role,
-      firstName: opts.firstName,
-      lastName: opts.lastName,
+      signinUrl: signinDoorFor(opts.role),
+      hasTempPassword: true,
     }),
   })
 }
+
+export async function sendWelcomeBack(opts: { to: string; firstName?: string | null; customerId?: string }) {
+  return sendEmail({
+    customerId: opts.customerId,
+    to: opts.to,
+    template: "welcome_back",
+    subject: "Welcome back — your profile's ready when you are",
+    html: welcomeBackHtml({ firstName: firstNameOf(opts.firstName) || "there" }),
+  })
+}
+
+export async function sendNewDeviceLogin(opts: { to: string; firstName?: string | null; device?: string; when?: string; location?: string }) {
+  const d: NewDeviceData = {
+    firstName: firstNameOf(opts.firstName) || "there",
+    when: opts.when || new Date().toLocaleString("en-US", { timeZone: "America/Chicago", dateStyle: "long", timeStyle: "short" }) + " (CST)",
+    device: opts.device || "A new device or browser",
+    location: opts.location,
+  }
+  return sendEmail({
+    to: opts.to,
+    template: "login_new_device",
+    subject: "New device signed in to your account",
+    html: newDeviceLoginHtml(d),
+  })
+}
+
+// ---- Learning Center ----------------------------------------------------------------
+
+export async function sendEnrollmentWelcome(e: { to: string; firstName?: string | null; programName?: string; instructor?: string }) {
+  return sendEmail({
+    to: e.to,
+    template: "enrollment_welcome",
+    subject: `You're enrolled in ${e.programName || "the Learning Center"}`,
+    html: enrollmentWelcomeHtml({
+      firstName: firstNameOf(e.firstName) || "there",
+      programName: e.programName,
+      instructor: e.instructor,
+    }),
+  })
+}
+
+export async function sendClassReminder(c: { to: string; firstName?: string | null; moduleName: string; percentComplete: number; programName?: string; minutesLeft?: number }) {
+  return sendEmail({
+    to: c.to,
+    template: "class_reminder",
+    subject: `${firstNameOf(c.firstName) || "Good news"}, '${c.moduleName}' is ${c.percentComplete}% done`,
+    html: classReminderHtml({
+      firstName: firstNameOf(c.firstName) || "there",
+      moduleName: c.moduleName,
+      percentComplete: c.percentComplete,
+      programName: c.programName,
+      minutesLeft: c.minutesLeft,
+    }),
+  })
+}
+
+export async function sendCompletionCongratulations(c: { to: string; firstName?: string | null; completedWhat: string; completedOn?: string; nextStep?: string }) {
+  return sendEmail({
+    to: c.to,
+    template: "completion_congratulations",
+    subject: `Congratulations — you completed ${c.completedWhat}!`,
+    html: completionCongratulationsHtml({
+      firstName: firstNameOf(c.firstName) || "there",
+      completedWhat: c.completedWhat,
+      completedOn: c.completedOn || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+      nextStep: c.nextStep,
+    }),
+  })
+}
+
+export async function sendEnrollmentNotification(e: { name?: string; email: string; program?: string; enrolledAt?: string }) {
+  return sendEmail({
+    to: process.env.MANAGEMENT_NOTIFY_EMAIL || "booking@aapawz.com",
+    template: "enrollment_notification",
+    subject: `New enrollment — ${e.name || e.email}`,
+    html: enrollmentNotificationHtml({
+      name: e.name || "New member",
+      email: e.email,
+      program: e.program,
+      enrolledAt: e.enrolledAt || new Date().toLocaleString("en-US", { timeZone: "America/Chicago", dateStyle: "long", timeStyle: "short" }),
+    }),
+  })
+}
+
+// ---- Commerce extras -------------------------------------------------------------------
+
+export async function sendSubscriptionBillingNotice(s: SubscriptionBillingData & { to: string; customerId?: string }) {
+  return sendEmail({
+    customerId: s.customerId,
+    to: s.to,
+    template: "subscription_billing_notice",
+    subject: `Heads up: ${s.amount} renews on ${s.billingDate}`,
+    html: subscriptionBillingHtml(s),
+  })
+}
+
+export async function sendMembershipActive(m: MembershipData & { to: string; customerId?: string }) {
+  return sendEmail({
+    customerId: m.customerId,
+    to: m.to,
+    template: "membership_active",
+    subject: `Your ${m.planName} membership is active`,
+    html: membershipActiveHtml(m),
+  })
+}
+
+// ---- Template Studio test sends -----------------------------------------------------------
+
+/** Sends any catalog template (rendered with its sample data) to a recipient. */
+export async function sendTemplateTest(templateId: string, to: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const def = getTemplateDef(templateId)
+  if (!def) return { ok: false, error: `Unknown template: ${templateId}` }
+  if (def.channel !== "resend") {
+    return { ok: false, error: "Supabase templates are pasted into the Supabase dashboard — they can't be test-sent from here." }
+  }
+  return sendEmail({
+    to,
+    template: `studio_test_${def.id}`,
+    subject: `[TEST] ${def.subject}`,
+    html: def.html,
+  })
+}
+
+// ---- Manual salon messages (Customer 360 → Send Email) --------------------------------------
+
+/** Freeform admin-typed message, wrapped in the branded frame. */
+export async function sendSalonMessage(opts: {
+  to: string
+  customerId?: string
+  subject: string
+  message: string
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const paragraphs = String(opts.message || "")
+    .split(/\n{2,}/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => t.replace(/\n/g, "<br>"))
+  if (paragraphs.length === 0) paragraphs.push("&nbsp;")
+  const plain = String(opts.message || "").replace(/<[^>]+>/g, "").slice(0, 90)
+  const html = frame({
+    preheader: plain ? `${plain}…` : "A note from All About Pawz.",
+    body: [
+      eyebrow("A note from All About Pawz"),
+      h1("Hello from the salon"),
+      taglineFlourish(),
+      ...paragraphs.map((t) => p(t)),
+      pawDivider(),
+      p(`— The All About Pawz family`, { small: true, muted: true, center: true }),
+    ].join(""),
+    reason: `You're receiving this message because you're an All About Pawz customer.`,
+  })
+  return sendEmail({
+    customerId: opts.customerId,
+    to: opts.to,
+    template: "salon_message",
+    subject: opts.subject || "A note from All About Pawz",
+    html,
+  })
+}
+
+// ---- Order status updates (fulfillment queue) ------------------------------------------------
+
+export async function sendOrderStatusUpdate(opts: {
+  to: string
+  customerId?: string
+  orderNumber: string
+  statusNote: string
+  firstName?: string
+}): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  const html = frame({
+    preheader: `Update on order ${opts.orderNumber}.`,
+    body: [
+      eyebrow("Order update"),
+      h1(`Update on your order${opts.firstName ? `, ${esc(opts.firstName)}` : ""}`),
+      taglineFlourish(),
+      p(esc(opts.statusNote)),
+      detailsCard("Your order", [
+        { label: "Order number", value: esc(opts.orderNumber) },
+        { label: "Questions", value: `Reply to this email or ${BRAND.email}` },
+      ]),
+      p(`Thank you for shopping small — it genuinely means the world to a salon like ours.`, { muted: true, small: true }),
+    ].join(""),
+    reason: `You're receiving this because you placed an order at aapawz.com.`,
+  })
+  return sendEmail({
+    customerId: opts.customerId,
+    to: opts.to,
+    template: "order_alert",
+    subject: `Your order ${opts.orderNumber} — All About Pawz`,
+    html,
+  })
+}
+
+export { BRAND as EMAIL_BRAND, esc as escapeEmailHtml }

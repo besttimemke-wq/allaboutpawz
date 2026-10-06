@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
           amount: order.subtotal || "",
           type: "order",
           email,
+          firstName: String(session.customer_details?.name || "").split(/\s+/)[0] || undefined,
         }).catch(() => {})
       }
 
