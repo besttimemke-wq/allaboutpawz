@@ -191,8 +191,12 @@ function ForgotPasswordLink({ defaultEmail }: { defaultEmail: string }) {
     try {
       const supabase = createClient();
       try {
+        // Land the reset on the set-password page: it consumes the ?code=
+        // (PKCE), shows the new-password box, and signs the user straight
+        // into their portal after saving. (Redirecting to /auth/callback
+        // would misroute customers into the Learning Center.)
         await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/set-password`,
         });
       } catch {
         await supabase.auth.resetPasswordForEmail(email);

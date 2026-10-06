@@ -16,11 +16,13 @@ import {
 
 // ---------------------------------------------------------------------------
 // EMAIL TEMPLATE STUDIO — every email All About Pawz sends, one branded
-// design. Browses the /api/admin/email-templates catalog (35 templates,
-// 8 groups), previews each one pixel-perfect in a sandboxed iframe
-// (desktop 600px / mobile 375px), copies the HTML + subject for pasting
-// into the Supabase dashboard, and test-sends the Resend-channel
-// templates through the real production pipeline.
+// design, LIVE against production. Browses the /api/admin/email-templates
+// catalog (35 templates, 8 groups), previews each one pixel-perfect in a
+// sandboxed iframe (desktop 600px / mobile 375px), test-sends the
+// Resend-channel templates through the real production pipeline, and — for
+// the Supabase-channel templates — shows the HOSTED project's live sync
+// status with a one-click PUSH TO SUPABASE (Management API, no dashboard
+// pasting).
 //
 // Design language: the settings screens' DAWG-OS chrome (tabular-nums
 // micro-labels, bordered panels, muted section headers) rendered in the
@@ -99,8 +101,23 @@ async function copyText(text: string): Promise<boolean> {
 
 // --- Small presentational helpers --------------------------------------------
 
-function StatusBadge({ t }: { t: CatalogTemplate }) {
+function StatusBadge({ t, liveSync }: { t: CatalogTemplate; liveSync?: boolean | null }) {
   if (t.channel === 'supabase') {
+    if (liveSync === true) {
+      return (
+        <span className="shrink-0 inline-flex items-center gap-1 text-[8px] uppercase font-bold tracking-wide px-1.5 py-0.5 border border-success/30 bg-success/10 text-success rounded-sm">
+          <span className="w-1.5 h-1.5 rounded-full bg-success" />
+          Live
+        </span>
+      );
+    }
+    if (liveSync === false) {
+      return (
+        <span className="shrink-0 inline-flex items-center text-[8px] uppercase font-bold tracking-wide px-1.5 py-0.5 border border-warning/40 bg-warning/10 text-warning rounded-sm">
+          Out of sync
+        </span>
+      );
+    }
     return (
       <span className="shrink-0 inline-flex items-center text-[8px] uppercase font-bold tracking-wide px-1.5 py-0.5 border border-gold/40 bg-gold/10 text-gold-deep rounded-sm">
         Supabase
@@ -138,6 +155,10 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
   const [sentMessageId, setSentMessageId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [liveMap, setLiveMap] = useState<Record<string, { inSync: boolean; liveSubject: string | null }> | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [pushing, setPushing] = useState(false);
+  const [pushResult, setPushResult] = useState<string | null>(null);
 
   // ---- Catalog load ----------------------------------------------------------
 
@@ -170,6 +191,70 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
       alive = false;
     };
   }, [reloadKey]);
+
+  // ---- Live Supabase sync status (separate, cheap GET; degrades silently) ----
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/admin/email-templates?live=1')
+      .then(async (r) => {
+        if (r.ok) return r.json();
+        const body = await r.json().catch(() => null);
+        throw new Error(body?.live?.error || body?.error || `Live status unavailable (HTTP ${r.status}).`);
+      })
+      .then((data) => {
+        if (!alive) return;
+        const live = (data as { live?: { ok: boolean; templates?: { templateId: string; inSync: boolean; liveSubject: string | null }[] } }).live;
+        if (!live?.ok || !Array.isArray(live.templates)) {
+          setLiveMap(null);
+          return;
+        }
+        const map: Record<string, { inSync: boolean; liveSubject: string | null }> = {};
+        for (const t of live.templates) map[t.templateId] = { inSync: t.inSync, liveSubject: t.liveSubject };
+        setLiveMap(map);
+      })
+      .catch(() => {
+        if (alive) setLiveError('Live status unavailable — the SUPABASE_ACCESS_TOKEN may be missing or revoked.');
+      });
+    return () => {
+      alive = false;
+    };
+  }, [reloadKey]);
+
+  const supabaseTemplates = useMemo(() => catalog?.templates.filter((t) => t.channel === 'supabase') ?? [], [catalog]);
+  const liveCount = useMemo(
+    () => (liveMap ? supabaseTemplates.filter((t) => liveMap[t.id]?.inSync).length : null),
+    [liveMap, supabaseTemplates],
+  );
+
+  const runPush = async () => {
+    if (pushing) return;
+    setPushing(true);
+    setPushResult(null);
+    try {
+      const res = await fetch('/api/admin/email-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'push' }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) {
+        setPushResult(`Pushed ${data.pushed} templates — ${data.verified}/${data.pushed} verified live ✓`);
+        if (Array.isArray(data.statuses)) {
+          const map: Record<string, { inSync: boolean; liveSubject: string | null }> = {};
+          for (const s of data.statuses) map[s.templateId] = { inSync: s.inSync, liveSubject: s.liveSubject };
+          setLiveMap(map);
+          setLiveError(null);
+        }
+      } else {
+        setPushResult(data?.error || 'Push failed — check the server logs.');
+      }
+    } catch {
+      setPushResult('Push failed — network error.');
+    } finally {
+      setPushing(false);
+    }
+  };
 
   // Default selection — lead with the flagship live template so the first
   // impression is a fully wired, production email.
@@ -427,7 +512,7 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
           </span>
           <span className="inline-flex items-center gap-1.5 border border-gold/40 bg-gold/10 px-2.5 py-1.5 text-[10px] uppercase font-semibold text-gold-deep">
             <ClipboardPaste className="size-3" />
-            {supabaseCount} Supabase auto-push
+            {supabaseCount} Supabase{liveCount !== null ? ` · ${liveCount} live` : ''}
           </span>
           <span className="inline-flex items-center gap-1.5 border border-success/30 bg-success/10 px-2.5 py-1.5 text-[10px] uppercase font-semibold text-success">
             <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
@@ -502,7 +587,7 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
                         >
                           {t.name}
                         </span>
-                        <StatusBadge t={t} />
+                        <StatusBadge t={t} liveSync={liveMap ? (liveMap[t.id]?.inSync ?? null) : undefined} />
                       </button>
                     );
                   })}
@@ -544,7 +629,13 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
                           : 'border-ink bg-ink text-cream'
                       }`}
                     >
-                      {selected.channel === 'supabase' ? 'Supabase auto-push' : 'Resend pipeline'}
+                      {selected.channel === 'supabase'
+                        ? liveMap
+                          ? liveMap[selected.id]?.inSync
+                            ? 'Supabase · live'
+                            : 'Supabase · out of sync'
+                          : 'Supabase auto-push'
+                        : 'Resend pipeline'}
                     </span>
                     {selected.channel === 'resend' && (
                       <span
@@ -789,84 +880,74 @@ export const EmailTemplatesScreen: React.FC<ScreenProps> = ({
                   </div>
                 </div>
               ) : (
-                /* Supabase install callout — automated push first, manual paste as fallback */
+                /* Supabase live-sync panel — status of the HOSTED project + one-click push */
                 <div className="p-4 border-b border-border bg-card">
-                  <div className="border border-warning/30 bg-warning/10 rounded-md">
-                    <div className="px-4 py-2.5 border-b border-warning/20 flex items-center justify-between gap-2 flex-wrap">
+                  <div className={`border rounded-md ${liveCount === null ? 'border-warning/30 bg-warning/10' : liveCount === supabaseTemplates.length ? 'border-success/30 bg-success/10' : 'border-warning/30 bg-warning/10'}`}>
+                    <div className={`px-4 py-2.5 border-b flex items-center justify-between gap-2 flex-wrap ${liveCount === supabaseTemplates.length ? 'border-success/20' : 'border-warning/20'}`}>
                       <div className="flex items-center gap-2">
-                        <ClipboardPaste className="size-4 text-warning shrink-0" />
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-warning">
-                          Supabase dashboard template
+                        <RefreshCw className={`size-4 shrink-0 ${liveCount === supabaseTemplates.length ? 'text-success' : 'text-warning'}`} />
+                        <span className={`text-[11px] font-semibold uppercase tracking-wider ${liveCount === supabaseTemplates.length ? 'text-success' : 'text-warning'}`}>
+                          Hosted Supabase project — live sync
                         </span>
                       </div>
-                      <span className="text-[9px] uppercase font-bold tracking-wide tabular-nums px-1.5 py-0.5 border border-warning/30 bg-card text-warning rounded-sm">
-                        Auto-push · no pasting
+                      <span className="text-[9px] uppercase font-bold tracking-wide tabular-nums px-1.5 py-0.5 border rounded-sm bg-card">
+                        {liveCount === null
+                          ? liveError
+                            ? 'Status unavailable'
+                            : 'Checking…'
+                          : `${liveCount}/${supabaseTemplates.length} live`}
                       </span>
                     </div>
                     <div className="p-4 space-y-3">
-                      <div className="space-y-2">
-                        <p className="text-[12.5px] text-ink-soft leading-relaxed">
-                          All Supabase templates on this screen are pushed to the hosted project in
-                          one command — no dashboard copy-paste:
-                        </p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <code className="px-2 py-1 bg-card border border-warning/25 text-gold-deep tabular-nums rounded-sm text-[11px]">
-                            bun run email-templates:push
-                          </code>
-                          <span className="text-[11px] text-muted-foreground">
-                            (scripts/push-supabase-email-templates.ts — Management API PATCH, with
-                            rollback snapshot + verify)
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          A GitHub Action also pushes automatically on every merge to main that
-                          touches the email system — needs
-                          the repo secret <span className="font-semibold">SUPABASE_ACCESS_TOKEN</span> (fresh
-                          token: supabase.com/dashboard/account/tokens).
-                        </p>
-                      </div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-warning border-t border-warning/20 pt-3">
-                        Manual fallback — only if you prefer the dashboard
+                      <p className="text-[12.5px] text-ink-soft leading-relaxed">
+                        {liveCount === null
+                          ? liveError || 'Reading the live template configuration from the hosted Supabase project…'
+                          : liveCount === supabaseTemplates.length
+                            ? 'Every Supabase template on the hosted project matches this code exactly — account emails (invite, reset, confirmation, security notices) send in the branded design.'
+                            : 'The hosted project differs from this code. Push to update all Supabase templates in one request — subjects, branded HTML, everything.'}
                       </p>
-                      <ol className="list-decimal pl-5 space-y-2 text-[12.5px] text-ink-soft">
-                        <li>
-                          Click{' '}
-                          <span className="font-semibold text-ink">Copy HTML</span> above — the full
-                          email document is now on your clipboard.
-                        </li>
-                        <li>
-                          Open{' '}
-                          <span className="font-semibold text-ink">{selected.supabasePath}</span>.
-                        </li>
-                        <li>
-                          Replace the <span className="font-semibold text-ink">Message body</span>{' '}
-                          with the copied HTML — click the source{' '}
-                          <code className="px-1 py-0.5 bg-card border border-warning/25 text-gold-deep tabular-nums rounded-sm">
-                            {'< >'}
-                          </code>{' '}
-                          code view button in the editor first if one is shown.
-                        </li>
-                        <li>
-                          Paste the subject from above into the{' '}
-                          <span className="font-semibold text-ink">Subject</span> field.
-                        </li>
-                        <li>
-                          <span className="font-semibold text-ink">Save</span>.
-                        </li>
-                      </ol>
                       {selected.notes && selected.notes.length > 0 && (
-                        <ul className="border-t border-warning/20 pt-3 space-y-1.5">
+                        <ul className="space-y-1.5">
                           {selected.notes.map((n, i) => (
                             <li key={i} className="flex gap-2 text-[11px] text-muted-foreground">
-                              <span className="text-warning shrink-0">▸</span>
+                              <span className={liveCount === supabaseTemplates.length ? 'text-success shrink-0' : 'text-warning shrink-0'}>▸</span>
                               <span className="leading-relaxed">{n}</span>
                             </li>
                           ))}
                         </ul>
                       )}
-                      <p className="text-[11px] text-muted-foreground border-t border-warning/20 pt-3 leading-relaxed">
+                      <div className="flex items-center gap-3 flex-wrap pt-1">
+                        <button
+                          type="button"
+                          onClick={runPush}
+                          disabled={pushing}
+                          className={`inline-flex items-center gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-white rounded-md transition shadow-xs disabled:opacity-60 cursor-pointer ${liveCount === supabaseTemplates.length ? 'bg-ink hover:bg-ink-soft' : 'bg-gold-deep hover:bg-ink'}`}
+                        >
+                          {pushing ? (
+                            <>
+                              <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Pushing…
+                            </>
+                          ) : (
+                            <>
+                              <Send className="size-3.5" />
+                              {liveCount === supabaseTemplates.length ? 'Re-push to Supabase' : 'Push to Supabase'}
+                            </>
+                          )}
+                        </button>
+                        <span className="text-[11px] text-muted-foreground">
+                          Management API PATCH + verify — same engine as{' '}
+                          <code className="px-1 py-0.5 bg-card border border-border text-gold-deep rounded-sm">email-templates:push</code>
+                        </span>
+                      </div>
+                      {pushResult && (
+                        <div className={`px-3 py-2 rounded-sm text-[12px] border ${pushResult.includes('✓') ? 'border-success/30 bg-success/10 text-success' : 'border-destructive/30 bg-destructive/10 text-destructive'}`}>
+                          {pushResult}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-muted-foreground border-t border-border pt-3 leading-relaxed">
                         The preview shows{' '}
-                        <code className="px-1 py-0.5 bg-card border border-warning/25 text-gold-deep tabular-nums rounded-sm">
+                        <code className="px-1 py-0.5 bg-card border border-border text-gold-deep rounded-sm">
                           {'{{ .ConfirmationURL }}'}
                         </code>
                         -style placeholders on purpose — Supabase fills them in when the email

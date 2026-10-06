@@ -36,12 +36,24 @@ function SetPasswordContent() {
     let cancelled = false;
     (async () => {
       try {
-        // If we landed here from a recovery/invite email, the URL has a
-        // ?code= parameter (PKCE flow). Exchange it for a session FIRST so
-        // the user can then set their password.
+        // Two link shapes land here:
+        //   ?code=…        PKCE flow (reset requested from this browser —
+        //                  the verifier is in localStorage).
+        //   #access_token=… Implicit flow (invite emails and admin-generated
+        //                  links). Nothing consumes the fragment for us, so
+        //                  establish the session explicitly and clean the
+        //                  URL — otherwise the box below says "expired".
         const code = searchParams.get('code');
         if (code) {
           await supabase.auth.exchangeCodeForSession(code);
+        } else if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
+          const params = new URLSearchParams(window.location.hash.slice(1));
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
+          }
         }
         const { data } = await supabase.auth.getSession();
         if (!cancelled) {
@@ -79,8 +91,32 @@ function SetPasswordContent() {
         return;
       }
       setDone(true);
+      // Sign in for real: the login route resolves the role from the salon
+      // records, issues the pawz_session cookie, and returns the correct
+      // portal destination — identical to a normal sign-in. Fall back to
+      // `next` if the login call cannot complete (the Supabase session is
+      // still live, so the portal may resolve it too).
+      let dest = next;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: accountEmail, password }),
+        });
+        const data = await res.json().catch(() => null);
+        if (
+          res.ok &&
+          typeof data?.redirectTo === 'string' &&
+          data.redirectTo.startsWith('/') &&
+          !data.redirectTo.startsWith('//')
+        ) {
+          dest = data.redirectTo;
+        }
+      } catch {
+        // non-fatal — `next` is the fallback
+      }
       // Give the confirmation a beat, then continue to the portal.
-      setTimeout(() => router.replace(next), 1200);
+      setTimeout(() => router.replace(dest), 1200);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the password. Please try again.');
       setSubmitting(false);

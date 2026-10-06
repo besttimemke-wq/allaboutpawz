@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import pg from "pg"
+import { SITE_URL } from "../site-url"
 
 // ---------------------------------------------------------------------------
 // enrollCustomer() — the single customer-identity entry point.
@@ -186,6 +187,9 @@ export async function enrollCustomer(opts: {
     if (supabaseAdmin) {
       const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
         data: { full_name: email.split("@")[0], portal: "customer" },
+        // Land the invitation on the set-password page — the invited user
+        // gets the new-password box and signs straight into their portal.
+        redirectTo: `${SITE_URL}/auth/set-password`,
       })
       if (!error && data?.user) {
         authUser = { id: data.user.id, email_confirmed_at: null }

@@ -48,6 +48,22 @@ export async function GET(request: Request) {
 
       if (activeRoles.includes('admin')) return NextResponse.redirect(`${origin}/portal/admin`)
       if (activeRoles.includes('groomer')) return NextResponse.redirect(`${origin}/portal/groomer`)
+
+      // Salon customers → their portal, never the Learning Center.
+      try {
+        const email = String(data.user.email || '').toLowerCase()
+        if (email) {
+          const { data: customerRows } = await supabase
+            .from('customers')
+            .select('id')
+            .ilike('email', email)
+            .limit(1)
+          if (customerRows && customerRows.length > 0) {
+            return NextResponse.redirect(`${origin}/customer/dashboard`)
+          }
+        }
+      } catch { /* customers table miss — fall through to the LMS routes */ }
+
       if (activeRoles.includes('learner')) return NextResponse.redirect(`${origin}/learn/classroom`)
       return NextResponse.redirect(`${origin}/learn/classroom`)
     }

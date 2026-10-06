@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
 import { sendPortalInvite } from "@/lib/email"
+import { SITE_URL } from "@/lib/site-url"
 
 // POST /api/auth/invite
 // Creates a Supabase Auth user, sends a magic link invitation email,
@@ -69,10 +70,13 @@ export async function POST(req: NextRequest) {
     userId = newUser.user.id
 
     // 3. Send invitation magic link via Supabase (always — generates the
-    //    signed action_link we'll deliver through Resend).
+    //    signed action_link we'll deliver through Resend). The link lands on
+    //    /auth/set-password, where the invited user (session, no password)
+    //    gets the new-password box and signs straight into their portal.
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: "invite",
       email,
+      options: { redirectTo: `${SITE_URL}/auth/set-password` },
     })
 
     if (linkError) {
