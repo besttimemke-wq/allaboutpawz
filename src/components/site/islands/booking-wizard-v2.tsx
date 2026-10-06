@@ -68,6 +68,12 @@ export function BookingWizardV2({
   const [resumable, setResumable] = useState(false)
   const [resuming, setResuming] = useState(false)
   const [resumeError, setResumeError] = useState<string | null>(null)
+  // Returning-customer recognition (owner request 2026-10-06): when the
+  // typed email matches a salon profile, the wizard SAYS SO — "you have a
+  // profile with us, sign in" — and offers the portal door, instead of
+  // silently continuing as a guest. `null` = not recognized (or already
+  // acknowledged); a value = show the recognition panel on step 1.
+  const [recognized, setRecognized] = useState<{ firstName: string } | null>(null)
 
   // Hydrate from localStorage (avoid SSR mismatch). The ROUTE owns the
   // flow — /book/appointment and /book/consultation each render their own
@@ -120,7 +126,17 @@ export function BookingWizardV2({
     if (params.get("cancelled") === "1") {
       setResumable(true)
     }
-     
+    // Email-link resume (abandoned-booking recovery): the recovery email
+    // links here with ?resume=<bookingId>. The visitor may be on a DIFFERENT
+    // device (no localStorage) — hydrate the bookingId directly so the
+    // YOUR BOOKING IS SAVED panel appears and can reopen the deposit
+    // checkout for the SAME booking row (no duplicates).
+    const resumeParam = params.get("resume")
+    if (resumeParam && /^[0-9a-f-]{8,}$/i.test(resumeParam)) {
+      useWizard.getState().patch({ bookingId: resumeParam })
+      setResumable(true)
+    }
+
   }, [])
 
   // ----- Derived lookups -----
@@ -198,6 +214,15 @@ export function BookingWizardV2({
               knownCustomer: true,
               onFileDogs: Array.isArray(data.dogs) ? data.dogs : [],
             })
+            // First time we see the match: PAUSE and tell them they have a
+            // profile (owner: "the system should tell the user you have a
+            // profile — sign in"). The panel offers the portal door plus
+            // continue-as-guest; acknowledging it re-runs this handler and
+            // proceeds below.
+            if (!recognized) {
+              setRecognized({ firstName: c.firstName || st.firstName.trim() })
+              return
+            }
           }
         }
       } catch { /* prefill is best-effort — never blocks the flow */ }
@@ -297,6 +322,11 @@ export function BookingWizardV2({
           weightLbs: st.weightLbs ? parseFloat(st.weightLbs) : null,
           color: st.color || null,
           markings: st.markings || null,
+          // Shot records — photos + note, saved on the dog row (migration 0016).
+          // NULL-only backfill on reuse: an empty list/notes NEVER wipes
+          // records the salon or a previous visit already stored on the row.
+          ...((st.vaccinationPhotoUrls || []).length > 0 ? { vaccinationPhotoUrls: st.vaccinationPhotoUrls } : {}),
+          ...(st.vaccinationNotes ? { vaccinationNotes: st.vaccinationNotes } : {}),
         }
         // Duplicate guard: a returning customer who types the same name as
         // an on-file pup reuses that row — same customer + same name = same
@@ -422,13 +452,16 @@ export function BookingWizardV2({
               coatTypeId: s.coatTypeId, coatTextureId: s.coatTextureId,
               coatLengthId: s.coatLengthId, coatConditionId: s.coatConditionId,
               sheddingLevelId: s.sheddingLevelId,
-              currentHaircutStyleId: s.currentHaircutStyleId,
-              currentBodyLengthId: s.currentBodyLengthId,
+              // Current style is no longer asked twice (steps 4/5 were
+              // consolidated) — mirror the REQUESTED style when the customer
+              // picked one, so the profile stays meaningful.
+              currentHaircutStyleId: s.currentHaircutStyleId || s.styleId,
+              currentBodyLengthId: s.currentBodyLengthId || s.bodyLengthId,
               temperament: s.temperament,
               nailHandling: s.nailHandling, faceHandling: s.faceHandling,
               feetHandling: s.feetHandling, earHandling: s.earHandling,
               dryerHandling: s.dryerHandling, clipperHandling: s.clipperHandling,
-              handlingNotes: s.handlingNotes, groomingNotes: s.groomingNotes, ownerNotes: s.ownerNotes,
+              handlingNotes: s.notes, groomingNotes: "", ownerNotes: "",
             },
             groomingRequest: {
               styleId: s.styleId, bodyLengthId: s.bodyLengthId, bodyStyleId: s.bodyStyleId,
@@ -437,7 +470,10 @@ export function BookingWizardV2({
               sanitaryService: s.sanitaryService, nailService: s.nailService,
               pawPadService: s.pawPadService, earService: s.earService,
               teethService: s.teethService, desheddingService: s.desheddingService,
-              coatTechnique: s.coatTechnique, specialInstructions: s.specialInstructions,
+              coatTechnique: s.coatTechnique,
+              // Step 5's special-instructions box was consolidated into
+              // step 8 NOTES — one box, one place; it feeds the groomer request.
+              specialInstructions: s.notes,
             },
           }),
         })
@@ -614,7 +650,19 @@ export function BookingWizardV2({
       )}
 
       <div className="min-h-[340px]">
-        {s.step === 1 && <StepEmail flow={flow} />}
+        {s.step === 1 && (
+          <StepEmail
+            flow={flow}
+            recognized={recognized}
+            onGuestContinue={() => {
+              // Acknowledge the recognition panel and continue as guest —
+              // re-runs the continue handler, which now proceeds past the
+              // pause (prefill already applied from the lookup).
+              setRecognized(null)
+              onContinue()
+            }}
+          />
+        )}
         {s.step === 2 && <StepContact submitting={submitting} />}
         {s.step === 3 && <StepDog breeds={breeds} submitting={submitting} />}
         {s.step === 4 && <StepCoat lookups={lookups} />}
@@ -729,6 +777,11 @@ function LookupDropdown({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const ref = useRef<HTMLDivElement>(null)
+  // AUTOCOMPLETE (owner request): any list long enough to scroll gets the
+  // type-to-filter search box automatically — no prop needed. Short lists
+  // (2–8 options) render plain, matching the salon's paper forms.
+  const searchable = searchPlaceholder !== undefined || items.length > 8
+  const effectiveSearchPlaceholder = searchPlaceholder ?? `Search ${items.length} options…`
 
   useEffect(() => {
     if (!open) return
@@ -756,13 +809,13 @@ function LookupDropdown({
       </button>
       {open && (
         <div className="absolute z-40 mt-1 w-full border border-gold/35 bg-cream shadow-lg">
-          {searchPlaceholder !== undefined && (
+          {searchable && (
             <div className="border-b border-gold/25 px-3 py-2">
               <input
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={searchPlaceholder}
+                placeholder={effectiveSearchPlaceholder}
                 className="w-full bg-cream text-[12px] text-ink placeholder:text-muted-foreground focus:outline-none"
               />
             </div>
@@ -863,7 +916,7 @@ function BreedDropdown({ breeds, value, onChange }: { breeds: Breed[]; value: st
 // Steps
 // ===========================================================================
 
-function StepEmail({ flow }: { flow: BookingType }) {
+function StepEmail({ flow, recognized, onGuestContinue }: { flow: BookingType; recognized: { firstName: string } | null; onGuestContinue: () => void }) {
   const s = useWizard()
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email.trim())
   const backTo = flow === "consultation" ? "/book/consultation" : "/book/appointment"
@@ -877,6 +930,36 @@ function StepEmail({ flow }: { flow: BookingType }) {
           your booking is never lost.
         </p>
       </div>
+
+      {/* PROFILE RECOGNITION (owner request): the typed email belongs to a
+          salon profile. SAY IT — "you have a profile with us" — and offer
+          the sign-in door to the customer portal; a guest continue keeps
+          the prefill from the lookup either way. */}
+      {recognized && (
+        <div className="border-2 border-gold-deep bg-cream-deep px-4 py-4">
+          <p className="text-[10px] font-bold tracking-[0.14em] text-gold-deep">YOU HAVE A PROFILE WITH US</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink">
+            Welcome back{recognized.firstName ? `, ${recognized.firstName}` : ""}! This email is already in our
+            system{s.onFileDogs.length > 0 ? ` — your ${s.onFileDogs.length === 1 ? "pup is" : "pups are"} on file` : ""}. Sign in to your
+            portal to autofill everything and track your booking, or continue below without signing in.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <a
+              href={`/access-customer?redirect=${encodeURIComponent(backTo)}`}
+              className="btn-gold text-[11px]"
+            >
+              SIGN IN TO YOUR PROFILE
+            </a>
+            <button
+              type="button"
+              onClick={onGuestContinue}
+              className="text-[11px] font-bold tracking-[0.08em] text-ink-soft underline underline-offset-2 hover:text-ink"
+            >
+              Continue without signing in
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Returning visitors — the two portal doors. Progress saves
           automatically, so signing in mid-booking loses nothing. */}
@@ -1004,8 +1087,11 @@ function StepContact({ submitting }: { submitting: boolean }) {
 function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean }) {
   const s = useWizard()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const shotInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
+  const [shotUploading, setShotUploading] = useState(false)
+  const [shotError, setShotError] = useState("")
 
   // Selecting an ON FILE pup prefills the fields and marks the row for
   // reuse — the wizard UPDATEs that row instead of creating a duplicate.
@@ -1024,6 +1110,46 @@ function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean 
       photoUrl: d.photoUrl || s.photoUrl || "",
       reuseDogId: d.id,
     })
+  }
+
+  // Shot-record upload (rabies certificate, distemper, bordetella…).
+  // Same pipeline as the pet photo (cms-media bucket); URLs collect on
+  // the dog row the wizard creates/updates — a NEW user can attach their
+  // records without an account (owner request, 2026-10-06).
+  const onPickShotRecord = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (!/^image\//.test(f.type)) {
+      setShotError("Please choose an image file")
+      return
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setShotError("Image is too large (5 MB max)")
+      return
+    }
+    setShotUploading(true)
+    setShotError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", f)
+      const res = await fetch("/api/cms/upload", { method: "POST", body: fd })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error(j.error || "Upload failed")
+      }
+      const data = await res.json()
+      const cur = useWizard.getState().vaccinationPhotoUrls || []
+      if (cur.length >= 4) {
+        setShotError("Up to 4 record photos — remove one to add another.")
+        return
+      }
+      useWizard.getState().patch({ vaccinationPhotoUrls: [...cur, data.url] })
+    } catch (err: any) {
+      setShotError(sanitizeApiErrorText(err?.message, "Upload failed — please try a smaller photo or continue without one."))
+    } finally {
+      setShotUploading(false)
+      if (shotInputRef.current) shotInputRef.current.value = ""
+    }
   }
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1173,6 +1299,63 @@ function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean 
         </div>
       </div>
 
+      {/* Shot-record uploader — vaccination photos (owner request: new
+          customers must be able to attach shot records without an account) */}
+      <div className="rounded-xl border border-gold/25 bg-card p-4">
+        <p className="eyebrow mb-1">SHOT RECORDS</p>
+        <p className="mb-3 text-[11px] text-ink-soft">
+          Optional — upload a photo of your pup&apos;s vaccination records (rabies, distemper, bordetella) and our
+          groomers can see they&apos;re ready for their visit. You can also add them later from your portal.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {(s.vaccinationPhotoUrls || []).map((url, i) => (
+            <div key={url + i} className="relative">
+              <img
+                src={url}
+                alt={`Vaccination record ${i + 1}`}
+                className="h-16 w-16 rounded-md border border-gold/30 object-cover"
+              />
+              <button
+                type="button"
+                aria-label={`Remove record ${i + 1}`}
+                onClick={() =>
+                  s.patch({ vaccinationPhotoUrls: (s.vaccinationPhotoUrls || []).filter((_, idx) => idx !== i) })
+                }
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-gold/40 bg-cream text-[10px] font-bold text-ink hover:bg-cream-deep"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {(s.vaccinationPhotoUrls || []).length < 4 && (
+            <button
+              type="button"
+              onClick={() => shotInputRef.current?.click()}
+              disabled={shotUploading}
+              className="flex h-16 w-16 items-center justify-center rounded-md border-2 border-dashed border-gold/40 bg-cream-deep text-[10px] font-bold leading-tight text-ink-soft transition hover:border-gold-deep disabled:opacity-60"
+            >
+              {shotUploading ? <Spinner size={16} className="animate-spin text-gold-deep" /> : "+ ADD"}
+            </button>
+          )}
+        </div>
+        {shotError && <p className="mt-2 text-[10px] text-red-600">{shotError}</p>}
+        <textarea
+          value={s.vaccinationNotes}
+          onChange={(e) => s.patch({ vaccinationNotes: e.target.value })}
+          rows={2}
+          placeholder="Optional — e.g. Vet clinic name, next due dates, exemptions…"
+          className={`${inputCls} mt-3`}
+        />
+        <input
+          ref={shotInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onPickShotRecord}
+          className="hidden"
+          aria-hidden="true"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="DOG NAME" required>
           <input
@@ -1254,16 +1437,11 @@ function StepCoat({ lookups }: { lookups: WizardLookups }) {
           </Field>
         </section>
 
-        {/* CURRENT GROOMING */}
-        <section className="space-y-4">
-          <h3 className={sectionHeaderCls}>Current Grooming</h3>
-          <Field label="CURRENT HAIRCUT STYLE">
-            <LookupDropdown items={lookups.haircutStyles} value={s.currentHaircutStyleId} onChange={(v) => s.patch({ currentHaircutStyleId: v })} placeholder="Select current style…" />
-          </Field>
-          <Field label="CURRENT BODY LENGTH">
-            <LookupDropdown items={lookups.clipLengths} value={s.currentBodyLengthId} onChange={(v) => s.patch({ currentBodyLengthId: v })} placeholder="Select current length…" />
-          </Field>
-        </section>
+        {/* CURRENT-STYLE NOTE: the dog's CURRENT haircut style/length used to
+            be asked here AND again on step 5 (the requested style) — the
+            owner called out the duplication ("step 5 asks the basic
+            questions again as step 4"). Step 5's REQUESTED style is the
+            one the groomer needs; current state is assessed at check-in. */}
       </div>
 
       {/* HANDLING */}
@@ -1329,21 +1507,10 @@ function StepCoat({ lookups }: { lookups: WizardLookups }) {
         </div>
       </section>
 
-      {/* NOTES */}
-      <section className="space-y-4">
-        <h3 className={sectionHeaderCls}>Notes</h3>
-        <div className="grid gap-4">
-          <Field label="HANDLING NOTES">
-            <textarea value={s.handlingNotes} onChange={(e) => s.patch({ handlingNotes: e.target.value })} rows={3} placeholder="Anything that helps us handle your dog safely…" className={inputCls} />
-          </Field>
-          <Field label="GROOMING NOTES">
-            <textarea value={s.groomingNotes} onChange={(e) => s.patch({ groomingNotes: e.target.value })} rows={3} placeholder="Past grooming experiences, sensitivities, allergies…" className={inputCls} />
-          </Field>
-          <Field label="OWNER NOTES">
-            <textarea value={s.ownerNotes} onChange={(e) => s.patch({ ownerNotes: e.target.value })} rows={3} placeholder="Anything else you&apos;d like us to know…" className={inputCls} />
-          </Field>
-        </div>
-      </section>
+      {/* NOTES — consolidated into step 8 (NOTES). Step 4 used to carry
+          three separate note boxes (handling/grooming/owner) ON TOP of
+          step 5's special instructions and step 8's notes — four places
+          asking for notes. One box, one place. */}
     </div>
   )
 }
@@ -1446,9 +1613,9 @@ function StepGroomingRequest({ lookups, services, bookingType }: { lookups: Wiza
         </div>
       </section>
 
-      <Field label="SPECIAL INSTRUCTIONS">
-        <textarea value={s.specialInstructions} onChange={(e) => s.patch({ specialInstructions: e.target.value })} rows={4} placeholder="Any specific instructions for your groomer…" className={inputCls} />
-      </Field>
+      {/* SPECIAL INSTRUCTIONS — consolidated into step 8 (NOTES): one box,
+          one place. The checkout payload maps notes → specialInstructions
+          for the groomer request. */}
     </div>
   )
 }

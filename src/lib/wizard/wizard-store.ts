@@ -63,6 +63,9 @@ export type WizardState = {
   color: string
   markings: string
   photoUrl: string // public URL of the uploaded pet photo
+  // vaccination records (shot records) — photos + note, uploaded at step 3
+  vaccinationPhotoUrls: string[] // public URLs, newest last
+  vaccinationNotes: string
 
   // ---- coat & grooming profile (step 4) ----
   coatTypeId: string
@@ -149,6 +152,8 @@ const INITIAL: Omit<WizardState, "patch" | "setStep" | "reset"> = {
   color: "",
   markings: "",
   photoUrl: "",
+  vaccinationPhotoUrls: [],
+  vaccinationNotes: "",
   coatTypeId: "",
   coatTextureId: "",
   coatLengthId: "",
