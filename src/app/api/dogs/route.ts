@@ -41,8 +41,6 @@ export async function POST(req: NextRequest) {
       notes,
       specialHandling,
       photoUrl,
-      vaccinationPhotoUrls,
-      vaccinationNotes,
     } = body;
 
     if (id) {
@@ -63,8 +61,6 @@ export async function POST(req: NextRequest) {
         ...(notes !== undefined && { notes }),
         ...(specialHandling !== undefined && { specialHandling }),
         ...(photoUrl && { photoUrl }),
-        ...(Array.isArray(vaccinationPhotoUrls) && { vaccinationPhotoUrls }),
-        ...(vaccinationNotes !== undefined && { vaccinationNotes }),
       });
       return NextResponse.json(updated);
     }

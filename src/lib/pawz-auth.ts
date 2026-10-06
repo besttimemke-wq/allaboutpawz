@@ -28,7 +28,7 @@ export const PORTALS: Record<PortalId, PortalDefinition> = {
   groomer: { id: "groomer", door: "/access-groomer", destination: "/groomer/dashboard", google: true },
   frontdesk: { id: "frontdesk", door: "/access-frontdesk", destination: "/frontdesk/dashboard", google: false },
   admin: { id: "admin", door: "/admin-login", destination: "/admin/dashboard", google: true },
-  lms: { id: "lms", door: "/learn/sign-in", destination: "/learn/classroom", google: true },
+  lms: { id: "lms", door: "/learn/sign-in", destination: "/learn/dashboard", google: true },
 };
 
 // ---------------------------------------------------------------------------
@@ -456,10 +456,14 @@ export function validatePortalAccess(portal: PortalId, user: ResolvedPortalUser)
       return { ok: false, error: "No front desk account found for this email. Contact your admin." };
     }
     case "customer": {
-      if (user.role === "customer") {
-        return { ok: true, user, redirectTo: def.destination };
-      }
-      return { ok: false, error: "This email is a staff account. Use the staff sign-in pages." };
+      // The customer portal is EVERY signed-in person's personal space.
+      // "The shopper, the learner, the booker are all the same person" — and
+      // an employee or the owner is also somebody's pet parent: their own
+      // dogs, bookings, and orders live here under their own email, exactly
+      // like everyone else's. Their WORK console is a separate destination
+      // they reach through its own door — it never replaces their personal
+      // one. No role is barred from being a customer of the salon.
+      return { ok: true, user, redirectTo: def.destination };
     }
     case "lms": {
       // LMS is self-serve within managed accounts — customers AND staff land

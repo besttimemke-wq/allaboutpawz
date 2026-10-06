@@ -335,6 +335,24 @@ export async function GET(req: NextRequest) {
     return redirectToPath(autoDestination(resolved));
   }
 
+  // A `next` return-path (e.g. /book/appointment from the booking flow's
+  // Google button) completes a PUBLIC SITE FLOW, not a portal entry: the
+  // user is returning to the exact step they were on, and the session
+  // cookie is already set. The door gate protects portal destinations
+  // only — any authenticated identity (customer, staff, or the owner
+  // testing their own salon's flow) may resume a public site flow. This
+  // is the "never lose context" contract: sign in → land back on the
+  // next step, never on a sign-in door.
+  const isPortalDestination = Object.values(PORTALS).some(
+    (p) => p.destination === stateRow.redirectTo,
+  );
+  if (!isPortalDestination) {
+    console.info(
+      `[auth/google/callback] OK: ${profile.email} → ${stateRow.redirectTo} (flow return; role=${resolved.role} scope=${resolved.scope})`,
+    );
+    return redirectToPath(stateRow.redirectTo);
+  }
+
   const validation = validatePortalAccess(portal, resolved);
   if (!validation.ok) {
     console.warn(`[auth/google/callback] bounce: validatePortalAccess denied portal=${portal} role=${resolved.role} scope=${resolved.scope} — ${validation.error}`);

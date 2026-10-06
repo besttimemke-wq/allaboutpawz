@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
   let blocked: any[] = []
   try {
     const allBookings = (await repo.list("bookings")) as any[]
-    existing = allBookings.filter((b) => b.date === date && b.status !== "CANCELLED")
+    existing = allBookings.filter((b) => b.date === date && !["CANCELLED", "CANCELED"].includes(String(b.status || "").toUpperCase()))
     blocked = (await repo.list("blocked_times")) as any[]
     blocked = blocked.filter((b) => b.date === date)
   } catch { /* ignore */ }

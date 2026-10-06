@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DawgNavSection } from '@/lib/types';
 import { PageTabs, KpiTiles, FilterSelect, DataTable } from '../_shared/PageHeader';
 import { cn } from '@/lib/utils';
@@ -12,14 +12,6 @@ interface GiftCardsViewProps {
 export const GiftCardsView: React.FC<GiftCardsViewProps> = ({ onNavigateSection }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'all' | 'digital' | 'physical' | 'credit' | 'depleted'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    fetch('/api/admin/gift-cards?limit=50').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.giftCards) { /* wire to state */ }
-      else if (d?.orders) { /* wire to state */ }
-      else if (d?.refunds) { /* wire to state */ }
-    }).catch(() => {});
-  }, []);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [codeLookup, setCodeLookup] = useState('');
 

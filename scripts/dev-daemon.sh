@@ -1,27 +1,13 @@
 #!/bin/bash
-cd "$(dirname "$0")/.."
+# dev:daemon — start the Next.js dev server as a session-independent daemon.
+# start-stop-daemon --background double-forks to PID 1, so the server
+# survives agent-session teardown (the plain `bun run dev` pipeline dies
+# with the session). Logs still land in dev.log for the log-reading loop.
+cd /home/z/my-project
 
-# Kill stale
-if [ -f .next/dev-daemon.pid ]; then
-  OLD=$(cat .next/dev-daemon.pid)
-  kill -9 "$OLD" 2>/dev/null || true
-  rm -f .next/dev-daemon.pid
-fi
+PIDFILE=/home/z/my-project/.next/dev-daemon.pid
 
-# Start directly with next dev (skip the tee pipeline that causes death)
-mkdir -p .next
-setsid bash -c 'cd /home/z/my-project && exec ./node_modules/.bin/next dev -p 3000 > dev.log 2>&1' < /dev/null > /dev/null 2>&1 &
-DEV_PID=$!
-echo "$DEV_PID" > .next/dev-daemon.pid
-
-# Wait for ready
-for i in $(seq 1 30); do
-  if curl -s --connect-timeout 2 http://localhost:3000 >/dev/null 2>&1; then
-    echo "Server ready (PID: $DEV_PID)"
-    disown "$DEV_PID" 2>/dev/null || true
-    exit 0
-  fi
-  sleep 1
-done
-echo "ERROR: timeout"
-exit 1
+start-stop-daemon --start --background --make-pidfile --pidfile "$PIDFILE" \
+  --chdir /home/z/my-project \
+  --startas /bin/bash -- \
+  -c 'exec ./node_modules/.bin/next dev -p 3000 >> dev.log 2>&1'

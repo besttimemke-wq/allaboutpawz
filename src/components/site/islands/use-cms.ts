@@ -39,10 +39,10 @@ const DEFAULT_SETTINGS: CmsSettings = {
   tagline: "From Pawz to PAWfection",
   heroTitle: "Luxury Grooming. Exceptional Care.",
   heroSubtitle: "We deliver a spa-level grooming experience where every detail is designed for your pup's comfort, style, and happiness.",
-  addressLine1: "1428 Maple Grove Avenue",
-  addressLine2: "Memphis, TN 38104",
-  phone: "901-800-7182",
-  email: "help@aapawz.com",
+  addressLine1: "699 Waring Rd",
+  addressLine2: "Memphis, TN 38122",
+  phone: "901-722-1114",
+  email: "booking@aapawz.com",
   hoursTueSat: "9am – 6pm",
   hoursSun: "10am – 4pm",
   hoursMon: "Closed",
@@ -184,7 +184,31 @@ export function useCmsSettings(initialData: CmsSettings = DEFAULT_SETTINGS) {
 }
 
 export function useCms<T = any>(resource: string): { data: T[]; loading: boolean } {
+  // The DB is the source of truth, the defaults are only the instant paint.
+  // On mount we reconcile from /api/cms/{resource} (no-store): real rows
+  // replace the baked-in defaults; a failed/empty read leaves them standing.
+  // The realtime subscription below then keeps them live while the page is
+  // open (an admin push re-fetches instantly).
   const [data, setData] = useState<T[]>(() => (DEFAULTS[resource] as T[]) || [])
+
+  useEffect(() => {
+    let alive = true
+    fetch(`/api/cms/${resource}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((rows) => {
+        if (!alive) return
+        if (Array.isArray(rows)) {
+          // Empty array = the table exists but has no visible rows yet —
+          // still authoritative (the .ts defaults must NOT resurrect data
+          // the salon deleted).
+          setData(rows as T[])
+        }
+      })
+      .catch(() => { /* network failure: defaults stand */ })
+    return () => {
+      alive = false
+    }
+  }, [resource])
 
   useEffect(() => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -202,7 +226,7 @@ export function useCms<T = any>(resource: string): { data: T[]; loading: boolean
           () => {
             fetch(`/api/cms/${resource}`)
               .then((r) => (r.ok ? r.json() : []))
-              .then((rows) => { if (Array.isArray(rows) && rows.length > 0) setData(rows) })
+              .then((rows) => { if (Array.isArray(rows)) setData(rows as T[]) })
               .catch(() => {})
           }
         )

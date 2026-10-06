@@ -94,8 +94,11 @@ export async function Plp({
 
   return (
     <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
-      {/* Desktop rail — sticky; categories navigate, filters refine */}
-      <aside className="hidden w-[240px] shrink-0 self-start border border-ink/10 bg-white lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)]">
+      {/* Desktop rail — sticky; categories navigate, filters refine.
+          Canvas-native: the ShopSidebar carries the deeper-cream panel tone
+          itself (so the mobile drawer gets the same treatment); this wrapper
+          just frames it. */}
+      <aside className="hidden w-[240px] shrink-0 self-start border border-ink/10 lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)]">
         <div className="flex max-h-[calc(100vh-3rem)] flex-col">
           <ShopSidebar key={JSON.stringify(applied)} data={sidebar} />
         </div>
@@ -221,7 +224,7 @@ function FilterChip({
   return (
     <Link
       href={qs ? `${basePath}?${qs}` : basePath}
-      className="inline-flex items-center gap-1.5 border border-ink/15 bg-white px-2.5 py-1 text-[10px] font-semibold text-ink transition-colors hover:border-gold-deep hover:text-gold-deep"
+      className="inline-flex items-center gap-1.5 border border-ink/15 bg-cream px-2.5 py-1 text-[10px] font-semibold text-ink transition-colors hover:border-gold-deep hover:text-gold-deep"
       aria-label={`Remove filter ${label}`}
     >
       {label}
@@ -259,7 +262,7 @@ function PageLink({
       className={`flex h-8 min-w-8 items-center justify-center px-2 text-[11px] font-bold transition-colors ${
         active
           ? "bg-gold-deep text-cream"
-          : "border border-ink/15 bg-white text-ink hover:border-gold-deep hover:text-gold-deep"
+          : "border border-ink/15 bg-cream text-ink hover:border-gold-deep hover:text-gold-deep"
       }`}
     >
       {children}
@@ -275,7 +278,7 @@ function EmptyState({
   hasFilters: boolean
 }) {
   return (
-    <div className="mt-7 flex flex-col items-center border border-ink/10 bg-white px-6 py-14 text-center">
+    <div className="mt-7 flex flex-col items-center border border-ink/10 bg-cream-deep/40 px-6 py-14 text-center">
       <PawPrint className="h-8 w-8 text-gold/50" strokeWidth={1.2} aria-hidden="true" />
       <p className="mt-4 text-[13px] font-semibold text-ink">
         {hasFilters ? "No products match these filters." : "No products here yet."}

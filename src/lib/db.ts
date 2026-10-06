@@ -1,12 +1,9 @@
-// UNLEASHED classroom data access — Supabase-backed port of the original
-// node:sqlite / Prisma layer. All function signatures and return shapes are
-// preserved so the API routes and the classroom UI are unchanged. DateTime
-// fields are surfaced as ISO strings to match the original SQLite string
-// behavior the frontend expects.
+// UNLEASHED classroom data access — Prisma port of the original node:sqlite layer.
+// All functions keep their original signatures/shapes so the API routes and the
+// classroom UI are unchanged. DateTime fields are surfaced as ISO strings to
+// match the original SQLite string behavior the frontend expects.
 
-import { supabase } from "./supabase";
-import { pgQuery, pgExec } from "./pg";
-import { companionForPathway } from "./curriculum";
+import { prisma } from "./prisma";
 import type { Companion, CourseRecord } from "./types";
 
 function iso(value: Date | string | null | undefined): string {
@@ -14,174 +11,84 @@ function iso(value: Date | string | null | undefined): string {
   return typeof value === "string" ? value : value.toISOString();
 }
 
-// Convert a Supabase row (timestamps arrive as ISO strings) into the shape
-// our callers expect. The LMS data layer reads from the enterprise `lms.*`
-// schema (UUIDs + snake_case + tenant_id), so each helper below maps a row
-// from `lms.courses` / `lms.enrollments` / etc. back to the CourseRecord /
-// Companion shape the classroom UI was authored against.
-type Row = Record<string, unknown>;
-function asRow<T = Row>(r: unknown): T {
-  return (r ?? {}) as T;
-}
+// ---------------- Courses ----------------
 
-const TENANT_ID = process.env.SUPABASE_TENANT_ID ?? "00000000-0000-0000-0000-000000000001";
-
-// Demo learner UUID — the visitor system in src/lib/visitor.ts is a fixed
-// demo identity ("demo-avery"). The lms.* schema uses UUID user_ids that FK
-// to auth.users. We seed exactly one real auth user (allaboutpawz901@gmail.com)
-// as the demo learner, and map the visitor to that UUID here. When real auth
-// lands, replace this with the actual session user_id.
-const DEMO_LEARNER_UUID = "7ea0339e-d79d-477e-adc5-66b6b417525d";
-
-// Stable integer ID derived from a UUID — the classroom UI uses integer IDs
-// for course lookup; lms.courses.id is a UUID. We derive a deterministic
-// 31-bit int from the UUID's first 8 hex chars so the same course always
-// maps to the same int within a session.
-function uuidToInt(uuid: string | null | undefined): number {
-  if (!uuid) return 0;
-  const head = uuid.replace(/[^0-9a-f]/gi, "").slice(0, 8);
-  return parseInt(head || "0", 16) % 0x7fffffff;
-}
-
-// ---------------- Courses (lms.courses) ----------------
-
-type LmsCourseRow = {
-  id: string;
-  tenant_id: string;
-  code: string | null;
+type CourseRow = {
+  id: number;
+  ownerId: string;
+  state: string;
+  area: string;
+  statute: string;
+  grade: string;
   title: string;
-  slug: string;
-  description: string | null;
-  long_description: string | null;
-  category: string | null;
-  tags: string[] | null;
-  is_published: boolean;
-  sort_order: number;
-  metadata: Record<string, unknown> | null;
-  created_at: string;
-  total_clock_hours: string | number | null;
-  difficulty_level: string | null;
+  companionJson: string;
+  model: string;
+  createdAt: Date;
 };
 
-function mapCourseFromLms(c: LmsCourseRow): CourseRecord {
-  const meta = (c.metadata && typeof c.metadata === "object" ? c.metadata : {}) as Record<string, unknown>;
-  // Companion resolution order:
-  //   1. lms.courses.metadata.companion (if a generated companion was persisted)
-  //   2. companionForPathway(c.code) — the curriculum.ts authored companions
-  //      keyed by pathway code (IPDG, PDT, ACA, PPS, CAT, PPC, ...)
-  //   3. Minimal fallback (title only, empty sections)
-  let companion: Companion | null = null;
-  const companionRaw = meta.companion;
-  if (typeof companionRaw === "string") {
-    try { companion = JSON.parse(companionRaw) as Companion; } catch { companion = null; }
-  } else if (companionRaw && typeof companionRaw === "object") {
-    companion = companionRaw as Companion;
-  }
-  if (!companion && c.code) {
-    try { companion = companionForPathway(c.code); } catch { companion = null; }
-  }
-  const fallback: Companion = {
-    title: c.title, subtitle: "", overview: "", alignment: { state: "TN", grade: "9-12", area: c.category || "Grooming", statute: "", authority: "", note: "" },
-    learningObjectives: [], sections: [], independentPractice: [], appliedProject: { title: "", brief: "", deliverables: [] },
-    glossary: [], familyNote: "", sources: [],
-  };
+function mapCourse(c: CourseRow): CourseRecord {
   return {
-    id: uuidToInt(c.id),
-    state: (meta.state as string) || companion?.alignment?.state || "TN",
-    area: c.category || (meta.area as string) || companion?.alignment?.area || "Grooming",
-    statute: (meta.statute as string) || companion?.alignment?.statute || "",
-    grade: (meta.grade as string) || companion?.alignment?.grade || "9-12",
+    id: c.id,
+    state: c.state,
+    area: c.area,
+    statute: c.statute,
+    grade: c.grade,
     title: c.title,
-    companion: companion ?? fallback,
-    model: (meta.model as string) || "gemini-1.5-flash",
-    createdAt: iso(c.created_at),
+    companion: JSON.parse(c.companionJson) as Companion,
+    model: c.model,
+    createdAt: iso(c.createdAt),
   };
 }
 
-export async function saveCourse(
+export function saveCourse(
   ownerId: string,
   selection: { state: string; area: string; statute: string; grade: string },
   companion: Companion,
   model: string,
 ) {
-  // Courses in the enterprise schema are tenant-scoped, not visitor-scoped.
-  // Store the original Prisma-shape fields in lms.courses.metadata so they
-  // survive round-trips. slug derived from title; code derived from title.
-  const slug = companion.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
-  const code = (companion.title.split(/\s+/).map((w: string) => w[0]?.toUpperCase() ?? "").join("").slice(0, 4) || "CRS");
-  const meta = JSON.stringify({ state: selection.state, area: selection.area, statute: selection.statute, grade: selection.grade, companion, model, ownerId });
-  const rows = await pgQuery<LmsCourseRow>(
-    `INSERT INTO lms.courses (tenant_id, code, title, slug, description, course_type, delivery_modes, difficulty_level, is_published, sort_order, metadata)
-     VALUES ($1, $2, $3, $4, $5, 'course', ARRAY['self_paced']::text[], 'beginner', true, 999, $6::jsonb)
-     RETURNING id, tenant_id, code, title, slug, description, long_description, category, tags, is_published, sort_order, metadata, created_at, total_clock_hours, difficulty_level`,
-    [TENANT_ID, code, companion.title, slug, companion.title, meta],
-  );
-  if (rows.length === 0) return null;
-  return mapCourseFromLms(rows[0]);
+  const created = prisma.course.create({
+    data: {
+      ownerId,
+      state: selection.state,
+      area: selection.area,
+      statute: selection.statute,
+      grade: selection.grade,
+      title: companion.title,
+      companionJson: JSON.stringify(companion),
+      model,
+    },
+  });
+  return created.then((row) => getCourse(ownerId, row.id));
 }
 
 export async function listCourses(ownerId: string): Promise<CourseRecord[]> {
-  // The classroom canvas shows the LEARNER'S ENROLLED courses — not the
-  // catalog. The catalog (all 15 published) lives at /learn
-  // via courses-data.ts; the classroom queries the learner's active
-  // enrollments joined to lms.courses for the rich companion data.
-  //
-  // ownerId is the visitor string ("demo-avery" in this build). The lms.*
-  // schema uses UUID user_ids FK'd to auth.users. Until real auth lands,
-  // every classroom request maps to the seeded demo learner UUID.
-  void ownerId;
-  const rows = await pgQuery<LmsCourseRow>(
-    `SELECT c.id, c.tenant_id, c.code, c.title, c.slug, c.description, c.long_description, c.category, c.tags, c.is_published, c.sort_order, c.metadata, c.created_at, c.total_clock_hours, c.difficulty_level
-     FROM lms.enrollments e
-     JOIN lms.courses c ON c.id = e.course_id AND c.tenant_id = e.tenant_id
-     WHERE e.learner_user_id = $1 AND e.status = 'active'
-     ORDER BY c.sort_order ASC NULLS LAST, c.title ASC
-     LIMIT 50`,
-    [DEMO_LEARNER_UUID],
-  );
-  return rows.map(mapCourseFromLms);
+  const rows = await prisma.course.findMany({
+    where: { ownerId },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  return rows.map((r) => mapCourse(r as unknown as CourseRow));
 }
 
 export async function getCourse(ownerId: string, id: number): Promise<CourseRecord | null> {
-  // Same enrollment-scoped filter as listCourses; the classroom calls this
-  // with an integer id derived from uuidToInt(course.uuid).
-  void ownerId;
-  const rows = await pgQuery<LmsCourseRow>(
-    `SELECT c.id, c.tenant_id, c.code, c.title, c.slug, c.description, c.long_description, c.category, c.tags, c.is_published, c.sort_order, c.metadata, c.created_at, c.total_clock_hours, c.difficulty_level
-     FROM lms.enrollments e
-     JOIN lms.courses c ON c.id = e.course_id AND c.tenant_id = e.tenant_id
-     WHERE e.learner_user_id = $1 AND e.status = 'active'
-     ORDER BY c.sort_order ASC NULLS LAST, c.title ASC
-     LIMIT 50`,
-    [DEMO_LEARNER_UUID],
-  );
-  const match = rows.find((r) => uuidToInt(r.id) === id);
-  return match ? mapCourseFromLms(match) : null;
+  const row = await prisma.course.findFirst({ where: { ownerId, id } });
+  return row ? mapCourse(row as unknown as CourseRow) : null;
 }
 
 // ---------------- Professor conversation ----------------
 
 export async function listMessages(ownerId: string, courseId: number) {
-  const { data, error } = await supabase
-    .from("professorMessage")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .eq("courseId", courseId)
-    .order("id", { ascending: true })
-    .limit(100);
-  if (error) {
-    console.error("[db] listMessages failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((m) => {
-    const r = asRow<{ id: number; role: string; content: string; createdAt: string }>(m);
-    return {
-      id: r.id,
-      role: r.role as "learner" | "professor",
-      content: r.content,
-      createdAt: iso(r.createdAt),
-    };
+  const rows = await prisma.professorMessage.findMany({
+    where: { ownerId, courseId },
+    orderBy: { id: "asc" },
+    take: 100,
   });
+  return rows.map((m) => ({
+    id: m.id,
+    role: m.role as "learner" | "professor",
+    content: m.content,
+    createdAt: iso(m.createdAt),
+  }));
 }
 
 export async function saveMessage(
@@ -190,36 +97,23 @@ export async function saveMessage(
   role: "learner" | "professor",
   content: string,
 ) {
-  const { error } = await supabase.from("professorMessage").insert({
-    ownerId,
-    courseId,
-    role,
-    content,
+  await prisma.professorMessage.create({
+    data: { ownerId, courseId, role, content },
   });
-  if (error) console.error("[db] saveMessage failed:", error.message);
 }
 
 export async function listDashboardProfessorMessages(ownerId: string, lessonId: string) {
-  const { data, error } = await supabase
-    .from("dashboardProfessorMessage")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .eq("lessonId", lessonId)
-    .order("id", { ascending: true })
-    .limit(100);
-  if (error) {
-    console.error("[db] listDashboardProfessorMessages failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((m) => {
-    const r = asRow<{ id: number; role: string; content: string; createdAt: string }>(m);
-    return {
-      id: r.id,
-      role: r.role as "learner" | "professor",
-      content: r.content,
-      createdAt: iso(r.createdAt),
-    };
+  const rows = await prisma.dashboardProfessorMessage.findMany({
+    where: { ownerId, lessonId },
+    orderBy: { id: "asc" },
+    take: 100,
   });
+  return rows.map((m) => ({
+    id: m.id,
+    role: m.role as "learner" | "professor",
+    content: m.content,
+    createdAt: iso(m.createdAt),
+  }));
 }
 
 export async function saveDashboardProfessorMessage(
@@ -228,13 +122,9 @@ export async function saveDashboardProfessorMessage(
   role: "learner" | "professor",
   content: string,
 ) {
-  const { error } = await supabase.from("dashboardProfessorMessage").insert({
-    ownerId,
-    lessonId,
-    role,
-    content,
+  await prisma.dashboardProfessorMessage.create({
+    data: { ownerId, lessonId, role, content },
   });
-  if (error) console.error("[db] saveDashboardProfessorMessage failed:", error.message);
 }
 
 // ---------------- Workspace ----------------
@@ -271,34 +161,19 @@ export type AssignmentState = {
 };
 
 export async function listWorkspaceNotes(ownerId: string): Promise<WorkspaceNote[]> {
-  const { data, error } = await supabase
-    .from("learnerNote")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .order("updatedAt", { ascending: false })
-    .limit(100);
-  if (error) {
-    console.error("[db] listWorkspaceNotes failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((n) => {
-    const r = asRow<{
-      id: number;
-      courseId: number | null;
-      title: string;
-      body: string;
-      createdAt: string;
-      updatedAt: string;
-    }>(n);
-    return {
-      id: r.id,
-      courseId: r.courseId,
-      title: r.title,
-      body: r.body,
-      createdAt: iso(r.createdAt),
-      updatedAt: iso(r.updatedAt),
-    };
+  const rows = await prisma.learnerNote.findMany({
+    where: { ownerId },
+    orderBy: { updatedAt: "desc" },
+    take: 100,
   });
+  return rows.map((n) => ({
+    id: n.id,
+    courseId: n.courseId,
+    title: n.title,
+    body: n.body,
+    createdAt: iso(n.createdAt),
+    updatedAt: iso(n.updatedAt),
+  }));
 }
 
 export async function saveWorkspaceNote(
@@ -307,292 +182,180 @@ export async function saveWorkspaceNote(
 ) {
   const now = new Date().toISOString();
   if (input.id) {
-    const { error } = await supabase
-      .from("learnerNote")
-      .update({
-        title: input.title,
-        body: input.body,
-        courseId: input.courseId ?? null,
-        updatedAt: now,
-      })
-      .eq("ownerId", ownerId)
-      .eq("id", input.id);
-    if (error) console.error("[db] saveWorkspaceNote update failed:", error.message);
+    await prisma.learnerNote.updateMany({
+      where: { ownerId, id: input.id },
+      data: { title: input.title, body: input.body, courseId: input.courseId ?? null, updatedAt: now },
+    });
     return input.id;
   }
-  const { data, error } = await supabase
-    .from("learnerNote")
-    .insert({
+  const row = await prisma.learnerNote.create({
+    data: {
       ownerId,
       courseId: input.courseId ?? null,
       title: input.title,
       body: input.body,
       createdAt: now,
       updatedAt: now,
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("[db] saveWorkspaceNote insert failed:", error.message);
-    return 0;
-  }
-  const row = asRow<{ id: number }>(data);
+    },
+  });
   return row.id;
 }
 
 export async function deleteWorkspaceNote(ownerId: string, id: number) {
-  const { error } = await supabase
-    .from("learnerNote")
-    .delete()
-    .eq("ownerId", ownerId)
-    .eq("id", id);
-  if (error) console.error("[db] deleteWorkspaceNote failed:", error.message);
+  await prisma.learnerNote.deleteMany({ where: { ownerId, id } });
 }
 
 export async function listWorkspaceEvents(ownerId: string): Promise<WorkspaceEvent[]> {
-  const { data, error } = await supabase
-    .from("learnerEvent")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .order("startsAt", { ascending: true })
-    .limit(100);
-  if (error) {
-    console.error("[db] listWorkspaceEvents failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((e) => {
-    const r = asRow<{
-      id: number;
-      courseId: number | null;
-      title: string;
-      startsAt: string;
-      kind: string;
-    }>(e);
-    return {
-      id: r.id,
-      courseId: r.courseId,
-      title: r.title,
-      startsAt: r.startsAt,
-      kind: r.kind,
-    };
+  const rows = await prisma.learnerEvent.findMany({
+    where: { ownerId },
+    orderBy: { startsAt: "asc" },
+    take: 100,
   });
+  return rows.map((e) => ({
+    id: e.id,
+    courseId: e.courseId,
+    title: e.title,
+    startsAt: e.startsAt,
+    kind: e.kind,
+  }));
 }
 
 export async function saveWorkspaceEvent(
   ownerId: string,
   input: { courseId?: number | null; title: string; startsAt: string; kind: string },
 ) {
-  const { data, error } = await supabase
-    .from("learnerEvent")
-    .insert({
+  const row = await prisma.learnerEvent.create({
+    data: {
       ownerId,
       courseId: input.courseId ?? null,
       title: input.title,
       startsAt: input.startsAt,
       kind: input.kind,
       createdAt: new Date().toISOString(),
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("[db] saveWorkspaceEvent failed:", error.message);
-    return 0;
-  }
-  const row = asRow<{ id: number }>(data);
+    },
+  });
   return row.id;
 }
 
 export async function deleteWorkspaceEvent(ownerId: string, id: number) {
-  const { error } = await supabase
-    .from("learnerEvent")
-    .delete()
-    .eq("ownerId", ownerId)
-    .eq("id", id);
-  if (error) console.error("[db] deleteWorkspaceEvent failed:", error.message);
+  await prisma.learnerEvent.deleteMany({ where: { ownerId, id } });
 }
 
 export async function listWorkspaceFiles(ownerId: string): Promise<WorkspaceFile[]> {
-  const { data, error } = await supabase
-    .from("learnerFile")
-    .select("id, courseId, name, mime, size, createdAt")
-    .eq("ownerId", ownerId)
-    .order("createdAt", { ascending: false })
-    .limit(100);
-  if (error) {
-    console.error("[db] listWorkspaceFiles failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((f) => {
-    const r = asRow<{
-      id: number;
-      courseId: number | null;
-      name: string;
-      mime: string;
-      size: number;
-      createdAt: string;
-    }>(f);
-    return {
-      id: r.id,
-      courseId: r.courseId,
-      name: r.name,
-      mime: r.mime,
-      size: r.size,
-      createdAt: iso(r.createdAt),
-    };
+  const rows = await prisma.learnerFile.findMany({
+    where: { ownerId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    select: { id: true, courseId: true, name: true, mime: true, size: true, createdAt: true },
   });
+  return rows.map((f) => ({
+    id: f.id,
+    courseId: f.courseId,
+    name: f.name,
+    mime: f.mime,
+    size: f.size,
+    createdAt: iso(f.createdAt),
+  }));
 }
 
 export async function saveWorkspaceFile(
   ownerId: string,
   input: { courseId?: number | null; name: string; mime: string; data: Uint8Array },
 ) {
-  // Store the binary as base64 in a TEXT column (supabase-js friendly).
-  let b64 = "";
-  if (input.data && input.data.byteLength > 0) {
-    b64 = Buffer.from(input.data).toString("base64");
-  }
-  const { data, error } = await supabase
-    .from("learnerFile")
-    .insert({
+  const row = await prisma.learnerFile.create({
+    data: {
       ownerId,
       courseId: input.courseId ?? null,
       name: input.name,
       mime: input.mime,
       size: input.data.byteLength,
-      data: b64,
+      data: Buffer.from(input.data),
       createdAt: new Date().toISOString(),
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("[db] saveWorkspaceFile failed:", error.message);
-    return 0;
-  }
-  const row = asRow<{ id: number }>(data);
+    },
+  });
   return row.id;
 }
 
 export async function getWorkspaceFile(ownerId: string, id: number) {
-  const { data, error } = await supabase
-    .from("learnerFile")
-    .select("name, mime, data")
-    .eq("ownerId", ownerId)
-    .eq("id", id)
-    .maybeSingle();
-  if (error) {
-    console.error("[db] getWorkspaceFile failed:", error.message);
-    return undefined;
-  }
-  if (!data) return undefined;
-  const r = asRow<{ name: string; mime: string; data: string }>(data);
-  const bytes = r.data ? Buffer.from(r.data, "base64") : Buffer.alloc(0);
-  return { name: r.name, mime: r.mime, data: bytes as unknown as Uint8Array };
+  const row = await prisma.learnerFile.findFirst({
+    where: { ownerId, id },
+    select: { name: true, mime: true, data: true },
+  });
+  if (!row) return undefined;
+  return { name: row.name, mime: row.mime, data: row.data as unknown as Uint8Array };
 }
 
 export async function deleteWorkspaceFile(ownerId: string, id: number) {
-  const { error } = await supabase
-    .from("learnerFile")
-    .delete()
-    .eq("ownerId", ownerId)
-    .eq("id", id);
-  if (error) console.error("[db] deleteWorkspaceFile failed:", error.message);
+  await prisma.learnerFile.deleteMany({ where: { ownerId, id } });
 }
 
 export async function listAssignmentStates(ownerId: string): Promise<AssignmentState[]> {
-  const { data, error } = await supabase
-    .from("learnerAssignmentState")
-    .select("*")
-    .eq("ownerId", ownerId);
-  if (error) {
-    console.error("[db] listAssignmentStates failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((a) => {
-    const r = asRow<{
-      courseId: number;
-      assignmentKey: string;
-      status: string;
-      score: number | null;
-      updatedAt: string;
-    }>(a);
-    return {
-      courseId: r.courseId,
-      assignmentKey: r.assignmentKey,
-      status: r.status,
-      score: r.score,
-      updatedAt: iso(r.updatedAt),
-    };
-  });
+  const rows = await prisma.learnerAssignmentState.findMany({ where: { ownerId } });
+  return rows.map((a) => ({
+    courseId: a.courseId,
+    assignmentKey: a.assignmentKey,
+    status: a.status,
+    score: a.score,
+    updatedAt: iso(a.updatedAt),
+  }));
 }
 
 export async function saveAssignmentState(
   ownerId: string,
   input: { courseId: number; assignmentKey: string; status: string; score?: number | null },
 ) {
-  const now = new Date().toISOString();
-  const payload = {
-    ownerId,
-    courseId: input.courseId,
-    assignmentKey: input.assignmentKey,
-    status: input.status,
-    score: input.score ?? null,
-    updatedAt: now,
-  };
-  const { error } = await supabase
-    .from("learnerAssignmentState")
-    .upsert(payload, { onConflict: "ownerId,courseId,assignmentKey" });
-  if (error) console.error("[db] saveAssignmentState failed:", error.message);
+  await prisma.learnerAssignmentState.upsert({
+    where: {
+      ownerId_courseId_assignmentKey: {
+        ownerId,
+        courseId: input.courseId,
+        assignmentKey: input.assignmentKey,
+      },
+    },
+    create: {
+      ownerId,
+      courseId: input.courseId,
+      assignmentKey: input.assignmentKey,
+      status: input.status,
+      score: input.score ?? null,
+      updatedAt: new Date().toISOString(),
+    },
+    update: {
+      status: input.status,
+      score: input.score ?? null,
+      updatedAt: new Date().toISOString(),
+    },
+  });
 }
 
 export async function listWorkspaceMessages(ownerId: string) {
-  const { data, error } = await supabase
-    .from("learnerMessage")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .order("id", { ascending: true })
-    .limit(200);
-  if (error) {
-    console.error("[db] listWorkspaceMessages failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((m) => {
-    const r = asRow<{
-      id: number;
-      sender: string;
-      recipient: string;
-      content: string;
-      createdAt: string;
-    }>(m);
-    return {
-      id: r.id,
-      sender: r.sender,
-      recipient: r.recipient,
-      content: r.content,
-      createdAt: iso(r.createdAt),
-    };
+  const rows = await prisma.learnerMessage.findMany({
+    where: { ownerId },
+    orderBy: { id: "asc" },
+    take: 200,
   });
+  return rows.map((m) => ({
+    id: m.id,
+    sender: m.sender,
+    recipient: m.recipient,
+    content: m.content,
+    createdAt: iso(m.createdAt),
+  }));
 }
 
 export async function saveWorkspaceMessage(
   ownerId: string,
   input: { sender: string; recipient: string; content: string },
 ) {
-  const { data, error } = await supabase
-    .from("learnerMessage")
-    .insert({
+  const row = await prisma.learnerMessage.create({
+    data: {
       ownerId,
       sender: input.sender,
       recipient: input.recipient,
       content: input.content,
       createdAt: new Date().toISOString(),
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("[db] saveWorkspaceMessage failed:", error.message);
-    return 0;
-  }
-  const row = asRow<{ id: number }>(data);
+    },
+  });
   return row.id;
 }
 
@@ -606,79 +369,45 @@ export type LearningEvidence = {
 };
 
 export async function listLearningEvidence(ownerId: string): Promise<LearningEvidence[]> {
-  const { data, error } = await supabase
-    .from("learnerEvidence")
-    .select("*")
-    .eq("ownerId", ownerId)
-    .order("id", { ascending: false })
-    .limit(100);
-  if (error) {
-    console.error("[db] listLearningEvidence failed:", error.message);
-    return [];
-  }
-  return (data ?? []).map((e) => {
-    const r = asRow<{
-      id: number;
-      courseId: number;
-      kind: string;
-      title: string;
-      content: string;
-      createdAt: string;
-    }>(e);
-    return {
-      id: r.id,
-      courseId: r.courseId,
-      kind: r.kind,
-      title: r.title,
-      content: r.content,
-      createdAt: iso(r.createdAt),
-    };
+  const rows = await prisma.learnerEvidence.findMany({
+    where: { ownerId },
+    orderBy: { id: "desc" },
+    take: 100,
   });
+  return rows.map((e) => ({
+    id: e.id,
+    courseId: e.courseId,
+    kind: e.kind,
+    title: e.title,
+    content: e.content,
+    createdAt: iso(e.createdAt),
+  }));
 }
 
 export async function saveLearningEvidence(
   ownerId: string,
   input: { courseId: number; kind: string; title: string; content: string },
 ) {
-  const { data, error } = await supabase
-    .from("learnerEvidence")
-    .insert({
+  const row = await prisma.learnerEvidence.create({
+    data: {
       ownerId,
       courseId: input.courseId,
       kind: input.kind,
       title: input.title,
       content: input.content,
       createdAt: new Date().toISOString(),
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("[db] saveLearningEvidence failed:", error.message);
-    return 0;
-  }
-  const row = asRow<{ id: number }>(data);
+    },
+  });
   return row.id;
-}
-
-async function countRows(table: string, ownerId: string): Promise<number> {
-  const { count, error } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true })
-    .eq("ownerId", ownerId);
-  if (error) {
-    console.error(`[db] count ${table} failed:`, error.message);
-    return 0;
-  }
-  return count ?? 0;
 }
 
 export async function workspaceSummary(ownerId: string) {
   const [notes, events, files, messages, evidence, assignmentStates] = await Promise.all([
-    countRows("learnerNote", ownerId),
-    countRows("learnerEvent", ownerId),
-    countRows("learnerFile", ownerId),
-    countRows("learnerMessage", ownerId),
-    countRows("learnerEvidence", ownerId),
+    prisma.learnerNote.count({ where: { ownerId } }),
+    prisma.learnerEvent.count({ where: { ownerId } }),
+    prisma.learnerFile.count({ where: { ownerId } }),
+    prisma.learnerMessage.count({ where: { ownerId } }),
+    prisma.learnerEvidence.count({ where: { ownerId } }),
     listAssignmentStates(ownerId),
   ]);
   return { notes, events, files, messages, evidence, assignmentStates };
@@ -716,27 +445,15 @@ async function appendDayEvent(
   eventType: string,
   payload: Record<string, unknown>,
 ) {
-  const { error } = await supabase.from("learningDayEvent").insert({
-    ownerId,
-    dayId,
-    eventType,
-    payloadJson: JSON.stringify(payload),
-    createdAt: new Date().toISOString(),
+  await prisma.learningDayEvent.create({
+    data: {
+      ownerId,
+      dayId,
+      eventType,
+      payloadJson: JSON.stringify(payload),
+      createdAt: new Date().toISOString(),
+    },
   });
-  if (error) console.error("[db] appendDayEvent failed:", error.message);
-}
-
-// Deterministic synthetic day ID — stable per owner+course. The persisted
-// learningDay table was part of the dropped public.* schema; until the
-// day-state migration to lms.* lands, we synthesize a day ID so the
-// classroom can open a day and enable the Professor + tools.
-function syntheticDayId(ownerId: string, courseId: number): number {
-  const str = ownerId + ":" + courseId;
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h) % 0x7fffffff || 1;
 }
 
 export async function openLearningDay(
@@ -744,24 +461,77 @@ export async function openLearningDay(
   courseId: number,
   mode: "SPRINT" | "SHIFT" | "FULL_DAY",
 ) {
-  // Synthetic day — no DB write. The day state is synthesized by
-  // getLearningDaySnapshot using this same ID.
-  void mode;
-  return syntheticDayId(ownerId, courseId);
+  const active = await prisma.learningDay.findFirst({
+    where: { ownerId, courseId, closedAt: null },
+    orderBy: { id: "desc" },
+  });
+  if (active) return active.id;
+
+  const duration = mode === "FULL_DAY" ? 480 : mode === "SHIFT" ? 120 : 45;
+  const now = new Date();
+  const item = await courseFirstItem(ownerId, courseId);
+  const row = await prisma.learningDay.create({
+    data: {
+      ownerId,
+      courseId,
+      mode,
+      state: "CHECK_IN",
+      currentLesson: 0,
+      currentItem: item,
+      cycleStep: 0,
+      openedAt: now,
+      scheduledCloseAt: new Date(now.getTime() + duration * 60000),
+      updatedAt: now,
+    },
+  });
+  await appendDayEvent(ownerId, row.id, "DAY_OPENED", { mode, durationMinutes: duration });
+  return row.id;
 }
 
-function resolveDate(next: string | null | undefined, current: string | null): string | null {
+function resolveDate(next: string | null | undefined, current: Date | null): Date | null {
   if (next === undefined) return current;
   if (next === null) return null;
-  return next;
+  return new Date(next);
 }
 
 export async function commandLearningDay(ownerId: string, dayId: number, command: DayCommand) {
-  // The persisted learningDay table was dropped. Until the day-state
-  // migration to lms.* lands, this is a no-op — the synthetic day state
-  // is returned by getLearningDaySnapshot and doesn't need DB updates.
-  void ownerId; void dayId; void command;
-  return;
+  const current = await prisma.learningDay.findFirst({ where: { ownerId, id: dayId } });
+  if (!current) throw new Error("Learning Day not found.");
+
+  const state = command.state ?? current.state;
+  const lesson = command.currentLesson ?? current.currentLesson;
+  const item = command.currentItem ?? current.currentItem;
+  const cycle = command.cycleStep ?? current.cycleStep;
+  const sentiment = command.sentiment ?? current.sentiment;
+  const breakEnds = resolveDate(command.breakEndsAt, current.breakEndsAt);
+  const prior = command.priorState === undefined ? current.priorState : command.priorState;
+  const workKind = command.activeWorkKind ?? (current.activeWorkKind || "LESSON");
+  const workKey = command.activeWorkKey === undefined ? current.activeWorkKey : command.activeWorkKey;
+  const workTitle =
+    command.activeWorkTitle === undefined ? current.activeWorkTitle : command.activeWorkTitle;
+
+  await prisma.learningDay.update({
+    where: { id: dayId },
+    data: {
+      state,
+      currentLesson: lesson,
+      currentItem: item,
+      cycleStep: cycle,
+      sentiment,
+      breakEndsAt: breakEnds,
+      priorState: prior,
+      activeWorkKind: workKind,
+      activeWorkKey: workKey,
+      activeWorkTitle: workTitle,
+      version: { increment: 1 },
+      updatedAt: new Date(),
+    },
+  });
+  await appendDayEvent(ownerId, dayId, command.eventType, {
+    fromState: current.state,
+    toState: state,
+    ...command.payload,
+  });
 }
 
 export async function recordLearningAttempt(
@@ -783,25 +553,26 @@ export async function recordLearningAttempt(
     workKey?: string | null;
   },
 ) {
-  const { error } = await supabase.from("learningAttempt").insert({
-    ownerId,
-    dayId,
-    courseId,
-    lessonIndex: input.lessonIndex,
-    itemText: input.item,
-    attemptNo: input.attemptNo,
-    response: input.response,
-    score: input.score,
-    passed: input.passed,
-    stage: input.stage,
-    misconception: input.misconception || "",
-    feedback: input.feedback || "",
-    evidenceSummary: input.evidenceSummary || "",
-    workKind: input.workKind || "LESSON",
-    workKey: input.workKey ?? null,
-    createdAt: new Date().toISOString(),
+  await prisma.learningAttempt.create({
+    data: {
+      ownerId,
+      dayId,
+      courseId,
+      lessonIndex: input.lessonIndex,
+      itemText: input.item,
+      attemptNo: input.attemptNo,
+      response: input.response,
+      score: input.score,
+      passed: input.passed,
+      stage: input.stage,
+      misconception: input.misconception || "",
+      feedback: input.feedback || "",
+      evidenceSummary: input.evidenceSummary || "",
+      workKind: input.workKind || "LESSON",
+      workKey: input.workKey ?? null,
+      createdAt: new Date().toISOString(),
+    },
   });
-  if (error) console.error("[db] recordLearningAttempt failed:", error.message);
 }
 
 export async function createHumanNeed(
@@ -811,29 +582,18 @@ export async function createHumanNeed(
   context: Record<string, unknown>,
 ) {
   const reason = String(context.reason || "Human support requested");
-  const { data: existing, error: findErr } = await supabase
-    .from("humanNeedQueue")
-    .select("id")
-    .eq("ownerId", ownerId)
-    .eq("dayId", dayId)
-    .eq("status", "OPEN")
-    .limit(1)
-    .maybeSingle();
-  if (findErr) console.error("[db] createHumanNeed find failed:", findErr.message);
+  const existing = await prisma.humanNeedQueue.findFirst({
+    where: { ownerId, dayId, status: "OPEN" },
+  });
   if (existing) {
-    const r = asRow<{ id: number }>(existing);
-    if (r.id) {
-      const { error: updErr } = await supabase
-        .from("humanNeedQueue")
-        .update({ reason, contextJson: JSON.stringify(context) })
-        .eq("id", r.id);
-      if (updErr) console.error("[db] createHumanNeed update failed:", updErr.message);
-      return r.id;
-    }
+    await prisma.humanNeedQueue.update({
+      where: { id: existing.id },
+      data: { reason, contextJson: JSON.stringify(context) },
+    });
+    return existing.id;
   }
-  const { data, error } = await supabase
-    .from("humanNeedQueue")
-    .insert({
+  const row = await prisma.humanNeedQueue.create({
+    data: {
       ownerId,
       dayId,
       courseId,
@@ -841,35 +601,22 @@ export async function createHumanNeed(
       status: "OPEN",
       contextJson: JSON.stringify(context),
       createdAt: new Date().toISOString(),
-    })
-    .select()
-    .single();
-  if (error) {
-    console.error("[db] createHumanNeed insert failed:", error.message);
-    return 0;
-  }
-  const row = asRow<{ id: number }>(data);
+    },
+  });
   return row.id;
 }
 
 export async function resolveHumanNeed(ownerId: string, id: number, resolution: string) {
-  const { data: row, error: findErr } = await supabase
-    .from("humanNeedQueue")
-    .select("dayId, contextJson")
-    .eq("ownerId", ownerId)
-    .eq("id", id)
-    .maybeSingle();
-  if (findErr || !row) {
-    console.error("[db] resolveHumanNeed find failed:", findErr?.message || "not found");
-    throw new Error("Queue item not found.");
-  }
-  const r = asRow<{ dayId: number; contextJson: string }>(row);
-  const { error } = await supabase
-    .from("humanNeedQueue")
-    .update({ status: "RESOLVED", resolvedAt: new Date().toISOString() })
-    .eq("id", id);
-  if (error) console.error("[db] resolveHumanNeed update failed:", error.message);
-  await appendDayEvent(ownerId, r.dayId, "HUMAN_NEED_RESOLVED", { resolution });
+  const row = await prisma.humanNeedQueue.findFirst({
+    where: { ownerId, id },
+    select: { dayId: true, contextJson: true },
+  });
+  if (!row) throw new Error("Queue item not found.");
+  await prisma.humanNeedQueue.update({
+    where: { id },
+    data: { status: "RESOLVED", resolvedAt: new Date() },
+  });
+  await appendDayEvent(ownerId, row.dayId, "HUMAN_NEED_RESOLVED", { resolution });
 }
 
 export async function closeLearningDay(
@@ -878,18 +625,18 @@ export async function closeLearningDay(
   input: { recap: string; homework: string; forecast: string },
 ) {
   const now = new Date();
-  const { error } = await supabase
-    .from("learningDay")
-    .update({
+  await prisma.learningDay.update({
+    where: { id: dayId },
+    data: {
       state: "CLOSED",
-      closedAt: now.toISOString(),
+      closedAt: now,
       recap: input.recap,
       homework: input.homework,
       forecast: input.forecast,
-      updatedAt: now.toISOString(),
-    })
-    .eq("id", dayId);
-  if (error) console.error("[db] closeLearningDay failed:", error.message);
+      version: { increment: 1 },
+      updatedAt: now,
+    },
+  });
   await appendDayEvent(ownerId, dayId, "DAY_CLOSED", input);
 }
 
@@ -945,84 +692,112 @@ function mapDay(row: any): MappedDay | null {
 }
 
 export async function getLearningDaySnapshot(ownerId: string, courseId: number) {
-  // Synthetic day snapshot — the persisted learningDay table was dropped.
-  // Until the day-state migration to lms.* lands, return a synthesized
-  // open-day state so the classroom enables the Professor + tools.
-  const course = await getCourse(ownerId, courseId);
-  if (!course) return null;
-  const firstLesson = course.companion.sections?.[0];
-  const now = new Date();
-  const dayId = syntheticDayId(ownerId, courseId);
-  const day = {
-    id: dayId,
-    ownerId,
-    courseId,
-    mode: "SPRINT",
-    state: "CHECK_IN",
-    currentLesson: 0,
-    currentItem: firstLesson?.checks?.[0] || firstLesson?.title || course.title,
-    cycleStep: 0,
-    activeWorkKind: "LESSON" as const,
-    activeWorkKey: null as string | null,
-    activeWorkTitle: firstLesson?.title || course.title,
-    breakEndsAt: null as string | null,
-    openedAt: now.toISOString(),
-    scheduledCloseAt: new Date(now.getTime() + 45 * 60000).toISOString(),
-    closedAt: null as string | null,
-    updatedAt: now.toISOString(),
-  };
+  const row = await prisma.learningDay.findFirst({
+    where: { ownerId, courseId },
+    orderBy: { id: "desc" },
+  });
+  if (!row) return null;
+
+  const [eventRows, attemptRows, queueRows] = await Promise.all([
+    prisma.learningDayEvent.findMany({
+      where: { ownerId, dayId: row.id },
+      orderBy: { id: "asc" },
+    }),
+    prisma.learningAttempt.findMany({
+      where: { ownerId, dayId: row.id },
+      orderBy: { id: "asc" },
+    }),
+    prisma.humanNeedQueue.findMany({
+      where: { ownerId, dayId: row.id },
+      orderBy: { id: "desc" },
+    }),
+  ]);
+
+  const events = eventRows.map((e) => ({
+    id: e.id,
+    eventType: e.eventType,
+    payload: JSON.parse(e.payloadJson),
+    createdAt: iso(e.createdAt),
+  }));
+  const attempts = attemptRows.map((a) => ({
+    id: a.id,
+    lessonIndex: a.lessonIndex,
+    item: a.itemText,
+    attemptNo: a.attemptNo,
+    response: a.response,
+    score: a.score,
+    passed: Boolean(a.passed),
+    stage: a.stage,
+    misconception: a.misconception,
+    feedback: a.feedback,
+    evidenceSummary: a.evidenceSummary,
+    workKind: a.workKind,
+    workKey: a.workKey,
+    createdAt: iso(a.createdAt),
+  }));
+  const queue = queueRows.map((q) => ({
+    id: q.id,
+    reason: q.reason,
+    status: q.status,
+    context: JSON.parse(q.contextJson),
+    createdAt: iso(q.createdAt),
+    resolvedAt: q.resolvedAt ? iso(q.resolvedAt) : null,
+  }));
+
+  const passedLessons = new Set(
+    attempts.filter((a) => a.passed && a.workKind === "LESSON").map((a) => a.lessonIndex),
+  );
+  const openedAt = new Date(row.openedAt).getTime();
+  const endedAt = row.closedAt ? new Date(row.closedAt).getTime() : Date.now();
+  let cursor = openedAt;
+  let activeMs = 0;
+  let paused = false;
+  for (const event of events) {
+    const at = new Date(event.createdAt).getTime();
+    if (event.eventType === "BREAK_STARTED") {
+      if (!paused) activeMs += Math.max(0, at - cursor);
+      paused = true;
+    } else if (event.eventType === "BREAK_ENDED") {
+      paused = false;
+      cursor = at;
+    }
+  }
+  if (!paused) activeMs += Math.max(0, endedAt - cursor);
+
   return {
-    day,
-    events: [] as Array<{ id: number; eventType: string; payload: Record<string, unknown>; createdAt: string }>,
-    attempts: [] as Array<Record<string, unknown>>,
-    queue: [] as Array<Record<string, unknown>>,
-    metrics: { activeMinutes: 0, demonstratedLessons: 0, evidenceCount: 0 },
+    day: mapDay(row),
+    events,
+    attempts,
+    queue,
+    metrics: {
+      activeMinutes: Math.floor(activeMs / 60000),
+      demonstratedLessons: passedLessons.size,
+      evidenceCount: attempts.filter((a) => a.passed).length,
+    },
   };
 }
 
 export async function listInstructorDaySnapshots(ownerId: string) {
-  const { data: rows, error } = await supabase
-    .from("learningDay")
-    .select("id, courseId")
-    .eq("ownerId", ownerId)
-    .order("id", { ascending: false })
-    .limit(60);
-  if (error) {
-    console.error("[db] listInstructorDaySnapshots failed:", error.message);
-    return [];
-  }
+  const rows = await prisma.learningDay.findMany({
+    where: { ownerId },
+    include: { course: { select: { title: true, area: true } } },
+    orderBy: { id: "desc" },
+    take: 60,
+  });
   // Keep only the latest day per course (mirrors the original GROUP BY MAX(id)).
   const seen = new Set<number>();
-  const latest = (rows ?? []).filter((r) => {
-    const courseId = asRow<{ courseId: number }>(r).courseId;
-    if (seen.has(courseId)) return false;
-    seen.add(courseId);
+  const latest = rows.filter((r) => {
+    if (seen.has(r.courseId)) return false;
+    seen.add(r.courseId);
     return true;
   });
-  // Fetch course titles for each unique course id (no FK relationship to lean
-  // on for the embedded PostgREST join — we do it in JS instead).
-  const courseIds = latest.map((r) => asRow<{ courseId: number }>(r).courseId);
-  const courseInfoMap = new Map<number, { area: string; title: string }>();
-  if (courseIds.length > 0) {
-    const { data: courseRows, error: courseErr } = await supabase
-      .from("course")
-      .select("id, area, title")
-      .in("id", courseIds);
-    if (courseErr) console.error("[db] listInstructorDaySnapshots course fetch:", courseErr.message);
-    for (const c of courseRows ?? []) {
-      const r = asRow<{ id: number; area: string; title: string }>(c);
-      courseInfoMap.set(r.id, { area: r.area, title: r.title });
-    }
-  }
   const snapshots = await Promise.all(
     latest.map(async (r) => {
-      const courseId = asRow<{ courseId: number }>(r).courseId;
-      const courseInfo = courseInfoMap.get(courseId);
-      const snapshot = await getLearningDaySnapshot(ownerId, courseId);
+      const snapshot = await getLearningDaySnapshot(ownerId, r.courseId);
       return {
         ...snapshot,
-        courseTitle: courseInfo?.title ?? "",
-        courseArea: courseInfo?.area ?? "",
+        courseTitle: r.course.title,
+        courseArea: r.course.area,
         learnerName: "Avery Johnson",
       };
     }),
@@ -1046,135 +821,74 @@ function todayInChicago(): string {
 export async function getSchoolSnapshot(ownerId: string) {
   const today = todayInChicago();
 
-  // Fetch enrollment rows + course rows separately (no FK constraints to
-  // lean on for PostgREST embedded joins).
-  const [{ data: enrollmentRows, error: enrErr }, { data: courseRowsForEnr, error: courseEnrErr }] =
-    await Promise.all([
-      supabase.from("courseEnrollment").select("*").eq("ownerId", ownerId),
-      supabase.from("course").select("*").eq("ownerId", ownerId),
-    ]);
-  if (enrErr) console.error("[db] getSchoolSnapshot enrollments:", enrErr.message);
-  if (courseEnrErr) console.error("[db] getSchoolSnapshot courses:", courseEnrErr.message);
-  const courseMap = new Map<number, Row>();
-  for (const c of courseRowsForEnr ?? []) courseMap.set(asRow<{ id: number }>(c).id, c as Row);
-
+  const enrollmentRows = await prisma.courseEnrollment.findMany({
+    where: { ownerId },
+    include: { course: true },
+  });
   const priorityRank: Record<string, number> = { High: 1, Medium: 2, Low: 3 };
-  const enrollments = (enrollmentRows ?? [])
-    .map((e) => {
-      const r = asRow<{
-        courseId: number;
-        level: string;
-        deficiencyFocus: string | null;
-        priority: string;
-        enrolledAt: string;
-      }>(e);
-      const course = courseMap.get(r.courseId) ?? ({} as Row);
-      return { e: r, course };
-    })
+  const enrollments = enrollmentRows
+    .map((e) => ({ e, course: e.course }))
     .sort((a, b) => {
       const rank = (priorityRank[a.e.priority] ?? 3) - (priorityRank[b.e.priority] ?? 3);
       if (rank !== 0) return rank;
-      return String(a.course.title || "").localeCompare(String(b.course.title || ""));
+      return a.course.title.localeCompare(b.course.title);
     });
 
-  // Detect whether today's schedule exists.
-  const { data: todayBlockRow } = await supabase
-    .from("schoolScheduleBlock")
-    .select("id")
-    .eq("ownerId", ownerId)
-    .eq("schoolDate", today)
-    .limit(1)
-    .maybeSingle();
-  const hasTodayBlock = !!todayBlockRow;
-
-  const { data: latestBlock } = await supabase
-    .from("schoolScheduleBlock")
-    .select("schoolDate")
-    .eq("ownerId", ownerId)
-    .order("schoolDate", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const latestDate = latestBlock
-    ? asRow<{ schoolDate: string }>(latestBlock).schoolDate
-    : today;
-  const displayedDate = hasTodayBlock ? today : latestDate || today;
-
-  const [scheduleResp, gradeResp, meetingResp] = await Promise.all([
-    supabase
-      .from("schoolScheduleBlock")
-      .select("*")
-      .eq("ownerId", ownerId)
-      .eq("schoolDate", displayedDate)
-      .order("sequence", { ascending: true }),
-    supabase
-      .from("gradebookEntry")
-      .select("*")
-      .eq("ownerId", ownerId),
-    supabase
-      .from("classroomMeeting")
-      .select("*")
-      .eq("ownerId", ownerId)
-      .order("startsAt", { ascending: true }),
-  ]);
-  if (scheduleResp.error) console.error("[db] getSchoolSnapshot schedule:", scheduleResp.error.message);
-  if (gradeResp.error) console.error("[db] getSchoolSnapshot grades:", gradeResp.error.message);
-  if (meetingResp.error) console.error("[db] getSchoolSnapshot meetings:", meetingResp.error.message);
-
-  const schedule = (scheduleResp.data ?? []).map((s) => {
-    const r = asRow<{
-      id: number;
-      courseId: number | null;
-      blockType: string;
-      title: string;
-      startsAt: string;
-      endsAt: string;
-      status: string;
-      deficiencyFocus: string | null;
-      sequence: number;
-    }>(s);
-    const course = r.courseId ? courseMap.get(r.courseId) : null;
-    return {
-      id: r.id,
-      courseId: r.courseId,
-      blockType: r.blockType,
-      title: r.title,
-      startsAt: r.startsAt,
-      endsAt: r.endsAt,
-      status: r.status,
-      deficiencyFocus: r.deficiencyFocus,
-      sequence: r.sequence,
-      area: course ? asRow<{ area: string }>(course).area : undefined,
-      courseTitle: course ? asRow<{ title: string }>(course).title : undefined,
-    };
+  const hasTodayBlock = await prisma.schoolScheduleBlock.findFirst({
+    where: { ownerId, schoolDate: today },
+    select: { id: true },
   });
+  const latest = await prisma.schoolScheduleBlock.findFirst({
+    where: { ownerId },
+    orderBy: { schoolDate: "desc" },
+    select: { schoolDate: true },
+  });
+  const displayedDate = hasTodayBlock ? today : latest?.schoolDate || today;
 
-  const grades = (gradeResp.data ?? [])
-    .map((g) => {
-      const r = asRow<{
-        id: number;
-        courseId: number;
-        title: string;
-        category: string;
-        score: number | null;
-        possible: number;
-        status: string;
-        feedback: string;
-        gradedAt: string | null;
-      }>(g);
-      const course = courseMap.get(r.courseId);
-      return {
-        id: r.id,
-        courseId: r.courseId,
-        courseTitle: course ? asRow<{ title: string }>(course).title : "",
-        title: r.title,
-        category: r.category,
-        score: r.score,
-        possible: r.possible,
-        status: r.status,
-        feedback: r.feedback,
-        gradedAt: r.gradedAt ? iso(r.gradedAt) : null,
-      };
-    })
+  const [scheduleRows, gradeRows, meetingRows] = await Promise.all([
+    prisma.schoolScheduleBlock.findMany({
+      where: { ownerId, schoolDate: displayedDate },
+      orderBy: { sequence: "asc" },
+      include: { course: { select: { area: true, title: true } } },
+    }),
+    prisma.gradebookEntry.findMany({
+      where: { ownerId },
+      include: { course: { select: { title: true } } },
+    }),
+    prisma.classroomMeeting.findMany({
+      where: { ownerId },
+      orderBy: { startsAt: "asc" },
+      include: { course: { select: { title: true } } },
+    }),
+  ]);
+
+  const schedule = scheduleRows.map((s) => ({
+    id: s.id,
+    courseId: s.courseId,
+    blockType: s.blockType,
+    title: s.title,
+    startsAt: s.startsAt,
+    endsAt: s.endsAt,
+    status: s.status,
+    deficiencyFocus: s.deficiencyFocus,
+    sequence: s.sequence,
+    area: s.course?.area,
+    courseTitle: s.course?.title,
+  }));
+
+  const grades = gradeRows
+    .map((g) => ({
+      id: g.id,
+      courseId: g.courseId,
+      courseTitle: g.course.title,
+      title: g.title,
+      category: g.category,
+      score: g.score,
+      possible: g.possible,
+      status: g.status,
+      feedback: g.feedback,
+      gradedAt: g.gradedAt ? iso(g.gradedAt) : null,
+    }))
     .sort((a, b) => {
       const ga = a.gradedAt ?? "9999";
       const gb = b.gradedAt ?? "9999";
@@ -1182,70 +896,45 @@ export async function getSchoolSnapshot(ownerId: string) {
       return b.id - a.id;
     });
 
-  const meetings = (meetingResp.data ?? []).map((m) => {
-    const r = asRow<{
-      id: number;
-      courseId: number | null;
-      title: string;
-      startsAt: string;
-      endsAt: string;
-      room: string;
-      status: string;
-    }>(m);
-    const course = r.courseId ? courseMap.get(r.courseId) : null;
-    return {
-      id: r.id,
-      courseId: r.courseId,
-      title: r.title,
-      startsAt: r.startsAt,
-      endsAt: r.endsAt,
-      room: r.room,
-      status: r.status,
-      courseTitle: course ? asRow<{ title: string }>(course).title : undefined,
-    };
-  });
+  const meetings = meetingRows.map((m) => ({
+    id: m.id,
+    courseId: m.courseId,
+    title: m.title,
+    startsAt: m.startsAt,
+    endsAt: m.endsAt,
+    room: m.room,
+    status: m.status,
+    courseTitle: m.course?.title,
+  }));
 
   const assignmentStates = await listAssignmentStates(ownerId);
   const submissions = assignmentStates
     .filter((item) => ["Submitted", "Completed"].includes(item.status))
     .map((item) => {
-      const enrollment = enrollments.find(
-        (en) => asRow<{ id: number }>(en.course).id === item.courseId,
-      );
-      const companionJson = enrollment
-        ? (asRow<{ companionJson: string }>(enrollment.course).companionJson || "{}")
-        : "{}";
-      let companion: Companion | null = null;
-      try {
-        companion = JSON.parse(companionJson) as Companion;
-      } catch {
-        companion = null;
-      }
+      const enrollment = enrollments.find((en) => en.course.id === item.courseId);
+      const companion = enrollment ? (JSON.parse(enrollment.course.companionJson) as Companion) : null;
       const work = [
-        ...((companion?.independentPractice || []).map((title, index) => ({
+        ...(companion?.independentPractice || []).map((title, index) => ({
           key: `practice-${index}`,
           title,
           kind: "Assignment",
-        })) as Array<{ key: string; title: string; kind: string }>),
+        })),
         ...(companion?.appliedProject
           ? [{ key: "project", title: companion.appliedProject.title, kind: "Project" }]
           : []),
-        ...((companion?.sections || []).flatMap((section, lessonIndex) =>
+        ...(companion?.sections || []).flatMap((section, lessonIndex) =>
           (section.checks || []).map((title, index) => ({
             key: `check-${lessonIndex}-${index}`,
             title,
             kind: "Quiz",
           })),
-        ) as Array<{ key: string; title: string; kind: string }>),
+        ),
       ].find((entry) => entry.key === item.assignmentKey);
-      const courseTitle = enrollment
-        ? (asRow<{ title: string }>(enrollment.course).title || "Course")
-        : "Course";
       return {
         ...item,
         title: work?.title || item.assignmentKey,
         kind: work?.kind || "Assignment",
-        courseTitle,
+        courseTitle: enrollment?.course.title || "Course",
       };
     });
 
@@ -1254,35 +943,20 @@ export async function getSchoolSnapshot(ownerId: string) {
     currentDate: today,
     isHistoricalSchedule: displayedDate !== today,
     enrollments: enrollments.map(({ e, course }) => {
-      let companion: Companion | null = null;
-      try {
-        companion = JSON.parse(
-          asRow<{ companionJson: string }>(course).companionJson || "{}",
-        ) as Companion;
-      } catch {
-        companion = null;
-      }
-      const cRow = asRow<{
-        id: number;
-        title: string;
-        area: string;
-        grade: string;
-        state: string;
-        companionJson: string;
-      }>(course);
+      const companion = JSON.parse(course.companionJson) as Companion;
       return {
-        courseId: cRow.id,
-        title: cRow.title,
-        area: cRow.area,
-        grade: cRow.grade,
-        state: cRow.state,
+        courseId: course.id,
+        title: course.title,
+        area: course.area,
+        grade: course.grade,
+        state: course.state,
         level: e.level,
         deficiencyFocus: e.deficiencyFocus,
         priority: e.priority,
         enrolledAt: iso(e.enrolledAt),
-        lessonCount: (companion?.sections || []).length,
-        objectiveCount: (companion?.learningObjectives || []).length,
-        nextLesson: companion?.sections?.[0]?.title || cRow.title,
+        lessonCount: (companion.sections || []).length,
+        objectiveCount: (companion.learningObjectives || []).length,
+        nextLesson: companion.sections?.[0]?.title || course.title,
       };
     }),
     schedule,
@@ -1298,56 +972,38 @@ export async function getSchoolSnapshot(ownerId: string) {
 export async function setMeetingStatus(ownerId: string, id: number, status: string) {
   if (!["SCHEDULED", "JOINED", "ENDED"].includes(status))
     throw new Error("Invalid meeting status.");
-  const { error } = await supabase
-    .from("classroomMeeting")
-    .update({ status })
-    .eq("ownerId", ownerId)
-    .eq("id", id);
-  if (error) console.error("[db] setMeetingStatus failed:", error.message);
+  await prisma.classroomMeeting.updateMany({ where: { ownerId, id }, data: { status } });
 }
 
 export async function setScheduleBlockStatus(ownerId: string, id: number, status: string) {
   if (!["UPCOMING", "CURRENT", "COMPLETE"].includes(status))
     throw new Error("Invalid schedule status.");
   if (status === "CURRENT") {
-    const { data: block } = await supabase
-      .from("schoolScheduleBlock")
-      .select("schoolDate")
-      .eq("ownerId", ownerId)
-      .eq("id", id)
-      .maybeSingle();
+    const block = await prisma.schoolScheduleBlock.findFirst({
+      where: { ownerId, id },
+      select: { schoolDate: true },
+    });
     if (block) {
-      const schoolDate = asRow<{ schoolDate: string }>(block).schoolDate;
-      const { error: clrErr } = await supabase
-        .from("schoolScheduleBlock")
-        .update({ status: "UPCOMING" })
-        .eq("ownerId", ownerId)
-        .eq("schoolDate", schoolDate)
-        .eq("status", "CURRENT");
-      if (clrErr) console.error("[db] setScheduleBlockStatus clear:", clrErr.message);
+      await prisma.schoolScheduleBlock.updateMany({
+        where: { ownerId, schoolDate: block.schoolDate, status: "CURRENT" },
+        data: { status: "UPCOMING" },
+      });
     }
   }
-  const { error } = await supabase
-    .from("schoolScheduleBlock")
-    .update({ status })
-    .eq("ownerId", ownerId)
-    .eq("id", id);
-  if (error) console.error("[db] setScheduleBlockStatus failed:", error.message);
+  await prisma.schoolScheduleBlock.updateMany({ where: { ownerId, id }, data: { status } });
 }
 
 export async function enrollGeneratedCourse(ownerId: string, courseId: number) {
-  const { error } = await supabase
-    .from("courseEnrollment")
-    .upsert(
-      {
-        ownerId,
-        courseId,
-        level: "Not assessed",
-        deficiencyFocus: null,
-        priority: "Low",
-        enrolledAt: new Date().toISOString(),
-      },
-      { onConflict: "ownerId,courseId" },
-    );
-  if (error) console.error("[db] enrollGeneratedCourse failed:", error.message);
+  await prisma.courseEnrollment.upsert({
+    where: { ownerId_courseId: { ownerId, courseId } },
+    create: {
+      ownerId,
+      courseId,
+      level: "Not assessed",
+      deficiencyFocus: null,
+      priority: "Low",
+      enrolledAt: new Date().toISOString(),
+    },
+    update: {},
+  });
 }

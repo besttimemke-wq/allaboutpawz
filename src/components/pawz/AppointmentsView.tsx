@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { AppointmentItem, AppointmentStatus } from '@/lib/types';
-
+import { RICH_APPOINTMENTS_DATA } from '@/lib/appointments-rich-data';
 import { FullCalendarView } from './FullCalendarView';
 import { KanbanView } from './KanbanView';
 import { HourlyTimelineView } from './HourlyTimelineView';
@@ -42,7 +42,6 @@ import {
 interface AppointmentsViewProps {
   appointments?: AppointmentItem[];
   onAddAppointment?: () => void;
-  onSelectAppointment?: (appt: AppointmentItem) => void;
   onUpdateStatus?: (id: string, newStatus: AppointmentItem['status']) => void;
 }
 
@@ -62,7 +61,6 @@ type ViewMode = 'list' | 'kanban' | 'timeline' | 'calendar' | 'grid';
 export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   appointments: initialPropAppointments,
   onAddAppointment: propOnAddAppointment,
-  onSelectAppointment,
   onUpdateStatus: propOnUpdateStatus,
 }) => {
   const nextIdRef = useRef(1000);
@@ -71,7 +69,7 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   const [appointmentsList, setAppointmentsList] = useState<AppointmentItem[]>(
     initialPropAppointments && initialPropAppointments.length > 0 
       ? initialPropAppointments 
-      : []
+      : RICH_APPOINTMENTS_DATA
   );
 
   React.useEffect(() => {
@@ -79,13 +77,15 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
     fetch('/api/bookings')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!isMounted || !data?.appointments || !Array.isArray(data.appointments)) return;
+        if (!isMounted || !data?.appointments || !Array.isArray(data.appointments) || data.appointments.length === 0) return;
+        const liveIds = new Set(data.appointments.map((a: any) => a.id));
+        const mockFiltered = RICH_APPOINTMENTS_DATA.filter(a => !liveIds.has(a.id));
         if (isMounted) {
-          setAppointmentsList(data.appointments);
+          setAppointmentsList([...data.appointments, ...mockFiltered]);
         }
       })
       .catch((err) => {
-        console.log('Failed to fetch appointments:', err);
+        console.log('Using local cached appointments:', err);
       });
 
     return () => {
@@ -353,10 +353,7 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
   // Action Menu Dispatcher
   const handleActionClick = (actionKey: string, appt: AppointmentItem) => {
     setActiveActionMenuId(null);
-    if (actionKey === 'confirm') {
-      updateAppointmentStatus(appt.id, 'Confirmed');
-      showToast(`✓ Appointment confirmed for ${appt.petName}.`);
-    } else if (actionKey === 'check-in') {
+    if (actionKey === 'check-in') {
       updateAppointmentStatus(appt.id, 'Checked In');
       showToast(`✓ ${appt.petName} checked in successfully!`);
     } else if (actionKey === 'mark-in-progress') {
@@ -365,9 +362,6 @@ export const AppointmentsView: React.FC<AppointmentsViewProps> = ({
     } else if (actionKey === 'mark-complete') {
       updateAppointmentStatus(appt.id, 'Completed');
       showToast(`🎉 Appointment completed for ${appt.petName}! Ready for pickup.`);
-    } else if (actionKey === 'view-details') {
-      // Open the customer profile for this appointment's customer
-      onSelectAppointment?.(appt);
     } else if (actionKey === 'duplicate') {
       nextIdRef.current += 1;
       const copy: AppointmentItem = {

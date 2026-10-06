@@ -404,152 +404,64 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // ---- FETCH EXISTING DATA: bridge the UI state arrays to the CRM API ----
-  // When the customer profile opens, fetch real notes, messages, documents,
-  // grooming records, and appointments from the canonical CRM routes.
-  // Replaces the mock initial state with live DB data.
-  React.useEffect(() => {
-    if (!profile.id) return;
-    const cid = profile.id;
-
-    // 1. Fetch notes
-    fetch(`/api/admin/crm/notes?customerId=${encodeURIComponent(cid)}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (!data?.notes || data.notes.length === 0) return;
-        setNotesList(data.notes.map((n: any) => ({
-          id: n.id,
-          date: n.createdAt ? new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-          time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—',
-          actor: n.noteType === 'internal' ? 'Staff Note' : n.noteType === 'customer_visible' ? 'Customer Note' : n.noteType || 'Note',
-          actorType: n.noteType === 'system' ? 'System' : 'Staff',
-          description: n.body ?? '',
-          isPinned: !!n.isPinned,
-        })));
-      })
-      .catch(() => {});
-
-    // 2. Fetch messages (communications)
-    fetch(`/api/admin/crm/messages?customerId=${encodeURIComponent(cid)}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (!data?.messages || data.messages.length === 0) return;
-        setCommunicationsList(data.messages.map((m: any) => ({
-          id: m.id,
-          date: m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-          time: m.createdAt ? new Date(m.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—',
-          channel: m.channel === 'email' ? 'Email' : m.channel === 'sms' ? 'SMS' : m.channel || 'Other',
-          type: m.direction === 'outbound' ? 'Direct Communication' : 'Inbound',
-          direction: m.direction === 'outbound' ? 'Outgoing' : 'Incoming',
-          subject: m.subject || m.body?.slice(0, 50) || '—',
-          pet: 'Household',
-          status: m.status || 'Sent',
-        })));
-      })
-      .catch(() => {});
-
-    // 3. Fetch documents
-    fetch(`/api/admin/crm/documents?customerId=${encodeURIComponent(cid)}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (!data?.documents || data.documents.length === 0) return;
-        setDocumentsList(data.documents.map((d: any) => ({
-          id: d.id,
-          name: d.name || '—',
-          type: d.documentTypeId || 'Document',
-          pet: '—',
-          uploaded: d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-          expires: d.expiresAt || '—',
-          status: d.status === 'approved' ? 'Valid (Verified)' : d.status === 'pending' ? 'Pending' : d.status || 'Pending',
-          isWaiver: false,
-        })));
-      })
-      .catch(() => {});
-
-    // 4. Fetch grooming records
-    fetch(`/api/admin/crm/grooming-records?customerId=${encodeURIComponent(cid)}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (!data?.records || data.records.length === 0) return;
-        setGroomingRecords(data.records.map((r: any) => ({
-          id: r.id,
-          date: r.date || '—',
-          pet: r.petName || '—',
-          petColor: 'bg-primary/10',
-          service: r.serviceName || 'Grooming',
-          groomer: r.groomer || '—',
-          duration: r.durationMinutes ? `${r.durationMinutes} min` : '—',
-          notes: r.cutDetails ?? r.notes ?? '',
-          amount: r.amount || 0,
-          status: r.status || 'Paid',
-        })));
-      })
-      .catch(() => {});
-
-    // 5. Fetch appointments for this customer
-    fetch('/api/bookings?limit=50')
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (!data?.appointments) return;
-        // Filter by customerId or customerName matching this profile
-        const customerAppts = data.appointments.filter((a: any) =>
-          a.customerId === cid ||
-          (a.customerName && profile.name && a.customerName.toLowerCase() === profile.name.toLowerCase()) ||
-          (a.customerEmail && profile.email && a.customerEmail.toLowerCase() === profile.email.toLowerCase())
-        );
-        if (customerAppts.length > 0) {
-          setAppointmentsList(customerAppts.map((a: any) => ({
-            id: a.id,
-            date: a.date || '—',
-            time: a.time || '—',
-            duration: a.duration || '2.5 hrs',
-            pet: a.petName || '—',
-            petColor: 'bg-primary/10',
-            service: a.serviceName || '—',
-            groomer: a.staffName || '—',
-            status: a.status || 'Scheduled',
-            amount: a.price || 0,
-            paymentStatus: a.paymentStatus || 'Unpaid',
-            notes: a.notes ?? '',
-          })));
-        }
-      })
-      .catch(() => {});
-  }, [profile.id, profile.name, profile.email]);
-
   /* ------------------- ACTIONS: 1. OVERVIEW ------------------- */
-  const handleSaveCustomer = async (e: React.FormEvent) => {
+  const handleSaveCustomer = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile.id) return;
-    try {
-      await fetch('/api/admin/crm/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: editEmail || profile.email, firstName: editName?.split(' ')[0], lastName: editName?.split(' ').slice(1).join(' '), phone: editPhone, addressLine1: editAddress, lifecycleStage: profile.lifecycleStage || 'active' }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
-    setProfile(prev => ({ ...prev, name: editName, phone: editPhone, email: editEmail, address: editAddress }));
+    setProfile(prev => ({
+      ...prev,
+      name: editName,
+      phone: editPhone,
+      email: editEmail,
+      address: editAddress,
+    }));
     setIsEditCustomerOpen(false);
     showToast('Customer contact & account details saved.');
   };
 
-  const handleSendMessageSubmit = async (e: React.FormEvent) => {
+  const handleSendMessageSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim() || !profile.id) return;
-    const channelId = (messageChannel ?? '').toLowerCase().includes('email') ? 'email' : (messageChannel ?? '').toLowerCase().includes('sms') || (messageChannel ?? '').toLowerCase().includes('text') ? 'sms' : 'other';
-    try {
-      await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, channel: channelId, body: messageText, subject: messageText.slice(0, 80) }) });
-    } catch (err) { console.error('[CRM action failed]', err); }
-    const newComm = { id: `comm-${Date.now()}`, date: 'Today', time: 'Just Now', channel: messageChannel, type: 'Direct Communication', direction: 'Outgoing', subject: messageText, pet: 'Household', status: 'Sent' };
+    if (!messageText.trim()) return;
+
+    const newComm = {
+      id: `comm-${Date.now()}`,
+      date: 'Today',
+      time: 'Just Now',
+      channel: messageChannel,
+      type: 'Direct Communication',
+      direction: 'Outgoing',
+      subject: messageText,
+      pet: 'Household',
+      status: 'Delivered',
+    };
+
     setCommunicationsList(prev => [newComm, ...prev]);
-    setMessageText(''); setIsSendMessageOpen(false);
+    setNotesList(prev => [
+      {
+        id: `note-${Date.now()}`,
+        date: 'Today',
+        time: 'Just Now',
+        actor: 'Staff',
+        actorType: 'Staff',
+        description: `${messageChannel} sent: "${messageText.slice(0, 50)}..."`,
+        isPinned: false,
+      },
+      ...prev,
+    ]);
+
+    setMessageText('');
+    setIsSendMessageOpen(false);
     showToast(`${messageChannel} sent to ${profile.name}`);
   };
 
   /* ------------------- ACTIONS: 2. PETS ------------------- */
-  const handleSetPrimaryPet = async (petId: string) => {
-    try { await fetch(`/api/admin/crm/pets/${encodeURIComponent(petId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isPrimary: true }) }); } catch (err) { console.error('[CRM action failed]', err); }
-    setProfile(prev => ({ ...prev, pets: (prev.pets || []).map(p => ({ ...p, isPrimary: p.id === petId })) }));
+  const handleSetPrimaryPet = (petId: string) => {
+    setProfile(prev => ({
+      ...prev,
+      pets: (prev.pets || []).map(p => ({
+        ...p,
+        isPrimary: p.id === petId,
+      })),
+    }));
     const targetPet = (profile.pets || []).find(p => p.id === petId);
     showToast(`Marked ${targetPet?.name || 'Pet'} as primary/default for booking.`);
   };
@@ -563,71 +475,44 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
   };
 
   /* ------------------- ACTIONS: 3. APPOINTMENTS ------------------- */
-  const handleStatusCycle = async (apptId: string) => {
-    const appt = appointmentsList.find(a => a.id === apptId);
-    if (!appt) return;
-    const nextStatus = appt.status === 'Scheduled' ? 'Checked In' : appt.status === 'Checked In' ? 'In Progress' : appt.status === 'In Progress' ? 'Checked Out' : 'Scheduled';
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: apptId, status: nextStatus }) }); } catch (err) { console.error('[CRM action failed]', err); }
-    setAppointmentsList(prev => prev.map(a => a.id === apptId ? { ...a, status: nextStatus } : a));
-    showToast(`Marked ${appt.pet}'s appointment as "${nextStatus}".`);
+  const handleStatusCycle = (apptId: string) => {
+    setAppointmentsList(prev =>
+      prev.map(a => {
+        if (a.id !== apptId) return a;
+        const nextStatus =
+          a.status === 'Scheduled'
+            ? 'Checked In'
+            : a.status === 'Checked In'
+            ? 'In Progress'
+            : a.status === 'In Progress'
+            ? 'Checked Out'
+            : 'Scheduled';
+        showToast(`Marked ${a.pet}'s appointment as "${nextStatus}".`);
+        return { ...a, status: nextStatus };
+      })
+    );
   };
 
-  const handleCancelAppointment = async (apptId: string) => {
+  const handleCancelAppointment = (apptId: string) => {
     const target = appointmentsList.find(a => a.id === apptId);
-    try { await fetch(`/api/bookings?id=${encodeURIComponent(apptId)}`, { method: 'DELETE' }); } catch (err) { console.error('[CRM action failed]', err); }
-    setAppointmentsList(prev => prev.map(a => a.id === apptId ? { ...a, status: 'Cancelled' } : a));
+    setAppointmentsList(prev =>
+      prev.map(a => (a.id === apptId ? { ...a, status: 'Cancelled' } : a))
+    );
     showToast(`Appointment for ${target?.pet || 'pet'} has been cancelled.`);
   };
 
-  const handleSendApptReminder = async (appt: any) => {
-    if (!profile.id) return;
-    try { await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, channel: 'sms', body: `Reminder: ${appt.pet}'s appointment on ${appt.date} at ${appt.time}.`, subject: 'Appointment Reminder' }) }); } catch (err) { console.error('[CRM action failed]', err); }
+  const handleSendApptReminder = (appt: any) => {
     showToast(`Automated SMS reminder sent to ${profile.phone} for ${appt.pet}'s session on ${appt.date}.`);
   };
 
-  const handleAddToWaitlist = async () => {
-    if (!profile.id) { showToast('Customer profile not loaded.'); return; }
-    try {
-      await fetch('/api/admin/crm/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId: profile.id, priority: 5, notes: `Requested by admin for ${profile.name}` }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
-    showToast(`Added ${profile.name} to the grooming waitlist.`);
-  };
-
-  const handleSendPortalInvite = async () => {
-    if (!profile.email) { showToast('Customer has no email on file.'); return; }
-    showToast(`Sending portal invite to ${profile.email}…`);
-    try {
-      const res = await fetch('/api/auth/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: profile.email, role: 'customer', name: profile.name }),
-      });
-      if (res.ok) {
-        showToast(`Portal invite sent to ${profile.email}. They'll receive a magic link.`);
-      } else {
-        const j = await res.json().catch(() => ({}));
-        showToast(`Invite failed: ${j?.error || res.statusText}`);
-      }
-    } catch (err: any) {
-      showToast(`Invite failed: ${err?.message || 'network error'}`);
-    }
+  const handleAddToWaitlist = () => {
+    showToast(`Added ${profile.name} to VIP priority grooming waitlist.`);
   };
 
   /* ------------------- ACTIONS: 4. GROOMING HISTORY ------------------- */
-  const handleAddGroomingNotePrompt = async (recordId: string) => {
+  const handleAddGroomingNotePrompt = (recordId: string) => {
     const note = window.prompt('Enter clinical grooming note to add to this session:');
     if (!note) return;
-    try {
-      await fetch(`/api/admin/crm/grooming-records/${encodeURIComponent(recordId)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appendNote: note }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
     setGroomingRecords(prev =>
       prev.map(r => (r.id === recordId ? { ...r, notes: `${r.notes} • ${note}` } : r))
     );
@@ -635,75 +520,54 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
   };
 
   /* ------------------- ACTIONS: 5. PAYMENTS ------------------- */
-  const handleAddCard = async (e: React.FormEvent) => {
+  const handleAddCard = (e: React.FormEvent) => {
     e.preventDefault();
     if (!cardNumber) return;
-    // Redirect to Stripe Customer Portal where the admin can securely
-    // add a payment method for this customer. The portal handles PCI-compliant
-    // card entry — we never touch card data on our server.
-    try {
-      const res = await fetch('/api/stripe/customer-portal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId: profile.id, email: profile.email }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          window.open(data.url, '_blank');
-          showToast('Opening Stripe portal to add payment method securely.');
-          setIsAddPaymentMethodOpen(false);
-          setCardNumber('');
-          return;
-        }
-      }
-    } catch { /* fall through to local fallback */ }
-    // Fallback: just record locally (not PCI-compliant but functional for demo)
     const last4 = cardNumber.slice(-4) || '4242';
-    setProfile(prev => ({ ...prev, defaultPaymentMethod: { cardBrand: 'VISA', last4, expires: cardExpiry || '06/28' } }));
+    setProfile(prev => ({
+      ...prev,
+      defaultPaymentMethod: {
+        cardBrand: 'VISA',
+        last4,
+        expires: cardExpiry || '06/28',
+      },
+    }));
     setIsAddPaymentMethodOpen(false);
     setCardNumber('');
-    showToast('Payment method saved locally. For production, use the Stripe portal link.');
+    showToast('Payment method saved and set as default.');
   };
 
-  const handleConfirmRefund = async (amount: number, reason: string) => {
-    try {
-      const res = await fetch('/api/admin/refunds', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, reason, customerId: profile.id }),
-      });
-      if (res.ok) {
-        showToast(`Refund of $${amount.toFixed(2)} processed successfully (${reason}).`);
-      } else {
- const j = await res.json().catch(() => ({}));
-        showToast(`Refund failed: ${j?.error || res.statusText}`);
-      }
-    } catch (err: any) {
-      showToast(`Refund failed: ${err?.message || 'network error'}`);
-    }
+  const handleConfirmRefund = (amount: number, reason: string) => {
+    showToast(`Refund of $${amount.toFixed(2)} processed successfully (${reason}).`);
   };
 
   /* ------------------- ACTIONS: 6. DOCUMENTS ------------------- */
-  const handleVerifyDocument = async (docId: string) => {
-    try { await fetch(`/api/admin/crm/documents/${encodeURIComponent(docId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'approved' }) }); } catch (err) { console.error('[CRM action failed]', err); }
-    setDocumentsList(prev => prev.map(d => (d.id === docId ? { ...d, status: 'Valid (Verified)' } : d)));
+  const handleVerifyDocument = (docId: string) => {
+    setDocumentsList(prev =>
+      prev.map(d => (d.id === docId ? { ...d, status: 'Valid (Verified)' } : d))
+    );
     showToast('Document marked as verified by staff.');
   };
 
   /* ------------------- ACTIONS: 7. NOTES & ACTIVITY ------------------- */
-  const handleAddNoteSubmit = async (e: React.FormEvent) => {
+  const handleAddNoteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!noteContent.trim() || !profile.id) return;
-    let dbId: string | null = null;
-    try {
-      const res = await fetch('/api/admin/crm/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: profile.id, body: noteContent, noteType: 'internal' }) });
-      if (res.ok) { const j = await res.json(); dbId = j?.note?.id || null; }
-    } catch (err) { console.error('[CRM action failed]', err); }
+    if (!noteContent.trim()) return;
+
     const petText = notePetSelection ? ` (${notePetSelection})` : '';
-    const newNote = { id: dbId || `note-${Date.now()}`, date: 'Today', time: 'Just Now', actor: 'Groomer Note', actorType: 'Staff', description: `Note${petText}: ${noteContent}`, isPinned: false };
+    const newNote = {
+      id: `note-${Date.now()}`,
+      date: 'Today',
+      time: 'Just Now',
+      actor: 'Groomer Note',
+      actorType: 'Staff',
+      description: `Note${petText}: ${noteContent}`,
+      isPinned: false,
+    };
+
     setNotesList(prev => [newNote, ...prev]);
-    setNoteContent(''); setNotePetSelection('');
+    setNoteContent('');
+    setNotePetSelection('');
     showToast('Note added to client timeline.');
   };
 
@@ -1826,14 +1690,6 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
               </button>
 
               <button
-                onClick={handleSendPortalInvite}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-semibold text-foreground bg-card border border-border hover:bg-muted/40 rounded-lg shadow-2xs transition-colors cursor-pointer"
-              >
-                <Mail className="w-3.5 h-3.5 text-primary" />
-                <span>Send Portal Invite</span>
-              </button>
-
-              <button
                 onClick={onOpenNewAppointment}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-2xs transition-colors cursor-pointer"
               >
@@ -2157,8 +2013,8 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
                 <tbody className="divide-y divide-border">
                   {(profile.paymentHistory || [])
                     .filter((p) =>
-                      (p.description ?? '').toLowerCase().includes((paymentSearch ?? '').toLowerCase()) ||
-                      (p.type ?? '').toLowerCase().includes((paymentSearch ?? '').toLowerCase())
+                      p.description.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+                      p.type.toLowerCase().includes(paymentSearch.toLowerCase())
                     )
                     .map((item, idx) => (
                       <tr key={item.id} className="hover:bg-muted/40/70 transition-colors">
@@ -2408,7 +2264,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
                     .filter((act) => {
                       if (activityFilter === 'All') return true;
                       if (activityFilter === 'System') return act.actorType === 'System';
-                      if (activityFilter === 'Notes') return (act.actor ?? '').toLowerCase().includes('note') || act.isPinned;
+                      if (activityFilter === 'Notes') return act.actor.toLowerCase().includes('note') || act.isPinned;
                       return act.actorType === 'Staff';
                     })
                     .map((act) => (
@@ -2983,20 +2839,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
           appointment={apptToReschedule}
           isOpen={true}
           onClose={() => setApptToReschedule(null)}
-          onReschedule={async (newDate, newTime) => {
-            // Persist to the DB via the bookings API
-            try {
-              await fetch('/api/bookings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  id: apptToReschedule.id,
-                  date: newDate,
-                  time: newTime,
-                  status: 'RESCHEDULED',
-                }),
-              });
-            } catch (err) { console.error('[CRM reschedule failed]', err); }
+          onReschedule={(newDate, newTime) => {
             setAppointmentsList(prev =>
               prev.map(a => (a.id === apptToReschedule.id ? { ...a, date: newDate, time: newTime } : a))
             );

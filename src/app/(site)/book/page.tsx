@@ -1,22 +1,15 @@
 import Link from "next/link"
-import { PawPrint, Sparkle, ArrowRight } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { BookingEntryCard } from "@/components/site/islands/booking-entry-cards"
 import { SITE_URL } from "@/lib/site-url"
-// The nine appointment-wizard steps — what happens on the flow page.
-// EMAIL FIRST: identity is captured before anything else, so an abandoned
-// booking is never anonymous — the salon knows who to welcome back.
+// The five appointment-flow steps — what happens on the flow page.
 const BOOKING_STEPS = [
-  { n: "01", title: "YOUR EMAIL", body: "Who you are — progress saves and confirmations find you." },
-  { n: "02", title: "YOUR DETAILS", body: "Phone and address, prefilled if we know you." },
-  { n: "03", title: "YOUR DOG", body: "Name, breed, and weight — or reuse a pup on file." },
-  { n: "04", title: "COAT", body: "Texture, length, and condition details." },
-  { n: "05", title: "GROOMING", body: "Pick your service and style preferences." },
-  { n: "06", title: "SCHEDULE", body: "Choose the date and time that suits you." },
-  { n: "07", title: "GROOMER", body: "Request your favorite or let us match you." },
-  { n: "08", title: "NOTES", body: "Sensitivities, quirks, anything we should know." },
-  { n: "09", title: "REVIEW & DEPOSIT", body: "Check the summary and secure your visit." },
+  { n: "01", title: "SIGN IN", body: "Google or your email — one click and you're in." },
+  { n: "02", title: "YOUR DOG", body: "Name, breed, birthday, and size in pounds." },
+  { n: "03", title: "SERVICES", body: "Tap to add — your total updates as you go." },
+  { n: "04", title: "TIME", body: "Pick a day, then a morning or afternoon slot." },
+  { n: "05", title: "BOOK", body: "Review, pay in full or $25 deposit, done." },
 ]
 
 // Consultation flow — how a free consult works before the first groom.
@@ -29,7 +22,7 @@ const CONSULT_STEPS = [
 
 export const metadata = {
   title: "Book an Appointment | All About Pawz",
-  description: "Book a grooming appointment or request a free consultation in one simple flow — nine quick steps and we take care of the rest.",
+  description: "Book a grooming appointment or request a free consultation in one simple flow — five quick steps and we take care of the rest.",
   alternates: { canonical: `${SITE_URL}/book` },
 }
 
@@ -43,7 +36,7 @@ export default function BookPage() {
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">Your Pup<br />Deserves This.</h1>
           <p className="mt-6 max-w-[330px] text-[12.5px] leading-[1.85] text-ink-soft">
-            Book an appointment or request a free consultation — all in one simple flow. Nine quick steps and we&apos;ll take care of the rest.
+            Book an appointment or request a free consultation — all in one simple flow. Five quick steps and we&apos;ll take care of the rest.
           </p>
           <HeroCtas bookLabel="BOOK AN APPOINTMENT" consultLabel="SCHEDULE A CONSULTATION" />
         </div>
@@ -58,64 +51,19 @@ export default function BookPage() {
         </div>
       </section>
 
-      {/* RETURNING BAND — the two portal doors, one per identity: salon
-          customers and LEASHED Academy students. Email-first booking means
-          guests never NEED an account to book — this band is the fast lane
-          for people who already have one. */}
-      <section className="border-y border-gold/25 bg-cream-deep px-8 py-10 lg:px-12">
-        <div className="grid items-center gap-8 lg:grid-cols-[0.9fr_2fr]">
-          <div className="lg:border-r lg:border-gold/25 lg:pr-10">
-            <p className="eyebrow">ALREADY KNOW US?</p>
-            <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-ink">Welcome back.</h2>
-            <p className="mt-3 max-w-[300px] text-[12px] leading-[1.75] text-ink-soft">
-              Sign in once and your details, pups, and history autofill — bookings take half the time.
-              New here? You never need an account to book; just start below.
-            </p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Link
-              href="/access-customer?redirect=/book/appointment"
-              className="group flex items-center gap-4 border border-gold/30 bg-cream px-5 py-5 transition hover:border-gold-deep"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-cream-deep">
-                <PawPrint size={22} weight="fill" className="text-gold-deep" />
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-[11px] font-bold tracking-[0.14em] text-ink">RETURNING CUSTOMER</span>
-                <span className="mt-1 block text-[11px] leading-snug text-ink-soft">Salon portal — pets, appointments &amp; billing</span>
-              </span>
-              <ArrowRight size={15} weight="bold" className="shrink-0 text-gold-deep transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link
-              href="/learn/sign-in"
-              className="group flex items-center gap-4 border border-gold/30 bg-cream px-5 py-5 transition hover:border-gold-deep"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-cream-deep">
-                <Sparkle size={22} weight="fill" className="text-gold-deep" />
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-[11px] font-bold tracking-[0.14em] text-ink">RETURNING STUDENT</span>
-                <span className="mt-1 block text-[11px] leading-snug text-ink-soft">LEASHED Vocational Academy — courses &amp; progress</span>
-              </span>
-              <ArrowRight size={15} weight="bold" className="shrink-0 text-gold-deep transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* BLACK BAND — how booking works: the nine wizard steps as separated,
           numbered cards. Same band structure as the homepage services band. */}
       <section className="bg-ink px-8 py-12 lg:px-12">
         <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_2.4fr]">
           <div className="lg:border-r lg:border-gold/25 lg:pr-10">
             <p className="eyebrow-dark">HOW BOOKING WORKS</p>
-            <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-on-dark">Every Step.<br />Every Detail.<br />Every Pup.</h2>
+            <h2 className="mt-3 font-display text-[30px] leading-[1.18] text-on-dark">Five Steps.<br />One Minute.<br />Every Pup.</h2>
             <p className="mt-4 max-w-[290px] text-[12px] leading-[1.75] text-on-dark-muted">
-              Nine simple steps, about two minutes — your email first, the deposit last. Your progress saves as you go, so you can step away and pick up right where you left off.
+              Five simple steps, about a minute. Your progress saves as you go, so you can step away and pick up right where you left off.
             </p>
             <Link href="/book/appointment" className="btn-gold mt-6 inline-flex">START BOOKING</Link>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {BOOKING_STEPS.map((s) => (
               <div key={s.n} className="border border-gold/25 px-5 py-5">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full border border-gold/40 text-[10.5px] font-bold tracking-[0.08em] text-gold">{s.n}</span>

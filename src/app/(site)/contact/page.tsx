@@ -50,9 +50,9 @@ export default async function ContactPage() {
     s = {}
   }
 
-  const addressLine1 = s.addressLine1 || "1428 Maple Grove Avenue"
-  const addressLine2 = s.addressLine2 || "Suite 4, Riverbend, IL 60614"
-  const phone = s.phone || "901-800-7182"
+  const addressLine1 = s.addressLine1 || "699 Waring Rd"
+  const addressLine2 = s.addressLine2 || "Memphis, TN 38122"
+  const phone = s.phone || "901-722-1114"
 
   // "Memphis, TN 38122" → city / state / zip (anything unparsable stays a
   // single street-address string).

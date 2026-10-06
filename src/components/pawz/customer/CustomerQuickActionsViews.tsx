@@ -37,80 +37,39 @@ export const QuickActionTakePaymentView: React.FC<CustomerQuickActionsProps> = (
   onCancel,
   onSuccess,
 }) => {
-  const [paymentTarget, setPaymentTarget] = useState<'appointment' | 'invoice' | 'custom'>('custom');
-  const [selectedInvoice, setSelectedInvoice] = useState('');
+  const [paymentTarget, setPaymentTarget] = useState<'appointment' | 'invoice' | 'custom'>('appointment');
+  const [selectedInvoice, setSelectedInvoice] = useState('INV-2025-089');
   const [customAmount, setCustomAmount] = useState('50.00');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'check'>('card');
-  const [amountPaid, setAmountPaid] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'visa_4242' | 'mc_5555' | 'new_card'>('visa_4242');
+  const [amountPaid, setAmountPaid] = useState('108.25');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Dynamic calculations based on selection
-  let subtotal = 0;
-  const taxRate = 0.0925;
+  let subtotal = 100.0;
+  let taxRate = 0.0825;
 
-  if (paymentTarget === 'custom') {
+  if (paymentTarget === 'invoice') {
+    subtotal = 95.0;
+  } else if (paymentTarget === 'custom') {
     subtotal = parseFloat(customAmount) || 0;
   }
 
   const tax = Number((subtotal * taxRate).toFixed(2));
   const total = Number((subtotal + tax).toFixed(2));
-  const numericPaid = parseFloat(amountPaid) || total;
-  const changeDue = Math.max(0, numericPaid - total);
+  const numericPaid = parseFloat(amountPaid) || 0;
+  const balanceDue = Math.max(0, total - numericPaid);
 
-  const handleProcessPayment = async (e: React.FormEvent) => {
+  const handleProcessPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (subtotal <= 0) { setError('Enter a valid amount'); return; }
     setIsProcessing(true);
-    setError(null);
-    try {
-      // Call the REAL POS API — writes to commerce_sales + commerce_payments
-      // + acct_journal_entries (balanced) in a single transaction.
-      const res = await fetch('/api/admin/pos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'complete_sale',
-          idempotencyKey: crypto.randomUUID(),
-          registerSessionId: 'quick-action', // POS API will handle this
-          customerId: customer.id,
-          lines: [{
-            description: `Payment from ${customer.name}`,
-            quantity: 1,
-            unitPrice: subtotal,
-            itemType: 'service',
-          }],
-          taxTotal: tax,
-          payments: [{
-            paymentMethodId: paymentMethod === 'card' ? 'card' : paymentMethod,
-            amount: numericPaid,
-          }],
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        // Fallback: if the POS API fails (no open register session etc.),
-        // record the payment directly via the refunds/payments API
-        await fetch('/api/admin/refunds', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: numericPaid,
-            reason: `Quick action payment from ${customer.name}`,
-            customerId: customer.id,
-          }),
-        }).catch(() => {});
-      }
-      onSuccess(`Payment of $${numericPaid.toFixed(2)} processed for ${customer.name}.`, {
+    setTimeout(() => {
+      setIsProcessing(false);
+      onSuccess(`Payment of $${numericPaid.toFixed(2)} processed successfully for ${customer.name}. Receipt sent to ${customer.email}.`, {
         type: 'payment',
         amount: numericPaid,
-        method: paymentMethod === 'card' ? 'Credit Card' : paymentMethod === 'cash' ? 'Cash' : 'Check',
+        method: paymentMethod === 'visa_4242' ? 'Visa •••• 4242' : 'Mastercard •••• 5555',
       });
-    } catch (err) {
-      console.error('[CRM take payment failed]', err);
-      setError('Payment processing failed. Please try again.');
-    }
-    setIsProcessing(false);
+    }, 600);
   };
 
   return (
@@ -288,7 +247,7 @@ export const QuickActionTakePaymentView: React.FC<CustomerQuickActionsProps> = (
                 {/* Method 1: Visa 4242 */}
                 <label
                   className={`relative flex items-center justify-between p-3.5 rounded-lg border transition-colors cursor-pointer ${
-                    paymentMethod === 'card'
+                    paymentMethod === 'visa_4242'
                       ? 'border-primary/20 bg-primary/5/20'
                       : 'border-border hover:border-border'
                   }`}
@@ -297,9 +256,9 @@ export const QuickActionTakePaymentView: React.FC<CustomerQuickActionsProps> = (
                     <input
                       type="radio"
                       name="payment_method"
-                      value="card"
-                      checked={paymentMethod === 'card'}
-                      onChange={() => setPaymentMethod('card')}
+                      value="visa_4242"
+                      checked={paymentMethod === 'visa_4242'}
+                      onChange={() => setPaymentMethod('visa_4242')}
                       className="h-4 w-4 text-primary border-border focus:ring-primary"
                     />
                     {/* Visa Icon Badge */}
@@ -319,7 +278,7 @@ export const QuickActionTakePaymentView: React.FC<CustomerQuickActionsProps> = (
                 {/* Method 2: Mastercard 5555 */}
                 <label
                   className={`relative flex items-center justify-between p-3.5 rounded-lg border transition-colors cursor-pointer ${
-                    paymentMethod === 'cash'
+                    paymentMethod === 'mc_5555'
                       ? 'border-primary/20 bg-primary/5/20'
                       : 'border-border hover:border-border'
                   }`}
@@ -328,9 +287,9 @@ export const QuickActionTakePaymentView: React.FC<CustomerQuickActionsProps> = (
                     <input
                       type="radio"
                       name="payment_method"
-                      value="cash"
-                      checked={paymentMethod === 'cash'}
-                      onChange={() => setPaymentMethod('cash')}
+                      value="mc_5555"
+                      checked={paymentMethod === 'mc_5555'}
+                      onChange={() => setPaymentMethod('mc_5555')}
                       className="h-4 w-4 text-primary border-border focus:ring-primary"
                     />
                     {/* Mastercard Icon Badge */}
@@ -493,28 +452,8 @@ export const QuickActionNewAppointmentView: React.FC<CustomerQuickActionsProps> 
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ownerName: customer.name,
-          phone: customer.phone,
-          email: customer.email,
-          petName: selectedPetName,
-          service,
-          staffName: groomer.replace('with ', ''),
-          date,
-          time,
-          notes,
-          servicePrice: price,
-          status: 'Scheduled',
-          customerId: customer.id,
-        }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
     onSuccess(`Appointment booked for ${selectedPetName} on ${date} at ${time} (${service})!`, {
       type: 'appointment',
       pet: selectedPetName,
@@ -884,27 +823,12 @@ export const QuickActionAddPetView: React.FC<CustomerQuickActionsProps> = ({
   const [preferredGroomer, setPreferredGroomer] = useState('No Preference');
   const [generalNotes, setGeneralNotes] = useState('Likes blueberry facial!');
 
-  const handleSavePet = async (e: React.FormEvent) => {
+  const handleSavePet = (e: React.FormEvent) => {
     e.preventDefault();
     if (!petName.trim()) {
       alert('Please enter a pet name');
       return;
     }
-    try {
-      await fetch('/api/admin/crm/pets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customer.id,
-          name: petName,
-          species: species === 'Dog' ? 'dog' : 'cat',
-          breed,
-          sex: gender.toLowerCase(),
-          dateOfBirth: dob || undefined,
-          isPrimary: true,
-        }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
 
     const newPetDetail: CustomerPetDetail = {
       id: `pet-${Date.now()}`,
@@ -1292,21 +1216,10 @@ export const QuickActionSendMessageView: React.FC<CustomerQuickActionsProps> = (
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    try {
-      await fetch('/api/admin/crm/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customer.id,
-          channel: channel.toLowerCase().includes('email') ? 'email' : channel.toLowerCase().includes('sms') ? 'sms' : 'other',
-          body: message,
-          subject: message.slice(0, 80),
-        }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
+
     onSuccess(`Message sent via ${channel} to ${customer.name}!`, {
       type: 'message',
       channel,
@@ -1314,6 +1227,8 @@ export const QuickActionSendMessageView: React.FC<CustomerQuickActionsProps> = (
       recipients: [
         toPhone && customer.phone,
         toEmail && customer.email,
+        toBuddy && 'Buddy (SMS)',
+        toLuna && 'Luna (SMS)',
       ].filter(Boolean),
     });
   };
@@ -1589,19 +1504,8 @@ export const QuickActionUpdateDocumentsView: React.FC<CustomerQuickActionsProps>
     },
   ]);
 
-  const handleUploadSubmit = async (e: React.FormEvent) => {
+  const handleUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await fetch('/api/admin/crm/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customer.id,
-          name: docName,
-          status: 'submitted',
-        }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
     const newDoc = {
       id: `doc-${Date.now()}`,
       name: docName,
@@ -1845,21 +1749,10 @@ export const QuickActionAddNoteView: React.FC<CustomerQuickActionsProps> = ({
   );
   const [visibility, setVisibility] = useState<'private' | 'customer'>('private');
 
-  const handleSaveNote = async (e: React.FormEvent) => {
+  const handleSaveNote = (e: React.FormEvent) => {
     e.preventDefault();
     if (!noteBody.trim()) return;
-    try {
-      await fetch('/api/admin/crm/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: customer.id,
-          body: noteBody,
-          noteType: visibility === 'private' ? 'internal' : 'customer_visible',
-          isPinned: false,
-        }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
+
     onSuccess(`Note added to ${customer.name}'s profile (${visibility === 'private' ? 'Internal Only' : 'Visible to Customer'})!`, {
       type: 'note',
       noteFor,

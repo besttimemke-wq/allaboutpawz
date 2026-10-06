@@ -4,7 +4,6 @@ import { repo } from "@/lib/repo";
 import { isAdmin } from "@/lib/auth/server";
 import { enrollCustomer } from "@/lib/auth/enroll-customer";
 import { withPg, TENANT_ID } from "@/lib/crm/enterprise";
-import { withTriggerSelfHeal, friendlyDbError } from "@/lib/db-errors";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe | null {
@@ -150,34 +149,25 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Persist in Supabase
-    // NULL-only backfill on the UPDATE path: a non-empty incoming value
-    // overwrites, an empty one never erases what the salon (or the
-    // customer's last visit) already has on file. The wizard's email-first
-    // step intentionally creates the CRM row early (name + email only) so
-    // abandonment is attributable — that partial create must never wipe
-    // an existing returning customer's contact details.
     const data: any = {
       firstName,
-      lastName: lastName || (found?.lastName ?? ""),
+      lastName: lastName || "",
       email,
-      phone: phone || (found?.phone ?? ""),
-      address: address || (found?.address ?? ""),
-      addressLine2: addressLine2 || (found?.addressLine2 ?? ""),
-      city: city || (found?.city ?? ""),
-      state: state || (found?.state ?? ""),
-      postalCode: postalCode || (found?.postalCode ?? ""),
+      phone: phone || "",
+      address: address || "",
+      addressLine2: addressLine2 || "",
+      city: city || "",
+      state: state || "",
+      postalCode: postalCode || "",
       stripeCustomerId: (stripeCustomer as Stripe.Customer)?.id || found?.stripeCustomerId || null,
       customerStatus: "ACTIVE",
     };
 
     let customer: any;
     if (found) {
-      // Self-heal: if a rogue identity-sync trigger reappears on customers
-      // (the 42804 production incident class), it is dropped and the write
-      // retried once — a returning customer's booking never dies to it.
-      customer = await withTriggerSelfHeal(() => repo.update("customers", found.id, data));
+      customer = await repo.update("customers", found.id, data);
     } else {
-      customer = await withTriggerSelfHeal(() => repo.create("customers", data));
+      customer = await repo.create("customers", data);
     }
 
     // Walk-in: when an ADMIN creates the customer, the identical
@@ -201,9 +191,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ...customer, invited }, { status: found ? 200 : 201 });
   } catch (error: any) {
-    // Visitor-safe copy only — the raw Postgres/PostgREST payload is logged
-    // server-side with a reference code, never shown to a customer.
-    const friendly = friendlyDbError(error, "details");
-    return NextResponse.json({ error: friendly.error }, { status: 500 });
+    console.error("[api/customers POST]", error);
+    return NextResponse.json({ error: error.message || "Failed to save customer" }, { status: 500 });
   }
 }

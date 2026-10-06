@@ -12,21 +12,6 @@ import { persist, createJSONStorage } from "zustand/middleware"
 
 export type BookingType = "appointment" | "consultation"
 
-// A pup already on file (from /api/customers/lookup) — offered at the dog
-// step as ON FILE so a returning customer reuses the existing row instead
-// of duplicating it.
-export type OnFileDog = {
-  id: string
-  name: string
-  breedId: string
-  breedName: string
-  weightLbs: string
-  sex: string
-  birthDate: string
-  color: string
-  photoUrl: string
-}
-
 export type WizardState = {
   // navigation
   bookingType: BookingType | null
@@ -36,11 +21,6 @@ export type WizardState = {
   customerId: string | null
   dogId: string | null
   bookingId: string | null
-
-  // returning-visitor context (email-first step 1)
-  knownCustomer: boolean // CRM matched the email — prefill + ON FILE pups
-  onFileDogs: OnFileDog[]
-  reuseDogId: string | null // set = UPDATE this dog row, not create a new one
 
   // ---- customer (step 1-2) ----
   firstName: string
@@ -63,9 +43,6 @@ export type WizardState = {
   color: string
   markings: string
   photoUrl: string // public URL of the uploaded pet photo
-  // vaccination records (shot records) — photos + note, uploaded at step 3
-  vaccinationPhotoUrls: string[] // public URLs, newest last
-  vaccinationNotes: string
 
   // ---- coat & grooming profile (step 4) ----
   coatTypeId: string
@@ -131,9 +108,6 @@ const INITIAL: Omit<WizardState, "patch" | "setStep" | "reset"> = {
   customerId: null,
   dogId: null,
   bookingId: null,
-  knownCustomer: false,
-  onFileDogs: [],
-  reuseDogId: null,
   firstName: "",
   lastName: "",
   phone: "",
@@ -152,8 +126,6 @@ const INITIAL: Omit<WizardState, "patch" | "setStep" | "reset"> = {
   color: "",
   markings: "",
   photoUrl: "",
-  vaccinationPhotoUrls: [],
-  vaccinationNotes: "",
   coatTypeId: "",
   coatTextureId: "",
   coatLengthId: "",

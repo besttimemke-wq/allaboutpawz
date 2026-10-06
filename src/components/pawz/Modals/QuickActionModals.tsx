@@ -54,7 +54,6 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
   const [newPetName, setNewPetName] = useState('');
   const [newPetBreed, setNewPetBreed] = useState('');
   const [newPetOwner, setNewPetOwner] = useState('');
-  const [newPetOwnerEmail, setNewPetOwnerEmail] = useState('');
   const [newPetAge, setNewPetAge] = useState('3 yrs');
   const [newPetWeight, setNewPetWeight] = useState('45 lbs');
   const [newPetNotes, setNewPetNotes] = useState('');
@@ -76,116 +75,70 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
 
   if (!activeModal) return null;
 
-  const handleCreateAppointment = async (e: React.FormEvent) => {
+  const handleCreateAppointment = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await fetch('/api/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          petName: petName || 'Max',
-          ownerName: customerName || 'Sarah Johnson',
-          breed: breed || 'Golden Retriever',
-          service: serviceName, staffName, date, time,
-          servicePrice: `$${parseFloat(price) || 85.0}`, status: 'Scheduled', notes,
-        }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
     onSaveAppointment({
-      petName: petName || 'Max', customerName: customerName || 'Sarah Johnson',
-      breed: breed || 'Golden Retriever', serviceName, staffName, date, time,
-      price: parseFloat(price) || 85.0, status: 'Scheduled', petEmoji: '🐶', notes,
+      petName: petName || 'Max',
+      customerName: customerName || 'Sarah Johnson',
+      breed: breed || 'Golden Retriever',
+      serviceName,
+      staffName,
+      date,
+      time,
+      price: parseFloat(price) || 85.0,
+      status: 'Scheduled',
+      petEmoji: '🐶',
+      notes,
     });
     onClose();
   };
 
-  const handleCreateCustomer = async (e: React.FormEvent) => {
+  const handleCreateCustomer = (e: React.FormEvent) => {
     e.preventDefault();
-    let crmId: string | null = null;
-    try {
-      const res = await fetch('/api/admin/crm/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: custEmail || 'client@example.com', firstName: (custName || 'New Client').split(' ')[0], lastName: (custName || '').split(' ').slice(1).join(' '), phone: custPhone, lifecycleStage: 'new_customer' }),
-      });
-      if (res.ok) { const j = await res.json(); crmId = j?.id || null; }
-    } catch (err) { console.error('[CRM action failed]', err); }
-    if (custPet && crmId) {
-      try { await fetch('/api/admin/crm/pets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: crmId, name: custPet.split(' ')[0], species: 'dog' }) }); } catch (err) { console.error('[CRM action failed]', err); }
-    }
     onSaveCustomer({
-      name: custName || 'New Client', email: custEmail || 'client@example.com',
-      phone: custPhone || '(555) 000-1122', pets: [custPet || 'Milo (Labrador)'],
-      totalSpent: 0, lastVisit: 'Today', preferredGroomer: 'Sarah M.',
+      name: custName || 'New Client',
+      email: custEmail || 'client@example.com',
+      phone: custPhone || '(555) 000-1122',
+      pets: [custPet || 'Milo (Labrador)'],
+      totalSpent: 0,
+      lastVisit: 'Today',
+      preferredGroomer: 'Sarah M.',
     });
     onClose();
   };
 
-  const handleCreatePet = async (e: React.FormEvent) => {
+  const handleCreatePet = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPetName.trim()) return;
-    if (!newPetOwnerEmail.trim()) { alert('Owner email is required — a pet must be linked to a customer.'); return; }
-    // Chain: find-or-create customer by email → create pet linked to customer
-    let customerId = '';
-    try {
-      const custRes = await fetch('/api/admin/crm/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newPetOwnerEmail, firstName: newPetOwner.split(' ')[0] || newPetOwner, lastName: newPetOwner.split(' ').slice(1).join(' '), lifecycleStage: 'active' }),
-      });
-      if (custRes.ok) { const j = await custRes.json(); customerId = j?.id || ''; }
-    } catch (err) { console.error('[CRM action failed]', err); }
-    if (!customerId) { alert('Could not create or find customer. Please check the email.'); return; }
-    try {
-      await fetch('/api/admin/crm/pets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerId, name: newPetName, breed: newPetBreed, species: 'dog', weight: parseFloat(newPetWeight) || undefined, handlingNotes: newPetNotes, isPrimary: true }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
     onSavePet({
-      name: newPetName, breed: newPetBreed || '—',
-      ownerName: newPetOwner, age: newPetAge, weight: newPetWeight,
-      emoji: '🐕', vaccinationStatus: 'Up to date', specialNotes: newPetNotes || 'No notes',
-      lastGroomDate: '—',
+      name: newPetName || 'Cooper',
+      breed: newPetBreed || 'Aussie Shepherd',
+      ownerName: newPetOwner || 'Emily Watson',
+      age: newPetAge,
+      weight: newPetWeight,
+      emoji: '🐕',
+      vaccinationStatus: 'Up to date',
+      specialNotes: newPetNotes || 'Friendly, loves treats',
+      lastGroomDate: 'May 12, 2025',
     });
     onClose();
   };
 
-  const handleProcessPayment = async (e: React.FormEvent) => {
+  const handleProcessPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await fetch('/api/pos/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: [{ name: 'Payment', unitPrice: payAmount || '0', quantity: 1 }],
-          tender: 'cash',
-          notes: 'Quick payment',
-        }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
     setPaySuccess(true);
-    setTimeout(() => { setPaySuccess(false); onClose(); }, 1200);
+    setTimeout(() => {
+      setPaySuccess(false);
+      onClose();
+    }, 1200);
   };
 
-  const handleCreateInvoice = async (e: React.FormEvent) => {
+  const handleCreateInvoice = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await fetch('/api/admin/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: invCustomerId || undefined,
-          customerName: invCustomerName || '',
-          amount: parseFloat(invAmount) || 0,
-          dueDate: invDueDate || '',
-          notes: invNotes || '',
-        }),
-      });
-    } catch (err) { console.error('[CRM action failed]', err); }
     setInvSuccess(true);
-    setTimeout(() => { setInvSuccess(false); onClose(); }, 1200);
+    setTimeout(() => {
+      setInvSuccess(false);
+      onClose();
+    }, 1200);
   };
 
   return (
@@ -462,17 +415,6 @@ export const QuickActionModals: React.FC<QuickActionModalsProps> = ({
                 value={newPetOwner}
                 onChange={(e) => setNewPetOwner(e.target.value)}
                 placeholder="e.g. Sarah Johnson"
-                className="w-full px-2.5 py-1.5 border border-border bg-card focus:outline-none text-foreground font-semibold"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold uppercase text-[10px] text-foreground mb-1">Owner Email (required — links pet to customer)</label>
-              <input
-                type="email"
-                required
-                value={newPetOwnerEmail}
-                onChange={(e) => setNewPetOwnerEmail(e.target.value)}
-                placeholder="e.g. sarah@example.com"
                 className="w-full px-2.5 py-1.5 border border-border bg-card focus:outline-none text-foreground font-semibold"
               />
             </div>

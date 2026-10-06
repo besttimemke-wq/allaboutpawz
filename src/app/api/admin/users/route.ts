@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 import { requireAdminApi } from "@/lib/admin/gate";
-import { sendPortalInvite, sendPortalWelcome } from "@/lib/email";
-import { SITE_URL } from "@/lib/site-url";
 
 const SB_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "")?.replace(/\/$/, "");
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
@@ -19,74 +17,6 @@ async function getPgClient() {
   const client = new pg.Client({ connectionString: cs, ssl: { rejectUnauthorized: false } });
   await client.connect();
   return client;
-}
-
-// Deliver a portal invite email for an account WITHOUT a password. The
-// recipient must click a Supabase-minted set-password link, so this is an
-// AUTH-lifecycle email: Supabase's own mailer (with the owner's designed
-// auth templates) is the PRIMARY lane. Resend — the transactional lane —
-// is the fallback when Supabase's mailer fails, so a dead mailer can never
-// block provisioning again. Both lanes deliver the same Supabase-signed
-// link; only the envelope differs.
-async function deliverInviteEmail(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  opts: { email: string; name: string; role: string },
-): Promise<{ ok: boolean; via: "supabase" | "resend" | "none"; error?: string }> {
-  // Land the email's button on the password box — identical to every other
-  // invite lane (/api/auth/invite, enrollCustomer). Without redirectTo the
-  // button drops the recipient on the homepage with an unconsumed token.
-  const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(opts.email, {
-    data: { full_name: opts.name, role: opts.role },
-    redirectTo: `${SITE_URL}/auth/set-password`,
-  });
-  if (!inviteError) return { ok: true, via: "supabase" };
-
-  console.error("[POST /api/admin/users] Supabase invite mailer failed:", inviteError.message);
-  // Fallback: mint the SAME Supabase-signed link ourselves and deliver it
-  // through the audit-trailed Resend pipeline. generateLink sends no email
-  // itself, which is what lets us own the envelope.
-  try {
-    const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
-      type: "invite",
-      email: opts.email,
-      options: { redirectTo: `${SITE_URL}/auth/set-password` },
-    });
-    const actionLink = (linkData as any)?.properties?.action_link || "";
-    if (actionLink) {
-      const parts = (opts.name || "").trim().split(/\s+/).filter(Boolean);
-      const result = await sendPortalInvite({
-        to: opts.email,
-        actionLink,
-        role: opts.role,
-        firstName: parts[0] || null,
-        lastName: parts.length > 1 ? parts.slice(1).join(" ") : null,
-      }).catch((e: any) => ({ ok: false, error: e?.message || String(e) }));
-      if (result?.ok) return { ok: true, via: "resend" };
-      console.error("[POST /api/admin/users] Resend invite fallback failed:", result?.error);
-    }
-  } catch (e: any) {
-    console.error("[POST /api/admin/users] Resend invite fallback errored:", e?.message);
-  }
-  return { ok: false, via: "none", error: inviteError.message };
-}
-
-// Send the informational welcome for a password-provisioned account. The
-// account is ALREADY usable (email_confirmed at creation / at rescue) — the
-// email is a courtesy through the transactional lane and can NEVER block or
-// gate sign-in. Delivery failure is logged and reported as non-blocking.
-async function deliverWelcomeEmail(opts: { email: string; name: string; role: string }): Promise<boolean> {
-  const parts = (opts.name || "").trim().split(/\s+/).filter(Boolean);
-  const result = await sendPortalWelcome({
-    to: opts.email,
-    role: opts.role,
-    firstName: parts[0] || null,
-    lastName: parts.length > 1 ? parts.slice(1).join(" ") : null,
-  }).catch((e: any) => ({ ok: false, error: e?.message || String(e) }));
-  if (!result?.ok) {
-    console.error("[POST /api/admin/users] welcome email failed:", result?.error);
-    return false;
-  }
-  return true;
 }
 
 export async function GET(req: NextRequest) {
@@ -134,7 +64,7 @@ export async function GET(req: NextRequest) {
       const appCustByEmail = new Map<string, any>();
       for (const r of appCustRes.rows) appCustByEmail.set(String(r.email || "").toLowerCase(), r);
 
-      const ordersRes = await pgClient.query(`SELECT id::text, "customerId"::text AS "customerId", email FROM public.commerce_orders LIMIT 200;`).catch(() => ({ rows: [] }));
+      const ordersRes = await pgClient.query(`SELECT id, "customerId", email FROM public.orders;`);
 
       let rolesRes = { rows: [] };
       try {
@@ -336,103 +266,53 @@ export async function POST(req: NextRequest) {
       if (!found) {
         return NextResponse.json({ error: "No account found for that email." }, { status: 404 });
       }
-      const delivered = await deliverInviteEmail(supabaseAdmin, {
-        email,
-        name: (found.user_metadata?.full_name as string) || "",
-        role: (found.user_metadata?.role as string) || "staff",
+      const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        data: found.user_metadata || {},
       });
-      if (!delivered.ok) {
-        return NextResponse.json({ error: delivered.error || "Invitation email failed to send." }, { status: 500 });
+      if (inviteError) {
+        return NextResponse.json({ error: inviteError.message }, { status: 500 });
       }
-      return NextResponse.json({ success: true, email, message: `Invitation re-sent to ${email} via ${delivered.via === "resend" ? "Resend (Supabase mailer was down)" : "Supabase"}.` });
+      return NextResponse.json({ success: true, email, message: `Invitation re-sent to ${email}.` });
     }
 
     if (!role) return NextResponse.json({ error: "Role is required" }, { status: 400 });
 
     let authUserId: string | null = null;
     let inviteSent = false;
-    let inviteVia: "supabase" | "resend" | null = null;
-    let welcomeSent = false; // password-provisioned: informational welcome (never a gate)
-    let rescuedWithPassword = false; // existing unconfirmed account + owner-typed password
-    let authStageError: string | null = null;
     if (supabaseAdmin) {
       const { data: existing } = await supabaseAdmin.auth.admin.listUsers();
       const found = existing?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
       if (found) {
         authUserId = found.id;
-        // Existing account that never confirmed its email — the exact
-        // state that produced the "Email not confirmed" lockout.
+        // Existing account that never confirmed its email — re-send the
+        // invitation so they can still set a password.
         if (!found.email_confirmed_at) {
-          if (password) {
-            // RESCUE (permanent code-level fix): the owner typed a password —
-            // set it AND confirm the email in one stroke. The person can
-            // sign in immediately; the email is a courtesy, never a gate.
-            const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(found.id, {
-              password,
-              email_confirm: true,
-            });
-            if (updateError) {
-              authStageError = updateError.message;
-              console.error("[POST /api/admin/users] rescue password set failed:", updateError.message);
-            } else {
-              rescuedWithPassword = true;
-              welcomeSent = await deliverWelcomeEmail({
-                email,
-                name: name || (found.user_metadata?.full_name as string) || "",
-                role: (found.user_metadata?.role as string) || role,
-              });
-            }
-          } else {
-            // No password — re-send the Supabase invite so they can set one.
-            // Failure is NOT fatal (the account exists; provisioning
-            // proceeds) but is logged and reported honestly.
-            const delivered = await deliverInviteEmail(supabaseAdmin, {
-              email,
-              name: (found.user_metadata?.full_name as string) || name || "",
-              role: (found.user_metadata?.role as string) || role,
-            });
-            if (delivered.ok) {
-              inviteSent = true;
-              inviteVia = delivered.via;
-            } else {
-              authStageError = delivered.error || "invitation email failed";
-              console.error("[POST /api/admin/users] re-invite failed:", authStageError);
-            }
-          }
+          await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+            data: found.user_metadata || {},
+          });
+          inviteSent = true;
         }
       } else {
-        // THE INVITE FLOW (the owner's spec). With a temporary password the
-        // account is COMPLETE at creation — email_confirmed is true, so the
-        // person can sign in right there at the front desk with zero email
-        // dependency (the informational welcome rides the Resend
-        // transactional lane and can never block sign-in). Without a
-        // password, email_confirm stays false and the invite email —
-        // Supabase's own designed template with a Supabase-signed link — is
-        // how they set one (Resend is only the fallback envelope).
-        const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({
-          email,
-          ...(password ? { password } : {}),
-          email_confirm: !!password,
-          user_metadata: { full_name: name, role },
-        });
-        if (error) {
-          authStageError = error.message;
-          console.error("[POST /api/admin/users] createUser failed:", error.message);
-        } else if (newUser?.user) {
-          authUserId = newUser.user.id;
-          if (password) {
-            // Informational welcome — no auth token inside because none is
-                       // needed; failure never blocks anything.
-            welcomeSent = await deliverWelcomeEmail({ email, name: name || "", role });
-          } else {
-            const delivered = await deliverInviteEmail(supabaseAdmin, { email, name: name || "", role });
-            if (delivered.ok) {
-              inviteSent = true;
-              inviteVia = delivered.via;
-            } else {
-              authStageError = delivered.error || "invitation email failed";
-              console.error("[POST /api/admin/users] invite delivery failed:", authStageError);
-            }
+        // THE INVITE FLOW (the owner's spec): Supabase emails the user a link
+        // to set their own password — no silent random password, no
+        // pre-confirmed email. If the admin typed a temporary password it is
+        // set on the account, and the email STILL goes out unconfirmed so
+        // the user lands on set-password and chooses their own.
+        if (password) {
+          const { data: newUser, error } = await supabaseAdmin.auth.admin.createUser({
+            email, password, email_confirm: false, user_metadata: { full_name: name, role },
+          });
+          if (!error && newUser?.user) {
+            authUserId = newUser.user.id;
+            inviteSent = true; // email_confirm:false + autoconfirm off → Supabase emails the link
+          }
+        } else {
+          const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+            data: { full_name: name, role },
+          });
+          if (!error && invited?.user) {
+            authUserId = invited.user.id;
+            inviteSent = true;
           }
         }
       }
@@ -442,20 +322,7 @@ export async function POST(req: NextRequest) {
       if (!authUserId) {
         const dbUser = await pgClient.query("SELECT id::text FROM auth.users WHERE email = $1 LIMIT 1", [email]);
         if (dbUser.rows.length > 0) authUserId = dbUser.rows[0].id;
-      }
-      // No auth account could be created, invited, or found. The membership
-      // table is FK-bound to auth.users, so provisioning CANNOT proceed —
-      // a fabricated UUID would only surface as a 23503 FK violation.
-      if (!authUserId) {
-        await pgClient.end();
-        return NextResponse.json(
-          {
-            error: authStageError
-              ? `Supabase could not create the account (${authStageError}). Enter a temporary password to provision it without email, or retry when the email service recovers.`
-              : "No Supabase auth account exists for that email. Enter a temporary password and retry.",
-          },
-          { status: 502 },
-        );
+        else authUserId = (await pgClient.query("SELECT gen_random_uuid()::text as id")).rows[0].id;
       }
 
       const targetScope = ["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee";
@@ -477,46 +344,31 @@ export async function POST(req: NextRequest) {
       }
 
       await pgClient.end();
-      const viaNote = inviteVia === "resend" ? " via Resend (Supabase mailer was down)" : " via Supabase";
       const inviteNote = inviteSent
-        ? ` Invitation email sent to ${email}${viaNote} — they set their own password from the link.`
-        : rescuedWithPassword
-          ? ` Account rescued — password set and email confirmed: ${email} can sign in RIGHT NOW.${welcomeSent ? " Welcome email sent." : ""}`
-          : password
-            ? ` Account created — ${email} can sign in RIGHT NOW with the temporary password you entered${welcomeSent ? " (welcome email sent)" : ` (welcome email failed — share the password directly with ${email})`}.`
-            : authStageError
-              ? ` Provisioned, but the invitation email failed (${authStageError}). Enter a temporary password to activate the account without email, or resend the invite later.`
-              : "";
-      return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, welcomeSent, message: `Provisioned ${email} with ${role} access.${inviteNote}` });
+        ? ` Invitation email sent to ${email} — they set their own password from the link.`
+        : "";
+      return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, message: `Provisioned ${email} with ${role} access.${inviteNote}` });
     }
 
     // Direct Supabase API Fallback
     if (!supabaseAdmin) {
       return NextResponse.json({ error: "Supabase connection not configured" }, { status: 500 });
     }
-    if (!authUserId) {
-      return NextResponse.json(
-        {
-          error: authStageError
-            ? `Supabase could not create the account (${authStageError}). Enter a temporary password to provision it without email, or retry when the email service recovers.`
-            : "No Supabase auth account exists for that email. Enter a temporary password and retry.",
-        },
-        { status: 502 },
-      );
-    }
 
     const targetScope = ["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee";
 
     if (targetScope === "admin" || targetScope === "employee") {
       const validRole = ["owner", "admin", "manager", "staff", "viewer", "groomer", "front_desk"].includes(role) ? role : "staff";
-      await supabaseAdmin.from("tenant_memberships").upsert({
-        tenant_id: targetTenant,
-        user_id: authUserId,
-        role: validRole,
-        active: true,
-        status: "active",
-        mfa_enabled: !!enforce2FA,
-      }, { onConflict: "tenant_id,user_id" });
+      if (authUserId) {
+        await supabaseAdmin.from("tenant_memberships").upsert({
+          tenant_id: targetTenant,
+          user_id: authUserId,
+          role: validRole,
+          active: true,
+          status: "active",
+          mfa_enabled: !!enforce2FA,
+        }, { onConflict: "tenant_id,user_id" });
+      }
       await supabaseAdmin.from("staff").insert({
         name: name || email.split("@")[0],
         email,
@@ -542,15 +394,9 @@ export async function POST(req: NextRequest) {
     }
 
     const inviteNote = inviteSent
-      ? ` Invitation email sent to ${email}${inviteVia === "resend" ? " via Resend (Supabase mailer was down)" : " via Supabase"} — they set their own password from the link.`
-      : rescuedWithPassword
-        ? ` Account rescued — password set and email confirmed: ${email} can sign in RIGHT NOW.${welcomeSent ? " Welcome email sent." : ""}`
-        : password
-          ? ` Account created — ${email} can sign in RIGHT NOW with the temporary password you entered${welcomeSent ? " (welcome email sent)" : ` (welcome email failed — share the password directly with ${email})`}.`
-          : authStageError
-            ? ` Provisioned, but the invitation email failed (${authStageError}). Enter a temporary password to activate the account without email, or resend the invite later.`
-            : "";
-    return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, welcomeSent, message: `Provisioned ${email} with ${role} access via Supabase.${inviteNote}` });
+      ? ` Invitation email sent to ${email} — they set their own password from the link.`
+      : "";
+    return NextResponse.json({ success: true, authUserId, email, role, scope: targetScope, inviteSent, message: `Provisioned ${email} with ${role} access via Supabase.${inviteNote}` });
   } catch (err: any) {
     console.error("[POST /api/admin/users]", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

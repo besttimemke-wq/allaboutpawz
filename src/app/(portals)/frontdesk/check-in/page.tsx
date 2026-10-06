@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -28,18 +28,6 @@ const ARRIVALS = [
 export default function FrontDeskCheckInPage() {
   const [checkedIn, setCheckedIn] = useState<string[]>([]);
   const [walkInSaved, setWalkInSaved] = useState(false);
-
-  useEffect(() => {
-    fetch('/api/bookings?limit=20').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.appointments) {
-        // Replace hardcoded data with real appointments
-      } else if (d?.customers) {
-        // Replace with real customers
-      } else if (d?.orders) {
-        // Replace with real orders
-      }
-    }).catch(() => {});
-  }, []);
 
   const checkIn = (id: string) => setCheckedIn((c) => [...c, id]);
 

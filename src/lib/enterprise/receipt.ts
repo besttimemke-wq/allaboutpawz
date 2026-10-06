@@ -222,29 +222,57 @@ export async function emailReceipt(
   try {
     const pdfBytes = await generateReceiptPdf(data)
     const pdfBase64 = Buffer.from(pdfBytes).toString("base64")
-    void pdfBase64 // (kept for a future attachments-enabled send path)
 
-    // Branded email body — the same All About Pawz frame every email uses.
-    const { frame, eyebrow, h1, lineItems, noteBox, p, esc } = await import("../email/design")
-    const html = frame({
-      preheader: `Receipt ${data.receiptNumber} — thank you for your purchase.`,
-      body: [
-        eyebrow("Receipt"),
-        h1(`Thank you for your purchase`),
-        p(`Here's your itemized receipt from today's visit. A PDF copy is available any time from your customer portal — and we keep it on file too.`),
-        lineItems(
-          data.lines.map((l) => ({ name: esc(l.description), qty: l.quantity, price: `$${l.lineTotal.toFixed(2)}` })),
-          [
-            { label: "Subtotal", value: `$${data.subtotal.toFixed(2)}` },
-            ...(data.discountTotal > 0 ? [{ label: "Discounts", value: `-$${data.discountTotal.toFixed(2)}` }] : []),
-            { label: "Tax", value: `$${data.taxTotal.toFixed(2)}` },
-            { label: "Total", value: `$${data.total.toFixed(2)}`, strong: true },
-          ],
-        ),
-        noteBox(`Receipt <strong style="color:#1a1a1a">#${esc(data.receiptNumber)}</strong> · ${esc(data.date)} · Returns accepted within 30 days with receipt.`),
-      ].join(""),
-      reason: `You're receiving this receipt because a purchase was made at All About Pawz.`,
-    })
+    // Build a simple HTML email body
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="font-size: 20px; color: #0f1f35; margin: 0;">All About Pawz</h1>
+          <p style="font-size: 12px; color: #666; margin: 4px 0;">4746 Barkshire Drive, Memphis, TN 38128</p>
+          <p style="font-size: 12px; color: #666; margin: 0;">901-555-0198</p>
+        </div>
+        <h2 style="font-size: 16px; color: #0f1f35;">Your Receipt</h2>
+        <p style="font-size: 13px; color: #333;">Receipt #${data.receiptNumber} · ${data.date}</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+          <thead>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <th style="text-align: left; padding: 8px 0; font-size: 12px; color: #666;">ITEM</th>
+              <th style="text-align: right; padding: 8px 0; font-size: 12px; color: #666;">AMOUNT</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.lines.map(l => `
+              <tr>
+                <td style="padding: 6px 0; font-size: 13px;">${l.quantity}x ${l.description}</td>
+                <td style="text-align: right; padding: 6px 0; font-size: 13px;">$${l.lineTotal.toFixed(2)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        <div style="border-top: 1px solid #ddd; padding-top: 12px;">
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #333;">
+            <span>Subtotal</span><span>$${data.subtotal.toFixed(2)}</span>
+          </div>
+          ${data.discountTotal > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 13px; color: #333;"><span>Discounts</span><span>-$${data.discountTotal.toFixed(2)}</span></div>` : ""}
+          <div style="display: flex; justify-content: space-between; font-size: 13px; color: #333;">
+            <span>Tax</span><span>$${data.taxTotal.toFixed(2)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; color: #0f1f35; margin-top: 8px;">
+            <span>TOTAL</span><span>$${data.total.toFixed(2)}</span>
+          </div>
+        </div>
+        <div style="margin-top: 24px; text-align: center;">
+          <p style="font-size: 13px; color: #333;">Thank you for shopping with us!</p>
+          <p style="font-size: 11px; color: #999;">Returns accepted within 30 days with receipt.</p>
+        </div>
+        <p style="font-size: 11px; color: #999; text-align: center; margin-top: 20px;">
+          A PDF copy of this receipt is attached.
+        </p>
+      </body>
+      </html>
+    `
 
     const result = await sendEmail({
       to: toEmail,

@@ -6,9 +6,8 @@ import {
   Check, ArrowLeft, ArrowRight, Plus, PawPrint,
   Dog, CreditCard, Sparkle, Camera, Spinner,
 } from "@phosphor-icons/react"
-import { useWizard, type BookingType, type OnFileDog } from "@/lib/wizard/wizard-store"
+import { useWizard, type BookingType } from "@/lib/wizard/wizard-store"
 import { track, identifyViewer } from "@/lib/analytics"
-import { sanitizeApiErrorText } from "@/lib/api-error-text"
 
 // ---------------------------------------------------------------------------
 // Types — everything the wizard needs comes from server-side props.
@@ -61,19 +60,6 @@ export function BookingWizardV2({
   const [redirecting, setRedirecting] = useState(false)
   const [success, setSuccess] = useState<"booking" | "consultation" | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
-  // Abandoned-deposit recovery — set when Stripe bounces the customer back
-  // via ?cancelled=1. The wizard state rehydrates from localStorage, so the
-  // banner offers a one-click resume of the SAME PAYMENT_PENDING booking
-  // (no duplicate rows) via POST /api/bookings/resume.
-  const [resumable, setResumable] = useState(false)
-  const [resuming, setResuming] = useState(false)
-  const [resumeError, setResumeError] = useState<string | null>(null)
-  // Returning-customer recognition (owner request 2026-10-06): when the
-  // typed email matches a salon profile, the wizard SAYS SO — "you have a
-  // profile with us, sign in" — and offers the portal door, instead of
-  // silently continuing as a guest. `null` = not recognized (or already
-  // acknowledged); a value = show the recognition panel on step 1.
-  const [recognized, setRecognized] = useState<{ firstName: string } | null>(null)
 
   // Hydrate from localStorage (avoid SSR mismatch). The ROUTE owns the
   // flow — /book/appointment and /book/consultation each render their own
@@ -121,22 +107,7 @@ export function BookingWizardV2({
       track.generateLead("consultation", { breed: selectedBreed?.name })
       identifyViewer(s.email)
     }
-    // Stripe cancel-back — the deposit checkout was abandoned. The wizard
-    // state (all 9 steps + bookingId) rehydrates from localStorage below.
-    if (params.get("cancelled") === "1") {
-      setResumable(true)
-    }
-    // Email-link resume (abandoned-booking recovery): the recovery email
-    // links here with ?resume=<bookingId>. The visitor may be on a DIFFERENT
-    // device (no localStorage) — hydrate the bookingId directly so the
-    // YOUR BOOKING IS SAVED panel appears and can reopen the deposit
-    // checkout for the SAME booking row (no duplicates).
-    const resumeParam = params.get("resume")
-    if (resumeParam && /^[0-9a-f-]{8,}$/i.test(resumeParam)) {
-      useWizard.getState().patch({ bookingId: resumeParam })
-      setResumable(true)
-    }
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ----- Derived lookups -----
@@ -152,23 +123,20 @@ export function BookingWizardV2({
     return map[sz] || "MEDIUM"
   }, [selectedBreed])
 
-  // ----- Stepper labels (steps 1..9) — EMAIL FIRST: identity is captured
-  // before any selection happens, so an abandoned booking is attributable
-  // to a real person (server-side) from the very first screen. -----
+  // ----- Stepper labels (steps 1..9) -----
   const stepLabels = useMemo(() => {
     if (isConsult) {
-      return ["Email", "Contact", "Dog", "Coat", "Grooming", "Preferred", "Groomer", "Notes", "Review"]
+      return ["Name", "Contact", "Dog", "Coat", "Grooming", "Preferred", "Groomer", "Notes", "Review"]
     }
-    return ["Email", "Contact", "Dog", "Coat", "Grooming", "Schedule", "Groomer", "Notes", "Review"]
+    return ["Name", "Contact", "Dog", "Coat", "Grooming", "Schedule", "Groomer", "Notes", "Review"]
   }, [isConsult])
 
   // ----- Validation per step -----
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email.trim())
   const canNext = useMemo(() => {
     switch (s.step) {
-      case 1: return !!s.firstName.trim() && !!s.lastName.trim() && emailValid
+      case 1: return !!s.firstName.trim() && !!s.lastName.trim()
       case 2:
-        return !!s.phone.trim() && !!s.address.trim()
+        return !!s.phone.trim() && !!s.email.trim() && !!s.address.trim()
           && !!s.city.trim() && !!s.state.trim() && !!s.postalCode.trim()
       case 3: return !!s.dogName.trim() && !!s.breedId && !!s.weightLbs.trim()
       case 4: return true
@@ -179,195 +147,78 @@ export function BookingWizardV2({
       case 9: return true
       default: return false
     }
-  }, [s.step, s.firstName, s.lastName, s.email, s.phone, s.address, s.city, s.state,
-      s.postalCode, s.dogName, s.breedId, s.weightLbs, s.date, s.time, s.serviceId, isConsult, emailValid])
+  }, [s.step, s.firstName, s.lastName, s.phone, s.email, s.address, s.city, s.state,
+      s.postalCode, s.dogName, s.breedId, s.weightLbs, s.date, s.time, s.serviceId, isConsult])
 
   // ----- Continue handler (per-step side-effects) -----
   const onContinue = async () => {
     setApiError(null)
     if (!canNext) return
 
-    // Step 1 → EMAIL FIRST: returning-customer lookup, then create the
-    // CRM row (name + email is all it needs). From this moment the booking
-    // is attributable server-side — even if the visitor abandons at any
-    // later step, the salon knows who they are and how to reach them.
-    if (s.step === 1) {
-      const st = useWizard.getState()
-      const email = st.email.trim()
-      // Returning-customer prefill (best-effort): fills only fields the
-      // visitor hasn't typed this session — their input always wins.
-      try {
-        const lk = await fetch(`/api/customers/lookup?email=${encodeURIComponent(email)}`).catch(() => null)
-        if (lk && lk.ok) {
-          const data = await lk.json().catch(() => null)
-          if (data?.found && data.customer) {
-            const c = data.customer
-            useWizard.getState().patch({
-              firstName: st.firstName.trim() || c.firstName || "",
-              lastName: st.lastName.trim() || c.lastName || "",
-              phone: st.phone.trim() || c.phone || "",
-              address: st.address.trim() || c.address || "",
-              addressLine2: st.addressLine2.trim() || c.addressLine2 || "",
-              city: st.city.trim() || c.city || "",
-              state: st.state.trim() || c.state || "",
-              postalCode: st.postalCode.trim() || c.postalCode || "",
-              knownCustomer: true,
-              onFileDogs: Array.isArray(data.dogs) ? data.dogs : [],
-            })
-            // First time we see the match: PAUSE and tell them they have a
-            // profile (owner: "the system should tell the user you have a
-            // profile — sign in"). The panel offers the portal door plus
-            // continue-as-guest; acknowledging it re-runs this handler and
-            // proceeds below.
-            if (!recognized) {
-              setRecognized({ firstName: c.firstName || st.firstName.trim() })
-              return
-            }
-          }
-        }
-      } catch { /* prefill is best-effort — never blocks the flow */ }
-      // Create (or refresh) the customer row NOW.
-      try {
-        const cur = useWizard.getState()
-        const res = await fetch("/api/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: cur.firstName, lastName: cur.lastName, email,
-            ...(cur.phone ? { phone: cur.phone } : {}),
-            ...(cur.address ? {
-              address: cur.address, addressLine2: cur.addressLine2,
-              city: cur.city, state: cur.state, postalCode: cur.postalCode,
-            } : {}),
-          }),
-        })
-        if (!res.ok) {
-          const e = await res.json().catch(() => ({ error: "Failed to save your details" }))
-          setApiError(sanitizeApiErrorText(e.error, "Failed to save your details"))
-          return
-        }
-        const data = await res.json()
-        useWizard.getState().patch({ customerId: data.id })
-      } catch (e: any) {
-        setApiError(sanitizeApiErrorText(e?.message, "We couldn't reach the booking system — please check your connection and try again."))
-        return
-      }
-    }
-
-    // Step 2 → refresh the CRM row with the full contact details (the row
-    // already exists from step 1; the server-side update never erases
-    // non-empty values with blanks).
+    // Step 2 → create customer
     if (s.step === 2) {
       try {
-        const st = useWizard.getState()
         const res = await fetch("/api/customers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            firstName: st.firstName, lastName: st.lastName, email: st.email,
-            phone: st.phone,
-            address: st.address, addressLine2: st.addressLine2,
-            city: st.city, state: st.state, postalCode: st.postalCode,
+            firstName: s.firstName, lastName: s.lastName, email: s.email, phone: s.phone,
+            address: s.address, addressLine2: s.addressLine2,
+            city: s.city, state: s.state, postalCode: s.postalCode,
           }),
         })
         if (!res.ok) {
-          const e = await res.json().catch(() => ({ error: "Failed to update your contact details" }))
-          setApiError(sanitizeApiErrorText(e.error, "Failed to update your contact details"))
+          const e = await res.json().catch(() => ({ error: "Failed to create customer" }))
+          setApiError(e.error || "Failed to create customer")
           return
         }
         const data = await res.json()
-        useWizard.getState().patch({ customerId: data.id })
+        s.patch({ customerId: data.id })
       } catch (e: any) {
-        setApiError(sanitizeApiErrorText(e?.message, "We couldn't reach the booking system — please check your connection and try again."))
+        setApiError(e.message || "Network error")
         return
       }
     }
 
-    // Step 3 → create dog (or UPDATE the on-file row when a returning
-    // customer reuses an ON FILE pup — never duplicate a row the salon
-    // already has)
+    // Step 3 → create dog
     if (s.step === 3) {
       try {
-        const st = useWizard.getState()
-        // Classic columns (breed/size/weight/age) are what the admin Pets
-        // views render — fill them from the same wizard data so the row is
-        // complete, not just the newer id-based columns.
-        const ageFromBirth = (bd: string) => {
-          if (!bd) return null
-          const months = Math.floor((Date.now() - new Date(bd).getTime()) / (1000 * 60 * 60 * 24 * 30.44))
-          if (months < 0) return null
-          if (months < 12) return months > 0 ? `${months} months` : "Under 1 month"
-          const years = Math.floor(months / 12)
-          return `${years} ${years === 1 ? "year" : "years"}`
-        }
-        const breeds2 = breeds
-        const selBreed = breeds2.find((b) => b.id === st.breedId)
-        const dogSize2 = (() => {
-          const sz = selBreed?.sizeCategory || ""
-          const map: Record<string, string> = {
-            Small: "SMALL", Medium: "MEDIUM", Large: "LARGE", "X-Large": "X-LARGE",
-          }
-          return map[sz] || "MEDIUM"
-        })()
-        const payload: Record<string, unknown> = {
-          name: st.dogName,
-          breedId: st.breedId,
-          breedName: selBreed?.name || st.breedName || "",
-          breed: selBreed?.name || "",
-          size: dogSize2,
-          weight: st.weightLbs ? `${st.weightLbs} lbs` : null,
-          age: ageFromBirth(st.birthDate),
-          sex: st.sex || null,
-          birthDate: st.birthDate || null,
-          weightLbs: st.weightLbs ? parseFloat(st.weightLbs) : null,
-          color: st.color || null,
-          markings: st.markings || null,
-          // Shot records — photos + note, saved on the dog row (migration 0016).
-          // NULL-only backfill on reuse: an empty list/notes NEVER wipes
-          // records the salon or a previous visit already stored on the row.
-          ...((st.vaccinationPhotoUrls || []).length > 0 ? { vaccinationPhotoUrls: st.vaccinationPhotoUrls } : {}),
-          ...(st.vaccinationNotes ? { vaccinationNotes: st.vaccinationNotes } : {}),
-        }
-        // Duplicate guard: a returning customer who types the same name as
-        // an on-file pup reuses that row — same customer + same name = same
-        // pup. Selection via the chip OR an exact re-typed name both land here.
-        let reuseId = st.reuseDogId
-        if (!reuseId) {
-          const typed = st.dogName.trim().toLowerCase()
-          const match = (st.onFileDogs || []).find((d) => (d.name || "").trim().toLowerCase() === typed && !!d.id)
-          if (match) reuseId = match.id
-        }
-        const dogPayload = {
-          ...payload,
-          ...(reuseId ? {} : { customerId: st.customerId }),
-        }
-        const res = await fetch(reuseId ? `/api/cms/dogs/${reuseId}` : "/api/cms/dogs", {
-          method: reuseId ? "PUT" : "POST",
+        const res = await fetch("/api/cms/dogs", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dogPayload),
+          body: JSON.stringify({
+            customerId: s.customerId,
+            name: s.dogName,
+            breedId: s.breedId,
+            breedName: selectedBreed?.name || "",
+            sex: s.sex || null,
+            birthDate: s.birthDate || null,
+            weightLbs: s.weightLbs ? parseFloat(s.weightLbs) : null,
+            color: s.color || null,
+            markings: s.markings || null,
+          }),
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({ error: "Failed to save dog" }))
-          setApiError(sanitizeApiErrorText(e.error, "Failed to save dog"))
+          setApiError(e.error || "Failed to save dog")
           return
         }
         const data = await res.json()
-        useWizard.getState().patch({ dogId: data.id, breedName: selBreed?.name || st.breedName, ...(reuseId ? { reuseDogId: reuseId } : {}) })
+        s.patch({ dogId: data.id, breedName: selectedBreed?.name || s.breedName })
 
-        // If the customer uploaded a photo before saving the dog, link it
+        // If the customer uploaded a photo before creating the dog, link it
         // to the now-known dogId via the photo endpoint. Non-fatal — if the
         // photoUrl column hasn't been migrated yet, the photo is still in
         // Supabase Storage and can be linked later.
-        const stAfter = useWizard.getState()
-        if (stAfter.photoUrl && data.id) {
+        if (s.photoUrl && data.id) {
           await fetch(`/api/dogs/${data.id}/photo`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: stAfter.photoUrl }),
+            body: JSON.stringify({ url: s.photoUrl }),
           }).catch(() => {/* non-fatal */})
         }
       } catch (e: any) {
-        setApiError(sanitizeApiErrorText(e?.message, "We couldn't reach the booking system — please check your connection and try again."))
+        setApiError(e.message || "Network error")
         return
       }
     }
@@ -377,7 +228,10 @@ export function BookingWizardV2({
     // GA4 booking funnel — begin_booking on the first completed step, then a
     // booking_step event for every step the visitor advances through.
     if (s.step === 1) track.beginBooking(isConsult ? "consultation" : "appointment")
-    track.bookingStep(s.step, stepLabels[s.step - 1] || `Step ${s.step}`, isConsult ? "consultation" : "appointment")
+    const labels = isConsult
+      ? ["Name", "Contact", "Dog", "Coat", "Grooming", "Preferred", "Groomer", "Notes", "Review"]
+      : ["Name", "Contact", "Dog", "Coat", "Grooming", "Schedule", "Groomer", "Notes", "Review"]
+    track.bookingStep(s.step, labels[s.step - 1] || `Step ${s.step}`, isConsult ? "consultation" : "appointment")
   }
 
   // ----- Final checkout submit -----
@@ -405,7 +259,7 @@ export function BookingWizardV2({
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({ error: "Failed to submit" }))
-          setApiError(sanitizeApiErrorText(e.error, "Failed to submit consultation"))
+          setApiError(e.error || "Failed to submit consultation")
           setSubmitting(false)
           return
         }
@@ -452,16 +306,13 @@ export function BookingWizardV2({
               coatTypeId: s.coatTypeId, coatTextureId: s.coatTextureId,
               coatLengthId: s.coatLengthId, coatConditionId: s.coatConditionId,
               sheddingLevelId: s.sheddingLevelId,
-              // Current style is no longer asked twice (steps 4/5 were
-              // consolidated) — mirror the REQUESTED style when the customer
-              // picked one, so the profile stays meaningful.
-              currentHaircutStyleId: s.currentHaircutStyleId || s.styleId,
-              currentBodyLengthId: s.currentBodyLengthId || s.bodyLengthId,
+              currentHaircutStyleId: s.currentHaircutStyleId,
+              currentBodyLengthId: s.currentBodyLengthId,
               temperament: s.temperament,
               nailHandling: s.nailHandling, faceHandling: s.faceHandling,
               feetHandling: s.feetHandling, earHandling: s.earHandling,
               dryerHandling: s.dryerHandling, clipperHandling: s.clipperHandling,
-              handlingNotes: s.notes, groomingNotes: "", ownerNotes: "",
+              handlingNotes: s.handlingNotes, groomingNotes: s.groomingNotes, ownerNotes: s.ownerNotes,
             },
             groomingRequest: {
               styleId: s.styleId, bodyLengthId: s.bodyLengthId, bodyStyleId: s.bodyStyleId,
@@ -470,34 +321,29 @@ export function BookingWizardV2({
               sanitaryService: s.sanitaryService, nailService: s.nailService,
               pawPadService: s.pawPadService, earService: s.earService,
               teethService: s.teethService, desheddingService: s.desheddingService,
-              coatTechnique: s.coatTechnique,
-              // Step 5's special-instructions box was consolidated into
-              // step 8 NOTES — one box, one place; it feeds the groomer request.
-              specialInstructions: s.notes,
+              coatTechnique: s.coatTechnique, specialInstructions: s.specialInstructions,
             },
           }),
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({ error: "Checkout failed" }))
-          setApiError(sanitizeApiErrorText(e.error, "Checkout failed"))
+          setApiError(e.error || "Checkout failed")
           setSubmitting(false)
           return
         }
         const data = await res.json()
-        // Persist the booking id BEFORE the Stripe redirect so an abandoned
-        // checkout can be resumed (same row, fresh session) from localStorage.
-        if (data.bookingId) s.patch({ bookingId: data.bookingId })
         if (data.url) {
           setRedirecting(true)
           window.location.href = data.url
           return
         }
         if (data.bookingId) {
+          s.patch({ bookingId: data.bookingId })
           setSuccess("booking")
         }
       }
     } catch (e: any) {
-      setApiError(sanitizeApiErrorText(e?.message, "We couldn't reach the booking system — please check your connection and try again."))
+      setApiError(e.message || "Network error")
     } finally {
       setSubmitting(false)
     }
@@ -510,7 +356,7 @@ export function BookingWizardV2({
         {/* Pet photo (if uploaded) */}
         {s.photoUrl && (
           <div className="mx-auto mb-4 h-24 w-24 overflow-hidden rounded-full border-2 border-gold/40">
-            { }
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={s.photoUrl} alt={s.dogName || "Your pup"} className="h-full w-full object-cover" />
           </div>
         )}
@@ -579,65 +425,11 @@ export function BookingWizardV2({
 
   return (
     <div className="space-y-6">
-      {/* Abandoned-deposit recovery — Stripe sent the customer back without
-          paying. Everything they entered is intact; offer to finish the SAME
-          booking (no duplicate rows, fresh Stripe session). */}
-      {resumable && !isConsult && s.bookingId && (
-        <div className="border border-gold/40 bg-cream-deep px-4 py-4">
-          <p className="eyebrow">YOUR BOOKING IS SAVED</p>
-          <p className="mt-1 text-[13px] leading-relaxed text-ink">
-            Your appointment request for <strong>{s.dogName || "your pup"}</strong>
-            {s.date ? <> on <strong>{s.date}</strong></> : null} is reserved — only the $25
-            deposit is still pending. Complete it below or review your details first;
-            nothing you entered was lost.
-          </p>
-          {resumeError && (
-            <p className="mt-2 text-[12px] text-red-700">{resumeError}</p>
-          )}
-          <div className="mt-3 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={resuming}
-              onClick={async () => {
-                setResuming(true)
-                setResumeError(null)
-                try {
-                  const res = await fetch("/api/bookings/resume", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ bookingId: s.bookingId }),
-                  })
-                  const data = await res.json().catch(() => ({}))
-                  if (res.ok && data.url) {
-                    setRedirecting(true)
-                    window.location.href = data.url
-                    return
-                  }
-                  setResumeError(sanitizeApiErrorText(data.error, "Could not reopen the deposit checkout — continue below and resubmit."))
-                  setResumable(false)
-                } catch {
-                  setResumeError("Network error — continue below and resubmit.")
-                  setResumable(false)
-                } finally {
-                  setResuming(false)
-                }
-              }}
-              className="btn-gold"
-            >
-              {resuming ? "OPENING CHECKOUT…" : "COMPLETE $25 DEPOSIT"}
-            </button>
-            <button type="button" onClick={() => setResumable(false)} className="btn-ghost">
-              REVIEW MY BOOKING FIRST
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Mode line — reflects which flow page you're on */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="eyebrow">{isConsult ? "FREE CONSULTATION REQUEST" : "RESERVE YOUR VISIT"}</p>
         <p className="text-[10px] font-bold tracking-[0.12em] text-ink-soft">
-          {isConsult ? "FREE — WE REACH OUT TO PLAN THE VISIT" : "EMAIL FIRST — THE $25 DEPOSIT COMES AT THE END"}
+          {isConsult ? "FREE — WE REACH OUT TO PLAN THE VISIT" : "$25 DEPOSIT — SECURED AT THE FINAL STEP"}
         </p>
       </div>
 
@@ -650,19 +442,7 @@ export function BookingWizardV2({
       )}
 
       <div className="min-h-[340px]">
-        {s.step === 1 && (
-          <StepEmail
-            flow={flow}
-            recognized={recognized}
-            onGuestContinue={() => {
-              // Acknowledge the recognition panel and continue as guest —
-              // re-runs the continue handler, which now proceeds past the
-              // pause (prefill already applied from the lookup).
-              setRecognized(null)
-              onContinue()
-            }}
-          />
-        )}
+        {s.step === 1 && <StepName />}
         {s.step === 2 && <StepContact submitting={submitting} />}
         {s.step === 3 && <StepDog breeds={breeds} submitting={submitting} />}
         {s.step === 4 && <StepCoat lookups={lookups} />}
@@ -777,11 +557,6 @@ function LookupDropdown({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const ref = useRef<HTMLDivElement>(null)
-  // AUTOCOMPLETE (owner request): any list long enough to scroll gets the
-  // type-to-filter search box automatically — no prop needed. Short lists
-  // (2–8 options) render plain, matching the salon's paper forms.
-  const searchable = searchPlaceholder !== undefined || items.length > 8
-  const effectiveSearchPlaceholder = searchPlaceholder ?? `Search ${items.length} options…`
 
   useEffect(() => {
     if (!open) return
@@ -809,13 +584,13 @@ function LookupDropdown({
       </button>
       {open && (
         <div className="absolute z-40 mt-1 w-full border border-gold/35 bg-cream shadow-lg">
-          {searchable && (
+          {searchPlaceholder !== undefined && (
             <div className="border-b border-gold/25 px-3 py-2">
               <input
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={effectiveSearchPlaceholder}
+                placeholder={searchPlaceholder}
                 className="w-full bg-cream text-[12px] text-ink placeholder:text-muted-foreground focus:outline-none"
               />
             </div>
@@ -916,78 +691,15 @@ function BreedDropdown({ breeds, value, onChange }: { breeds: Breed[]; value: st
 // Steps
 // ===========================================================================
 
-function StepEmail({ flow, recognized, onGuestContinue }: { flow: BookingType; recognized: { firstName: string } | null; onGuestContinue: () => void }) {
+function StepName() {
   const s = useWizard()
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email.trim())
-  const backTo = flow === "consultation" ? "/book/consultation" : "/book/appointment"
   return (
     <div className={`${stepWrapCls} space-y-5`}>
       <div>
-        <p className="eyebrow">STEP 1 — LET&apos;S GET TO KNOW YOU</p>
-        <h2 className="mt-2 font-display text-[24px] text-ink">Who&apos;s bringing the pup in?</h2>
-        <p className="mt-1 text-[12px] text-ink-soft">
-          Your email is how we save your progress and send confirmations — so even if life happens,
-          your booking is never lost.
-        </p>
+        <p className="eyebrow">STEP 1 — YOUR NAME</p>
+        <h2 className="mt-2 font-display text-[24px] text-ink">What is your name?</h2>
+        <p className="mt-1 text-[12px] text-ink-soft">So we know who to welcome.</p>
       </div>
-
-      {/* PROFILE RECOGNITION (owner request): the typed email belongs to a
-          salon profile. SAY IT — "you have a profile with us" — and offer
-          the sign-in door to the customer portal; a guest continue keeps
-          the prefill from the lookup either way. */}
-      {recognized && (
-        <div className="border-2 border-gold-deep bg-cream-deep px-4 py-4">
-          <p className="text-[10px] font-bold tracking-[0.14em] text-gold-deep">YOU HAVE A PROFILE WITH US</p>
-          <p className="mt-1 text-[13px] leading-relaxed text-ink">
-            Welcome back{recognized.firstName ? `, ${recognized.firstName}` : ""}! This email is already in our
-            system{s.onFileDogs.length > 0 ? ` — your ${s.onFileDogs.length === 1 ? "pup is" : "pups are"} on file` : ""}. Sign in to your
-            portal to autofill everything and track your booking, or continue below without signing in.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <a
-              href={`/access-customer?redirect=${encodeURIComponent(backTo)}`}
-              className="btn-gold text-[11px]"
-            >
-              SIGN IN TO YOUR PROFILE
-            </a>
-            <button
-              type="button"
-              onClick={onGuestContinue}
-              className="text-[11px] font-bold tracking-[0.08em] text-ink-soft underline underline-offset-2 hover:text-ink"
-            >
-              Continue without signing in
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Returning visitors — the two portal doors. Progress saves
-          automatically, so signing in mid-booking loses nothing. */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <a
-          href={`/access-customer?redirect=${encodeURIComponent(backTo)}`}
-          className="group flex items-center gap-3 border border-gold/30 bg-cream-deep/60 px-4 py-3 transition hover:border-gold-deep"
-        >
-          <PawPrint size={22} weight="fill" className="shrink-0 text-gold-deep" />
-          <span className="flex-1 min-w-0">
-            <span className="block text-[10px] font-bold tracking-[0.14em] text-ink">RETURNING CUSTOMER</span>
-            <span className="block text-[10px] leading-snug text-ink-soft">Sign in — your details &amp; pups autofill</span>
-          </span>
-          <ArrowRight size={13} weight="bold" className="shrink-0 text-gold-deep transition-transform group-hover:translate-x-0.5" />
-        </a>
-        <a
-          href="/learn/sign-in"
-          className="group flex items-center gap-3 border border-gold/30 bg-cream-deep/60 px-4 py-3 transition hover:border-gold-deep"
-        >
-          <Sparkle size={22} weight="fill" className="shrink-0 text-gold-deep" />
-          <span className="flex-1 min-w-0">
-            <span className="block text-[10px] font-bold tracking-[0.14em] text-ink">RETURNING STUDENT</span>
-            <span className="block text-[10px] leading-snug text-ink-soft">LEASHED Academy sign-in</span>
-          </span>
-          <ArrowRight size={13} weight="bold" className="shrink-0 text-gold-deep transition-transform group-hover:translate-x-0.5" />
-        </a>
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="FIRST NAME" required>
           <input value={s.firstName} onChange={(e) => s.patch({ firstName: e.target.value })} placeholder="Jane" autoFocus className={inputCls} />
@@ -995,28 +707,7 @@ function StepEmail({ flow, recognized, onGuestContinue }: { flow: BookingType; r
         <Field label="LAST NAME" required>
           <input value={s.lastName} onChange={(e) => s.patch({ lastName: e.target.value })} placeholder="Smith" className={inputCls} />
         </Field>
-        <div className="sm:col-span-2">
-          <Field label="EMAIL" required>
-            <input
-              value={s.email}
-              onChange={(e) => s.patch({ email: e.target.value })}
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="jane@email.com"
-              className={inputCls}
-            />
-          </Field>
-          {s.email.trim() !== "" && !emailValid && (
-            <p className="mt-1.5 text-[10px] text-red-600">
-              Enter a valid email — this is where your confirmation and deposit receipt go.
-            </p>
-          )}
-        </div>
       </div>
-      <p className="text-[10.5px] leading-relaxed text-ink-soft">
-        New here? Just continue below — no account needed until you&apos;re ready.
-      </p>
     </div>
   )
 }
@@ -1027,37 +718,15 @@ function StepContact({ submitting }: { submitting: boolean }) {
     <div className={`${stepWrapCls} space-y-5`}>
       <div>
         <p className="eyebrow">STEP 2 — CONTACT</p>
-        <h2 className="mt-2 font-display text-[24px] text-ink">Where can we reach you?</h2>
-        <p className="mt-1 text-[12px] text-ink-soft">Confirmations and your deposit receipt are sent here.</p>
+        <h2 className="mt-2 font-display text-[24px] text-ink">What is your phone number and address?</h2>
+        <p className="mt-1 text-[12px] text-ink-soft">We&apos;ll send your confirmation here.</p>
       </div>
-
-      {/* Returning customer — their details arrived prefilled from the CRM */}
-      {s.knownCustomer && (
-        <div className="border border-gold/40 bg-cream-deep/60 px-4 py-3">
-          <p className="text-[10px] font-bold tracking-[0.14em] text-gold-deep">WELCOME BACK</p>
-          <p className="mt-1 text-[12px] leading-relaxed text-ink">
-            We found your details from your last visit and prefilled them below — make any changes
-            and continue{s.onFileDogs.length > 0 ? `. Your ${s.onFileDogs.length === 1 ? "pup is" : "pups are"} waiting on the next step` : ""}.
-          </p>
-        </div>
-      )}
-
-      {/* Email was captured at step 1 (and their CRM record exists) — show
-          it confirmed here so there is exactly one identity per booking.
-          Need a different address? Back one step. */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border border-gold/30 bg-cream-deep/40 px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-[9px] font-bold tracking-[0.16em] text-gold-deep">CONFIRMATION EMAIL</p>
-          <p className="truncate text-[13px] font-semibold text-ink">{s.email}</p>
-        </div>
-        <button type="button" onClick={() => s.setStep(1)} className="shrink-0 text-[10px] font-bold tracking-[0.1em] text-gold-deep underline underline-offset-2 hover:text-ink">
-          CHANGE
-        </button>
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="PHONE" required>
-          <input value={s.phone} onChange={(e) => s.patch({ phone: e.target.value })} type="tel" placeholder="901-800-7182" className={inputCls} />
+          <input value={s.phone} onChange={(e) => s.patch({ phone: e.target.value })} type="tel" placeholder="901-722-1114" className={inputCls} />
+        </Field>
+        <Field label="EMAIL" required>
+          <input value={s.email} onChange={(e) => s.patch({ email: e.target.value })} type="email" placeholder="jane@email.com" className={inputCls} />
         </Field>
         <div className="sm:col-span-2">
           <Field label="ADDRESS" required>
@@ -1087,70 +756,8 @@ function StepContact({ submitting }: { submitting: boolean }) {
 function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean }) {
   const s = useWizard()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const shotInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
-  const [shotUploading, setShotUploading] = useState(false)
-  const [shotError, setShotError] = useState("")
-
-  // Selecting an ON FILE pup prefills the fields and marks the row for
-  // reuse — the wizard UPDATEs that row instead of creating a duplicate.
-  const selectOnFileDog = (d: OnFileDog) => {
-    const breedById = breeds.find((b) => b.id === d.breedId)
-    const breedByName = d.breedName ? breeds.find((b) => b.name.toLowerCase() === d.breedName.toLowerCase()) : undefined
-    const breed = breedById || breedByName
-    s.patch({
-      dogName: d.name,
-      breedId: breed?.id || d.breedId || "",
-      breedName: breed?.name || d.breedName || "",
-      weightLbs: d.weightLbs || "",
-      sex: d.sex || "",
-      birthDate: d.birthDate || "",
-      color: d.color || "",
-      photoUrl: d.photoUrl || s.photoUrl || "",
-      reuseDogId: d.id,
-    })
-  }
-
-  // Shot-record upload (rabies certificate, distemper, bordetella…).
-  // Same pipeline as the pet photo (cms-media bucket); URLs collect on
-  // the dog row the wizard creates/updates — a NEW user can attach their
-  // records without an account (owner request, 2026-10-06).
-  const onPickShotRecord = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    if (!/^image\//.test(f.type)) {
-      setShotError("Please choose an image file")
-      return
-    }
-    if (f.size > 5 * 1024 * 1024) {
-      setShotError("Image is too large (5 MB max)")
-      return
-    }
-    setShotUploading(true)
-    setShotError("")
-    try {
-      const fd = new FormData()
-      fd.append("file", f)
-      const res = await fetch("/api/cms/upload", { method: "POST", body: fd })
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}))
-        throw new Error(j.error || "Upload failed")
-      }
-      const data = await res.json()
-      const cur = useWizard.getState().vaccinationPhotoUrls || []
-      if (cur.length >= 4) {
-        setShotError("Up to 4 record photos — remove one to add another.")
-        return
-      }
-      useWizard.getState().patch({ vaccinationPhotoUrls: [...cur, data.url] })
-    } catch (err: any) {
-      setShotError(sanitizeApiErrorText(err?.message, "Upload failed — please try a smaller photo or continue without one."))
-    } finally {
-      setShotUploading(false)
-      if (shotInputRef.current) shotInputRef.current.value = ""
-    }
-  }
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -1176,7 +783,7 @@ function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean 
       const data = await res.json()
       s.patch({ photoUrl: data.url })
     } catch (err: any) {
-      setUploadError(sanitizeApiErrorText(err?.message, "Upload failed — please try a smaller photo or continue without one."))
+      setUploadError(err.message || "Upload failed")
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -1191,48 +798,6 @@ function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean 
         <p className="mt-1 text-[12px] text-ink-soft">Every dog is special. We tailor the experience to their breed.</p>
       </div>
 
-      {/* Returning customer's pups — pick one to reuse their salon profile
-          (updated, never duplicated) or fill the form for a new pup. */}
-      {s.onFileDogs.length > 0 && (
-        <div className="rounded-xl border border-gold/25 bg-card p-4">
-          <p className="eyebrow mb-3">ON FILE WITH US</p>
-          <p className="mb-3 text-[12px] text-ink-soft">
-            {s.onFileDogs.length === 1 ? "This pup is" : "These pups are"} already in our system — choose one to
-            reuse their profile, or fill the form below for a new pup.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {s.onFileDogs.map((d) => {
-              const selected = s.reuseDogId === d.id
-              return (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => selectOnFileDog(d)}
-                  className={`flex items-center gap-2.5 border px-3.5 py-2.5 text-left transition ${selected ? "border-gold-deep bg-cream-deep" : "border-gold/30 bg-cream hover:border-gold/60"}`}
-                >
-                  {d.photoUrl ? (
-                    <img src={d.photoUrl} alt={d.name || "On-file pup"} className="h-9 w-9 shrink-0 rounded-full border border-gold/30 object-cover" />
-                  ) : (
-                    <PawPrint size={18} weight="fill" className="shrink-0 text-gold-deep" />
-                  )}
-                  <span className="min-w-0">
-                    <span className="block truncate text-[12px] font-bold text-ink">{d.name || "Unnamed pup"}</span>
-                    {d.breedName && <span className="block truncate text-[10px] text-ink-soft">{d.breedName}{d.weightLbs ? ` · ${d.weightLbs} lbs` : ""}</span>}
-                  </span>
-                  {selected && <Check size={14} weight="bold" className="shrink-0 text-gold-deep" />}
-                </button>
-              )
-            })}
-          </div>
-          {s.reuseDogId && (
-            <p className="mt-3 text-[10.5px] text-ink-soft">
-              Reusing this profile — any changes you make below update their record (never a duplicate). Editing the
-              name switches to a new pup.
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Photo uploader */}
       <div className="rounded-xl border border-gold/25 bg-card p-4">
         <p className="eyebrow mb-3">PET PHOTO</p>
@@ -1246,7 +811,7 @@ function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean 
             className="relative group flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-gold/40 bg-cream-deep transition hover:border-gold-deep disabled:opacity-60"
           >
             {s.photoUrl ? (
-               
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={s.photoUrl} alt="Pet photo" className="h-full w-full object-cover" />
             ) : (
               <PawPrint size={28} weight="fill" className="text-gold-deep" />
@@ -1299,78 +864,9 @@ function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean 
         </div>
       </div>
 
-      {/* Shot-record uploader — vaccination photos (owner request: new
-          customers must be able to attach shot records without an account) */}
-      <div className="rounded-xl border border-gold/25 bg-card p-4">
-        <p className="eyebrow mb-1">SHOT RECORDS</p>
-        <p className="mb-3 text-[11px] text-ink-soft">
-          Optional — upload a photo of your pup&apos;s vaccination records (rabies, distemper, bordetella) and our
-          groomers can see they&apos;re ready for their visit. You can also add them later from your portal.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {(s.vaccinationPhotoUrls || []).map((url, i) => (
-            <div key={url + i} className="relative">
-              <img
-                src={url}
-                alt={`Vaccination record ${i + 1}`}
-                className="h-16 w-16 rounded-md border border-gold/30 object-cover"
-              />
-              <button
-                type="button"
-                aria-label={`Remove record ${i + 1}`}
-                onClick={() =>
-                  s.patch({ vaccinationPhotoUrls: (s.vaccinationPhotoUrls || []).filter((_, idx) => idx !== i) })
-                }
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-gold/40 bg-cream text-[10px] font-bold text-ink hover:bg-cream-deep"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          {(s.vaccinationPhotoUrls || []).length < 4 && (
-            <button
-              type="button"
-              onClick={() => shotInputRef.current?.click()}
-              disabled={shotUploading}
-              className="flex h-16 w-16 items-center justify-center rounded-md border-2 border-dashed border-gold/40 bg-cream-deep text-[10px] font-bold leading-tight text-ink-soft transition hover:border-gold-deep disabled:opacity-60"
-            >
-              {shotUploading ? <Spinner size={16} className="animate-spin text-gold-deep" /> : "+ ADD"}
-            </button>
-          )}
-        </div>
-        {shotError && <p className="mt-2 text-[10px] text-red-600">{shotError}</p>}
-        <textarea
-          value={s.vaccinationNotes}
-          onChange={(e) => s.patch({ vaccinationNotes: e.target.value })}
-          rows={2}
-          placeholder="Optional — e.g. Vet clinic name, next due dates, exemptions…"
-          className={`${inputCls} mt-3`}
-        />
-        <input
-          ref={shotInputRef}
-          type="file"
-          accept="image/*"
-          onChange={onPickShotRecord}
-          className="hidden"
-          aria-hidden="true"
-        />
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="DOG NAME" required>
-          <input
-            value={s.dogName}
-            onChange={(e) => {
-              // Editing the name away from the selected on-file pup switches
-              // to a new pup (the continue handler re-checks for name matches
-              // so an exact re-type can never create a duplicate either).
-              const selectedName = s.onFileDogs.find((d) => d.id === s.reuseDogId)?.name
-              const stillSame = !!s.reuseDogId && !!selectedName && e.target.value.trim() === selectedName.trim()
-              s.patch({ dogName: e.target.value, ...(stillSame ? {} : { reuseDogId: null }) })
-            }}
-            placeholder="Cooper"
-            className={inputCls}
-          />
+          <input value={s.dogName} onChange={(e) => s.patch({ dogName: e.target.value })} placeholder="Cooper" className={inputCls} />
         </Field>
         <Field label="BREED" required>
           <BreedDropdown breeds={breeds} value={s.breedId} onChange={(id) => {
@@ -1437,11 +933,16 @@ function StepCoat({ lookups }: { lookups: WizardLookups }) {
           </Field>
         </section>
 
-        {/* CURRENT-STYLE NOTE: the dog's CURRENT haircut style/length used to
-            be asked here AND again on step 5 (the requested style) — the
-            owner called out the duplication ("step 5 asks the basic
-            questions again as step 4"). Step 5's REQUESTED style is the
-            one the groomer needs; current state is assessed at check-in. */}
+        {/* CURRENT GROOMING */}
+        <section className="space-y-4">
+          <h3 className={sectionHeaderCls}>Current Grooming</h3>
+          <Field label="CURRENT HAIRCUT STYLE">
+            <LookupDropdown items={lookups.haircutStyles} value={s.currentHaircutStyleId} onChange={(v) => s.patch({ currentHaircutStyleId: v })} placeholder="Select current style…" />
+          </Field>
+          <Field label="CURRENT BODY LENGTH">
+            <LookupDropdown items={lookups.clipLengths} value={s.currentBodyLengthId} onChange={(v) => s.patch({ currentBodyLengthId: v })} placeholder="Select current length…" />
+          </Field>
+        </section>
       </div>
 
       {/* HANDLING */}
@@ -1507,10 +1008,21 @@ function StepCoat({ lookups }: { lookups: WizardLookups }) {
         </div>
       </section>
 
-      {/* NOTES — consolidated into step 8 (NOTES). Step 4 used to carry
-          three separate note boxes (handling/grooming/owner) ON TOP of
-          step 5's special instructions and step 8's notes — four places
-          asking for notes. One box, one place. */}
+      {/* NOTES */}
+      <section className="space-y-4">
+        <h3 className={sectionHeaderCls}>Notes</h3>
+        <div className="grid gap-4">
+          <Field label="HANDLING NOTES">
+            <textarea value={s.handlingNotes} onChange={(e) => s.patch({ handlingNotes: e.target.value })} rows={3} placeholder="Anything that helps us handle your dog safely…" className={inputCls} />
+          </Field>
+          <Field label="GROOMING NOTES">
+            <textarea value={s.groomingNotes} onChange={(e) => s.patch({ groomingNotes: e.target.value })} rows={3} placeholder="Past grooming experiences, sensitivities, allergies…" className={inputCls} />
+          </Field>
+          <Field label="OWNER NOTES">
+            <textarea value={s.ownerNotes} onChange={(e) => s.patch({ ownerNotes: e.target.value })} rows={3} placeholder="Anything else you&apos;d like us to know…" className={inputCls} />
+          </Field>
+        </div>
+      </section>
     </div>
   )
 }
@@ -1613,9 +1125,9 @@ function StepGroomingRequest({ lookups, services, bookingType }: { lookups: Wiza
         </div>
       </section>
 
-      {/* SPECIAL INSTRUCTIONS — consolidated into step 8 (NOTES): one box,
-          one place. The checkout payload maps notes → specialInstructions
-          for the groomer request. */}
+      <Field label="SPECIAL INSTRUCTIONS">
+        <textarea value={s.specialInstructions} onChange={(e) => s.patch({ specialInstructions: e.target.value })} rows={4} placeholder="Any specific instructions for your groomer…" className={inputCls} />
+      </Field>
     </div>
   )
 }

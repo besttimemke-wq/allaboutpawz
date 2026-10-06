@@ -1,29 +1,25 @@
 'use client';
 
-import { useBookings } from '@/hooks/useQueries';
-
+import { useAppStore } from '@/lib/store';
 import { Calendar, Clock, PawPrint, DollarSign, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function GroomerDashboardPage() {
-  const { data, isLoading: loading } = useBookings(100);
-  const appointments = data?.appointments ?? [];
+  const { appointments, staffSchedules, currentUser } = useAppStore();
 
-  const myAppts = appointments.slice(0, 5);
-  const completed = appointments.filter(a => a.status === 'Completed' || a.status === 'completed').length;
-  const inProgress = appointments.filter(a => a.status === 'In Progress' || a.status === 'in_service').length;
-  const scheduled = appointments.filter(a => a.status === 'Scheduled' || a.status === 'precheck' || a.status === 'confirmed').length;
+  const myAppts = appointments.filter(a => a.staffName?.includes('Sarah') || true).slice(0, 5);
+  const completed = appointments.filter(a => a.status === 'Completed').length;
+  const inProgress = appointments.filter(a => a.status === 'In Progress').length;
+  const scheduled = appointments.filter(a => a.status === 'Scheduled').length;
   const todayRevenue = appointments
-    .filter(a => a.status === 'Completed' || a.status === 'completed')
+    .filter(a => a.status === 'Completed')
     .reduce((sum, a) => sum + (a.price || 0), 0);
-
-  if (loading) return <div className="p-6 text-[13px] text-muted-foreground">Loading your schedule…</div>;
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 bg-background p-6 md:p-8">
       <div>
         <h1 className="font-bar text-2xl font-semibold tracking-tight text-foreground">
-          Welcome, {'Groomer' || 'Groomer'}
+          Welcome, {currentUser?.name}
         </h1>
         <p className="text-[13px] text-muted-foreground mt-1">
           Your station schedule and active appointments for today.
@@ -58,25 +54,23 @@ export default function GroomerDashboardPage() {
           <span className="text-[11px] text-muted-foreground">{myAppts.length} scheduled</span>
         </div>
         <div className="divide-y divide-border">
-          {myAppts.length === 0 ? (
-            <div className="p-8 text-center text-[13px] text-muted-foreground">No appointments today.</div>
-          ) : myAppts.map((appt) => (
+          {myAppts.map((appt) => (
             <div key={appt.id} className="flex items-center gap-4 p-4 hover:bg-accent/50 transition-colors">
               <div className="size-10 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-lg">
                 <PawPrint className="size-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-foreground">{appt.petName || appt.dogName || '—'} — {appt.breed || ''}</p>
-                <p className="text-[11px] text-muted-foreground">{appt.serviceName || appt.service || 'Grooming'} · {appt.customerName || appt.ownerName || '—'}</p>
+                <p className="text-[13px] font-medium text-foreground">{appt.petName} — {appt.breed}</p>
+                <p className="text-[11px] text-muted-foreground">{appt.serviceName} · {appt.customerName}</p>
               </div>
               <div className="text-right">
-                <p className="text-[12px] font-medium tabular-nums text-foreground">{appt.time || '—'}</p>
-                <p className="text-[10px] text-muted-foreground">{appt.staffName || appt.groomerName || '—'}</p>
+                <p className="text-[12px] font-medium tabular-nums text-foreground">{appt.time}</p>
+                <p className="text-[10px] text-muted-foreground">{appt.staffName}</p>
               </div>
               <span className={cn(
                 'inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase',
-                appt.status === 'Completed' || appt.status === 'completed' ? 'bg-success/10 text-success border-success/20' :
-                appt.status === 'In Progress' || appt.status === 'in_service' ? 'bg-primary/10 text-primary border-primary/20' :
+                appt.status === 'Completed' ? 'bg-success/10 text-success border-success/20' :
+                appt.status === 'In Progress' ? 'bg-primary/10 text-primary border-primary/20' :
                 'bg-muted text-muted-foreground border-border'
               )}>
                 {appt.status}

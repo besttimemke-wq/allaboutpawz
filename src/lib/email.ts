@@ -65,6 +65,10 @@ export async function sendEmail(opts: {
   relatedBookingId?: string
   relatedInvoiceId?: string
   relatedOrderId?: string
+  /** Attachments (Resend: base64 content). The booking-confirmed email
+   *  carries the .ics so Google/Apple/Outlook recognize the appointment
+   *  as a calendar event. */
+  attachments?: { filename: string; content: string }[]
 }): Promise<{ ok: boolean; messageId?: string; error?: string }> {
   if (!opts.to) return { ok: false, error: "No recipient" }
 
@@ -107,6 +111,7 @@ export async function sendEmail(opts: {
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
+      ...(opts.attachments && opts.attachments.length > 0 ? { attachments: opts.attachments } : {}),
     })
 
     if (error) {
@@ -199,6 +204,17 @@ export async function sendBookingConfirmation(b: {
   }
 
   if (customerEmail) {
+    // The .ics attachment — Google/Apple/Outlook recognize the email as a
+    // calendar event and offer to save the appointment.
+    const { buildBookingIcs } = await import("@/lib/booking/ics")
+    const icsContent = buildBookingIcs({
+      bookingId: b.bookingId || `booking-${Date.now()}`,
+      dogName: b.dogName,
+      serviceNames: [b.service],
+      date: b.date || "",
+      time: b.time || "",
+      durationMinutes: 120,
+    })
     await sendEmail({
       customerId: b.customerId,
       to: customerEmail,
@@ -206,6 +222,12 @@ export async function sendBookingConfirmation(b: {
       subject: b.dogName ? `${b.dogName}'s appointment is confirmed` : "Your appointment is confirmed",
       html: bookingConfirmedHtml(data),
       relatedBookingId: b.bookingId,
+      attachments: [
+        {
+          filename: "all-about-pawz-appointment.ics",
+          content: Buffer.from(icsContent, "utf8").toString("base64"),
+        },
+      ],
     })
   }
 

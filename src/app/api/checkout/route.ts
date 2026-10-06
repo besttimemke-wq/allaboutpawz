@@ -88,7 +88,6 @@ export async function fulfillOrderFromSession(session: Stripe.Checkout.Session) 
       amount: order?.subtotal || "",
       type: "order",
       email: session.customer_details?.email,
-      firstName: String(session.customer_details?.name || "").split(/\s+/)[0] || undefined,
     }).catch(() => {})
   }
 }

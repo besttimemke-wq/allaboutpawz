@@ -23,55 +23,6 @@ additional_redirect_urls = ["https://localhost:3000"]
 jwt_expiry = 3600
 enable_signup = true
 
-# ---------------------------------------------------------------------------
-# Branded auth email templates (All About Pawz design system).
-#
-# Source of truth: src/lib/email/templates/auth.ts — regenerate the files
-# below with:  bun run email-templates:export
-#
-# LOCAL CLI dev: these blocks apply via `supabase stop && supabase start`.
-#
-# HOSTED production project (aapawz.com): pushed automatically — NO dashboard
-# copy-paste. One command from the repo root:
-#   bun run email-templates:push
-# (scripts/push-supabase-email-templates.ts — Supabase Management API PATCH
-# with rollback snapshot + verify; needs SUPABASE_ACCESS_TOKEN.) The email-
-# templates GitHub Action pushes automatically on every merge to main that
-# touches the email system — workflow file parked at
-# docs/email-templates-workflow.yml pending a workflow-scope credential
-# (promotion paths in its header).
-#
-# The seven security notification emails (password/email/phone changed,
-# sign-in method linked/removed, MFA added/removed) have no config block in
-# GoTrue — the push script writes them through the Management API too (key
-# names discovered from the live project config) and their branded HTML is
-# exported alongside these files as supabase_security_*.html.
-# ---------------------------------------------------------------------------
-
-[auth.email.template.confirmation]
-subject = "Confirm your email — All About Pawz"
-content_path = "./supabase/templates/confirmation.html"
-
-[auth.email.template.invite]
-subject = "Your All About Pawz portal invitation"
-content_path = "./supabase/templates/invite.html"
-
-[auth.email.template.magic_link]
-subject = "Your All About Pawz sign-in code"
-content_path = "./supabase/templates/magic_link.html"
-
-[auth.email.template.email_change]
-subject = "Confirm your new email address — All About Pawz"
-content_path = "./supabase/templates/email_change.html"
-
-[auth.email.template.recovery]
-subject = "Reset your All About Pawz password"
-content_path = "./supabase/templates/recovery.html"
-
-[auth.email.template.reauthentication]
-subject = "Verify it's you — All About Pawz security check"
-content_path = "./supabase/templates/reauthentication.html"
-
 [storage]
 enabled = true
 file_size_limit = "50MiB"

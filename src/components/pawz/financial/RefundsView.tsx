@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DawgNavSection } from '@/lib/types';
 import { PageTabs, KpiTiles, FilterSelect } from '../_shared/PageHeader';
 import { cn } from '@/lib/utils';
@@ -12,14 +12,6 @@ interface RefundsViewProps {
 export const RefundsView: React.FC<RefundsViewProps> = ({ onNavigateSection }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'all' | 'pending' | 'disputes' | 'credit' | 'policies'>('disputes');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    fetch('/api/admin/refunds?limit=50').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.giftCards) { /* wire to state */ }
-      else if (d?.orders) { /* wire to state */ }
-      else if (d?.refunds) { /* wire to state */ }
-    }).catch(() => {});
-  }, []);
   const [stageFilter, setStageFilter] = useState('ALL CHARGEBACKS & INQUIRIES');
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>('DISP-0841-A');
@@ -92,40 +84,6 @@ export const RefundsView: React.FC<RefundsViewProps> = ({ onNavigateSection }) =
   ];
 
   const [refundsAndDisputes, setRefundsAndDisputes] = useState(initialRefundsAndDisputes);
-
-  // LIVE DATA — fetch real refunds + disputes from /api/admin/refunds
-  useEffect(() => {
-    fetch('/api/admin/refunds')
-      .then((r) => r.ok ? r.json() : { refunds: [], disputes: [] })
-      .then((d) => {
-        const refunds = (d.refunds || []).map((r: any) => ({
-          id: r.refund_number || `REF-${r.id?.slice(0, 6).toUpperCase()}`,
-          customer: r.customer_email || '—',
-          email: r.customer_email || '',
-          amount: Number(r.amount) || 0,
-          status: (r.status || 'pending').toUpperCase(),
-          reason: r.reason || 'Customer request',
-          date: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-          method: r.refund_method || 'card',
-          refundStatus: (r.status || 'pending').toUpperCase(),
-        }));
-        const disputes = (d.disputes || []).map((d: any) => ({
-          id: d.dispute_number || `DISP-${d.id?.slice(0, 6).toUpperCase()}`,
-          customer: '—',
-          email: '',
-          amount: Number(d.amount) || 0,
-          status: (d.status || 'open').toUpperCase(),
-          reason: d.reason || 'Chargeback',
-          date: d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-          method: 'card',
-          refundStatus: 'DISPUTE_UNDER_REVIEW',
-        }));
-        if (refunds.length > 0 || disputes.length > 0) {
-          setRefundsAndDisputes([...disputes, ...refunds]);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const filteredItems = refundsAndDisputes.filter((item) => {
     // Tab filter

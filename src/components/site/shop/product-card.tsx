@@ -33,7 +33,9 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
 
   return (
     <article className="group relative flex flex-col">
-      <div className="relative overflow-hidden border border-ink/10 bg-white transition-colors group-hover:border-gold-deep/40">
+      {/* Canvas-native: the rail sits ON the marble canvas (deeper cream
+          panel + hairline border) — never an opaque white block. */}
+      <div className="relative overflow-hidden border border-ink/10 bg-cream-deep/40 transition-colors group-hover:border-gold-deep/40">
         {cornerBadge && (
           <span className="absolute left-0 top-0 z-10 bg-ink px-2.5 py-1 text-[8px] font-bold tracking-[0.14em] text-gold">
             {cornerBadge.toUpperCase()}

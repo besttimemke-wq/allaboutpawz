@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { Customer, CustomerFullProfile } from '@/lib/types';
 import { CustomerDetailsView } from './CustomerDetailsView';
+import { SARAH_JOHNSON_PROFILE } from '@/lib/dawg-mock-data';
 import { QuickActionsModal, UnifiedQuickActionType } from './QuickActionsModal';
 import {
   QuickActionTakePaymentView,
@@ -746,20 +747,9 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   onOpenTakePayment,
   onOpenIntake,
 }) => {
-// Empty customer profile — replaced SARAH_JOHNSON_PROFILE mock.
-// Shows proper empty state when no customer is selected.
-const EMPTY_PROFILE: CustomerFullProfile = {
-  id: '', name: '', status: '', phone: '', email: '', address: '',
-  customerType: '', preferredGroomer: '', lastVisit: '', lastService: '',
-  nextAppointment: '', nextApptTime: '', totalSpent: 0, lifetimeValue: 0,
-  balance: 0, loyaltyPoints: 0, customerSince: '', notes: '',
-  pets: [], upcomingAppointments: [], paymentHistory: [],
-  recentActivity: [], communication: [],
-};
-
-// Navigation State: Directory landing vs. Full profile view
+  // Navigation State: Directory landing vs. Full profile view
   const [viewMode, setViewMode] = useState<'directory' | 'detail'>('directory');
-  const [selectedProfile, setSelectedProfile] = useState<CustomerFullProfile>(EMPTY_PROFILE);
+  const [selectedProfile, setSelectedProfile] = useState<CustomerFullProfile>(SARAH_JOHNSON_PROFILE);
   
   // Quick View Rail (Right side drawer) - Closed by default on entry
   const [selectedCustomerForRail, setSelectedCustomerForRail] = useState<ExtendedCustomerRecord | null>(null);
@@ -970,9 +960,12 @@ const EMPTY_PROFILE: CustomerFullProfile = {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Live data only — no mock fallback. Shows empty state when no data.
+  // Merge live Supabase customers with rich design presets (avoiding duplicate emails)
   const allList: ExtendedCustomerRecord[] = React.useMemo(() => {
-    return liveDbCustomers;
+    if (liveDbCustomers.length === 0) return EXTENDED_MOCK_CUSTOMERS;
+    const liveEmails = new Set(liveDbCustomers.map(c => c.email.toLowerCase()));
+    const nonDuplicatedMock = EXTENDED_MOCK_CUSTOMERS.filter(m => !liveEmails.has(m.email.toLowerCase()));
+    return [...liveDbCustomers, ...nonDuplicatedMock];
   }, [liveDbCustomers]);
 
   // Dynamic calculated metrics across all customers
@@ -1140,7 +1133,7 @@ const EMPTY_PROFILE: CustomerFullProfile = {
   // Open Full Profile View
   const handleOpenFullProfile = (cust: ExtendedCustomerRecord) => {
     if (cust.id === 'cust-1' && !cust.isLiveDb) {
-      setSelectedProfile(EMPTY_PROFILE);
+      setSelectedProfile(SARAH_JOHNSON_PROFILE);
     } else {
       const customerPets = (cust.petDetails && cust.petDetails.length > 0)
         ? cust.petDetails.map((d: any, i: number) => ({
@@ -1268,7 +1261,7 @@ const EMPTY_PROFILE: CustomerFullProfile = {
       if (selectedCustomerForRail) {
         handleOpenFullProfile(selectedCustomerForRail);
       } else {
-        handleOpenFullProfile(allList[0]);
+        handleOpenFullProfile(EXTENDED_MOCK_CUSTOMERS[0]);
       }
     } else if (action === 'call-customer') {
       const targetPhone = selectedCustomerForRail?.phone || '(214) 555-0198';
@@ -1314,13 +1307,13 @@ const EMPTY_PROFILE: CustomerFullProfile = {
             last4: selectedCustomerForRail.cardLast4 || '4242',
             expires: selectedCustomerForRail.cardExpiry || '04/27',
           },
-          pets: [],
-          upcomingAppointments: [],
-          paymentHistory: [],
-          recentActivity: [],
-          communication: [],
+          pets: SARAH_JOHNSON_PROFILE.pets,
+          upcomingAppointments: SARAH_JOHNSON_PROFILE.upcomingAppointments,
+          paymentHistory: SARAH_JOHNSON_PROFILE.paymentHistory,
+          recentActivity: SARAH_JOHNSON_PROFILE.recentActivity,
+          communication: SARAH_JOHNSON_PROFILE.communication,
         }
-      : EMPTY_PROFILE;
+      : SARAH_JOHNSON_PROFILE;
 
     return (
       <div className="flex-1 flex flex-col min-h-screen bg-muted/40">
@@ -1430,7 +1423,7 @@ const EMPTY_PROFILE: CustomerFullProfile = {
     );
   }
 
-  const activeCustomer = selectedCustomerForRail || allList[0];
+  const activeCustomer = selectedCustomerForRail || EXTENDED_MOCK_CUSTOMERS[0];
 
   return (
     <div className="flex h-full min-h-[calc(100vh-56px)] overflow-hidden bg-background text-foreground antialiased font-sans text-[13px]">
@@ -1448,7 +1441,7 @@ const EMPTY_PROFILE: CustomerFullProfile = {
         onClose={() => setIsQuickActionsModalOpen(false)}
         onSelectAction={handleUnifiedQuickAction}
         customer={activeCustomer ? {
-          ...EMPTY_PROFILE,
+          ...SARAH_JOHNSON_PROFILE,
           name: activeCustomer.name,
           email: activeCustomer.email,
           phone: activeCustomer.phone,

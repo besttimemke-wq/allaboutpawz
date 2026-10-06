@@ -1,17 +1,21 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import Link from 'next/link';
 import {
   Bell,
   Calendar,
+  CalendarDays,
   ChevronDown,
   LayoutGrid,
   LogOut,
+  Mail,
   MapPin,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   PawPrint,
+  Phone,
   Plus,
   Scissors,
   Search,
@@ -21,6 +25,7 @@ import {
 } from 'lucide-react';
 import { AuthUser, DawgNavSection } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { NAV } from '@/components/site/nav';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -31,6 +36,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
 
 interface HeaderProps {
   onOpenMobileMenu?: () => void;
@@ -55,9 +69,14 @@ interface HeaderProps {
    *  admin OS shows these — customer, groomer, front desk and LMS portals
    *  pass false so business nav never leaks into their chrome. */
   showPillars?: boolean;
+  /** Show the MAIN SITE navigation hamburger — the public site's nav
+   *  (Home / Services / Shop / Book / …) in a drawer. A customer inside
+   *  My Account keeps full visibility of the main site: book again, shop,
+   *  explore — without leaving the portal. */
+  showSiteNav?: boolean;
 }
 
-type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING' | 'POS' | 'LEARN';
+type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING' | 'LEARN' | 'POS';
 
 interface SubRouteItem {
   id: DawgNavSection;
@@ -81,7 +100,9 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectLocation,
   locationsList,
   showPillars = true,
+  showSiteNav = false,
 }) => {
+  const [siteNavOpen, setSiteNavOpen] = useState(false);
   const getPillarFromSection = (section: DawgNavSection): PillarType => {
     switch (section) {
       case 'dashboard':
@@ -97,6 +118,11 @@ export const Header: React.FC<HeaderProps> = ({
       case 'orders':
       case 'order-details':
       case 'inventory':
+      case 'products':
+      case 'categories':
+      case 'brands':
+      case 'filters':
+      case 'promotions':
       case 'shipping':
       case 'returns':
       case 'purchase-orders':
@@ -116,20 +142,6 @@ export const Header: React.FC<HeaderProps> = ({
       case 'pos':
       case 'subscriptions':
         return 'POS';
-      case 'lms-dashboard':
-      case 'lms-curriculum':
-      case 'lms-media':
-      case 'lms-enrollment':
-      case 'lms-ai-teaching':
-      case 'lms-progress':
-      case 'lms-assessment':
-      case 'lms-skills':
-      case 'lms-support':
-      case 'lms-communication':
-      case 'lms-compliance':
-      case 'lms-bridge':
-      case 'lms-ai-instructor':
-        return 'LEARN';
       default:
         return 'LEARN';
     }
@@ -152,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({
     ORDERS: [
       { id: 'orders', label: 'Orders & POS' },
       { id: 'order-details', label: 'Order Details' },
-      { id: 'inventory', label: 'Inventory' },
+      { id: 'inventory', label: 'Products & Inventory' },
       { id: 'shipping', label: 'Shipping' },
       { id: 'returns', label: 'Returns' },
       { id: 'purchase-orders', label: 'Purchase Orders' },
@@ -170,17 +182,12 @@ export const Header: React.FC<HeaderProps> = ({
       { id: 'financial-settings', label: 'Financial Settings' },
       { id: 'stripe-connections', label: 'Stripe' },
     ],
+    LEARN: [
+      { id: 'dashboard', label: 'Academy Home' },
+    ],
     POS: [
       { id: 'pos', label: 'Register' },
       { id: 'subscriptions', label: 'Subscriptions' },
-    ],
-    LEARN: [
-      { id: 'lms-dashboard', label: 'Overview' },
-      { id: 'lms-curriculum', label: 'Curriculum' },
-      { id: 'lms-enrollment', label: 'Enrollment' },
-      { id: 'lms-progress', label: 'Progress' },
-      { id: 'lms-assessment', label: 'Assessment' },
-      { id: 'lms-skills', label: 'Credentials' },
     ],
   };
 
@@ -188,8 +195,8 @@ export const Header: React.FC<HeaderProps> = ({
     CRM: 'dashboard',
     ORDERS: 'orders',
     ACCOUNTING: 'books',
+    LEARN: 'dashboard',
     POS: 'pos',
-    LEARN: 'lms-dashboard',
   };
 
   const pillars: { id: PillarType; label: string }[] = [
@@ -228,11 +235,27 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-30 flex-shrink-0 select-none bg-topbar text-topbar-foreground">
       {/* Top bar — global utilities only (no duplicate brand, no page CTAs) */}
       <div className="h-14 px-3 sm:px-4 flex items-center justify-between gap-2">
-        {/* Left: mobile menu + sidebar toggle */}
+        {/* Left: main-site nav + mobile menu + sidebar toggle */}
         <div className="flex items-center gap-2">
+          {/* MAIN SITE navigation — the public site's nav in a drawer, so a
+              customer inside My Account keeps visibility of the main site. */}
+          {showSiteNav && (
+            <button
+              onClick={() => setSiteNavOpen(true)}
+              aria-label="Open main site menu"
+              aria-haspopup="dialog"
+              className={cn(iconButtonClass, 'gap-2 px-2.5')}
+            >
+              <Menu className="size-5" />
+              <span className="hidden text-[11px] font-semibold uppercase tracking-[0.08em] sm:inline">
+                Menu
+              </span>
+            </button>
+          )}
+
           <button
             onClick={onOpenMobileMenu}
-            aria-label="Open menu"
+            aria-label="Open my account menu"
             className={cn('lg:hidden', iconButtonClass)}
           >
             <Menu className="size-5" />
@@ -250,10 +273,14 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Active pillar label only (no duplicate brand logo/text) */}
-          <span className="hidden sm:inline text-[13px] font-medium text-topbar-foreground/80 ml-2">
-            {activePillar}
-          </span>
+          {/* Active pillar label — admin OS identity only (CRM / ORDERS /
+              ACCOUNTING). Customer and other non-admin portals show nothing
+              here: a pet parent never sees "CRM" in their top bar. */}
+          {showPillars && (
+            <span className="hidden sm:inline text-[13px] font-medium text-topbar-foreground/80 ml-2">
+              {activePillar}
+            </span>
+          )}
         </div>
 
         {/* Right: search, date, user */}
@@ -279,12 +306,34 @@ export const Header: React.FC<HeaderProps> = ({
             <Search className="size-4" />
           </button>
 
-          {/* Date display */}
-          <div className="hidden md:flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent h-9 px-3 text-[13px] text-foreground transition-colors duration-150">
-            <Calendar className="size-3.5 text-muted-foreground" />
-            <span className="text-[13px]">{currentDate}</span>
-            <ChevronDown className="size-3.5 text-muted-foreground" />
-          </div>
+          {/* Date dropdown — real calendar popover. Selecting a date
+              navigates to /admin/calendar with that date focused. */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="hidden md:flex items-center gap-1.5 rounded-md border border-input bg-background hover:bg-accent h-9 px-3 text-[13px] text-foreground transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Pick a date"
+                title="Pick a date"
+              >
+                <Calendar className="size-3.5 text-muted-foreground" />
+                <span className="text-[13px]">{currentDate}</span>
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <CalendarComponent
+                mode="single"
+                selected={new Date()}
+                onSelect={(date) => {
+                  if (date) {
+                    // Navigate to the calendar page with the selected date.
+                    onNavigateSection('calendar');
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
 
           <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
@@ -393,13 +442,21 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Sub-nav — admin OS pillar pills only. Non-admin portals render no
-          pill row at all (dedicated portal identity — no business nav). */}
+          pill row at all (dedicated portal identity — no business nav).
+          White background with gray pills. Row sits below the top bar,
+          pills aligned RIGHT (under the search/date/user cluster above). */}
       {showPillars && (
         <div className="h-10 px-3 sm:px-4 flex items-center justify-end gap-1 overflow-x-auto custom-scrollbar bg-background border-b border-border">
           {pillars.map((pillar) => {
             const isSelected = activePillar === pillar.id;
+            // LEARN pill navigates to /learn (the academy) — it's a separate
+            // app surface, not an admin sub-section.
             const handleClick = () => {
-              onNavigateSection(pillarDefaultSection[pillar.id]);
+              if (pillar.id === 'LEARN') {
+                window.location.href = '/learn';
+              } else {
+                onNavigateSection(pillarDefaultSection[pillar.id]);
+              }
             };
             return (
               <button
@@ -417,6 +474,79 @@ export const Header: React.FC<HeaderProps> = ({
             );
           })}
         </div>
+      )}
+
+      {/* MAIN SITE navigation drawer — the public site's nav (Home / About /
+          Services / Shop / Book / …), the BOOK APPOINTMENT shortcut, and the
+          salon's real contact facts, in the salon's cream/ink/gold language
+          so it reads as the main site. Rendered for portals that pass
+          showSiteNav (the customer portal — My Account keeps visibility of
+          the main navigation). */}
+      {showSiteNav && (
+        <Sheet open={siteNavOpen} onOpenChange={setSiteNavOpen}>
+          <SheetContent
+            side="left"
+            className="flex w-full flex-col border-r border-gold/30 bg-cream p-0 sm:max-w-[320px]"
+          >
+            <SheetHeader className="border-b border-gold/25 bg-white px-6 pb-4 pt-6 text-left">
+              <SheetTitle className="flex items-center gap-2 font-display text-[15px] tracking-[0.1em] text-ink">
+                <PawPrint className="h-4 w-4 text-gold-deep" aria-hidden="true" />
+                ALL ABOUT PAWZ
+              </SheetTitle>
+              <SheetDescription className="text-[11px] text-ink-soft">
+                The main site — book a groom, shop, and explore.
+              </SheetDescription>
+              <Link
+                href="/book/appointment"
+                onClick={() => setSiteNavOpen(false)}
+                className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-ink px-4 text-[10.5px] font-bold tracking-[0.14em] text-cream transition-colors hover:bg-gold-deep"
+              >
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                BOOK APPOINTMENT
+              </Link>
+            </SheetHeader>
+            <nav aria-label="Main site" className="custom-scrollbar flex-1 overflow-y-auto px-6 py-5">
+              <ul className="space-y-[9px]">
+                {NAV.map((item) => (
+                  <li key={item.to}>
+                    <Link
+                      href={item.to}
+                      onClick={() => setSiteNavOpen(false)}
+                      className="group relative flex items-center gap-3"
+                    >
+                      <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-gold/45 bg-cream text-[9px] font-bold text-gold-deep transition-colors group-hover:border-gold-deep group-hover:bg-gold-deep group-hover:text-cream">
+                        {item.n}
+                      </span>
+                      <span className="text-[10.5px] font-bold tracking-[0.13em] text-ink-soft transition-colors group-hover:text-gold-deep">
+                        {item.label}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 space-y-2.5 border-t border-gold/25 pt-5 text-[10.5px] leading-[1.55] text-ink-soft">
+                <p className="flex gap-2.5">
+                  <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-deep" aria-hidden="true" />
+                  901-722-1114
+                </p>
+                <p className="flex gap-2.5">
+                  <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-deep" aria-hidden="true" />
+                  booking@aapawz.com
+                </p>
+              </div>
+            </nav>
+            <div className="border-t border-gold/25 bg-white px-6 py-4">
+              <Link
+                href="/customer/dashboard"
+                onClick={() => setSiteNavOpen(false)}
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md border border-ink/15 text-[10.5px] font-bold tracking-[0.14em] text-ink-soft transition-colors hover:border-gold-deep/50 hover:text-gold-deep"
+              >
+                <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                BACK TO MY ACCOUNT
+              </Link>
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
     </header>
   );

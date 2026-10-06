@@ -1,26 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { SERVICES_CATALOG } from '@/lib/dawg-mock-data';
 import { Clock, DollarSign, Plus, Search, Tag, Scissors } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const ServicesView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [services, setServices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch('/api/admin/crm/services?limit=200')
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.services) setServices(data.services); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const categories = ['all', ...Array.from(new Set(SERVICES_CATALOG.map((s) => s.category)))];
 
-  const categories = ['all', ...Array.from(new Set(services.map((s) => s.category || s.serviceCategory || 'other').filter(Boolean)))];
-
-  const filtered = services.filter((srv) => {
+  const filtered = SERVICES_CATALOG.filter((srv) => {
     const matchesCategory = selectedCategory === 'all' || srv.category === selectedCategory;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch = !q || srv.name.toLowerCase().includes(q) || srv.description.toLowerCase().includes(q);
@@ -28,12 +19,12 @@ export const ServicesView: React.FC = () => {
   });
 
   const avgPrice =
-    services.length > 0
-      ? (services.reduce((sum, s) => sum + (s.defaultPrice || 0), 0) / services.length).toFixed(2)
+    SERVICES_CATALOG.length > 0
+      ? (SERVICES_CATALOG.reduce((sum, s) => sum + s.price, 0) / SERVICES_CATALOG.length).toFixed(2)
       : '0.00';
   const avgDuration =
-    services.length > 0
-      ? Math.round(services.reduce((sum, s) => sum + (s.defaultDurationMinutes || 0), 0) / services.length)
+    SERVICES_CATALOG.length > 0
+      ? Math.round(SERVICES_CATALOG.reduce((sum, s) => sum + s.durationMinutes, 0) / SERVICES_CATALOG.length)
       : 0;
 
   return (
@@ -46,7 +37,7 @@ export const ServicesView: React.FC = () => {
         </div>
         <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
           <span className="font-medium">
-            Catalog: <span className="text-foreground font-semibold">{services.length}</span>
+            Catalog: <span className="text-foreground font-semibold">{SERVICES_CATALOG.length}</span>
           </span>
           <span className="font-medium">
             Avg Price: <span className="text-primary font-semibold tabular-nums">${avgPrice}</span>
@@ -65,7 +56,7 @@ export const ServicesView: React.FC = () => {
               Services &amp; Pricing Menu
             </h1>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground border border-border">
-              {services.length} Services
+              {SERVICES_CATALOG.length} Services
             </span>
           </div>
           <p className="text-[13px] text-muted-foreground mt-1 max-w-2xl leading-relaxed">
@@ -101,7 +92,7 @@ export const ServicesView: React.FC = () => {
             </div>
           </div>
           <span className="text-[12px] font-medium text-muted-foreground">
-            {filtered.length} of {services.length} services
+            {filtered.length} of {SERVICES_CATALOG.length} services
           </span>
         </div>
 
@@ -148,10 +139,10 @@ export const ServicesView: React.FC = () => {
                   <div className="flex items-start justify-between gap-2 border-b border-border pb-3">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider text-primary border border-primary/20">
                       <Tag className="size-3" />
-                      {srv.category || srv.serviceCategory || 'Service'}
+                      {srv.category}
                     </span>
                     <span className="text-xl font-display font-semibold tabular-nums text-foreground">
-                      ${(srv.defaultPrice || 0).toFixed(2)}
+                      ${srv.price.toFixed(2)}
                     </span>
                   </div>
                   <h3 className="font-display font-semibold text-foreground text-[15px] tracking-tight">{srv.name}</h3>
@@ -161,7 +152,7 @@ export const ServicesView: React.FC = () => {
                 <div className="pt-3 border-t border-border flex items-center justify-between text-[12px]">
                   <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
                     <Clock className="size-3.5" />
-                    <span className="tabular-nums">{srv.defaultDurationMinutes || 0} min</span>
+                    <span className="tabular-nums">{srv.durationMinutes} min</span>
                   </span>
                   <button className="inline-flex items-center gap-1 px-2.5 h-7 rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground text-foreground text-[11px] font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <DollarSign className="size-3.5" />

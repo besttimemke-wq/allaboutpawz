@@ -54,3 +54,34 @@ export async function sessionForPortal(
 
   return { user: resolved };
 }
+
+// ---------------------------------------------------------------------------
+// sessionForSiteFlow — door-free session resolution for PUBLIC SITE flows
+// (the booking wizard, the shop checkout hand-off). Any authenticated
+// identity may resume a public flow — customers, staff, and the owner
+// testing their own salon all book through it. Data stays scoped to the
+// signed-in email/userId, so this grants no cross-account access; it only
+// removes the portal-door bounce that used to lose the user's context
+// mid-flow.
+// ---------------------------------------------------------------------------
+export async function sessionForSiteFlow(): Promise<{
+  user: ReturnType<typeof sessionFromPayload> | null;
+}> {
+  const cookieStore = await cookies();
+  const payload = verifySessionToken(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+
+  if (payload) return { user: sessionFromPayload(payload) };
+
+  if (supabaseConfigured()) {
+    const supabase = await createServerSupabase();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      const resolved = await resolvePortalUser(session.user.id);
+      if (resolved) return { user: resolved };
+    }
+  }
+
+  return { user: null };
+}

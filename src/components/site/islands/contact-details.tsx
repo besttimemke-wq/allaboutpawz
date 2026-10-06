@@ -20,9 +20,9 @@ export function SocialLinks() {
 export function ContactDetails() {
   const { settings: s } = useCmsSettings()
   const details = [
-    { icon: MapPin, label: "VISIT US", lines: [s.addressLine1 || "1428 Maple Grove Avenue", s.addressLine2 || "Suite 4, Riverbend, IL 60614"] },
-    { icon: Phone, label: "CALL US", lines: [s.phone || "901-800-7182"] },
-    { icon: Mail, label: "EMAIL US", lines: [s.email || "help@aapawz.com"] },
+    { icon: MapPin, label: "VISIT US", lines: [s.addressLine1 || "699 Waring Rd", s.addressLine2 || "Memphis, TN 38122"] },
+    { icon: Phone, label: "CALL US", lines: [s.phone || "901-722-1114"] },
+    { icon: Mail, label: "EMAIL US", lines: [s.email || "booking@aapawz.com"] },
     { icon: Clock, label: "HOURS", lines: [`Tuesday – Saturday  ${s.hoursTueSat || "9am – 6pm"}`, `Sunday  ${s.hoursSun || "10am – 4pm"}`, `Monday  ${s.hoursMon || "Closed"}`] },
   ]
   return (

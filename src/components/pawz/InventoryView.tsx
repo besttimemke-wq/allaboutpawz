@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Check, Search, Package, X, ArrowDownCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { INVENTORY_PRODUCTS } from '@/lib/dawg-mock-data';
+import { AlertTriangle, Plus, Check, Search, Package, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type StatusFilter = 'all' | 'instock' | 'lowstock';
@@ -16,56 +17,9 @@ export const InventoryView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  const [items, setItems] = useState<any[]>([]);
-  const [showRestock, setShowRestock] = useState<any | null>(null);
-  const [restockQty, setRestockQty] = useState('10');
-  const [restockReason, setRestockReason] = useState('Restock from supplier');
-  const [restockBusy, setRestockBusy] = useState(false);
-  const [restockMsg, setRestockMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch('/api/admin/products?limit=500').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.products) setItems(d.products); }).catch(() => {});
-  }, []);
-
-  const doRestock = async () => {
-    if (!showRestock || !restockQty) return;
-    setRestockBusy(true); setRestockMsg(null);
-    try {
-      const res = await fetch('/api/admin/pos', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cash_movement',
-          sessionId: showRestock.skuId,
-          type: 'receive',
-          amount: Number(restockQty),
-          reason: restockReason,
-        }),
-      });
-      // If the POS cash_movement doesn't work for inventory, try the admin/products endpoint
-      if (!res.ok) {
-        // Write directly via the admin products API (which writes erp_inventory_movements)
-        await fetch('/api/admin/products', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: showRestock.name,
-            base_price: showRestock.price,
-            inventory_count: Number(restockQty),
-            restock: true,
-          }),
-        });
-      }
-      setRestockMsg(`✓ Added ${restockQty} units to ${showRestock.name}`);
-      // Refresh the list
-      fetch('/api/admin/products?limit=500').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.products) setItems(d.products); });
-      setTimeout(() => { setShowRestock(null); setRestockMsg(null); }, 1500);
-    } catch {
-      setRestockMsg('Failed to restock');
-    } finally { setRestockBusy(false); }
-  };
-
-  const allItems = items.map((item) => {
-    const currentStock = item.stock ?? 0;
-    const minStock = 5;
+  const allItems = INVENTORY_PRODUCTS.map((item) => {
+    const currentStock = item.stock ?? item.inStock ?? 0;
+    const minStock = item.minStock ?? item.reorderPoint ?? 5;
     const isLow = currentStock <= minStock;
     return { ...item, currentStock, minStock, isLow };
   });
@@ -126,7 +80,6 @@ export const InventoryView: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => { if (allItems.length > 0) { setShowRestock(allItems[0]); setRestockQty('10'); } }}
           className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3.5 text-[13px] font-medium shadow-card transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <Plus className="size-4" />
@@ -248,7 +201,6 @@ export const InventoryView: React.FC = () => {
                   <th className="py-3 px-4 border-r border-border font-semibold">Reorder Level</th>
                   <th className="py-3 px-4 border-r border-border font-semibold">Unit Price</th>
                   <th className="py-3 px-4 border-r border-border font-semibold">Status</th>
-                  <th className="py-3 px-4 border-r border-border font-semibold">Bin</th>
                   <th className="py-3 px-4 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -289,9 +241,6 @@ export const InventoryView: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 border-r border-border text-[12px] text-muted-foreground tabular-nums">
-                      A-{String(item.id ?? '').slice(0, 2).toUpperCase()}-{String(item.sku ?? '').slice(0, 3).toUpperCase()}
-                    </td>
                     <td className="py-3.5 px-4 text-right">
                       <button
                         className={cn(
@@ -312,65 +261,6 @@ export const InventoryView: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Restock modal */}
-      {showRestock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90 p-4">
-          <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[16px] font-semibold flex items-center gap-2">
-                <ArrowDownCircle className="size-5 text-primary" /> Restock Item
-              </h3>
-              <button onClick={() => setShowRestock(null)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer">
-                <X className="size-5" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-medium text-foreground mb-1">Item</label>
-                <select
-                  value={showRestock.id}
-                  onChange={(e) => { const found = allItems.find(i => i.id === e.target.value); if (found) setShowRestock(found); }}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-primary"
-                >
-                  {allItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} (current: {item.currentStock} units)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-foreground mb-1">Quantity to Add</label>
-                <input
-                  type="number" min="1" value={restockQty}
-                  onChange={(e) => setRestockQty(e.target.value)}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-[14px] focus:outline-none focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-foreground mb-1">Reason / Reference</label>
-                <input
-                  type="text" value={restockReason}
-                  onChange={(e) => setRestockReason(e.target.value)}
-                  placeholder="e.g. PO-2025-019, supplier delivery"
-                  className="w-full border border-border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-primary"
-                />
-              </div>
-            </div>
-            {restockMsg && <p className="text-[12px] text-center text-success">{restockMsg}</p>}
-            <div className="flex gap-2">
-              <button onClick={() => setShowRestock(null)} className="flex-1 py-2.5 border border-border rounded-lg text-[13px] font-semibold hover:bg-muted cursor-pointer">
-                Cancel
-              </button>
-              <button onClick={doRestock} disabled={restockBusy}
-                className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-[13px] font-semibold hover:opacity-90 disabled:opacity-60 cursor-pointer">
-                {restockBusy ? 'Restocking…' : `Add ${restockQty} Units`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

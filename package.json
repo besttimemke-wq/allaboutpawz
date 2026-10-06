@@ -7,12 +7,10 @@
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
+    "db:push": "prisma db push --accept-data-loss",
+    "db:generate": "prisma generate",
     "dev:stop": "bash -c 'test -f .next/dev-daemon.pid && kill $(cat .next/dev-daemon.pid) 2>/dev/null; sleep 1; true'",
-    "dev:daemon": "bash scripts/dev-daemon.sh",
-    "email-templates:export": "bun run scripts/export-supabase-email-templates.ts",
-    "email-templates:push": "bun run scripts/push-supabase-email-templates.ts",
-    "email-templates:check": "bun run scripts/push-supabase-email-templates.ts --check",
-    "vercel-env:sync": "bun run scripts/vercel-env-sync.ts"
+    "dev:daemon": "bash scripts/dev-daemon.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -28,6 +26,7 @@
     "@mdxeditor/editor": "^3.39.1",
     "@phosphor-icons/react": "^2.1.10",
     "@posthog/react": "^1.11.0",
+    "@prisma/client": "6",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -77,6 +76,7 @@
     "pg": "^8.23.0",
     "posthog-js": "^1.433.7",
     "posthog-node": "^5.52.4",
+    "prisma": "6",
     "react": "^19.0.0",
     "react-day-picker": "^9.8.0",
     "react-dom": "^19.0.0",

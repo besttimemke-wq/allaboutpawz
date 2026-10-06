@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   ArrowLeft, 
   Printer, 
@@ -22,14 +22,6 @@ interface OrderDetailsViewProps {
 export const OrderDetailsView: React.FC<OrderDetailsViewProps> = ({ onNavigateSection }) => {
   const [message, setMessage] = useState('');
   const [sentNotice, setSentNotice] = useState(false);
-
-  useEffect(() => {
-    fetch('/api/admin/orders?limit=50').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.giftCards) { /* wire to state */ }
-      else if (d?.orders) { /* wire to state */ }
-      else if (d?.refunds) { /* wire to state */ }
-    }).catch(() => {});
-  }, []);
 
   const handleSend = () => {
     if (!message.trim()) return;

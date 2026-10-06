@@ -132,8 +132,17 @@ export async function GET(req: NextRequest) {
 
   // "AUTO" = the repo's semantics: the callback resolves the role from the
   // database and routes to that role's dashboard. No door validation.
+  // ?next=/path overrides the destination for flows that must RETURN to
+  // where they started (the booking flow's Google button) — the callback
+  // still runs validatePortalAccess for non-AUTO destinations, so the door
+  // decides exactly as the spec requires. Only same-site relative paths.
+  const nextParam = searchParams.get("next");
+  const safeNext =
+    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") && nextParam.length > 1
+      ? nextParam
+      : null;
   const binding = newBrowserBinding();
-  const state = await createOAuthState(portal, "AUTO", redirectUri, returnOrigin, binding.hash);
+  const state = await createOAuthState(portal, safeNext || "AUTO", redirectUri, returnOrigin, binding.hash);
   if (!state) {
     // Cannot start — land on the sign-in page, clean. No message.
     return redirectToPath(PORTALS[portal].door);

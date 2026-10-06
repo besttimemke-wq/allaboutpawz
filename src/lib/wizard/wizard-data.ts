@@ -46,25 +46,13 @@ export async function getWizardData() {
   ])
 
   // Map pricing packages → service cards (price uses mediumPrice as a single representative price).
-  // DEDUPE GUARD: the salon's package list has been double-seeded before
-  // (identical "Bath & Brush" rows on consecutive days — the owner saw every
-  // service twice in the wizard). Keep the first row per normalized name so
-  // a data regression can never render duplicate service cards again.
-  const seen = new Set<string>()
-  const bookableServices = (packages || [])
-    .filter((p) => {
-      const key = String(p.name || "").trim().toLowerCase()
-      if (!key || seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      price: p.mediumPrice || p.smallPrice || "—",
-      durationMinutes: 120,
-      description: p.description || undefined,
-    }))
+  const bookableServices = (packages || []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: p.mediumPrice || p.smallPrice || "—",
+    durationMinutes: 120,
+    description: p.description || undefined,
+  }))
 
   const activeGroomers = (staff || []).filter((g) => g.active !== false && g.name)
 

@@ -41,9 +41,10 @@ import {
 // + /api/customer/addresses.
 //
 // KPIs are computed from the real order history (Total Spent across paid
-// orders, Order count, In-transit count, Latest order status). The Appointments
-// and Pets sections still read the persisted mock store (out of scope for this
-// wiring — those APIs land separately). A friendly empty state shows when no
+// orders, Order count, In-transit count, Latest order status). The
+// Appointments tile reads the REAL booking registry (/api/customer/appointments
+// — Task 35-a) and surfaces the next upcoming visit; the Pets section still
+// reads the persisted mock store. A friendly empty state shows when no
 // orders exist yet; a 401 surfaces a "Sign in" CTA back to /access-customer.
 //
 // Below the existing tiles, the Account Overview card shows the signed-in
@@ -110,6 +111,18 @@ interface CustomerAddress {
   isDefault: boolean;
 }
 
+// Next upcoming appointment — the booking shape /api/customer/appointments
+// returns (Task 35-a). Only the fields this tile renders are declared.
+interface UpcomingAppointment {
+  id: string;
+  signal: 'pending' | 'booked' | 'paid' | 'abandoned' | 'cancelled' | 'completed';
+  signalLabel: string;
+  date: string;
+  time: string;
+  dogName: string;
+  service: string;
+}
+
 type AddressForm = {
   addressType: string;
   firstName: string;
@@ -160,6 +173,34 @@ const fmtDate = (iso: string | null) => {
   });
 };
 
+// Appointment date — "Fri, May 16" style for the next-visit tile.
+const fmtApptDate = (iso: string | null) => {
+  if (!iso) return 'Date pending';
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+// Real booking-signal tones (pending/booked/paid/abandoned/cancelled/completed).
+const apptTone = (signal: string | null | undefined) => {
+  switch (signal) {
+    case 'pending':
+      return 'bg-gold-light/40 text-gold-deep border-gold/40';
+    case 'booked':
+      return 'bg-emerald-50 text-emerald-600 border-emerald-200';
+    case 'paid':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
+    case 'completed':
+      return 'bg-foreground/10 text-foreground border-border';
+    default:
+      return 'bg-muted text-muted-foreground border-border';
+  }
+};
+
 // Carrier-aware tracking URL. USPS gets the canonical TrackConfirm deep link;
 // UPS/FedEx get their public tracking pages; unknown carriers fall back to
 // null (the UI shows the number as plain text).
@@ -203,7 +244,7 @@ const titleCase = (s: string | null | undefined) => {
 };
 
 export default function CustomerDashboardPage() {
-  const { appointments, pets, currentUser } = useAppStore();
+  const { pets, currentUser } = useAppStore();
 
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,6 +281,55 @@ export default function CustomerDashboardPage() {
           setError('Could not load your orders right now.');
           setLoading(false);
         }
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // ---- Next upcoming appointment (real booking registry) ----
+  const [nextAppt, setNextAppt] = useState<UpcomingAppointment | null>(null);
+  const [apptLoading, setApptLoading] = useState(true);
+
+  // ---- Real pets (the salon's own records — same registry the groomers see) ----
+  const [realPets, setRealPets] = useState<{ id: string; name: string; breed: string | null; weightLbs: string | null; size: string | null }[]>([]);
+  const [petsLoading, setPetsLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/customer/pets')
+      .then(async (r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then((d) => {
+        if (!alive) return;
+        setRealPets(Array.isArray(d?.pets) ? d.pets : []);
+        setPetsLoading(false);
+      })
+      .catch(() => {
+        if (alive) setPetsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/customer/appointments')
+      .then(async (r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then((d) => {
+        if (!alive) return;
+        // The API sorts upcoming ascending by date/time — [0] is the next visit.
+        setNextAppt(Array.isArray(d?.upcoming) && d.upcoming[0] ? d.upcoming[0] : null);
+        setApptLoading(false);
+      })
+      .catch(() => {
+        if (alive) setApptLoading(false);
       });
     return () => {
       alive = false;
@@ -468,8 +558,7 @@ export default function CustomerDashboardPage() {
   }).length;
   const recent = orders.slice(0, 3);
 
-  const myAppts = appointments.slice(0, 3);
-  const myPets = pets.slice(0, 3);
+  const myPets = realPets.slice(0, 4);
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 bg-background p-6 md:p-8">
@@ -643,80 +732,101 @@ export default function CustomerDashboardPage() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Upcoming Appointments — mock store (out of scope to rewire) */}
+            {/* Upcoming Appointments — wired to /api/customer/appointments */}
             <div className="bg-card border border-border rounded-xl shadow-card overflow-hidden">
               <div className="bg-muted/40 border-b border-border px-4 py-2.5 flex items-center justify-between">
                 <span className="text-[13px] font-medium text-foreground">Upcoming Appointments</span>
+                <Link
+                  href="/customer/appointments"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground hover:underline"
+                >
+                  View all appointments
+                  <ArrowRight className="size-3" />
+                </Link>
               </div>
               <div className="divide-y divide-border">
-                {myAppts.length === 0 ? (
-                  <div className="p-6 text-[12px] text-muted-foreground">No upcoming appointments.</div>
-                ) : (
-                  myAppts.map((appt) => (
-                    <div
-                      key={appt.id}
-                      className="flex items-center gap-4 p-4 hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="size-10 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-lg">
+                {apptLoading ? (
+                  <div className="p-6 text-[13px] text-muted-foreground">
+                    Loading your next appointment…
+                  </div>
+                ) : !nextAppt ? (
+                  <div className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center">
                         <PawPrint className="size-5" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-foreground">
-                          {appt.petName} — {appt.serviceName}
-                        </p>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium text-foreground">No appointments yet</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {appt.date} · {appt.time}
+                          Your pup deserves a spa day.
                         </p>
                       </div>
-                      <span
-                        className={cn(
-                          'inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase',
-                          appt.status === 'Completed'
-                            ? 'bg-success/10 text-success border-success/20'
-                            : 'bg-muted text-muted-foreground border-border',
-                        )}
-                      >
-                        {appt.status}
-                      </span>
                     </div>
-                  ))
+                    <Link
+                      href="/book/appointment"
+                      className="mt-3 inline-flex items-center gap-2 bg-ink text-white px-3.5 py-2 rounded-lg text-[11px] font-semibold hover:opacity-90 transition-opacity"
+                    >
+                      <Calendar className="size-3.5" />
+                      Book your first appointment
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4 p-4 hover:bg-accent/50 transition-colors">
+                    <div className="size-10 shrink-0 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center">
+                      <Calendar className="size-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium text-foreground">
+                        {nextAppt.dogName} — {nextAppt.service}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {fmtApptDate(nextAppt.date)} · {nextAppt.time}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        'inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase',
+                        apptTone(nextAppt.signal),
+                      )}
+                    >
+                      {nextAppt.signalLabel}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* My Pets — mock store (out of scope to rewire) */}
+            {/* My Pets — the salon's real records (/api/customer/pets) */}
             <div className="bg-card border border-border rounded-xl shadow-card overflow-hidden">
               <div className="bg-muted/40 border-b border-border px-4 py-2.5 flex items-center justify-between">
                 <span className="text-[13px] font-medium text-foreground">My Pets</span>
+                <a href="/customer/pets" className="text-[11px] font-semibold text-primary hover:underline">Manage pets</a>
               </div>
               <div className="divide-y divide-border">
-                {myPets.length === 0 ? (
-                  <div className="p-6 text-[12px] text-muted-foreground">No pets registered yet.</div>
+                {petsLoading ? (
+                  <div className="p-6 text-[12px] text-muted-foreground">Loading your pets…</div>
+                ) : myPets.length === 0 ? (
+                  <div className="p-6 text-[12px] text-muted-foreground">No pets registered yet — add one from My Pets.</div>
                 ) : (
                   myPets.map((pet) => (
                     <div
                       key={pet.id}
                       className="flex items-center gap-4 p-4 hover:bg-accent/50 transition-colors"
                     >
-                      <div className="size-10 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-lg">
-                        {pet.emoji}
+                      <div className="size-10 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center">
+                        <PawPrint className="size-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-medium text-foreground">{pet.name}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {pet.breed} · {pet.age}
+                          {pet.breed || 'Breed on file'}{pet.weightLbs ? ` · ${pet.weightLbs} lbs` : ''}
                         </p>
                       </div>
-                      <span
-                        className={cn(
-                          'inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border',
-                          pet.vaccinationStatus === 'Up to date'
-                            ? 'bg-success/10 text-success border-success/20'
-                            : 'bg-warning/10 text-warning border-warning/20',
-                        )}
-                      >
-                        {pet.vaccinationStatus}
-                      </span>
+                      {pet.size && (
+                        <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-primary/5 text-primary border-primary/20">
+                          {pet.size.charAt(0) + pet.size.slice(1).toLowerCase()}
+                        </span>
+                      )}
                     </div>
                   ))
                 )}

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { repo, type CmsResource, supabaseConfig, supabaseReady, usingSupabase } from "@/lib/repo"
+import { repo, type CmsResource } from "@/lib/repo"
 import { sendBookingConfirmation, sendConsultationRequest } from "@/lib/email"
 import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 import { requireAdminApi } from "@/lib/admin/gate"
-import { withTriggerSelfHeal, friendlyDbError } from "@/lib/db-errors"
 
 const RESOURCES = new Set<CmsResource>([
   "services", "products", "gallery", "packages", "addons", "faqs",
@@ -76,45 +75,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
   const { slug } = await ctx.params
   const [resource] = slug
 
-  // ---- Public image upload (booking-wizard pet photo) --------------------
-  // POST /api/cms/upload (multipart/form-data, field "file") → Supabase
-  // Storage cms-media bucket. The wizard uploads BEFORE the dog row exists,
-  // then links the URL via PATCH /api/dogs/[id]/photo after creation. Same
-  // contract as /api/dogs/[id]/photo: images only, 5 MB cap, public URL back.
-  if (resource === "upload") {
-    if (!supabaseReady || !(await usingSupabase())) {
-      return NextResponse.json({ error: "Upload requires Supabase. Set NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env." }, { status: 503 })
-    }
-    const form = await req.formData().catch(() => null)
-    const file = form?.get("file")
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 })
-    }
-    const MAX = 5 * 1024 * 1024
-    if (file.size > MAX) return NextResponse.json({ error: "Image too large (5 MB max)" }, { status: 413 })
-    if (!/^image\//.test(file.type || "")) return NextResponse.json({ error: "File must be an image" }, { status: 415 })
-
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg"
-    const path = `wizard/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const buf = Buffer.from(await file.arrayBuffer())
-    const upRes = await fetch(`${supabaseConfig.url}/storage/v1/object/cms-media/${path}`, {
-      method: "POST",
-      headers: {
-        apikey: supabaseConfig.key!,
-        Authorization: `Bearer ${supabaseConfig.key}`,
-        "Content-Type": file.type || "image/jpeg",
-        "x-upsert": "true",
-      },
-      body: buf,
-    })
-    if (!upRes.ok) {
-      const t = await upRes.text().catch(() => upRes.statusText)
-      return NextResponse.json({ error: `Upload failed (${upRes.status}): ${t}` }, { status: 502 })
-    }
-    const publicUrl = `${supabaseConfig.url}/storage/v1/object/public/cms-media/${path}`
-    return NextResponse.json({ url: publicUrl, path })
-  }
-
   if (resource === "settings") {
     // Settings writes are admin-only — the public site only reads them via GET.
     const gate = await requireAdminApi()
@@ -141,23 +101,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
   if (writeGate) return writeGate
 
   const body = await req.json()
-
-  // Public-form writes get the self-heal guard + visitor-safe errors. A raw
-  // Postgres payload (the 42804 production incident class) must never reach
-  // a booking customer — the guard drops known-broken triggers and retries;
-  // anything else maps to plain language with a server-side ref code.
-  let rec: any
-  try {
-    rec = await withTriggerSelfHeal(() => repo.create(resource, body))
-  } catch (error: any) {
-    if (PUBLIC_WRITE_RESOURCES.has(resource)) {
-      const what = resource === "dogs" ? "pet's details" : resource === "bookings" || resource === "consultations" ? "request" : "details"
-      const friendly = friendlyDbError(error, what)
-      return NextResponse.json({ error: friendly.error }, { status: 500 })
-    }
-    console.error(`[api/cms POST ${resource}]`, error)
-    return NextResponse.json({ error: error.message || `Failed to save ${resource}` }, { status: 500 })
-  }
+  const rec = await repo.create(resource, body)
 
   // ---- Email notifications (fail-soft) ----
   if (resource === "bookings") {
@@ -200,17 +144,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ slug: strin
   const writeGate = await enforceWriteGate(resource)
   if (writeGate) return writeGate
   const body = await req.json()
-  let rec: any
-  try {
-    rec = await withTriggerSelfHeal(() => repo.update(resource, id, body))
-  } catch (error: any) {
-    if (PUBLIC_WRITE_RESOURCES.has(resource)) {
-      const friendly = friendlyDbError(error, "details")
-      return NextResponse.json({ error: friendly.error }, { status: 500 })
-    }
-    console.error(`[api/cms PUT ${resource}/${id}]`, error)
-    return NextResponse.json({ error: error.message || `Failed to save ${resource}` }, { status: 500 })
-  }
+  const rec = await repo.update(resource, id, body)
   return NextResponse.json(rec)
 }
 

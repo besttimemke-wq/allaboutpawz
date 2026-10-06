@@ -2,13 +2,19 @@
 
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
-  Phone, Mail, Clock, CalendarDays, Facebook, Instagram, Menu, ShoppingBag,
+  Phone, Mail, Clock, CalendarDays, Facebook, Instagram, Menu, ShoppingBag, User,
+  LayoutDashboard, Receipt, RotateCcw, Heart, Repeat, CalendarClock, Gift, Calendar,
+  Stethoscope, GraduationCap, Pill, Building2, ShieldCheck, PawPrint, CreditCard,
+  House, Bell, LifeBuoy, BriefcaseBusiness, LogOut, ChevronRight,
 } from "lucide-react"
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
 import { useCart } from "@/lib/wizard/cart-store"
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from "@/components/ui/sheet"
 
 function TikTok({ className = "" }: { className?: string }) {
   return (
@@ -72,6 +78,265 @@ function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Account button — SIGN IN / HI, {NAME}, at the very top of every page.
+//
+// ONE PERSON, ONE PERSONAL PORTAL. The session cookie is the source of truth
+// (no-store fetch of /api/auth/portal-session), so a returning visitor is
+// recognized the moment they enter an email or connect Google. Clicking the
+// account when signed in OPENS THE CUSTOMER-PORTAL NAVIGATION DRAWER — the
+// full My Account tree — right where they are. It NEVER routes through
+// another sign-in page: the shopper, the learner, the booker, and the staff
+// member who is also a pet parent are all the same person, and this drawer
+// is that person's map. Staff additionally get one AT WORK row → their work
+// console (a deliberate trip, never a hijack). Their work is separate from
+// their pets.
+// ---------------------------------------------------------------------------
+type SessionUser = { name: string; email?: string; role: string; scope: string; membershipRole?: string }
+
+/** Their WORK console (deliberate, separate from their personal portal). */
+function workConsoleFor(u: SessionUser): string | null {
+  const mr = String(u.membershipRole || "").toLowerCase()
+  if (["front_desk", "frontdesk", "reception"].includes(mr)) return "/frontdesk/dashboard"
+  if (u.scope === "admin") return "/admin/dashboard"
+  if (u.scope === "employee") return "/groomer/dashboard"
+  return null
+}
+
+/** The customer-portal tree, verbatim — the same routes the portal sidebar
+ *  renders (components/pawz/Sidebar CUSTOMER_NAV), kept local so the public
+ *  chrome never bundles the portal's store. */
+const ACCOUNT_NAV: { category?: string; items: { label: string; icon: React.ElementType; href: string }[] }[] = [
+  {
+    category: "My Orders",
+    items: [
+      { label: "Order History", icon: Receipt, href: "/customer/orders" },
+      { label: "Buy Again", icon: RotateCcw, href: "/customer/orders/buy-again" },
+      { label: "Wish List", icon: Heart, href: "/customer/orders/wish-list" },
+      { label: "Autoship", icon: Repeat, href: "/customer/orders/autoship" },
+      { label: "Subscriptions", icon: CalendarClock, href: "/customer/orders/subscriptions" },
+      { label: "Perks Dashboard", icon: Gift, href: "/customer/orders/perks" },
+    ],
+  },
+  {
+    category: "My Appointments",
+    items: [
+      { label: "Grooming Appointments", icon: Calendar, href: "/customer/appointments" },
+      { label: "Vet Appointments", icon: Stethoscope, href: "/customer/appointments/vet" },
+    ],
+  },
+  { items: [{ label: "Learn Courses", icon: GraduationCap, href: "/customer/learn" }] },
+  {
+    category: "My Pet Health",
+    items: [
+      { label: "My Prescriptions", icon: Pill, href: "/customer/health/prescriptions" },
+      { label: "My Vet", icon: Building2, href: "/customer/health/my-vet" },
+      { label: "Insurance", icon: ShieldCheck, href: "/customer/health/insurance" },
+    ],
+  },
+  {
+    category: "My Profile",
+    items: [
+      { label: "My Pets", icon: PawPrint, href: "/customer/pets" },
+      { label: "Payment Methods", icon: CreditCard, href: "/customer/profile/payment-methods" },
+      { label: "Address Book", icon: House, href: "/customer/profile/address-book" },
+      { label: "Communication Preferences", icon: Bell, href: "/customer/profile/communication-preferences" },
+    ],
+  },
+  { items: [{ label: "Need Help?", icon: LifeBuoy, href: "/customer/help" }] },
+]
+
+function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }) {
+  const [user, setUser] = useState<SessionUser | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    let alive = true
+    fetch("/api/auth/portal-session", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive) {
+          setUser(d && d.user ? d.user : null)
+          setLoaded(true)
+        }
+      })
+      .catch(() => {
+        if (alive) setLoaded(true)
+      })
+    const onSessionChange = () => {
+      fetch("/api/auth/portal-session", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => alive && setUser(d && d.user ? d.user : null))
+        .catch(() => {})
+    }
+    window.addEventListener("pawz:session-changed", onSessionChange)
+    return () => {
+      alive = false
+      window.removeEventListener("pawz:session-changed", onSessionChange)
+    }
+  }, [])
+
+  const firstName = (user?.name || "").trim().split(/\s+/)[0] || "there"
+  const workConsole = user ? workConsoleFor(user) : null
+
+  // One sign-out behavior everywhere: clear the session server-side, tell
+  // every mounted listener, land on home.
+  const signOut = async () => {
+    setSigningOut(true)
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch {}
+    setUser(null)
+    setOpen(false)
+    window.dispatchEvent(new Event("pawz:session-changed"))
+    router.replace("/")
+    router.refresh()
+  }
+
+  const icon = (
+    <span className="relative flex h-7 w-7 items-center justify-center">
+      <User className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+    </span>
+  )
+
+  // Signed out — the only case that goes to the sign-in flow.
+  if (loaded && !user) {
+    return (
+      <Link
+        href="/access-customer"
+        aria-label="Sign in to your account"
+        className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-gold-deep"
+      >
+        {icon}
+        {variant === "label" ? "SIGN IN" : null}
+      </Link>
+    )
+  }
+
+  const trigger =
+    variant === "icon" ? (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Hi ${firstName} — open your account menu`}
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-gold-deep"
+      >
+        <User className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Hi ${firstName} — open your account menu`}
+        aria-haspopup="dialog"
+        className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-gold-deep"
+      >
+        {icon}
+        {loaded && user ? `HI, ${firstName.toUpperCase()}` : "ACCOUNT"}
+      </button>
+    )
+
+  return (
+    <>
+      {trigger}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          side="right"
+          className="flex w-full flex-col border-l border-gold/30 bg-cream p-0 sm:max-w-[360px]"
+        >
+          <SheetHeader className="border-b border-gold/25 bg-white px-6 pb-4 pt-6 text-left">
+            <SheetTitle className="font-display text-[15px] tracking-[0.1em] text-ink">
+              HI, {firstName.toUpperCase()}
+            </SheetTitle>
+            <SheetDescription className="truncate text-[11px] text-ink-soft">
+              {user?.email || "Your account"}
+            </SheetDescription>
+            <Link
+              href="/customer/dashboard"
+              onClick={() => setOpen(false)}
+              className="mt-3 flex min-h-[44px] w-full items-center justify-between rounded-md bg-ink px-4 text-[10.5px] font-bold tracking-[0.14em] text-cream transition-colors hover:bg-gold-deep"
+            >
+              <span className="flex items-center gap-2.5">
+                <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                GO TO MY ACCOUNT
+              </span>
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </SheetHeader>
+
+          {/* The full My Account tree — same routes as the portal sidebar.
+              Scrollable: the drawer is a map, never a wall. */}
+          <nav
+            aria-label="Your account"
+            className="custom-scrollbar flex-1 overflow-y-auto px-6 py-5"
+          >
+            {ACCOUNT_NAV.map((block, bi) => (
+              <div key={bi} className={bi > 0 ? "mt-5" : ""}>
+                {block.category && (
+                  <p className="mb-1.5 text-[9.5px] font-bold uppercase tracking-[0.16em] text-neutral-400">
+                    {block.category}
+                  </p>
+                )}
+                <ul>
+                  {block.items.map((item) => (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className="group flex min-h-[40px] items-center gap-3 rounded-md px-2 text-[11.5px] font-semibold text-ink-soft transition-colors hover:bg-white hover:text-gold-deep"
+                      >
+                        <item.icon className="h-4 w-4 shrink-0 text-gold-deep" strokeWidth={1.8} aria-hidden="true" />
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            {/* STAFF: their work console is a deliberate trip from their
+                personal portal — offered, never forced. */}
+            {workConsole && (
+              <div className="mt-5 border-t border-gold/25 pt-5">
+                <p className="mb-1.5 text-[9.5px] font-bold uppercase tracking-[0.16em] text-neutral-400">
+                  At work
+                </p>
+                <Link
+                  href={workConsole}
+                  onClick={() => setOpen(false)}
+                  className="group flex min-h-[44px] items-center gap-3 rounded-md border border-ink/15 bg-white px-3 text-[11.5px] font-bold text-ink transition-colors hover:border-gold-deep/50"
+                >
+                  <BriefcaseBusiness className="h-4 w-4 shrink-0 text-ink-soft" strokeWidth={1.8} aria-hidden="true" />
+                  <span className="flex-1">Open staff console</span>
+                  <ChevronRight className="h-4 w-4 text-gold-deep" aria-hidden="true" />
+                </Link>
+                <p className="mt-1.5 px-1 text-[10px] leading-snug text-neutral-400">
+                  Your salon tools — separate from your pets and appointments.
+                </p>
+              </div>
+            )}
+          </nav>
+
+          <div className="border-t border-gold/25 bg-white px-6 py-4">
+            <button
+              type="button"
+              onClick={signOut}
+              disabled={signingOut}
+              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md border border-ink/15 text-[10.5px] font-bold tracking-[0.14em] text-ink-soft transition-colors hover:border-gold-deep/50 hover:text-gold-deep disabled:opacity-60"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              {signingOut ? "SIGNING OUT…" : "SIGN OUT"}
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
+  )
+}
+
 export function SiteChrome({ children, settings: initialSettings }: { children: ReactNode; settings?: Record<string, string> }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -102,6 +367,7 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           <span className="font-display text-[13px] tracking-[0.14em] text-ink">ALL ABOUT PAWZ</span>
         </Link>
         <div className="flex items-center gap-3">
+          <HeaderAccountLink variant="icon" />
           <HeaderBagLink variant="icon" />
           <button onClick={() => setOpen((o) => !o)} aria-label="Menu">
             <Menu className="h-5 w-5 text-ink" />
@@ -145,8 +411,8 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
 
 function Sidebar({ settings, pathname }: { settings: Record<string, string>; pathname: string }) {
   const s = settings
-  const phone = s.phone || "901-800-7182"
-  const email = s.email || "help@aapawz.com"
+  const phone = s.phone || "901-722-1114"
+  const email = s.email || "booking@aapawz.com"
   return (
     <aside className="marble fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream lg:flex">
       <div className="px-7 pt-8">
@@ -161,6 +427,9 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
           <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
           BOOK APPOINTMENT
         </Link>
+      </div>
+      <div className="px-7 pt-3">
+        <HeaderAccountLink />
       </div>
       <nav className="relative px-7 py-6">
         <span className="absolute bottom-9 left-[42px] top-9 w-px bg-gold/25" />
@@ -216,8 +485,9 @@ export function PageHeader({ n, label }: { n: string; label: string }) {
     <div className="flex items-center gap-3 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">{n}</span>
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
-      {/* Bag — always visible at the top-right of every page */}
-      <span className="ml-auto">
+      {/* Account + bag — always visible at the top-right of every page */}
+      <span className="ml-auto flex items-center gap-5">
+        <HeaderAccountLink />
         <HeaderBagLink />
       </span>
     </div>
@@ -229,7 +499,8 @@ export function PageHeader({ n, label }: { n: string; label: string }) {
 // desktop. Mobile already has the sticky mobile bar with the bag icon.
 export function TopUtilityBar() {
   return (
-    <div className="hidden items-center justify-end border-b border-gold/25 bg-cream px-8 py-2.5 lg:flex">
+    <div className="hidden items-center justify-end gap-5 border-b border-gold/25 bg-cream px-8 py-2.5 lg:flex">
+      <HeaderAccountLink />
       <HeaderBagLink />
     </div>
   )
@@ -242,7 +513,10 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
     ["BOOK", "/book"], ["CONTACT", "/contact"],
   ]
   return (
-    <footer className="bg-ink px-8 py-8 lg:px-12">
+    // lg:ml-[232px] — the footer band starts right of the fixed left rail,
+    // so the rail never paints over the footer (it used to run overboard
+    // into the footer's left edge on every long page).
+    <footer className="bg-ink px-8 py-8 lg:ml-[232px] lg:px-12">
       {/* Logo sits to the LEFT of the nav row — the footer stays one thin
           band; the legal row runs below it under a hairline. */}
       <div className="mx-auto max-w-5xl">

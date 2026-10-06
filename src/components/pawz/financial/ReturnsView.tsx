@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   RotateCcw, 
   Search, 
@@ -23,14 +23,6 @@ interface ReturnsViewProps {
 export const ReturnsView: React.FC<ReturnsViewProps> = ({ onNavigateSection }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'action' | 'transit' | 'completed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    fetch('/api/admin/refunds?limit=50').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.giftCards) { /* wire to state */ }
-      else if (d?.orders) { /* wire to state */ }
-      else if (d?.refunds) { /* wire to state */ }
-    }).catch(() => {});
-  }, []);
 
   const rmas = [
     {

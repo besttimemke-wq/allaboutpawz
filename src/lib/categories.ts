@@ -20,6 +20,10 @@ export type CategoryNode = {
   parentId: number | null
   productCount: number
   children: CategoryNode[]
+  /** Canonical customer-facing route (e.g. /shop/dog/grooming) — joined
+   *  server-side from the presentation nav tree by the categories API.
+   *  Optional: absent when the join isn't run (fixtures, older callers). */
+  navPath?: string | null
   /** New mega-menu fields (migration 0013). Optional so older callers (and
    *  fixtures with no data) keep type-checking. */
   heroImage?: string | null

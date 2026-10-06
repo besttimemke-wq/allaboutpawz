@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { DawgNavSection, LocationItem } from '@/lib/types';
 import {
   PawPrint,
@@ -8,6 +10,7 @@ import {
   Users,
   Calendar,
   CreditCard,
+  Repeat,
   FileText,
   Coins,
   RotateCcw,
@@ -18,7 +21,6 @@ import {
   BarChart3,
   Settings,
   ChevronDown,
-  Plus,
   X,
   Receipt,
   FileSearch,
@@ -29,25 +31,25 @@ import {
   BookOpen,
   Scale,
   CalendarRange,
-  ShoppingBag,
   MessageSquare,
   Scissors,
   ClipboardCheck,
   Phone,
-  PhoneCall,
   GraduationCap,
   Library,
   PlayCircle,
   Award,
   FolderOpen,
   UserCheck,
-  Sparkles,
-  TrendingUp,
-  HeartHandshake,
-  ArrowRightLeft,
-  Bot,
-  Bell,
+  Heart,
+  Stethoscope,
+  Pill,
+  Building2,
   ShieldCheck,
+  House,
+  Bell,
+  LifeBuoy,
+  LogOut,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -67,8 +69,13 @@ import { cn } from '@/lib/utils';
 //
 //   admin      — the full OS: CRM / ORDERS / ACCOUNTING (the only place these
 //                sections belong — groomers and customers never see them)
-//   customer   — PET PARENT: dashboard, appointments, my pets, my orders,
-//                billing, messages
+//   customer   — PET PARENT: the owner's exact My Account tree (My Orders /
+//                My Appointments / Learn Courses / My Pet Health / My Profile /
+//                Need Help? / Sign Out). Route-driven: every item is a <Link>,
+//                active state comes from usePathname — NOT the section store —
+//                so direct visits, back/forward and in-page links all highlight
+//                correctly. Admin/groomer/frontdesk keep the section-id store
+//                mechanism unchanged.
 //   groomer    — GROOMER STATION: station dashboard, assigned appointments,
 //                shifts, handling notes, style records
 //   frontdesk  — FRONT DESK: desk dashboard, check-in, today's appointments,
@@ -91,6 +98,9 @@ interface SidebarProps {
   onToggleCollapse?: () => void;
   /** Which door's sidebar to render. Defaults to 'admin' for backward compat. */
   variant?: SidebarVariant;
+  /** Customer variant only: fires the pinned Sign Out button (POST logout,
+   * then redirect). Other variants ignore it. */
+  onSignOut?: () => void;
 }
 
 interface NavGroup {
@@ -107,7 +117,9 @@ interface NavGroup {
 interface VariantConfig {
   /** Brand subtitle shown under "All About Pawz" in the sidebar header. */
   subtitle: string;
-  groups: NavGroup[];
+  /** Section-id nav groups (admin/groomer/frontdesk/lms). The customer
+   * variant navigates by route instead — see CUSTOMER_NAV below. */
+  groups?: NavGroup[];
 }
 
 const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
@@ -136,11 +148,9 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
           { id: 'orders', label: 'Orders & POS', icon: Receipt },
           { id: 'order-details', label: 'Order Details', icon: FileSearch },
           { id: 'inventory', label: 'Products & Inventory', icon: Package },
-          { id: 'fulfillment', label: 'Fulfillment Queue', icon: Package },
           { id: 'shipping', label: 'Shipping Station', icon: Truck },
           { id: 'returns', label: 'Returns & RMA', icon: ArrowDownLeft },
           { id: 'purchase-orders', label: 'Purchase Orders', icon: Inbox },
-          { id: 'vendors', label: 'Vendors', icon: Inbox },
         ],
       },
       {
@@ -161,43 +171,20 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
         ],
       },
       {
-        category: 'LMS ACADEMY',
-        categoryDefaultSection: 'lms-dashboard',
+        category: 'POS',
+        categoryDefaultSection: 'pos',
         items: [
-          { id: 'lms-dashboard', label: 'Academy Overview', icon: LayoutGrid },
-          { id: 'lms-curriculum', label: 'Curriculum Authoring', icon: BookOpen },
-          { id: 'lms-media', label: 'Media & Content', icon: FolderOpen },
-          { id: 'lms-enrollment', label: 'Enrollment & Cohorts', icon: Users },
-          { id: 'lms-ai-teaching', label: 'AI Teaching', icon: Sparkles },
-          { id: 'lms-progress', label: 'Progress & Clock Hours', icon: TrendingUp },
-          { id: 'lms-assessment', label: 'Assessment & Grading', icon: ClipboardCheck },
-          { id: 'lms-skills', label: 'Skills & Credentials', icon: Award },
-          { id: 'lms-support', label: 'Whole-Human Support', icon: HeartHandshake },
-          { id: 'lms-communication', label: 'Announcements', icon: Bell },
-          { id: 'lms-compliance', label: 'Compliance & Reporting', icon: ShieldCheck },
-          { id: 'lms-bridge', label: 'Platform Bridge', icon: ArrowRightLeft },
-          { id: 'lms-ai-instructor', label: 'AI Instructor Config', icon: Bot },
+          { id: 'pos', label: 'Cloud Register', icon: CreditCard },
+          { id: 'subscriptions', label: 'Subscriptions', icon: Repeat },
         ],
       },
     ],
   },
 
   customer: {
+    // The customer rail is the owner's exact My Account tree, rendered as
+    // <Link> rows (route-driven) — see CUSTOMER_NAV. No section-id groups.
     subtitle: 'Pet Parent Portal',
-    groups: [
-      {
-        category: 'PET PARENT',
-        categoryDefaultSection: 'dashboard',
-        items: [
-          { id: 'dashboard', label: 'Parent Dashboard', icon: LayoutGrid },
-          { id: 'appointments', label: 'Appointments', icon: Calendar },
-          { id: 'pets', label: 'My Pets', icon: PawPrint },
-          { id: 'orders', label: 'My Orders', icon: ShoppingBag },
-          { id: 'invoices', label: 'Billing & Invoices', icon: FileText },
-          { id: 'messages', label: 'Messages', icon: MessageSquare },
-        ],
-      },
-    ],
   },
 
   groomer: {
@@ -256,6 +243,72 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
   },
 };
 
+// ----------------------------------------------------------------------------
+// CUSTOMER_NAV — the owner's exact My Account menu tree (verbatim, in order).
+// Enterprise pattern: group headers as muted uppercase labels (never
+// collapsible — children always visible), children as indented rows with
+// icons, standalone items (Learn Courses, Need Help?) as top-level rows.
+// Every row navigates by ROUTE (next/link); the active row is derived from
+// usePathname, so the rail is correct on direct visits, back/forward, and
+// in-page links alike — not just on sidebar clicks.
+// ----------------------------------------------------------------------------
+
+interface CustomerNavItem {
+  label: string;
+  icon: React.ElementType;
+  href: string;
+}
+
+interface CustomerNavBlock {
+  /** Muted uppercase group header. Omitted for standalone top-level items. */
+  category?: string;
+  items: CustomerNavItem[];
+}
+
+const CUSTOMER_NAV: CustomerNavBlock[] = [
+  {
+    category: 'My Orders',
+    items: [
+      { label: 'Order History', icon: Receipt, href: '/customer/orders' },
+      { label: 'Buy Again', icon: RotateCcw, href: '/customer/orders/buy-again' },
+      { label: 'Wish List', icon: Heart, href: '/customer/orders/wish-list' },
+      { label: 'Autoship', icon: Repeat, href: '/customer/orders/autoship' },
+      { label: 'Subscriptions', icon: CalendarClock, href: '/customer/orders/subscriptions' },
+      { label: 'Perks Dashboard', icon: Gift, href: '/customer/orders/perks' },
+    ],
+  },
+  {
+    category: 'My Appointments',
+    items: [
+      { label: 'Grooming Appointments', icon: Calendar, href: '/customer/appointments' },
+      { label: 'Vet Appointments', icon: Stethoscope, href: '/customer/appointments/vet' },
+    ],
+  },
+  {
+    items: [{ label: 'Learn Courses', icon: GraduationCap, href: '/customer/learn' }],
+  },
+  {
+    category: 'My Pet Health',
+    items: [
+      { label: 'My Prescriptions', icon: Pill, href: '/customer/health/prescriptions' },
+      { label: 'My Vet', icon: Building2, href: '/customer/health/my-vet' },
+      { label: 'Insurance', icon: ShieldCheck, href: '/customer/health/insurance' },
+    ],
+  },
+  {
+    category: 'My Profile',
+    items: [
+      { label: 'My Pets', icon: PawPrint, href: '/customer/pets' },
+      { label: 'Payment Methods', icon: CreditCard, href: '/customer/profile/payment-methods' },
+      { label: 'Address Book', icon: House, href: '/customer/profile/address-book' },
+      { label: 'Communication Preferences', icon: Bell, href: '/customer/profile/communication-preferences' },
+    ],
+  },
+  {
+    items: [{ label: 'Need Help?', icon: LifeBuoy, href: '/customer/help' }],
+  },
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({
   activeSection,
   onSelectSection,
@@ -267,8 +320,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed = false,
   onToggleCollapse,
   variant = 'admin',
+  onSignOut,
 }) => {
+  const pathname = usePathname();
   const [showLocationMenu, setShowLocationMenu] = React.useState(false);
+  // Collapsible category state — each parent (CRM / ORDERS / ACCOUNTING / …)
+  // can be expanded/collapsed so the sidebar never runs off the bottom.
+  // Default: all expanded. When collapsed, only the header shows.
+  const [collapsedCategories, setCollapsedCategories] = React.useState<Set<string>>(new Set());
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
 
   const fallbackLocations = [
     'All About Pawz – Main Location',
@@ -282,12 +350,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
       : fallbackLocations;
 
   const config = VARIANT_CONFIG[variant];
-  const navGroups = config.groups;
+  const navGroups = config.groups ?? [];
 
   const navButtonClass = (isActive: boolean) =>
     cn(
       'group/item relative w-full flex items-center rounded-md text-[13px] leading-none transition-colors duration-150 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar',
       isCollapsed ? 'justify-center p-2.5' : 'gap-2.5 px-3 py-2',
+      isActive
+        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+        : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+    );
+
+  // Customer rows are <Link>s — same visual language as navButtonClass, with
+  // an extra indent for children under a group header (the enterprise
+  // parent/child pattern: header label + indented child rows).
+  const customerLinkClass = (isActive: boolean, isChild: boolean) =>
+    cn(
+      'group/item relative flex w-full items-center rounded-md text-[13px] leading-none transition-colors duration-150 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar',
+      isCollapsed ? 'justify-center p-2.5' : 'gap-2.5 px-3 py-2',
+      !isCollapsed && isChild && 'pl-9',
       isActive
         ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
         : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
@@ -344,30 +425,98 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* Navigation Groups List — only the current variant's groups.
-              This is the actual fix: customer and groomer never see CRM /
-              ORDERS / ACCOUNTING nav. */}
-          <nav className="custom-scrollbar flex-1 overflow-y-hidden py-2 text-sidebar-foreground">
-            {navGroups.map((group, gIdx) => (
+          {/* Navigation — variant decides the mechanism.
+              customer: the owner's exact My Account tree as ROUTE <Link>s
+              (active state from usePathname; group headers are labels,
+              children always visible and indented).
+              admin/groomer/frontdesk/lms: the section-id groups exactly as
+              before — collapsible categories, store-driven active state. */}
+          <nav className="custom-scrollbar flex-1 overflow-y-auto py-2 text-sidebar-foreground">
+            {variant === 'customer'
+              ? CUSTOMER_NAV.map((block, bIdx) => {
+                  const isChild = Boolean(block.category);
+                  return (
+                    <div key={bIdx} className="space-y-0.5">
+                      {block.category && !isCollapsed && (
+                        <div className="px-3 pt-3 pb-1">
+                          <p className="font-bar text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/50">
+                            {block.category}
+                          </p>
+                        </div>
+                      )}
+                      {isCollapsed && bIdx > 0 && (
+                        <div className="divider-hair mx-3 my-2 h-px" />
+                      )}
+                      <ul className="space-y-0.5 px-2">
+                        {block.items.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = pathname === item.href;
+
+                          const link = (
+                            <Link
+                              href={item.href}
+                              onClick={onCloseMobile}
+                              aria-current={isActive ? 'page' : undefined}
+                              className={customerLinkClass(isActive, isChild)}
+                            >
+                              <Icon
+                                className={cn(
+                                  'h-4 w-4 shrink-0 transition-colors duration-150',
+                                  isActive
+                                    ? 'text-sidebar-accent-foreground'
+                                    : 'text-sidebar-foreground/70 group-hover/item:text-sidebar-accent-foreground'
+                                )}
+                              />
+                              {!isCollapsed && (
+                                <span className="truncate">{item.label}</span>
+                              )}
+                            </Link>
+                          );
+
+                          return (
+                            <li key={item.href} className="relative">
+                              {isCollapsed ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>{link}</TooltipTrigger>
+                                  <TooltipContent side="right" sideOffset={8}>
+                                    {item.label}
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                link
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })
+              : navGroups.map((group, gIdx) => {
+              const isCatCollapsed = group.category ? collapsedCategories.has(group.category) : false;
+              return (
               <div key={gIdx} className="space-y-0.5">
                 {group.category && !isCollapsed && (
                   <div className="px-3 pt-3 pb-1">
                     <button
-                      onClick={() => {
-                        if (group.categoryDefaultSection) {
-                          onSelectSection(group.categoryDefaultSection);
-                          onCloseMobile();
-                        }
-                      }}
-                      className="font-bar text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground/80 cursor-pointer text-left"
+                      onClick={() => toggleCategory(group.category!)}
+                      className="flex w-full items-center justify-between font-bar text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground/80 cursor-pointer text-left"
                     >
-                      {group.category}
+                      <span>{group.category}</span>
+                      <ChevronDown
+                        className={cn(
+                          'h-3 w-3 transition-transform duration-200 text-sidebar-foreground/40',
+                          isCatCollapsed && '-rotate-90',
+                        )}
+                        strokeWidth={2.5}
+                      />
                     </button>
                   </div>
                 )}
                 {isCollapsed && gIdx > 0 && (
                   <div className="divider-hair mx-3 my-2 h-px" />
                 )}
+                {!isCatCollapsed && (
                 <ul className="space-y-0.5 px-2">
                   {group.items.map((item) => {
                     const Icon = item.icon;
@@ -416,9 +565,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     );
                   })}
                 </ul>
+                )}
               </div>
-            ))}
+              );
+            })}
           </nav>
+
+          {/* Customer variant only: Sign Out pinned at the bottom of the
+              rail (the drawer pattern the owner specified). Fires the
+              layout's sign-out handler — POST /api/auth/logout, clear the
+              store, redirect home. */}
+          {variant === 'customer' && onSignOut && (
+            <div className="flex-shrink-0 border-t border-sidebar-border px-2 py-2.5">
+              {isCollapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={onSignOut}
+                      aria-label="Sign Out"
+                      className={navButtonClass(false)}
+                    >
+                      <LogOut className="h-4 w-4 shrink-0 text-sidebar-foreground/70" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={8}>
+                    Sign Out
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className={navButtonClass(false)}
+                >
+                  <LogOut className="h-4 w-4 shrink-0 text-sidebar-foreground/70 group-hover/item:text-sidebar-accent-foreground" />
+                  <span>Sign Out</span>
+                </button>
+              )}
+            </div>
+          )}
         </aside>
       </TooltipProvider>
     </>

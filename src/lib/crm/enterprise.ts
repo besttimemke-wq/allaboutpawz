@@ -144,30 +144,13 @@ export async function ensureCrmCustomer(
   }
   const first = (opts.firstName || email.split("@")[0] || "").trim()
   const last = (opts.lastName || "").trim()
-  try {
-    const created = await client.query(
-      `INSERT INTO public.crm_customers (tenant_id, first_name, last_name, email, phone, source_customer_id, lifecycle_stage)
-       VALUES ($1, $2, $3, lower($4), $5, $6, 'new_customer')
-       RETURNING id::text`,
-      [tenant, first, last, email, (opts.phone || "").trim() || null, opts.appCustomerId || null],
-    )
-    return created.rows[0].id
-  } catch (e: any) {
-    // PRODUCTION GUARD (2026-10 booking incident): a live-side trigger on
-    // crm_customers (0013 identity-sync, 42804 text→uuid) must NEVER block
-    // the booking/enrollment golden path. Statement-level atomicity means a
-    // failed INSERT leaves no row; re-select covers a concurrent creator,
-    // otherwise degrade to null (callers treat null as "no registry row" and
-    // the salon-side booking still saves; the registry back-fills next touch).
-    console.error("[ensureCrmCustomer] insert failed (trigger?):", e.message)
-    const retry = await client
-      .query(
-        `SELECT id::text FROM public.crm_customers WHERE tenant_id = $1 AND lower(email) = lower($2) LIMIT 1`,
-        [tenant, email],
-      )
-      .catch(() => null)
-    return retry?.rows?.[0]?.id ?? null
-  }
+  const created = await client.query(
+    `INSERT INTO public.crm_customers (tenant_id, first_name, last_name, email, phone, source_customer_id, lifecycle_stage)
+     VALUES ($1, $2, $3, lower($4), $5, $6, 'new_customer')
+     RETURNING id::text`,
+    [tenant, first, last, email, (opts.phone || "").trim() || null, opts.appCustomerId || null],
+  )
+  return created.rows[0].id
 }
 
 // crm_pets.sex CHECK: male | female | unknown (lowercase only).
@@ -191,8 +174,6 @@ export async function ensureCrmPet(
     appDogId?: string | null
     sex?: string | null
     color?: string | null
-    weightLbs?: number | null
-    dateOfBirth?: string | null
   },
 ): Promise<string | null> {
   const name = String(opts.name || "").trim()
@@ -215,28 +196,12 @@ export async function ensureCrmPet(
   }
   if (!id) {
     const created = await client.query(
-      `INSERT INTO public.crm_pets (tenant_id, primary_customer_id, source_pet_id, name, species, breed, sex, color, weight, weight_unit, date_of_birth)
-       VALUES ($1, $2::uuid, $3, $4, 'dog', $5, $6, $7, $8, 'lbs', $9)
+      `INSERT INTO public.crm_pets (tenant_id, primary_customer_id, source_pet_id, name, species, breed, sex, color)
+       VALUES ($1, $2::uuid, $3, $4, 'dog', $5, $6, $7)
        RETURNING id::text`,
-      [tenant, opts.crmCustomerId, opts.appDogId || null, name, opts.breed || null, normalizePetSex(opts.sex), opts.color || null,
-       opts.weightLbs ?? null, opts.dateOfBirth || null],
+      [tenant, opts.crmCustomerId, opts.appDogId || null, name, opts.breed || null, normalizePetSex(opts.sex), opts.color || null],
     )
     id = created.rows[0].id
-  } else {
-    // Backfill — the wizard's dog data (sex/color/weight/dob) is richer than
-    // what early syncs wrote; fill only columns that are still NULL so an
-    // admin-entered value is never overwritten by a website re-booking.
-    await client.query(
-      `UPDATE public.crm_pets SET
-         breed = COALESCE(breed, NULLIF($2, '')),
-         sex = COALESCE(sex, $3),
-         color = COALESCE(color, $4),
-         weight = COALESCE(weight, $5),
-         date_of_birth = COALESCE(date_of_birth, $6::date),
-         updated_at = now()
-       WHERE id = $1::uuid`,
-      [id, opts.breed || "", normalizePetSex(opts.sex), opts.color || null, opts.weightLbs ?? null, opts.dateOfBirth || null],
-    ).catch(() => {/* best-effort enrichment */})
   }
   await client.query(
     `INSERT INTO public.crm_customer_pets (tenant_id, customer_id, pet_id, relationship, is_primary)
@@ -342,69 +307,16 @@ export async function syncCrmAppointment(booking: any): Promise<AppointmentSyncR
     })
     if (!crmCustomerId) return null
 
-    // 2. The pet — enriched from the app dogs row (sex/color/weight/dob were
-    //    collected by the wizard but previously dropped at this boundary).
+    // 2. The pet.
     let crmPetId: string | null = null
     const dogName = String(booking.dogName || "").trim()
-    let appDog: any = null
-    if (booking.dogId) {
-      const d = await client.query(`SELECT sex, color, "weightLbs", "birthDate" FROM public.dogs WHERE id = $1 LIMIT 1`, [String(booking.dogId)]).catch(() => ({ rows: [] }))
-      appDog = d.rows[0] || null
-    }
     if (dogName) {
       crmPetId = await ensureCrmPet(client, {
         name: dogName,
         breed: booking.breed || null,
         crmCustomerId,
         appDogId: booking.dogId || null,
-        sex: appDog?.sex || null,
-        color: appDog?.color || null,
-        weightLbs: appDog?.weightLbs ?? null,
-        dateOfBirth: appDog?.birthDate || null,
       })
-    }
-
-    // 2b. Preferred groomer — bookings.groomerId is a staff id; map it to the
-    //     crm_staff registry row (find-or-create, by user_id then email). The
-    //     registry is populated from the salon staff the first time a customer
-    //     books them — same pattern ensureCrmService uses for the catalog.
-    //     Best-effort: a groomer with neither userId nor email stays
-    //     unassigned for the scheduler, exactly as before.
-    let crmGroomerId: string | null = null
-    const groomerId = String(booking.groomerId || "").trim()
-    if (groomerId) {
-      const staff = await client.query(
-        `SELECT name, email, "userId" FROM public.staff WHERE id = $1 LIMIT 1`,
-        [groomerId],
-      ).catch(() => ({ rows: [] as any[] }))
-      const staffRow = staff.rows[0] || null
-      if (staffRow) {
-        let groomerRes = { rows: [] as any[] }
-        if (staffRow.userId) {
-          groomerRes = await client.query(
-            `SELECT id::text FROM public.crm_staff WHERE tenant_id = $1 AND user_id = $2::uuid LIMIT 1`,
-            [tenant, staffRow.userId],
-          ).catch(() => ({ rows: [] as any[] }))
-        }
-        if (!groomerRes.rows[0] && staffRow.email) {
-          groomerRes = await client.query(
-            `SELECT id::text FROM public.crm_staff WHERE tenant_id = $1 AND lower(email) = lower($2) LIMIT 1`,
-            [tenant, String(staffRow.email)],
-          ).catch(() => ({ rows: [] as any[] }))
-        }
-        if (!groomerRes.rows[0] && (staffRow.userId || staffRow.email)) {
-          const displayName = String(staffRow.name || staffRow.email || "Groomer").trim()
-          const created = await client.query(
-            `INSERT INTO public.crm_staff (tenant_id, user_id, display_name, first_name, email, role, is_groomer)
-             VALUES ($1, $2::uuid, $3, $4, $5, 'groomer', true)
-             RETURNING id::text`,
-            [tenant, staffRow.userId || null, displayName, displayName.split(" ")[0] || displayName,
-             staffRow.email ? String(staffRow.email).toLowerCase() : null],
-          ).catch(() => ({ rows: [] as any[] }))
-          groomerRes = created
-        }
-        crmGroomerId = groomerRes.rows[0]?.id || null
-      }
     }
 
     // 3. The appointment row.
@@ -430,10 +342,9 @@ export async function syncCrmAppointment(booking: any): Promise<AppointmentSyncR
            deposit_amount = $4,
            total = $5,
            customer_notes = COALESCE(NULLIF($6, ''), customer_notes),
-           assigned_groomer_id = COALESCE($7::uuid, assigned_groomer_id),
            updated_at = now()
          WHERE id = $1`,
-        [crmAppointmentId, startsAt, status, deposit, total, String(booking.notes || "").trim(), crmGroomerId],
+        [crmAppointmentId, startsAt, status, deposit, total, String(booking.notes || "").trim()],
       )
       statusChanged = previousStatus !== status
       if (statusChanged) {
@@ -447,12 +358,12 @@ export async function syncCrmAppointment(booking: any): Promise<AppointmentSyncR
       const created = await client.query(
         `INSERT INTO public.crm_appointments
            (tenant_id, customer_id, source_appointment_id, appointment_number, starts_at, status,
-            deposit_amount, total, currency, source_channel, booking_outcome, customer_notes, assigned_groomer_id)
-         VALUES ($1, $2::uuid, $3, $4, $5, $6, $7, $8, 'USD', $9, 'booked', $10, $11::uuid)
+            deposit_amount, total, currency, source_channel, booking_outcome, customer_notes)
+         VALUES ($1, $2::uuid, $3, $4, $5, $6, $7, $8, 'USD', $9, 'booked', $10)
          RETURNING id::text`,
         [tenant, crmCustomerId, id, appointmentNumber, startsAt, status, deposit, total,
           booking.bookingType === "CONSULTATION" ? "website_consultation" : "website_booking_wizard",
-          String(booking.notes || "").trim() || null, crmGroomerId],
+          String(booking.notes || "").trim() || null],
       )
       crmAppointmentId = created.rows[0].id
       statusChanged = true

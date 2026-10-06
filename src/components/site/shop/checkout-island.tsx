@@ -408,7 +408,7 @@ function StepContact() {
           <input type="email" value={s.email} onChange={(e) => s.patch({ email: e.target.value })} placeholder="jane@email.com" className={inputCls} autoComplete="email" />
         </Field>
         <Field label="PHONE" required>
-          <input type="tel" value={s.phone} onChange={(e) => s.patch({ phone: e.target.value })} placeholder="901-800-7182" className={inputCls} autoComplete="tel" />
+          <input type="tel" value={s.phone} onChange={(e) => s.patch({ phone: e.target.value })} placeholder="901-722-1114" className={inputCls} autoComplete="tel" />
         </Field>
       </div>
     </div>

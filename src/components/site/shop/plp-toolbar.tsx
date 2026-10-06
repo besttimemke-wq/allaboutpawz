@@ -61,7 +61,7 @@ export function PlpToolbar({
           type="button"
           onClick={() => setDrawerOpen(true)}
           aria-expanded={drawerOpen}
-          className="inline-flex min-h-[44px] items-center gap-2 border border-ink/15 bg-white px-4 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-gold-deep hover:text-gold-deep lg:hidden"
+          className="inline-flex min-h-[44px] items-center gap-2 border border-ink/15 bg-cream px-4 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-gold-deep hover:text-gold-deep lg:hidden"
         >
           <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} />
           FILTERS
@@ -86,7 +86,7 @@ export function PlpToolbar({
             id="plp-sort"
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="min-h-[36px] cursor-pointer border border-ink/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-ink focus:border-gold-deep focus:outline-none"
+            className="min-h-[36px] cursor-pointer border border-ink/15 bg-cream px-3 py-1.5 text-[11px] font-semibold text-ink focus:border-gold-deep focus:outline-none"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -105,7 +105,7 @@ export function PlpToolbar({
             onClick={() => setDrawerOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute inset-y-0 left-0 flex w-[88%] max-w-[340px] flex-col shadow-2xl animate-in slide-in-from-left duration-300">
+          <div className="absolute inset-y-0 left-0 flex w-[88%] max-w-[340px] flex-col border-r border-ink/10 bg-cream-deep/50 shadow-2xl animate-in slide-in-from-left duration-300">
             <ShopSidebar
               key={JSON.stringify(sidebar.applied)}
               data={sidebar}

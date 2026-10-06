@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Package, 
   Search, 
@@ -27,39 +27,56 @@ export const PurchaseOrdersView: React.FC<PurchaseOrdersViewProps> = ({ onNaviga
   const [verifiedCount, setVerifiedCount] = useState(60);
   const totalExpected = 80;
 
-  // LIVE DATA — fetch purchase orders from the API
-  const [livePos, setLivePos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreatePO, setShowCreatePO] = useState(false);
-  const [poVendor, setPoVendor] = useState('');
-  const [poItems, setPoItems] = useState('');
-  const [poQty, setPoQty] = useState('10');
-  const [poCost, setPoCost] = useState('');
-
-  useEffect(() => {
-    fetch('/api/admin/orders')
-      .then((r) => r.ok ? r.json() : { orders: [] })
-      .then((d) => {
-        // Map commerce_orders to PO display shape (until /api/admin/purchase-orders exists)
-        const rows = (d.orders || []).map((o: any) => ({
-          id: o.id?.slice(0, 12).toUpperCase() || 'PO-?',
-          vendor: o.email || '—',
-          items: (o.items || []).map((it: any) => `${it.quantity}× ${it.name}`).join(', ') || '—',
-          delivery: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase() : '—',
-          eta: o.fulfillmentStatus || '—',
-          totalUnits: o.items?.reduce((s: number, it: any) => s + (it.quantity || 0), 0) || 0,
-          checkedUnits: 0,
-          cost: parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')) || 0,
-          terms: o.paymentStatus?.toUpperCase() || 'UNPAID',
-          status: (o.fulfillmentStatus || 'ORDERED').toUpperCase(),
-        }));
-        setLivePos(rows);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  const pos = livePos.length > 0 ? livePos : [];
+  const pos = [
+    {
+      id: 'PO-2025-019',
+      vendor: 'Pawz Botanical Supplies',
+      items: 'Blueberry Facial Wash (60), Oatmeal Conditioner (60)',
+      delivery: 'MAY 15, 2025',
+      eta: 'ETA: TOMORROW BY 14:00',
+      totalUnits: 120,
+      checkedUnits: 0,
+      cost: 1440.00,
+      terms: 'NET 30',
+      status: 'IN TRANSIT',
+    },
+    {
+      id: 'PO-2025-018',
+      vendor: 'ProGroom Tools Ltd',
+      items: 'De-shedding Undercoat Rakes (25), Slicker Pro Brushes (20)',
+      delivery: 'MAY 18, 2025',
+      eta: 'STANDARD FREIGHT',
+      totalUnits: 45,
+      checkedUnits: 0,
+      cost: 890.00,
+      terms: 'PAID (ACH)',
+      status: 'ORDERED',
+    },
+    {
+      id: 'PO-2025-017',
+      vendor: 'BarkBoutique Wholesale',
+      items: 'Organic Calming Lavender Hemp Treats (80 Bags)',
+      delivery: 'MAY 10, 2025',
+      eta: '20 UNITS REMAINING',
+      totalUnits: 80,
+      checkedUnits: verifiedCount,
+      cost: 1090.00,
+      terms: 'NET 15',
+      status: 'PARTIAL',
+    },
+    {
+      id: 'PO-2025-016',
+      vendor: 'Pawz Botanical Supplies',
+      items: 'Hypoallergenic Tearless Puppy Shampoo (200 Units)',
+      delivery: 'MAY 02, 2025',
+      eta: 'DOCKED AT MAIN FACILITY',
+      totalUnits: 200,
+      checkedUnits: 200,
+      cost: 2400.00,
+      terms: 'PAID (CARD)',
+      status: 'RECEIVED',
+    },
+  ];
 
   const handleScanCheckIn = () => {
     setVerifiedCount(prev => Math.min(totalExpected, prev + scannedQty));
@@ -117,7 +134,7 @@ export const PurchaseOrdersView: React.FC<PurchaseOrdersViewProps> = ({ onNaviga
             <span>Export Ledger</span>
           </button>
           <button 
-            onClick={() => setShowCreatePO(true)}
+            onClick={() => alert('Opening Create Purchase Order modal...')}
             className="h-9 px-4 bg-black hover:bg-muted text-white font-semibold text-[13px] uppercase tracking-wider flex items-center gap-1.5 border border-border cursor-pointer transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -364,31 +381,6 @@ export const PurchaseOrdersView: React.FC<PurchaseOrdersViewProps> = ({ onNaviga
           </div>
         </div>
       </div>
-
-      {/* Create PO Modal */}
-      {showCreatePO && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/90 p-4">
-          <div className="w-full max-w-md bg-card rounded-2xl border border-border p-6 space-y-4">
-            <h3 className="text-[16px] font-semibold">Create Purchase Order</h3>
-            <div className="space-y-3">
-              <input type="text" placeholder="Vendor name" value={poVendor} onChange={e => setPoVendor(e.target.value)}
-                className="w-full border border-border rounded-lg px-3 py-2 text-[13px]" />
-              <input type="text" placeholder="Items (e.g. 60x Oatmeal Shampoo)" value={poItems} onChange={e => setPoItems(e.target.value)}
-                className="w-full border border-border rounded-lg px-3 py-2 text-[13px]" />
-              <div className="grid grid-cols-2 gap-3">
-                <input type="number" placeholder="Qty" value={poQty} onChange={e => setPoQty(e.target.value)}
-                  className="border border-border rounded-lg px-3 py-2 text-[13px]" />
-                <input type="number" placeholder="Total cost ($)" value={poCost} onChange={e => setPoCost(e.target.value)}
-                  className="border border-border rounded-lg px-3 py-2 text-[13px]" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setShowCreatePO(false)} className="flex-1 py-2.5 border border-border rounded-lg text-[13px] font-semibold hover:bg-muted cursor-pointer">Cancel</button>
-              <button onClick={() => { setShowCreatePO(false); alert(`PO created for ${poVendor}`); }} className="flex-1 py-2.5 bg-ink text-white rounded-lg text-[13px] font-semibold cursor-pointer">Create PO</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

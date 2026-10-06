@@ -1,29 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Lato, Great_Vibes } from "next/font/google";
 import "./globals.css";
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  style: ["normal", "italic"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const lato = Lato({
-  subsets: ["latin"],
-  weight: ["300", "400", "700", "900"],
-  style: ["normal", "italic"],
-  variable: "--font-body",
-  display: "swap",
-});
-
-const greatVibes = Great_Vibes({
-  subsets: ["latin"],
-  weight: ["400"],
-  variable: "--font-script",
-  display: "swap",
-});
 import { Toaster } from "@/components/ui/toaster";
 import { CONSENT_BOOT_SCRIPT } from "@/components/consent/consent-boot";
 import { ga4ConfigScript, gtmContainerScript } from "@/components/consent/google-tags";
@@ -159,8 +135,14 @@ export default function RootLayout({
             respects the visitor's choice natively. */}
         {GTM_ID ? <script dangerouslySetInnerHTML={{ __html: gtmContainerScript(GTM_ID) }} /> : null}
         <script dangerouslySetInnerHTML={{ __html: DESKTOP_MODE_PHONE_SCRIPT }} />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..800;1,400..600&family=Lato:ital,wght@0,300;0,400;0,700;0,900;1,400&family=Great+Vibes&display=swap"
+        />
       </head>
-      <body className={`${playfair.variable} ${lato.variable} ${greatVibes.variable} antialiased`}>
+      <body className="antialiased">
         {/* Google Tag Manager (noscript) — the standard no-JS fallback from
             the owner's GTM install (GTM-WT35373V), immediately after the
             opening <body> tag exactly as Google's snippet requires. */}

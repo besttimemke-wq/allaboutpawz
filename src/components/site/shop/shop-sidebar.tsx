@@ -122,7 +122,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
   }
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-cream-deep/50">
       {/* ---- Header ---- */}
       <div className="flex items-center justify-between border-b border-ink/10 px-5 py-4">
         <p className="text-[13px] font-bold tracking-[0.14em] text-ink">SHOP</p>
@@ -363,7 +363,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
                           onChange={(e) => setBrandQuery(e.target.value)}
                           placeholder={`Search ${section.label.toLowerCase()}…`}
                           aria-label={`Search ${section.label}`}
-                          className="w-full border border-ink/15 bg-white py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
+                          className="w-full border border-ink/15 bg-cream py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
                         />
                       </div>
                       <ul className="space-y-0.5">
@@ -465,7 +465,7 @@ function PriceInput({
         onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))}
         placeholder={placeholder}
         aria-label={`${label} price in dollars`}
-        className="w-full border border-ink/15 bg-white py-1.5 pl-5 pr-2 text-[11px] text-ink placeholder:font-semibold placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
+        className="w-full border border-ink/15 bg-cream py-1.5 pl-5 pr-2 text-[11px] text-ink placeholder:font-semibold placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
       />
     </label>
   )

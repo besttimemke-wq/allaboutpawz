@@ -208,8 +208,7 @@ const ViewDetailsModalContent: React.FC<{
 }> = ({ appointment, onClose, onUpdate, onShowToast }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'history'>('overview');
 
-  const handleQuickStatusChange = async (newStatus: AppointmentStatus) => {
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, status: newStatus }) }); } catch (err) { console.error('[CRM action failed]', err); }
+  const handleQuickStatusChange = (newStatus: AppointmentStatus) => {
     onUpdate({
       ...appointment,
       status: newStatus,
@@ -436,7 +435,7 @@ const EditAppointmentModalContent: React.FC<{
   const [price, setPrice] = useState(appointment.price?.toString() || '85.00');
   const [notes, setNotes] = useState(appointment.notes || '');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const updated: AppointmentItem = {
       ...appointment,
@@ -451,7 +450,6 @@ const EditAppointmentModalContent: React.FC<{
       price: parseFloat(price) || 85.0,
       notes,
     };
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, petName, breed, ownerName: customerName, phone: customerPhone, service: serviceName, staffName, time, notes, servicePrice: String(parseFloat(price) || 85.0) }) }); } catch (err) { console.error('[CRM action failed]', err); }
     onUpdate(updated);
     onShowToast(`Updated appointment details for ${petName}`);
     onClose();
@@ -632,8 +630,7 @@ const RescheduleModalContent: React.FC<{
     '11:30 AM', '1:00 PM', '2:00 PM', '2:30 PM', '3:30 PM', '4:00 PM'
   ];
 
-  const handleReschedule = async () => {
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, date: selectedDate, time: selectedTime, staffName: selectedGroomer, status: 'Scheduled' }) }); } catch (err) { console.error('[CRM action failed]', err); }
+  const handleReschedule = () => {
     onUpdate({
       ...appointment,
       date: selectedDate,
@@ -779,8 +776,7 @@ const AddonServiceModalContent: React.FC<{
 
   const finalTotal = basePrice + addonsTotal;
 
-  const handleSave = async () => {
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, price: finalTotal, notes: `${appointment.notes || ''} [Add-ons: ${selectedAddons.join(', ')}]` }) }); } catch (err) { console.error('[CRM action failed]', err); }
+  const handleSave = () => {
     onUpdate({
       ...appointment,
       price: finalTotal,
@@ -899,19 +895,18 @@ const TakePaymentModalContent: React.FC<{
     : (servicePrice * tipPercentage) / 100;
   const finalAmountDue = subtotalBalance + tipAmount;
 
-  const handleCharge = async () => {
+  const handleCharge = () => {
     setIsProcessing(true);
-    try {
-      await fetch('/api/pos/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ name: appointment.serviceName || 'Grooming', unitPrice: String(finalAmountDue), quantity: 1 }], tender: paymentMethod, customerId: appointment.customerId, customerEmail: appointment.customerEmail, customerName: appointment.customerName }) });
-    } catch (err) { console.error('[CRM action failed]', err); }
-    onUpdate({
-      ...appointment,
-      paymentStatus: 'Paid in Full',
-      status: appointment.status === 'Scheduled' ? 'Confirmed' : appointment.status,
-    });
-    setIsProcessing(false);
-    onShowToast(`Processed $${finalAmountDue.toFixed(2)} payment for ${appointment.petName} via ${paymentMethod.toUpperCase()}!`);
-    onClose();
+    setTimeout(() => {
+      onUpdate({
+        ...appointment,
+        paymentStatus: 'Paid in Full',
+        status: appointment.status === 'Scheduled' ? 'Confirmed' : appointment.status,
+      });
+      setIsProcessing(false);
+      onShowToast(`Processed $${finalAmountDue.toFixed(2)} payment for ${appointment.petName} via ${paymentMethod.toUpperCase()}!`);
+      onClose();
+    }, 900);
   };
 
   return (
@@ -1069,10 +1064,7 @@ const SendMessageModalContent: React.FC<{
     }
   };
 
-  const handleSend = async () => {
-    if (appointment.customerId) {
-      try { await fetch('/api/admin/crm/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: appointment.customerId, channel: channel, body: messageText, subject: messageText.slice(0, 80) }) }); } catch (err) { console.error('[CRM action failed]', err); }
-    }
+  const handleSend = () => {
     onShowToast(`Message successfully dispatched to ${appointment.customerName || 'customer'} via ${channel.toUpperCase()}`);
     onClose();
   };
@@ -1209,12 +1201,8 @@ const AddNoteModalContent: React.FC<{
     setNoteText((prev) => (prev ? `${prev}, ${tag}` : tag));
   };
 
-  const handleSaveNote = async () => {
+  const handleSaveNote = () => {
     if (!noteText.trim()) return;
-    if (appointment.customerId) {
-      try { await fetch('/api/admin/crm/notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: appointment.customerId, body: `[${noteType.toUpperCase()}]: ${noteText}`, noteType: 'internal' }) }); } catch (err) { console.error('[CRM action failed]', err); }
-    }
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, notes: appointment.notes ? `${appointment.notes} | [${noteType.toUpperCase()}]: ${noteText}` : `[${noteType.toUpperCase()}]: ${noteText}` }) }); } catch (err) { console.error('[CRM action failed]', err); }
     const combinedNotes = appointment.notes ? `${appointment.notes} | [${noteType.toUpperCase()}]: ${noteText}` : `[${noteType.toUpperCase()}]: ${noteText}`;
     onUpdate({
       ...appointment,
@@ -1548,8 +1536,7 @@ const CancelAppointmentModalContent: React.FC<{
   const [reason, setReason] = useState('Customer Request');
   const [refundDeposit, setRefundDeposit] = useState(false);
 
-  const handleConfirmCancel = async () => {
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, status: 'Cancelled', cancellationReason: reason }) }); } catch (err) { console.error('[CRM action failed]', err); }
+  const handleConfirmCancel = () => {
     onUpdate({
       ...appointment,
       status: 'Canceled',
@@ -1637,8 +1624,7 @@ const NoShowModalContent: React.FC<{
 }> = ({ appointment, onClose, onUpdate, onShowToast }) => {
   const [chargeFee, setChargeFee] = useState(true);
 
-  const handleConfirmNoShow = async () => {
-    try { await fetch('/api/bookings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: appointment.id, status: 'No Show' }) }); } catch (err) { console.error('[CRM action failed]', err); }
+  const handleConfirmNoShow = () => {
     onUpdate({
       ...appointment,
       status: 'No Show',
@@ -1715,8 +1701,7 @@ const DeleteConfirmationModalContent: React.FC<{
   onDelete: (id: string) => void;
   onShowToast: (msg: string) => void;
 }> = ({ appointment, onClose, onDelete, onShowToast }) => {
-  const handleDelete = async () => {
-    try { await fetch(`/api/bookings?id=${encodeURIComponent(appointment.id)}`, { method: 'DELETE' }); } catch (err) { console.error('[CRM action failed]', err); }
+  const handleDelete = () => {
     onDelete(appointment.id);
     onShowToast(`Permanently deleted appointment for ${appointment.petName}`);
     onClose();

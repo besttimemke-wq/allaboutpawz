@@ -2,284 +2,321 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
 import { sendEmail } from "@/lib/email"
-import { bookingNotificationHtml } from "@/lib/email/templates/internal"
-import { detailsCard, eyebrow, h1, noteBox, p, taglineFlourish, frame, esc } from "@/lib/email/design"
-import { callbackBase } from "@/lib/site-url"
-import { syncCrmAppointment, writeCommercePayment, withPg, TENANT_ID } from "@/lib/crm/enterprise"
-import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
-import { friendlyDbError } from "@/lib/db-errors"
+import { sessionForSiteFlow } from "@/lib/portal-session-scope"
+import { syncCrmAppointment } from "@/lib/crm/enterprise"
+import { priceCart, centsToDollars, sizeTierFromWeight, weightRangeLabel } from "@/lib/booking/pricing"
+import { setCustomerSignal } from "@/lib/booking/status"
+import { checkSlotAvailable } from "@/lib/booking/availability"
 
-const salonNotifyTo = "booking@aapawz.com"
+// ============================================================================
+// POST /api/bookings/checkout — the last step of the 5-step booking flow.
+//
+// The client sends ONLY what it knows: the pet, the chosen services (ids +
+// quantities), the slot, and the payment choice (FULL or DEPOSIT). The
+// server is the authority on everything else:
+//
+//   • the session (ANY signed-in identity — the booking flow is a public
+//     site flow; customers, staff, and the owner testing their own salon
+//     all book through it; the customer & dog records are scoped by email)
+//   • the customer & dog records (find-or-create, userId back-linked)
+//   • every price, the tax, and the total (re-priced from service_items)
+//   • slot availability (double-booking protection at write time)
+//
+// The booking is created PENDING_PAYMENT and a Stripe Checkout Session is
+// issued for the FULL total or the $25 deposit. Payment flips the booking
+// to CONFIRMED — via the Stripe webhook and/or the /api/bookings/status
+// verifier (both idempotent).
+// ============================================================================
 
-function bookingRequestHtml(name: string, dog: string, service: string, date: string, time: string) {
-  const first = String(name || "").split(/\s+/)[0] || "there"
-  return frame({
-    preheader: `Request received — ${dog ? `${esc(dog)}'s ` : ""}appointment is in our queue.`,
-    body: [
-      eyebrow("Request received"),
-      h1(`We got it, ${esc(first)}`),
-      taglineFlourish(),
-      p(`Thanks for booking with All About Pawz — here's what you asked for. The moment your $25 deposit clears, we'll email a full confirmation with everything you need.`),
-      detailsCard("Your request", [
-        ...(dog ? [{ label: "Dog", value: esc(dog) }] : []),
-        { label: "Service", value: esc(service) },
-        { label: "Requested date", value: esc(date || "—") },
-        { label: "Requested time", value: esc(time || "—") },
-      ]),
-      noteBox(`Deposit not showing as paid? Keep an eye out for a <strong style="color:#1a1a1a">Finish your booking</strong> email — it picks up exactly where you left off, nothing gets re-typed.`),
-    ].join(""),
-    reason: `You're receiving this because you just submitted a booking request at aapawz.com.`,
-  })
-}
+const salonNotifyTo = "notifications@confirmation.aapawz.com"
+const DEPOSIT_CENTS = 2500
 
-// POST /api/bookings/checkout
-// Creates the booking in PAYMENT_PENDING, persists the grooming profile + request,
-// creates a Stripe Checkout Session for the $25 deposit, and creates a payment record.
-// The webhook (/api/stripe/webhook) is the only thing that flips the booking to CONFIRMED.
-// Lazy Stripe client — constructed on first use so the route module loads even
-// before STRIPE_SECRET_KEY is set in .env. The POST handler below checks the
-// key and returns a clear error if payments aren't configured yet.
 let _stripe: Stripe | null = null
-function getStripe(): Stripe {
-  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+function getStripe(): Stripe | null {
+  if (!process.env.STRIPE_SECRET_KEY) return null
+  if (!_stripe) _stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
   return _stripe
 }
-const DEPOSIT_AMOUNT = 2500 // $25.00 in cents
+
+// Where the browser actually is — Stripe must return the customer to the
+// page they booked on (production: aapawz.com; previews: the preview host).
+function requestOrigin(req: NextRequest): string {
+  const referer = req.headers.get("referer")
+  if (referer) {
+    try {
+      const u = new URL(referer)
+      const host = u.hostname.toLowerCase()
+      if (u.protocol === "https:" && host !== "localhost" && !host.startsWith("127.")) return u.origin
+    } catch { /* fall through */ }
+  }
+  const xfh = (req.headers.get("x-forwarded-host") || "").split(",")[0].trim().toLowerCase()
+  if (xfh) {
+    const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim().toLowerCase()
+    return `${proto === "http" ? "http" : "https"}://${xfh}`
+  }
+  return (req.nextUrl.origin || process.env.NEXT_PUBLIC_SITE_URL || "https://aapawz.com").replace(/\/$/, "")
+}
+
+function requestReceivedHtml(name: string, dog: string, date: string, time: string, items: string[], total: string, payMode: "FULL" | "DEPOSIT") {
+  const itemList = items.map((i) => `<p style="margin:2px 0">${i}</p>`).join("")
+  const payLine = payMode === "FULL"
+    ? `<p><strong>Payment:</strong> ${total} paid in full</p>`
+    : `<p><strong>Payment:</strong> $25.00 deposit today — the remaining balance is due at the salon</p>`
+  return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
+    <p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Request Received</p>
+    <h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">Hi ${name},</h1>
+    <p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
+    <p>We received your appointment request. Here are the details:</p>
+    <div style="background:#fff;border:1px solid #e0d6bf;padding:16px;margin:16px 0">
+      <p><strong>Dog:</strong> ${dog}</p>
+      <p><strong>Date:</strong> ${date} at ${time}</p>
+      <p style="margin-bottom:2px"><strong>Services:</strong></p>${itemList}
+      <p><strong>Total (with tax):</strong> ${total}</p>
+      ${payLine}
+    </div>
+    <p>Once your payment is processed, we'll send you a confirmation email with all the details. You can manage this appointment any time from <a href="https://aapawz.com/customer/appointments" style="color:#9a7b3c">your portal</a>.</p>
+  </body></html>`
+}
+
+function salonNotificationHtml(name: string, email: string, phone: string, dog: string, breed: string, date: string, time: string, items: string[], total: string, payMode: string) {
+  const itemList = items.map((i) => `<p style="margin:2px 0">${i}</p>`).join("")
+  return `<!doctype html><html><body style="font-family:sans-serif;max-width:560px;margin:auto;color:#1a1a1a">
+    <h2 style="color:#9a7b3c">New appointment request</h2>
+    <p><strong>${name}</strong> requested an appointment for <strong>${dog}</strong> (${breed}).</p>
+    <div style="background:#f6f6f6;border-left:3px solid #9a7b3c;padding:12px;margin:12px 0">
+      <p><strong>Date:</strong> ${date} at ${time}</p>
+      <p style="margin-bottom:2px"><strong>Services:</strong></p>${itemList}
+      <p><strong>Total (with tax):</strong> ${total} · <strong>Payment:</strong> ${payMode === "FULL" ? "pay in full" : "$25 deposit"}</p>
+    </div>
+    <p style="font-size:13px">Email: ${email || "—"}<br/>Phone: ${phone || "—"}</p>
+    <a href="https://aapawz.com/admin/bookings" style="display:inline-block;background:#1a1a1a;color:#fff;padding:10px 20px;text-decoration:none;font-size:12px;font-weight:700;text-transform:uppercase">Review in Operations</a>
+  </body></html>`
+}
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-  const {
-    bookingType, ownerName, phone, email, address,
-    dogName, breedId, breedName, size,
-    date, time, service, serviceName,
-    notes, groomerId, groomerName,
-    servicePrice, depositAmount, balanceDue,
-    customerId, dogId,
-    groomingProfile, groomingRequest,
-  } = body
+  try {
+    const body = await req.json()
+    const {
+      dogId,
+      dogName,
+      breedId,
+      breedName,
+      birthDate,
+      weightLbs,
+      date,
+      time,
+      items,
+      payMode,
+      notes,
+    } = body
 
-  if (!ownerName || !dogName || !date || !time) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-  }
-
-  // 1. Create the booking in PAYMENT_PENDING — linked to customer and dog
-  const booking = (await repo.create("bookings", {
-    ownerName, dogName, breed: breedName, size: (size || "").split(" ")[0],
-    service: serviceName || service || "", date, time,
-    phone, email, address, notes,
-    groomerId, status: "PAYMENT_PENDING",
-    bookingType: bookingType || "BOOKING",
-    servicePrice: servicePrice || "",
-    depositAmount: depositAmount || "$25.00",
-    balanceDue: balanceDue || "",
-    paymentStatus: "UNPAID",
-    customerId: customerId || null,
-    dogId: dogId || null,
-  })) as any
-
-  // 1b. The owner's appointment registry — the booking's existence populates
-  //     crm_customers / crm_pets / crm_appointments (status precheck) the
-  //     moment it is created. Non-fatal — checkout proceeds regardless.
-  if (booking?.id) {
-    try {
-      await syncCrmAppointment(booking)
-    } catch (e: any) {
-      console.error("[booking checkout] crm_appointments sync failed:", e.message)
+    // 1. The session — the sign-up step happened; nobody books anonymously.
+    //    Door-free (any role): a PUBLIC site flow must never bounce a
+    //    signed-in identity back to a door — "never lose context".
+    const { user } = await sessionForSiteFlow()
+    if (!user) {
+      return NextResponse.json(
+        { error: "Your session has expired — sign back in to finish booking.", code: "NO_SESSION" },
+        { status: 401 },
+      )
     }
-  }
+    const email = String(user.email || "").toLowerCase()
+    const ownerName = String(user.name || email.split("@")[0])
 
-  // 2. Persist the grooming profile (permanent dog profile — NOT appointment-specific)
-  //    Only create if it doesn't already exist for this dog.
-  if (dogId && groomingProfile) {
-    try {
-      const existingProfiles = (await repo.list("dog_grooming_profiles")) as any[]
-      const existing = existingProfiles.find((p) => p.dogId === dogId)
-      const profileData: any = {
-        dogId,
-        // tenant_id is NOT NULL on the enterprise tables — without it the
-        // insert 400s (23502) and every coat/handling field silently vanished
-        // (non-fatal try/catch) while the customer paid. Same fix below for
-        // the grooming-request row.
-        tenant_id: TENANT_ID(),
-        coatTypeId: groomingProfile.coatTypeId || null,
-        coatTextureId: groomingProfile.coatTextureId || null,
-        coatLengthId: groomingProfile.coatLengthId || null,
-        coatConditionId: groomingProfile.coatConditionId || null,
-        // The wizard sends sheddingLevelId (the lookup id) — the column keeps
-        // the id as text, consistent with every other id column on this table.
-        sheddingLevel: groomingProfile.sheddingLevelId || groomingProfile.sheddingLevel || null,
-        currentHaircutStyleId: groomingProfile.currentHaircutStyleId || null,
-        currentBodyLengthId: groomingProfile.currentBodyLengthId || null,
-        temperament: groomingProfile.temperament || null,
-        nailHandling: groomingProfile.nailHandling || null,
-        faceHandling: groomingProfile.faceHandling || null,
-        feetHandling: groomingProfile.feetHandling || null,
-        earHandling: groomingProfile.earHandling || null,
-        dryerHandling: groomingProfile.dryerHandling || null,
-        clipperHandling: groomingProfile.clipperHandling || null,
-        handlingNotes: groomingProfile.handlingNotes || null,
-        groomingNotes: groomingProfile.groomingNotes || null,
-        ownerNotes: groomingProfile.ownerNotes || null,
-      }
-      if (existing) {
-        // Update the permanent profile
-        await repo.update("dog_grooming_profiles", existing.id, profileData)
-      } else {
-        await repo.create("dog_grooming_profiles", profileData)
-      }
-    } catch (e: any) {
-      console.error("[booking checkout] grooming profile save failed:", e.message)
+    // 2. Input validation — the shape the 5-step flow produces.
+    const weight = parseFloat(String(weightLbs || ""))
+    if (!dogName || !breedName || !Number.isFinite(weight) || weight <= 0 || weight > 300) {
+      return NextResponse.json({ error: "Tell us about your pup (name, breed, and weight)." }, { status: 400 })
     }
-  }
-
-  // 3. Persist the appointment-specific grooming request (separate from the permanent profile)
-  //    This is what the owner requested for THIS appointment — never overwrites the dog profile.
-  let groomingRequestId: string | null = null
-  if (booking?.id && groomingRequest) {
-    try {
-      const gr = (await repo.create("appointment_grooming_requests", {
-        bookingId: booking.id,
-        tenant_id: TENANT_ID(),
-        styleId: groomingRequest.styleId || null,
-        bodyLengthId: groomingRequest.bodyLengthId || null,
-        bodyStyleId: groomingRequest.bodyStyleId || null,
-        legStyleId: groomingRequest.legStyleId || null,
-        faceStyleId: groomingRequest.faceStyleId || null,
-        headStyleId: groomingRequest.headStyleId || null,
-        earStyleId: groomingRequest.earStyleId || null,
-        tailStyleId: groomingRequest.tailStyleId || null,
-        feetStyleId: groomingRequest.feetStyleId || null,
-        sanitaryService: groomingRequest.sanitaryService || null,
-        nailService: groomingRequest.nailService || null,
-        pawPadService: groomingRequest.pawPadService || null,
-        earService: groomingRequest.earService || null,
-        teethService: groomingRequest.teethService || null,
-        desheddingService: groomingRequest.desheddingService || null,
-        coatTechnique: groomingRequest.coatTechnique || null,
-        specialInstructions: groomingRequest.specialInstructions || null,
-      })) as any
-      groomingRequestId = gr?.id || null
-
-      // Link the grooming request to the booking
-      if (groomingRequestId) {
-        await repo.update("bookings", booking.id, { groomingRequestId })
-      }
-    } catch (e: any) {
-      console.error("[booking checkout] grooming request save failed:", e.message)
+    if (!Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: "Choose at least one service." }, { status: 400 })
     }
-  }
+    if (!date || !time) {
+      return NextResponse.json({ error: "Pick a date and time." }, { status: 400 })
+    }
+    const mode = payMode === "FULL" ? "FULL" : "DEPOSIT"
 
-  // 4. Send "request received" email (NOT confirmation — that fires on webhook)
-  sendEmail({
-    customerId,
-    to: email || salonNotifyTo,
-    template: "booking_request_received",
-    subject: "We received your appointment request — All About Pawz",
-    html: bookingRequestHtml(ownerName, dogName, serviceName || service || "", date, time),
-    relatedBookingId: booking?.id,
-  }).catch(() => {})
+    // 3. The cart — re-priced from the live catalog. Client prices are
+    //    display hints; these numbers are the truth.
+    const { cart, unknownIds } = await priceCart(
+      items.map((i: any) => ({ id: String(i.id), qty: Number(i.qty) || 1 })),
+      weight,
+    )
+    if (!cart.packageLine) {
+      return NextResponse.json({ error: "Choose a grooming package (Bath & Brush, Full Groom, or Deluxe Spa)." }, { status: 400 })
+    }
+    if (cart.totalCents <= 0) {
+      return NextResponse.json({ error: "The cart is empty — choose a service." }, { status: 400 })
+    }
 
-  // Also notify salon staff
-  sendEmail({
-    customerId,
-    to: salonNotifyTo,
-    template: "booking_notification",
-    subject: `New appointment request — ${ownerName} (${dogName})`,
-    html: bookingNotificationHtml({
+    // 4. The slot — double-booking protection at write time.
+    const slot = await checkSlotAvailable(String(date), String(time))
+    if (!slot.ok) {
+      return NextResponse.json({ error: slot.reason, code: "SLOT_TAKEN" }, { status: 409 })
+    }
+
+    // 5. The customer record — exists (the sign-up step created it); make
+    //    sure the userId back-link is current so the portal finds them.
+    const customers = (await repo.list("customers").catch(() => [])) as any[]
+    let customer = customers.find((c) => String(c.email || "").toLowerCase() === email)
+    if (!customer) {
+      customer = await repo.create("customers", {
+        firstName: ownerName.split(" ")[0] || "",
+        lastName: ownerName.split(" ").slice(1).join(" ") || "",
+        email,
+        customerStatus: "PENDING",
+      })
+    }
+    if (customer && !customer.userId) {
+      await repo.update("customers", customer.id, { userId: user.authUserId }).catch(() => {})
+    }
+
+    // 6. The dog — this booking's pet, persisted as the customer's own.
+    const sizeTier = sizeTierFromWeight(weight)
+    let dog: any = null
+    if (dogId) {
+      const dogs = (await repo.list("dogs").catch(() => [])) as any[]
+      dog = dogs.find((d) => d.id === dogId && d.customerId === customer?.id) || null
+    }
+    const dogData = {
+      customerId: customer?.id || null,
+      name: String(dogName),
+      breedName: String(breedName),
+      breedId: breedId ? String(breedId) : null,
+      birthDate: birthDate ? String(birthDate) : null,
+      weightLbs: String(weight),
+      size: sizeTier,
+    }
+    if (dog) {
+      dog = await repo.update("dogs", dog.id, dogData)
+    } else {
+      dog = await repo.create("dogs", dogData)
+    }
+
+    // 7. The booking — PENDING_PAYMENT with the full priced cart.
+    const itemsJson = JSON.stringify(
+      cart.lines.map((l) => ({ id: l.id, name: l.name, qty: l.qty, unitCents: l.unitCents, lineCents: l.lineCents })),
+    )
+    const packageName = cart.packageLine.name
+    const deposit = Math.min(DEPOSIT_CENTS, cart.totalCents)
+    const booking = (await repo.create("bookings", {
       ownerName,
-      dogName: dogName || undefined,
-      service: serviceName || service || "Grooming appointment",
-      date: date || undefined,
-      time: time || undefined,
-      email: email || "",
-      phone: phone || "",
-    }),
-    relatedBookingId: booking?.id,
-  }).catch(() => {})
+      dogName: String(dogName),
+      breed: String(breedName),
+      breedId: breedId ? String(breedId) : null,
+      birthDate: birthDate ? String(birthDate) : null,
+      weightLbs: String(weight),
+      service: packageName,
+      size: sizeTier,
+      date: String(date),
+      time: String(time),
+      notes: notes ? String(notes) : "",
+      phone: customer?.phone || "",
+      email,
+      status: "PENDING_PAYMENT",
+      paymentStatus: "UNPAID",
+      bookingType: "BOOKING",
+      servicePrice: centsToDollars(cart.packageLine.unitCents),
+      depositAmount: centsToDollars(deposit),
+      balanceDue: centsToDollars(mode === "FULL" ? 0 : Math.max(0, cart.totalCents - deposit)),
+      itemsJson,
+      subtotalCents: cart.subtotalCents,
+      taxCents: cart.taxCents,
+      totalCents: cart.totalCents,
+      paidCents: 0,
+      payMode: mode,
+      customerId: customer?.id || null,
+      dogId: dog?.id || null,
+    })) as any
 
-  // 5. If consultation (no deposit), just return success
-  if (bookingType === "CONSULTATION") {
-    return NextResponse.json({ bookingId: booking?.id, type: "consultation", url: `${callbackBase(req)}/book/consultation?success=consultation` })
-  }
-
-  // 5b. Authoritative funnel event — the appointment booking exists in
-  //     PAYMENT_PENDING awaiting the $25 deposit (server-side, independent
-  //     of cookie consent). Fail-safe: neither helper ever throws; the wrap
-  //     is belt-and-braces so analytics can NEVER break checkout.
-  try {
-    const props = {
-      status: "PAYMENT_PENDING",
-      booking_id: booking?.id || null,
-      service: serviceName || service || null,
-      dog_name: dogName || null,
-      flow: "appointment",
-    }
-    await logAnalyticsEvent({ event: "booking_created", data: props, page: "/book/appointment" })
-    if (email) {
-      await captureServerEvent({ event: "booking_created", distinctId: email, properties: props })
-    }
-  } catch { /* analytics must never break checkout */ }
-
-  // 6. Create Stripe Checkout Session for the $25 deposit
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({
-      error: "Payments are not configured yet. Set STRIPE_SECRET_KEY in .env to enable the $25 deposit checkout.",
-    }, { status: 503 })
-  }
-  const origin = callbackBase(req)
-  try {
-    const session = await getStripe().checkout.sessions.create({
-      mode: "payment",
-      line_items: [{
-        price_data: {
-          currency: "usd",
-          product_data: { name: "Grooming Deposit — All About Pawz" },
-          unit_amount: DEPOSIT_AMOUNT,
-        },
-        quantity: 1,
-      }],
-      // The real booking id rides back on the success return so the client
-      // can use it as the purchase transaction_id.
-      success_url: booking?.id
-        ? `${origin}/book/appointment?success=booking&booking_id=${booking.id}`
-        : `${origin}/book/appointment?success=booking`,
-      cancel_url: `${origin}/book/appointment?cancelled=1`,
-      metadata: {
-        bookingId: booking?.id || "",
-        type: "booking_deposit",
-        customerId: customerId || "",
-        dogId: dogId || "",
-        ownerName, dogName,
-      },
-    })
-
-    // 7. Save the Stripe session ID on the booking
+    // The CRM registry — best-effort, never blocks a booking.
     if (booking?.id) {
-      await repo.update("bookings", booking.id, { stripeCheckoutSessionId: session.id })
+      try { await syncCrmAppointment(booking) } catch (e: any) { console.error("[checkout] crm sync failed:", e.message) }
     }
 
-    // 8. The pending payment row — commerce_payments on the owner's table
-    //    (PAY-<bookingId8>, deterministic). The webhook flips it to
-    //    succeeded and links commerce_deposits.payment_id to it.
+    // 8. Emails — request received (customer) + staff notification.
+    const itemLines = cart.lines.map((l) => `${l.name}${l.qty > 1 ? ` ×${l.qty}` : ""} — ${centsToDollars(l.lineCents)}`)
+    const totalDisplay = centsToDollars(cart.totalCents)
+    sendEmail({
+      customerId: customer?.id,
+      to: email,
+      template: "booking_request_received",
+      subject: "We received your appointment request — All About Pawz",
+      html: requestReceivedHtml(ownerName, String(dogName), String(date), String(time), itemLines, totalDisplay, mode),
+      relatedBookingId: booking?.id,
+    }).catch(() => {})
+    sendEmail({
+      customerId: customer?.id,
+      to: salonNotifyTo,
+      template: "booking_notification",
+      subject: `New appointment request — ${ownerName} (${dogName})`,
+      html: salonNotificationHtml(ownerName, email, customer?.phone || "", String(dogName), String(breedName), String(date), String(time), itemLines, totalDisplay, mode),
+      relatedBookingId: booking?.id,
+    }).catch(() => {})
+
+    // 9. The customer's real signal — they started a booking.
+    await setCustomerSignal(email, "PENDING").catch(() => {})
+
+    // 10. Stripe — one session, the chosen amount.
+    const stripe = getStripe()
+    if (!stripe) {
+      // Payments unconfigured: the booking still exists; the portal shows
+      // its honest pending state and the salon can confirm in person.
+      return NextResponse.json({
+        bookingId: booking?.id,
+        paymentReady: false,
+        url: `${requestOrigin(req)}/book/appointment?success=booking&booking_id=${booking?.id}`,
+      })
+    }
+    const payingFull = mode === "FULL"
+    const amount = payingFull ? cart.totalCents : deposit
+    const origin = requestOrigin(req)
     try {
-      if (booking?.id) {
-        await withPg((client) =>
-          writeCommercePayment(client, {
-            paymentNumber: `PAY-${String(booking.id).slice(0, 8).toUpperCase()}`,
-            amount: 25,
-            status: "pending",
-            externalReference: session.id,
-          }),
-        )
-      }
-    } catch (e: any) {
-      console.error("[booking checkout] commerce_payments row failed:", e.message)
-    }
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [{
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: payingFull ? "Grooming Appointment — Paid in Full" : "Grooming Appointment — Deposit",
+              description: payingFull
+                ? `${packageName} for ${dogName} · ${date} at ${time} (tax included)`
+                : `Deposit for ${packageName} for ${dogName} · ${date} at ${time}`,
+            },
+            unit_amount: amount,
+          },
+          quantity: 1,
+        }],
+        customer_email: email,
+        success_url: booking?.id
+          ? `${origin}/book/appointment?success=booking&booking_id=${booking.id}`
+          : `${origin}/book/appointment?success=booking`,
+        cancel_url: `${origin}/book/appointment?cancelled=1`,
+        metadata: {
+          bookingId: booking?.id || "",
+          type: "booking_payment",
+          payMode: mode,
+          totalCents: String(cart.totalCents),
+          depositCents: String(deposit),
+          customerEmail: email,
+          customerId: customer?.id || "",
+          dogId: dog?.id || "",
+          ownerName,
+          dogName: String(dogName),
+        },
+      })
 
-    return NextResponse.json({ url: session.url, sessionId: session.id, bookingId: booking?.id })
-  } catch (e: any) {
-    // Visitor-safe copy — raw Stripe/Postgres payloads stay in server logs.
-    const friendly = friendlyDbError(e, "booking")
-    return NextResponse.json({ error: friendly.error }, { status: 500 })
+      if (booking?.id) {
+        await repo.update("bookings", booking.id, { stripeCheckoutSessionId: session.id })
+      }
+
+      return NextResponse.json({ url: session.url, sessionId: session.id, bookingId: booking?.id, paymentReady: true })
+    } catch (e: any) {
+      console.error("[booking checkout] stripe session failed:", e)
+      return NextResponse.json({ error: e.message || "Checkout failed" }, { status: 500 })
+    }
+  } catch (error: any) {
+    console.error("[POST /api/bookings/checkout]", error)
+    return NextResponse.json({ error: error.message || "Failed to create booking" }, { status: 500 })
   }
 }

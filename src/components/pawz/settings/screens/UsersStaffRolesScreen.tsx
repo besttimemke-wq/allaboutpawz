@@ -66,7 +66,7 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
 
   // Fetch users from live API
   useEffect(() => {
-     
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     async function fetchData() {
       try {
         const res = await fetch('/api/admin/users');
@@ -391,12 +391,8 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                 <ChevronDown className="size-4 absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
             </div>
-            {/* Temporary password — the owner's in-person provisioning
-                lever: WITH a password the account is confirmed at creation and
-                the person signs in immediately (no email wait); a courtesy
-                welcome email rides the Resend transactional lane. WITHOUT one,
-                the Supabase invite email (their designed auth template) lets
-                them set a password. */}
+            {/* Temporary password — optional. The invitation email is ALWAYS
+                sent; the user sets their own password from the link either way. */}
             <div>
               <label className="text-[12px] font-medium text-muted-foreground block mb-1">
                 Temporary Password <span className="font-normal text-muted-foreground/70">(optional)</span>
@@ -407,13 +403,13 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                   type="text"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Set one now — they can sign in immediately"
+                  placeholder="Leave blank — the invite email lets them set it"
                   autoComplete="new-password"
                   className="w-full pl-9 pr-3 h-9 bg-background border border-input rounded-md text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                With a password: the account works <span className="font-medium text-foreground">right now</span> — share it in person, they can change it later. Without: an invitation email is sent and they set their own password from the link.
+                An invitation email is always sent — the user sets their own password from the link.
               </p>
             </div>
             {/* 2FA */}

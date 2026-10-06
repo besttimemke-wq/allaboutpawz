@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Truck, 
   Search, 
@@ -25,37 +25,6 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
   const [boxPreset, setBoxPreset] = useState<'small' | 'med' | 'padded' | 'custom'>('small');
   const [sigRequired, setSigRequired] = useState(false);
   const [printedNotice, setPrintedNotice] = useState(false);
-  const [shippableOrders, setShippableOrders] = useState<any[]>([]);
-  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
-  const [labelBusy, setLabelBusy] = useState(false);
-  const [labelResult, setLabelResult] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch('/api/admin/orders')
-      .then((r) => r.ok ? r.json() : { orders: [] })
-      .then((d) => {
-        const rows = (d.orders || [])
-          .filter((o: any) => {
-            const fs = String(o.fulfillmentStatus || '').toUpperCase();
-            return fs === 'PENDING' || fs === 'PROCESSING' || fs === 'SHIPPED' || fs === 'UNFULFILLED';
-          })
-          .filter((o: any) => o.shippingAddress)
-          .map((o: any) => ({
-            id: o.id,
-            label: `#${o.id?.slice(0, 8).toUpperCase()} — ${o.customerName || o.email || 'Guest'} (${o.shippingAddress?.split(',').slice(-2).join(',').trim() || '—'}) • ${o.items?.length || 0} items`,
-            customer: o.customerName || o.email || 'Guest',
-            address: o.shippingAddress || '—',
-            items: o.items?.length || 0,
-            total: parseFloat(String(o.totalAmount || '0').replace(/[^0-9.]/g, '')) || 0,
-            tracking: o.trackingNumber || null,
-          }));
-        setShippableOrders(rows);
-        if (rows.length > 0) setSelectedOrderId(rows[0].id);
-      })
-      .catch(() => {});
-  }, []);
-
-  const selectedOrder = shippableOrders.find(o => o.id === selectedOrderId);
 
   const rates = [
     {
@@ -99,46 +68,7 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
   const currentRate = rates.find(r => r.id === selectedCarrier) || rates[0];
   const totalPrice = (currentRate.price + (sigRequired ? 3.50 : 0)).toFixed(2);
 
-  const handleBuyAndPrint = async () => {
-    if (!selectedOrder || labelBusy) return;
-    setLabelBusy(true);
-    setLabelResult(null);
-    try {
-      const res = await fetch('/api/admin/shipping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: selectedOrder.id,
-          action: 'buy_label',
-          toName: selectedOrder.customer,
-          toAddress1: selectedOrder.address,
-          toCity: '', toState: '', toZIP: '',
-          weight: weight * 16,
-          mailClass: selectedCarrier.includes('priority') ? 'PRIORITY_MAIL' : 'USPS_GROUND_ADVANTAGE',
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        const tracking = data.label?.trackingNumber || data.order?.tracking_number || 'pending';
-        setLabelResult(`✓ Label purchased — Tracking: ${tracking}`);
-        setPrintedNotice(true);
-        setTimeout(() => setPrintedNotice(false), 3500);
-        if (data.label?.labelUrl) window.open(data.label.labelUrl, '_blank');
-      } else {
-        setLabelResult(`⚠ ${data.error || 'Label purchase failed'}`);
-      }
-    } catch { setLabelResult('⚠ Failed to connect to shipping API'); }
-    setLabelBusy(false);
-  };
-
-  const handleBatchSlip = () => {
-    // Generate a printable batch slip for all shippable orders
-    const w = window.open('', '_blank', 'width=400,height=600');
-    if (!w) return;
-    const rows = shippableOrders.map(o => `<tr><td>#${o.id.slice(0,8).toUpperCase()}</td><td>${o.customer}</td><td>${o.address.slice(0,40)}</td><td>${o.items} items</td></tr>`).join('');
-    w.document.write(`<html><head><title>Batch Slip</title><style>body{font-family:monospace;font-size:11px;padding:20px}table{width:100%}td,th{padding:3px;border-bottom:1px solid #ccc}h1{font-size:14px}</style></head><body><h1>All About Pawz — Batch Packing Slip</h1><p>Date: ${new Date().toLocaleString()}</p><p>Total Orders: ${shippableOrders.length}</p><hr><table><thead><tr><th>Order</th><th>Customer</th><th>Address</th><th>Items</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
-    w.document.close();
-    w.print();
+  const handleBuyAndPrint = () => {
     setPrintedNotice(true);
     setTimeout(() => setPrintedNotice(false), 3500);
   };
@@ -182,15 +112,10 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
         <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] tabular-nums">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <span className="font-semibold text-foreground">DISPATCH:</span>
-            <select
-              value={selectedOrderId}
-              onChange={(e) => setSelectedOrderId(e.target.value)}
-              className="h-8 px-2 border border-border bg-card font-semibold uppercase focus:outline-none w-full sm:w-96 cursor-pointer"
-            >
-              <option value="">Select an order to ship…</option>
-              {shippableOrders.map((o) => (
-                <option key={o.id} value={o.id}>{o.label}</option>
-              ))}
+            <select className="h-8 px-2 border border-border bg-card font-semibold uppercase focus:outline-none w-full sm:w-96 cursor-pointer">
+              <option>#ORD-2025-1048 — Sarah Johnson (Frisco, TX) • 3 items • 1.50 lbs</option>
+              <option>#ORD-2025-1044 — Jessica Ramirez (Plano, TX) • 4 items • 3.80 lbs</option>
+              <option>#ORD-2025-1040 — Kevin Vance (Dallas, TX) • 2 items • 9.40 lbs</option>
             </select>
           </div>
 
@@ -218,8 +143,8 @@ export const ShippingStationView: React.FC<ShippingStationViewProps> = ({ onNavi
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="font-semibold text-sm uppercase text-foreground">{selectedOrder?.customer || 'Select an order'}</p>
-                <p className="tabular-nums text-foreground">{selectedOrder?.address || '—'}</p>
+                <p className="font-semibold text-sm uppercase text-foreground">Sarah Johnson</p>
+                <p className="tabular-nums text-foreground">1234 Maple Drive<br />Frisco, TX 75034-4921</p>
               </div>
               <div className="border-l border-border pl-3 text-[12px] text-muted-foreground space-y-1">
                 <p className="font-semibold text-foreground uppercase text-[10px]">Package Items:</p>

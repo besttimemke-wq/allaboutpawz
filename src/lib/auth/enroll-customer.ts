@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
 import pg from "pg"
-import { SITE_URL } from "../site-url"
 
 // ---------------------------------------------------------------------------
 // enrollCustomer() — the single customer-identity entry point.
@@ -112,28 +111,17 @@ async function ensureCrmIdentity(opts: {
     } else {
       const first = (opts.firstName || opts.email.split("@")[0] || "").trim()
       const last = (opts.lastName || "").trim()
-      try {
-        const created = await client.query(
-          `INSERT INTO public.crm_customers (tenant_id, first_name, last_name, email, phone, source_customer_id)
-           VALUES ($1, $2, $3, lower($4), $5, $6)
-           RETURNING id::text`,
-          [TENANT_ID, first, last, opts.email, opts.phone || null, opts.appCustomerId || null],
-        )
-        crmId = created.rows[0].id
-      } catch (e: any) {
-        // PRODUCTION GUARD (2026-10 booking incident): live-side trigger on
-        // crm_customers must not kill enrollment. The auth invite (the
-        // customer-visible deliverable) runs outside this transaction and
-        // already succeeded by this point.
-        console.error("[enrollCustomer] crm_customers insert failed (trigger?):", e.message)
-        crmId = null
-      }
+      const created = await client.query(
+        `INSERT INTO public.crm_customers (tenant_id, first_name, last_name, email, phone, source_customer_id)
+         VALUES ($1, $2, $3, lower($4), $5, $6)
+         RETURNING id::text`,
+        [TENANT_ID, first, last, opts.email, opts.phone || null, opts.appCustomerId || null],
+      )
+      crmId = created.rows[0].id
     }
 
     // 2. portal_customer_accounts — the login registry (UNIQUE auth_user_id
-    //    + UNIQUE customer_id; find by either, create when absent). Skipped
-    //    when the crm registry row could not be established (customer_id is
-    //    NOT NULL) — it back-fills on the next enrollment touch.
+    //    + UNIQUE customer_id; find by either, create when absent).
     let portalId: string | null = null
     const portal = await client.query(
       `SELECT id::text FROM public.portal_customer_accounts
@@ -149,7 +137,7 @@ async function ensureCrmIdentity(opts: {
          WHERE id = $1 AND auth_user_id IS NULL`,
         [portalId, opts.authUserId],
       )
-    } else if (crmId) {
+    } else {
       const created = await client.query(
         `INSERT INTO public.portal_customer_accounts (tenant_id, customer_id, auth_user_id, status, invited_at)
          VALUES ($1, $2::uuid, $3::uuid, 'invited', now())
@@ -187,9 +175,6 @@ export async function enrollCustomer(opts: {
     if (supabaseAdmin) {
       const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
         data: { full_name: email.split("@")[0], portal: "customer" },
-        // Land the invitation on the set-password page — the invited user
-        // gets the new-password box and signs straight into their portal.
-        redirectTo: `${SITE_URL}/auth/set-password`,
       })
       if (!error && data?.user) {
         authUser = { id: data.user.id, email_confirmed_at: null }

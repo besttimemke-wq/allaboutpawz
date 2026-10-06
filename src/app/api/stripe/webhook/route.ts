@@ -40,7 +40,6 @@ function getStripe(): Stripe | null {
 //
 // Events handled:
 //   checkout.session.completed → shop order paid → ledger + inventory + CRM + receipt
-//   checkout.session.expired → abandoned checkout → booking/payment row marked ABANDONED
 //   payment_intent.succeeded → POS sale paid → ledger + CRM + receipt
 //   charge.refunded → refund processed → reversal ledger entry + CRM note
 //   invoice.paid → subscription invoice paid → ledger + CRM + subscription status
@@ -80,9 +79,6 @@ export async function POST(request: NextRequest) {
       case "checkout.session.completed":
         await handleCheckoutCompleted(supabase, event)
         break
-      case "checkout.session.expired":
-        await handleCheckoutExpired(event)
-        break
       case "payment_intent.succeeded":
         await handlePaymentIntentSucceeded(supabase, event)
         break
@@ -106,9 +102,8 @@ export async function POST(request: NextRequest) {
     try {
       revalidatePath("/admin/orders")
       revalidatePath("/admin/dashboard")
-      revalidatePath("/admin/appointments")
-      revalidatePath("/admin/bookings")
       revalidatePath("/customer/orders")
+      revalidatePath("/customer/appointments")
       revalidatePath("/customer/dashboard")
       revalidatePath("/shop")
     } catch {}
@@ -121,172 +116,71 @@ export async function POST(request: NextRequest) {
 }
 
 // ============================================================================
-// checkout.session.expired — abandoned checkout
-// The customer never completed payment (Stripe expires the session ~24h after
-// creation). For booking deposits: keep the booking in PAYMENT_PENDING (it is
-// still resumable — POST /api/bookings/resume issues a fresh session) but mark
-// paymentStatus ABANDONED so the admin surfaces can distinguish "actively
-// awaiting payment" from "customer walked away". The commerce_payments row is
-// flipped to abandoned so the pending-payments list stays truthful. No email
-// here: the in-wizard recovery banner + the owner's manual follow-up own the
-// outreach (an automated recovery email needs scheduler infrastructure that
-// does not exist yet).
-// ============================================================================
-async function handleCheckoutExpired(event: Stripe.Event) {
-  const session = event.data?.object as Stripe.Checkout.Session
-  const bookingId = session?.metadata?.bookingId
-  console.log(`[stripe/webhook] checkout.session.expired: type=${session?.metadata?.type} bookingId=${bookingId || "-"}`)
-
-  if (session?.metadata?.type !== "booking_deposit" || !bookingId) {
-    // Shop-bag expirations are logged only for now — order rows keep their
-    // own pending state and the bag survives client-side.
-    return
-  }
-
-  try {
-    await withPg(async (client) => {
-      // Only abandon when this is STILL the active session — a resumed
-      // booking points at a newer session id and must not be touched.
-      await client.query(
-        `UPDATE public.bookings
-         SET "paymentStatus" = 'ABANDONED', "updatedAt" = now()
-         WHERE id = $1 AND status = 'PAYMENT_PENDING'
-           AND ("stripeCheckoutSessionId" IS NULL OR "stripeCheckoutSessionId" = $2)`,
-        [String(bookingId), String(session.id || "")],
-      )
-      await client.query(
-        `UPDATE public.commerce_payments
-         SET status = 'abandoned'
-         WHERE payment_number = $1 AND status = 'pending'`,
-        [`PAY-${String(bookingId).slice(0, 8).toUpperCase()}`],
-      ).catch(() => {/* payment row is best-effort */})
-    })
-  } catch (e: any) {
-    console.error("[stripe/webhook] expired-session handling failed:", e?.message)
-  }
-}
-
-// ============================================================================
 // checkout.session.completed — shop order paid
 // Updates: payment_transactions + commerce_orders + inventory + CRM + receipt
 // ============================================================================
 async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
   const session = event.data?.object as Stripe.Checkout.Session
   const sourceFlow = session?.metadata?.flow_type
+  const stripeMetaType = session?.metadata?.type
   const commerceOrderId = session?.metadata?.commerceOrderId
   const customerEmail = session?.customer_details?.email
   const amountTotal = session?.amount_total ? session.amount_total / 100 : 0
 
-  console.log(`[stripe/webhook] checkout.session.completed: flow=${sourceFlow} email=${customerEmail} amount=$${amountTotal}`)
+  console.log(`[stripe/webhook] checkout.session.completed: flow=${sourceFlow} type=${stripeMetaType} email=${customerEmail} amount=$${amountTotal}`)
+
+  // ---- BOOKING PAYMENTS (deposit or full) ----
+  // The grooming booking flows: metadata.type booking_payment (new 5-step
+  // flow, FULL or DEPOSIT) and booking_deposit (legacy $25 flow). The single
+  // idempotent applier flips the booking to CONFIRMED, sets paid/balance,
+  // syncs the customer signal, and sends the confirmation email.
+  if (stripeMetaType === "booking_payment" || stripeMetaType === "booking_deposit") {
+    try {
+      const { applyBookingPayment } = await import("@/lib/booking/payments")
+      const res = await applyBookingPayment({
+        bookingId: session?.metadata?.bookingId || null,
+        stripeSessionId: session?.id,
+        amountCents: Number(session?.amount_total || 0),
+        paymentIntentId: typeof session?.payment_intent === "string" ? session.payment_intent : (session.payment_intent as any)?.id ?? null,
+        sessionId: session?.id || "",
+      })
+      console.log(`[stripe/webhook] booking payment applied: ok=${res.ok} changed=${res.ok && res.changed}`)
+    } catch (e: any) {
+      console.error("[stripe/webhook] booking payment apply failed:", e?.message)
+    }
+    // Booking payments continue into the shared ledger below (the unified
+    // payment_transactions row), then skip the shop-only branches.
+  }
 
   // 1. Write to the unified payment ledger
   try {
-    const { error: ledgerError } = await supabase.from("payment_transactions").upsert({
+    await supabase.from("payment_transactions").upsert({
       provider: "stripe",
       provider_transaction_id: session?.payment_intent,
-      transaction_type: "PAYMENT",
-      status: "SUCCEEDED",
+      transaction_type: "payment",
+      status: "completed",
       amount: amountTotal,
       currency: (session?.currency || "usd").toUpperCase(),
+      customer_id: session?.metadata?.customer_id || null,
       order_id: commerceOrderId || session?.metadata?.order_id || null,
-      booking_id: session?.metadata?.bookingId || null,
       metadata: {
         stripe_session_id: session?.id,
         flow_type: sourceFlow,
+        type: stripeMetaType,
+        booking_id: session?.metadata?.bookingId || null,
         cart_items: session?.metadata?.cart_items,
         customer_email: customerEmail,
       },
       processed_at: new Date().toISOString(),
-      tenant_id: TENANT_ID(),
+      tenant_id: TENANT_ID,
     }, { onConflict: "provider_transaction_id" })
-    if (ledgerError) console.error("[stripe/webhook] ledger write failed:", ledgerError.message)
   } catch (e: any) {
     console.error("[stripe/webhook] ledger write failed:", e?.message)
   }
 
-  // 1b. Handle booking deposits — flip booking to CONFIRMED, update CRM
-  //     appointment, update payment row, send confirmation email.
-  //     The checkout route sets metadata.type = "booking_deposit" and
-  //     metadata.bookingId. This handler fires when the customer pays the
-  //     $25 deposit via Stripe Checkout. Without this, the booking stays
-  //     PAYMENT_PENDING forever — customer paid but appointment never confirms.
-  const bookingId = session?.metadata?.bookingId
-  if (session?.metadata?.type === "booking_deposit" && bookingId) {
-    console.log(`[stripe/webhook] processing booking deposit: bookingId=${bookingId}`)
-
-    try {
-      // Read the booking to get details for the confirmation email
-      const bookingData = await withPg(async (client) => {
-        const { rows } = await client.query(
-          `SELECT * FROM public.bookings WHERE id = $1 LIMIT 1`,
-          [String(bookingId)],
-        )
-        return rows[0] || null
-      }).catch(() => null)
-
-      if (bookingData) {
-        // 1. Update booking to CONFIRMED
-        await withPg(async (client) => {
-          await client.query(
-            `UPDATE public.bookings SET status = 'CONFIRMED', "paymentStatus" = 'PAID' WHERE id = $1`,
-            [String(bookingId)],
-          )
-        }).catch((e: any) =>
-          console.error("[stripe/webhook] booking update failed:", e?.message),
-        )
-
-        // 2. Update CRM appointment to confirmed (linked via source_appointment_id)
-        await withPg(async (client) => {
-          await client.query(
-            `UPDATE public.crm_appointments SET status = 'confirmed', updated_at = now() WHERE source_appointment_id = $1 AND tenant_id = $2`,
-            [String(bookingId), TENANT_ID()],
-          )
-        }).catch((e: any) =>
-          console.error("[stripe/webhook] CRM appt update failed:", e?.message),
-        )
-
-        // 3. Update commerce_payments to succeeded (linked via external_reference = Stripe session ID)
-        await withPg(async (client) => {
-          await client.query(
-            `UPDATE public.commerce_payments SET status = 'succeeded' WHERE external_reference = $1`,
-            [session.id],
-          )
-        }).catch((e: any) =>
-          console.error("[stripe/webhook] payment update failed:", e?.message),
-        )
-
-        // 4. Send booking confirmation email (customer + salon copy)
-        try {
-          const { sendBookingConfirmation } = await import("@/lib/email")
-          await sendBookingConfirmation({
-            ownerName: session?.metadata?.ownerName || bookingData.ownerName || "",
-            dogName: session?.metadata?.dogName || bookingData.dogName || null,
-            service: bookingData.service || "Grooming appointment",
-            size: bookingData.size || null,
-            date: bookingData.date || null,
-            time: bookingData.time || null,
-            email: customerEmail || bookingData.email || null,
-            phone: bookingData.phone || null,
-            notes: bookingData.notes || null,
-            bookingId: String(bookingId),
-          })
-          console.log(
-            `[stripe/webhook] booking confirmation email sent for ${bookingId}`,
-          )
-        } catch (e: any) {
-          console.error(
-            "[stripe/webhook] booking confirmation email failed:",
-            e?.message,
-          )
-        }
-      }
-    } catch (e: any) {
-      console.error("[stripe/webhook] booking deposit handler failed:", e?.message)
-    }
-  }
-
-  // 2. Update commerce_orders (if this was a shop flow)
-  if (sourceFlow === "shop" && commerceOrderId) {
+  // Shop-only flows from here down — booking payments are done.
+  const isShop = sourceFlow === "shop" && !!commerceOrderId
+  if (isShop) {
     try {
       await supabase.from("commerce_orders").update({
         status: "confirmed",
@@ -327,44 +221,17 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
       console.error("[stripe/webhook] CRM enrollment failed:", e?.message)
     }
 
-    // 6. Send branded order confirmation (items + totals from the cart
-    //    metadata the shop checkout embeds in the session).
-    if (sourceFlow === "shop") {
+    // 6. Send receipt email (shop orders only — booking confirmations are
+    // sent by applyBookingPayment with the appointment's own details)
+    if (isShop) {
       try {
-        const { sendOrderReceipt } = await import("@/lib/email")
-        const cartRaw = session?.metadata?.cart_items
-        const cartItems: { productId?: string; name?: string; quantity?: number; unitPrice?: string }[] =
-          typeof cartRaw === "string" ? JSON.parse(cartRaw) : (Array.isArray(cartRaw) ? cartRaw : [])
-        const items = cartItems
-          .filter((it) => it?.name)
-          .map((it) => ({ name: String(it.name), qty: Number(it.quantity) || 1, price: String(it.unitPrice || "$0.00") }))
-        const subtotalNum = cartItems.reduce(
-          (sum, it) => sum + (parseFloat(String(it?.unitPrice || "0").replace(/[^0-9.]/g, "")) || 0) * (Number(it?.quantity) || 1),
-          0,
-        )
-        const delta = Math.round((amountTotal - subtotalNum) * 100) / 100
-
-        const custName = String(session?.customer_details?.name || "").trim()
-        const shipAddr = session?.customer_details?.address
-        const shipTo = shipAddr?.city
-          ? `${shipAddr.city}${shipAddr.state ? `, ${shipAddr.state}` : ""}`
-          : session?.metadata?.deliveryMethod === "pickup"
-            ? "Pickup at the salon"
-            : undefined
-
-        await sendOrderReceipt({
-          email: customerEmail,
-          firstName: custName.split(/\s+/)[0] || undefined,
-          orderNumber: commerceOrderId ? `ORD-${commerceOrderId.replace(/-/g, "").slice(0, 6).toUpperCase()}` : "ORD",
-          items: items.length
-            ? items
-            : [{ name: "Shop order", qty: 1, price: `$${amountTotal.toFixed(2)}` }],
-          subtotal: `$${subtotalNum.toFixed(2)}`,
-          shipping: session?.metadata?.deliveryMethod === "pickup" ? "Pickup" : "Free",
-          tax: delta > 0 ? `$${delta.toFixed(2)}` : "$0.00",
-          total: `$${amountTotal.toFixed(2)}`,
-          shipTo,
-          orderId: commerceOrderId || undefined,
+        const { sendEmail } = await import("@/lib/email")
+        await sendEmail({
+          to: customerEmail,
+          template: "payment_receipt",
+          subject: `Your order receipt — All About Pawz`,
+          html: `<p>Thank you for your purchase!</p><p>Order: ${commerceOrderId?.slice(0, 8) || "N/A"}</p><p>Total: $${amountTotal.toFixed(2)}</p><p>We'll send a tracking number once your order ships.</p>`,
+          relatedOrderId: commerceOrderId,
         })
       } catch (e: any) {
         console.error("[stripe/webhook] receipt email failed:", e?.message)
@@ -373,7 +240,7 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
   }
 
   // 7. Post to the accounting GL (revenue + cash)
-  if (sourceFlow === "shop") {
+  if (isShop) {
     try {
       await postStripePaymentToGl(session, amountTotal)
     } catch (e: any) {
