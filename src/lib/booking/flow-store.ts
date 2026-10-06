@@ -43,6 +43,8 @@ export type FlowState = {
 
   // ---- step 2: the cart ----
   packageId: string
+  /** Premium Treatment (optional upgrade) — at most ONE per booking. */
+  treatmentId: string
   addonIds: string[]
 
   // ---- step 3: the slot ----
@@ -87,6 +89,7 @@ const INITIAL: Omit<FlowState, "patch" | "setStep" | "toggleAddon" | "reset"> = 
   birthDate: "",
   weightLbs: "",
   packageId: "",
+  treatmentId: "",
   addonIds: [],
   date: "",
   time: "",
@@ -119,13 +122,18 @@ export const useBookingFlow = create<FlowState>()(
     }),
     {
       name: "aap-booking-flow-v1",
-      version: 2,
+      version: 3,
       migrate: (persisted: any, _version: number) => {
         // v1 → v2: maxStep joins the persisted shape. A returning visitor
         // mid-flow keeps every answer; the furthest step they reached
         // becomes their ratchet ceiling (at least their current step).
+        // v2 → v3: treatmentId (Premium Treatments) joins the cart.
         const step = typeof persisted?.step === "number" ? persisted.step : 0
-        return { ...persisted, maxStep: Math.max(step, typeof persisted?.maxStep === "number" ? persisted.maxStep : step) }
+        return {
+          ...persisted,
+          treatmentId: typeof persisted?.treatmentId === "string" ? persisted.treatmentId : "",
+          maxStep: Math.max(step, typeof persisted?.maxStep === "number" ? persisted.maxStep : step),
+        }
       },
       storage: createJSONStorage(() => {
         if (typeof window === "undefined") {

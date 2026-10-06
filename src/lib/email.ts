@@ -5,12 +5,14 @@ import { SITE_URL } from "./site-url"
 import { BRAND, detailsCard, eyebrow, frame, h1, p, pawDivider, taglineFlourish, esc } from "./email/design"
 import {
   bookingConfirmedHtml,
+  bookingRequestHtml,
   appointmentReminderHtml,
   appointmentCanceledHtml,
   appointmentRescheduledHtml,
   abandonedBookingHtml,
   consultationRequestHtml,
   type AppointmentData,
+  type BookingRequestData,
   type CanceledData,
   type RescheduledData,
   type AbandonedData,
@@ -186,10 +188,69 @@ export async function sendCustomerWelcome(customer: { id: string; firstName: str
   })
 }
 
+// ---- Booking request received — the "We got it" lane ----------------------------
+// Fires at checkout submission (before payment): the customer gets the
+// request-received design; the salon gets the internal notification.
+
+export async function sendBookingRequest(b: {
+  customerId?: string; ownerName: string; dogName?: string | null; service: string
+  size?: string | null; date?: string | null; time?: string | null; email?: string | null
+  phone?: string | null; notes?: string | null; bookingId?: string
+  itemLines?: string[]; total?: string
+}) {
+  const customerEmail = b.email
+  const data: BookingRequestData = {
+    firstName: firstNameOf(b.ownerName) || "there",
+    dogName: b.dogName || undefined,
+    service: b.service,
+    date: b.date || "Date to be confirmed",
+    time: b.time || undefined,
+    bookingRef: refOf(b.bookingId),
+    itemLines: b.itemLines,
+    total: b.total,
+  }
+
+  if (customerEmail) {
+    await sendEmail({
+      customerId: b.customerId,
+      to: customerEmail,
+      template: "booking_request",
+      subject: b.dogName
+        ? `We got it — ${b.dogName}'s appointment request is in`
+        : "We got it — your appointment request is in",
+      html: bookingRequestHtml(data),
+      relatedBookingId: b.bookingId,
+    })
+  }
+
+  await sendEmail({
+    customerId: b.customerId,
+    to: salonNotifyTo,
+    template: "booking_notification",
+    subject: `New appointment request — ${b.ownerName}${b.dogName ? ` (${b.dogName})` : ""}${b.date ? ` · ${b.date}${b.time ? ` ${b.time}` : ""}` : ""}`,
+    html: bookingNotificationHtml({
+      ownerName: b.ownerName,
+      dogName: b.dogName || undefined,
+      service: b.service,
+      size: b.size || undefined,
+      date: b.date || undefined,
+      time: b.time || undefined,
+      email: customerEmail || "",
+      phone: b.phone || "",
+      notes: b.notes || undefined,
+      bookingRef: refOf(b.bookingId),
+    }),
+    relatedBookingId: b.bookingId,
+  })
+}
+
 export async function sendBookingConfirmation(b: {
   customerId?: string; ownerName: string; dogName?: string | null; service: string
   size?: string | null; date?: string | null; time?: string | null; email?: string | null
   phone?: string | null; notes?: string | null; bookingId?: string
+  /** Payment facts when the confirmation follows a payment (deposit or
+   *  paid-in-full) — rendered as a “Your payment” card. */
+  payment?: { items: string[]; total: string; paid: string; balance: string }
 }) {
   const customerEmail = b.email
   const data: AppointmentData = {
@@ -201,6 +262,7 @@ export async function sendBookingConfirmation(b: {
     time: b.time || undefined,
     notes: b.notes || undefined,
     bookingRef: refOf(b.bookingId),
+    payment: b.payment,
   }
 
   if (customerEmail) {
@@ -214,6 +276,8 @@ export async function sendBookingConfirmation(b: {
       date: b.date || "",
       time: b.time || "",
       durationMinutes: 120,
+      totalDisplay: b.payment?.total,
+      balanceDisplay: b.payment?.balance,
     })
     await sendEmail({
       customerId: b.customerId,

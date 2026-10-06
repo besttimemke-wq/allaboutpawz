@@ -64,7 +64,9 @@ export async function GET(req: NextRequest) {
       const appCustByEmail = new Map<string, any>();
       for (const r of appCustRes.rows) appCustByEmail.set(String(r.email || "").toLowerCase(), r);
 
-      const ordersRes = await pgClient.query(`SELECT id, "customerId", email FROM public.orders;`);
+      // Shop orders live in commerce_orders (public.orders never existed
+      // in this schema — the stale reference 500'd the whole endpoint).
+      const ordersRes = await pgClient.query(`SELECT id, customer_id AS "customerId", customer_email AS email FROM public.commerce_orders;`).catch(() => ({ rows: [] as any[] }));
 
       let rolesRes = { rows: [] };
       try {
@@ -192,8 +194,8 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const ordersRes = await supabaseAdmin.from("orders").select("id,customerId,email");
-    const ordersRows = (ordersRes.data || []) as any[];
+    const ordersRes = await supabaseAdmin.from("commerce_orders").select("id,customer_id,customer_email").catch(() => ({ data: null }));
+    const ordersRows = ((ordersRes.data || []) as any[]).map((o: any) => ({ ...o, customerId: o.customerId ?? o.customer_id, email: o.email ?? o.customer_email }));
     const adminEmails = (process.env.ADMIN_EMAILS || "")
       .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
     const memberUserIds = new Set((membersRes.data || []).map((m: any) => m.user_id));

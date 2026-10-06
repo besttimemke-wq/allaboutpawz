@@ -1,18 +1,26 @@
 import { NextResponse } from "next/server"
 import { repo } from "@/lib/repo"
-import { getTaxRatePercent, priceStringToCents, listBookableServiceItems, weightRangeLabel, type SizeTier } from "@/lib/booking/pricing"
+import { sessionForSiteFlow } from "@/lib/portal-session-scope"
+import {
+  getTaxRatePercent, priceStringToCents, listBookableServiceItems,
+  weightRangeLabel, unitCentsFor, memberUnitCentsFor, type SizeTier,
+} from "@/lib/booking/pricing"
+import { isBathClubMember, listBathClubPlans } from "@/lib/subscriptions"
+import { redemptionRate } from "@/lib/perks"
 
 // ============================================================================
 // GET /api/booking/menu — everything the 5-step booking flow needs in ONE
 // round trip: the breeds dropdown, the service menu (packages with per-size
-// prices + flat-priced add-ons), the salon's tax rate, and the location card.
+// standard + Bath Club member prices, premium treatments, flat-priced
+// add-ons), the salon's tax rate, the location card, and the visitor's
+// membership/points context.
+//
 // The client never guesses a price: it receives per-tier cents from here and
-// the server re-verifies every number again at checkout.
+// the server re-verifies every number again at checkout. Member prices come
+// from the tenant catalog (service_items member* columns) — never hardcoded.
 // ============================================================================
 
 function tierPrices(item: any) {
-  // Keys match the SizeTier union (SMALL/MEDIUM/LARGE/XLARGE) exactly —
-  // the client indexes prices by the tier the pet step selected.
   return {
     SMALL: priceStringToCents(item.smallPrice) ?? priceStringToCents(item.price),
     MEDIUM: priceStringToCents(item.mediumPrice) ?? priceStringToCents(item.price),
@@ -21,14 +29,29 @@ function tierPrices(item: any) {
   }
 }
 
+function memberTierPrices(item: any) {
+  return {
+    SMALL: priceStringToCents(item.memberSmallPrice) ?? priceStringToCents(item.memberPrice),
+    MEDIUM: priceStringToCents(item.memberMediumPrice) ?? priceStringToCents(item.memberPrice),
+    LARGE: priceStringToCents(item.memberLargePrice) ?? priceStringToCents(item.memberPrice),
+    XLARGE: priceStringToCents(item.memberXlargePrice) ?? priceStringToCents(item.memberPrice),
+  }
+}
+
 export async function GET() {
   try {
-    const [breedRows, items, taxRatePercent, settings] = await Promise.all([
+    const [breedRows, items, taxRatePercent, settings, session, plans, perksRate] = await Promise.all([
       repo.list("dog_breeds").catch(() => []),
       listBookableServiceItems(),
       getTaxRatePercent(),
       repo.getSettings().catch(() => ({} as Record<string, string>)),
+      sessionForSiteFlow().catch(() => ({ user: null }) as any),
+      listBathClubPlans().catch(() => []),
+      redemptionRate().catch(() => ({ pointsPerDollar: 100, pointsPerCent: 1 })),
     ])
+
+    const email = session?.user?.email ? String(session.user.email).toLowerCase() : ""
+    const isMember = email ? await isBathClubMember(email).catch(() => false) : false
 
     const breeds = (breedRows as any[])
       .filter((b) => b && b.name)
@@ -47,30 +70,47 @@ export async function GET() {
     })
 
     const packages = unique
-      .filter((i) => i.isPackage)
+      .filter((i) => i.isPackage && !i.isTreatment)
       .map((i) => ({
         id: i.id,
         name: i.name,
         category: i.category || "Grooming",
         prices: tierPrices(i),
+        memberPrices: memberTierPrices(i),
       }))
       .sort((a, b) => (a.prices.MEDIUM || 0) - (b.prices.MEDIUM || 0))
 
+    // Premium Treatments — optional upgrade, max ONE, size-tiered, XL =
+    // custom quote (xlargePrice null in the catalog).
+    const treatments = unique
+      .filter((i) => !!i.isTreatment)
+      .map((i) => ({
+        id: i.id,
+        name: i.name,
+        category: i.category || "Premium Treatments",
+        prices: tierPrices(i),
+        memberPrices: memberTierPrices(i),
+        note: i.treatmentNote || null,
+      }))
+
     const addons = unique
-      .filter((i) => !i.isPackage && priceStringToCents(i.price) != null)
+      .filter((i) => !i.isPackage && !i.isTreatment && priceStringToCents(i.price) != null)
       .map((i) => ({
         id: i.id,
         name: i.name,
         category: i.category || "Add-On Services",
         priceCents: priceStringToCents(i.price)!,
         priceDisplay: String(i.price || ""),
+        memberPriceCents: priceStringToCents(i.memberPrice),
       }))
 
     const salon = {
       name: settings.brandName || "All About Pawz",
-      address: settings.addressLine1 || "699 Waring Rd",
-      cityState: settings.addressLine2 || "Memphis, TN 38122",
-      phone: settings.phone || "(901) 722-1114",
+      // BRAND facts per the email design system — 901-800-7182 (the 722-1114
+      // fallback was stale).
+      address: settings.addressLine1 || "Memphis",
+      cityState: settings.addressLine2 || "Memphis, TN",
+      phone: settings.phone || "901-800-7182",
     }
 
     // Size tiers — the pounds menu the pet step uses.
@@ -78,17 +118,30 @@ export async function GET() {
       ["SMALL", "MEDIUM", "LARGE", "XLARGE"] as SizeTier[]
     ).map((t) => ({ tier: t, label: t[0] + t.slice(1).toLowerCase(), range: weightRangeLabel(t) }))
 
+    // The Bath Club ladder for the in-flow member upsell — catalog-driven.
+    const bathClub = plans.map((p) => ({
+      id: p.id,
+      sizeTier: p.sizeTier,
+      sizeLabel: p.sizeLabel,
+      weightRange: p.weightRange,
+      monthlyPriceCents: p.monthlyPriceCents,
+    }))
+
     const res = NextResponse.json({
       breeds,
       packages,
+      treatments,
       addons,
       tiers,
       taxRatePercent,
       salon,
       depositCents: 2500,
+      isMember,
+      bathClub,
+      perks: { pointsPerDollar: perksRate.pointsPerDollar },
     })
-    // Reference data — safe to cache briefly in the browser.
-    res.headers.set("Cache-Control", "public, max-age=60")
+    // Reference data, but membership-aware — keep it private to the visitor.
+    res.headers.set("Cache-Control", "private, max-age=30")
     return res
   } catch (err: any) {
     console.error("[GET /api/booking/menu]", err)

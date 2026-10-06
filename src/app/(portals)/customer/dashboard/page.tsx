@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { OffersSection } from '@/components/pawz/customer/offers-section';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -851,6 +852,11 @@ export default function CustomerDashboardPage() {
           {error && (
             <div className="text-[12px] text-muted-foreground">{error}</div>
           )}
+
+          {/* OFFERS — the dashboard's FIRST section, above Appointments
+              (fixed order, owner spec §4). Hides entirely when the signed-in
+              customer has no eligible offers. */}
+          <OffersSection />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Upcoming Appointments — wired to /api/customer/appointments */}

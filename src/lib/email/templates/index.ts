@@ -27,12 +27,14 @@ import {
 } from "./auth"
 import {
   bookingConfirmedHtml,
+  bookingRequestHtml,
   appointmentReminderHtml,
   appointmentCanceledHtml,
   appointmentRescheduledHtml,
   abandonedBookingHtml,
   consultationRequestHtml,
   SAMPLE_APPOINTMENT,
+  SAMPLE_BOOKING_REQUEST,
 } from "./appointments"
 import {
   paymentConfirmationHtml,
@@ -248,6 +250,16 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
   },
 
   // ---- Appointments ---------------------------------------------------------------
+  {
+    id: "booking_request",
+    name: "Booking request received",
+    group: "appointments",
+    channel: "resend",
+    description: "The ‘We got it’ email — sent the moment a booking request is submitted.",
+    subject: "We got it, Mark — Benji's request is in",
+    html: bookingRequestHtml(SAMPLE_BOOKING_REQUEST),
+    wired: "Sent automatically when the 5-step booking flow submits its request.",
+  },
   {
     id: "booking_confirmed",
     name: "Booking confirmed",

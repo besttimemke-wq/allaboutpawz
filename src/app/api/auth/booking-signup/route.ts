@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { repo } from "@/lib/repo"
 import { sendEmail } from "@/lib/email"
+import { BRAND, button, eyebrow, frame, h1, noteBox, p, taglineFlourish, esc } from "@/lib/email/design"
 import { getSupabaseAdmin } from "@/lib/pawz-auth"
 
 // ============================================================================
@@ -45,14 +46,24 @@ function requestOrigin(req: NextRequest): string {
 }
 
 function signupEmailHtml(name: string, link: string) {
-  return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
-    <p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Finish your booking</p>
-    <h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">Hi ${name},</h1>
-    <p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
-    <p>Click the button below to sign in and finish booking your pup's appointment. Your progress is saved — you'll pick up right where you left off.</p>
-    <a href="${link}" style="display:inline-block;background:#1a1a1a;color:#fff;padding:14px 28px;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;font-family:sans-serif;margin:16px 0">Continue booking</a>
-    <p style="font-size:12px;color:#6b6b6b">This link signs you in and expires in 24 hours. If you didn't request it, you can ignore this email.</p>
-  </body></html>`
+  // The branded design-system frame — same look as every salon email
+  // (ink header + nav, serif heading, gold accents, real footer).
+  return frame({
+    preheader: "One tap and you're back in your booking — progress saved.",
+    body: [
+      eyebrow("Finish your booking"),
+      h1(`Hi ${esc(name)},`),
+      taglineFlourish(),
+      p(
+        "Click the button below to sign in and finish booking your pup's appointment. Your progress is saved — you'll pick up right where you left off.",
+      ),
+      button(link, "Continue booking"),
+      noteBox(
+        "This link signs you in and expires in 24 hours. If you didn't request it, you can ignore this email — nothing changes on your account.",
+      ),
+    ].join(""),
+    reason: `You're receiving this because you started a booking at ${BRAND.url.replace(/^https?:\/\//, "")}.`,
+  })
 }
 
 export async function POST(req: NextRequest) {

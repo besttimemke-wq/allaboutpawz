@@ -26,6 +26,7 @@ import {
   X,
   GraduationCap,
   Activity,
+  Mail,
 } from 'lucide-react';
 
 // Import All 16 Dedicated Design Screens
@@ -38,6 +39,7 @@ import { BookingOperationsRulesScreen } from './settings/screens/BookingOperatio
 import { BookingRulesPoliciesScreen } from './settings/screens/BookingRulesPoliciesScreen';
 import { ServicesPricingMatrixScreen } from './settings/screens/ServicesPricingMatrixScreen';
 import { ServicesAddonCatalogScreen } from './settings/screens/ServicesAddonCatalogScreen';
+import { PromoBuilderScreen } from './settings/screens/PromoBuilderScreen';
 import { StripeIntegrationScreen } from './settings/screens/StripeIntegrationScreen';
 import { PaymentsTaxLegalScreen } from './settings/screens/PaymentsTaxLegalScreen';
 import { InvoicesAgingLedgerScreen } from './settings/screens/InvoicesAgingLedgerScreen';
@@ -49,6 +51,7 @@ import { OmsAddProductScreen } from './settings/screens/OmsAddProductScreen';
 import { SystemHealthTelemetryScreen } from './settings/screens/SystemHealthTelemetryScreen';
 import { AnalyticsReportingScreen } from './settings/screens/AnalyticsReportingScreen';
 import { EscrowDepositsForfeituresScreen } from './settings/screens/EscrowDepositsForfeituresScreen';
+import { EmailTemplatesScreen } from './settings/screens/EmailTemplatesScreen';
 
 // Secondary LMS Tab
 import { LMSTab } from './settings/LMSTab';
@@ -78,6 +81,7 @@ export type SettingsTabId =
   | 'services'
   | 'services-pricing'
   | 'services-catalog'
+  | 'promos'
   | 'payments'
   | 'revenue-stripe'
   | 'payments-tax'
@@ -86,6 +90,7 @@ export type SettingsTabId =
   | 'portal'
   | 'customer-portal'
   | 'communications'
+  | 'email-templates'
   | 'org-social'
   | 'inventory'
   | 'oms-add-product'
@@ -143,10 +148,17 @@ const TAB_CATEGORIES: TabCategory[] = [
     tabs: [
       { id: 'services-pricing', label: 'Services & Pricing Menu', icon: Tag },
       { id: 'services-catalog', label: 'Services Catalog', icon: Tag },
+      { id: 'promos', label: 'Promo Codes & Offers', icon: Tag, badge: 'New' },
       { id: 'cms-wizard', label: 'CMS Management / AI Web Builder', icon: Globe },
       { id: 'legal-waivers', label: 'Legal & Waivers', icon: FileText },
       { id: 'customer-portal', label: 'Customer Portal Settings', icon: UserCheck },
       { id: 'revenue-stripe', label: 'Payments & Gateway Settings', icon: CreditCard },
+    ],
+  },
+  {
+    title: '4.2 COMMUNICATIONS & EMAIL',
+    tabs: [
+      { id: 'email-templates', label: 'Email Templates', icon: Mail, badge: '35' },
     ],
   },
   {
@@ -403,6 +415,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               saveSettingsToDb={saveSettingsToDb}
             />
           )}
+          {activeTab === 'promos' && <PromoBuilderScreen />}
           {(activeTab === 'revenue-stripe' || activeTab === 'payments') && (
             <StripeIntegrationScreen
               onNavigateScreen={navigateToScreen}
@@ -437,6 +450,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onSelectLocation={onSelectLocation}
               systemSettings={systemSettings}
               saveSettingsToDb={saveSettingsToDb}
+            />
+          )}
+          {(activeTab === 'email-templates' || activeTab === 'communications') && (
+            <EmailTemplatesScreen
+              onNavigateScreen={navigateToScreen}
+              selectedLocation={selectedLocation}
+              onSelectLocation={onSelectLocation}
             />
           )}
           {(activeTab === 'system-telemetry' || activeTab === 'system' || activeTab === 'health') && (

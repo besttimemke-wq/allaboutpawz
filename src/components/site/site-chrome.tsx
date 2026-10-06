@@ -11,10 +11,21 @@ import {
 } from "lucide-react"
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
+import { useNavPromoGate, type PromoPlacement } from "./islands/promo-popup"
 import { useCart } from "@/lib/wizard/cart-store"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet"
+
+// Nav labels that carry a promo-popup placement (owner spec §2): clicking
+// SERVICES / PRICING / SHOP / BOOK surfaces the eligible offers for that
+// page before navigating. Everything else navigates plain.
+const NAV_PROMO_PLACEMENTS: Record<string, PromoPlacement> = {
+  SERVICES: "services",
+  PRICING: "pricing",
+  SHOP: "shop",
+  BOOK: "book",
+}
 
 function TikTok({ className = "" }: { className?: string }) {
   return (
@@ -340,6 +351,10 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
 export function SiteChrome({ children, settings: initialSettings }: { children: ReactNode; settings?: Record<string, string> }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  // Nav promo popups — the Services / Pricing / Shop / Book nav clicks offer
+  // the eligible published promos for that page (once per session per
+  // placement; no offers → straight through). Owner spec §2.
+  const { gate, dialog } = useNavPromoGate()
   // CSR data layer: the chrome shell renders instantly with built-in
   // fallbacks, then fills in salon settings (address, phone, hours) from the
   // site API after paint. No database in the render path.
@@ -359,7 +374,7 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   const s = { ...(fetched || initialSettings || {}) }
   return (
     <div className="min-h-screen bg-cream">
-      <Sidebar settings={s} pathname={pathname} />
+      <Sidebar settings={s} pathname={pathname} gate={gate} />
       {/* Mobile bar — logo left, bag + menu right (sticky, top of every page) */}
       <div className="sticky top-0 z-50 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3 lg:hidden">
         <Link href="/" className="flex items-center gap-2">
@@ -381,7 +396,11 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
               <li key={i.to}>
                 <Link
                   href={i.to}
-                  onClick={() => setOpen(false)}
+                  onClick={(e) => {
+                    setOpen(false)
+                    const placement = NAV_PROMO_PLACEMENTS[i.label]
+                    if (placement) gate(placement, e, i.to)
+                  }}
                   className="flex items-center gap-3 text-[11px] font-bold tracking-[0.13em] text-ink-soft"
                 >
                   <span className="text-gold-deep">{i.n}</span>
@@ -403,13 +422,14 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
         </nav>
       )}
       <main className="lg:pl-[232px]">{children}</main>
+      {dialog}
       {/* Every page — including home — gets the same centered footer */}
       <SiteFooter settings={s} />
     </div>
   )
 }
 
-function Sidebar({ settings, pathname }: { settings: Record<string, string>; pathname: string }) {
+function Sidebar({ settings, pathname, gate }: { settings: Record<string, string>; pathname: string; gate: ReturnType<typeof useNavPromoGate>["gate"] }) {
   const s = settings
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
@@ -438,7 +458,15 @@ function Sidebar({ settings, pathname }: { settings: Record<string, string>; pat
             const active = pathname === item.to
             return (
               <li key={item.to}>
-                <Link href={item.to} aria-current={active ? "page" : undefined} className="group relative flex cursor-pointer items-center gap-3">
+                <Link
+                  href={item.to}
+                  aria-current={active ? "page" : undefined}
+                  onClick={(e) => {
+                    const placement = NAV_PROMO_PLACEMENTS[item.label]
+                    if (placement) gate(placement, e, item.to)
+                  }}
+                  className="group relative flex cursor-pointer items-center gap-3"
+                >
                   <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-gold-deep"}`}>
                     {item.n}
                   </span>

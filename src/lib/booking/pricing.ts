@@ -18,6 +18,9 @@ export type PricedLine = {
   name: string
   category: string
   isPackage: boolean
+  isTreatment: boolean
+  /** true for XL treatments — priced at the salon, $0 online */
+  customQuote: boolean
   unitCents: number
   qty: number
   lineCents: number
@@ -27,6 +30,7 @@ export type PricedCart = {
   lines: PricedLine[]
   packageLine: PricedLine | null
   addonLines: PricedLine[]
+  treatmentLine: PricedLine | null
   subtotalCents: number
   taxCents: number
   totalCents: number
@@ -82,6 +86,13 @@ type ServiceItemRow = {
   largePrice: string | null
   xlargePrice: string | null
   isPackage: boolean | null
+  isTreatment: boolean | null
+  treatmentNote: string | null
+  memberPrice: string | null
+  memberSmallPrice: string | null
+  memberMediumPrice: string | null
+  memberLargePrice: string | null
+  memberXlargePrice: string | null
   visible: boolean | null
 }
 
@@ -107,10 +118,10 @@ export async function listBookableServiceItems(): Promise<ServiceItemRow[]> {
     .map((r) => ({ ...r, isPackage: !!r.isPackage }))
 }
 
-// The unit price for one service item at a size tier (packages tier-price,
-// add-ons are flat).
+// The unit price for one service item at a size tier (packages and premium
+// treatments tier-price; add-ons are flat).
 export function unitCentsFor(item: ServiceItemRow, tier: SizeTier): number | null {
-  if (item.isPackage) {
+  if (item.isPackage || item.isTreatment) {
     switch (tier) {
       case "SMALL": return priceStringToCents(item.smallPrice) ?? priceStringToCents(item.price)
       case "MEDIUM": return priceStringToCents(item.mediumPrice) ?? priceStringToCents(item.price)
@@ -121,24 +132,57 @@ export function unitCentsFor(item: ServiceItemRow, tier: SizeTier): number | nul
   return priceStringToCents(item.price)
 }
 
+// The PAWfection Bath Club member unit price at a size tier. NULL when the
+// catalog row carries no member price — the caller hides the member line.
+export function memberUnitCentsFor(item: ServiceItemRow, tier: SizeTier): number | null {
+  if (item.isPackage || item.isTreatment) {
+    switch (tier) {
+      case "SMALL": return priceStringToCents(item.memberSmallPrice) ?? priceStringToCents(item.memberPrice)
+      case "MEDIUM": return priceStringToCents(item.memberMediumPrice) ?? priceStringToCents(item.memberPrice)
+      case "LARGE": return priceStringToCents(item.memberLargePrice) ?? priceStringToCents(item.memberPrice)
+      case "XLARGE": return priceStringToCents(item.memberXlargePrice) ?? priceStringToCents(item.memberPrice)
+    }
+  }
+  return priceStringToCents(item.memberPrice)
+}
+
 // Re-price a client-submitted cart from the live catalog. Returns null lines
 // for ids that no longer exist / aren't priced — the caller rejects the
 // checkout if a required package is missing.
+//
+// `member` prices the cart at the PAWfection Bath Club member ladder when
+// the booker holds an ACTIVE membership — the same catalog columns the
+// service menu shows, applied at the register.
 export async function priceCart(
   cart: CartLineInput[],
   weightLbs: number,
+  opts: { member?: boolean } = {},
 ): Promise<{ cart: PricedCart; unknownIds: string[] }> {
   const [items, taxRatePercent] = await Promise.all([listBookableServiceItems(), getTaxRatePercent()])
   const byId = new Map(items.map((i) => [i.id, i]))
   const sizeTier = sizeTierFromWeight(weightLbs)
+  const priceOf = opts.member
+    ? (item: ServiceItemRow) => memberUnitCentsFor(item, sizeTier) ?? unitCentsFor(item, sizeTier)
+    : (item: ServiceItemRow) => unitCentsFor(item, sizeTier)
 
   const lines: PricedLine[] = []
   const unknownIds: string[] = []
+  let treatmentCount = 0
 
   for (const input of cart) {
     const item = byId.get(String(input.id))
     if (!item) { unknownIds.push(String(input.id)); continue }
-    const unit = unitCentsFor(item, sizeTier)
+    const isTreatment = !!item.isTreatment
+    // Premium Treatments: at most ONE per booking.
+    if (isTreatment) {
+      if (treatmentCount >= 1) continue
+      treatmentCount++
+    }
+    let unit = priceOf(item)
+    // XL treatments carry no online price — custom quote, $0 toward the
+    // online total, priced and confirmed at the salon.
+    const customQuote = isTreatment && unit == null
+    if (customQuote) unit = 0
     if (unit == null) continue // header rows (Haircuts, Styling) are never bookable
     const qty = Math.max(1, Math.min(10, Math.floor(input.qty || 1)))
     lines.push({
@@ -146,15 +190,19 @@ export async function priceCart(
       name: item.name,
       category: item.category || "Services",
       isPackage: !!item.isPackage,
+      isTreatment,
+      customQuote,
       unitCents: unit,
       qty,
-      lineCents: unit * qty,
+      lineCents: customQuote ? 0 : unit * qty,
     })
   }
 
-  // Exactly one package may be selected; add-ons are open.
+  // Exactly one package may be selected; treatments ride on top (max 1,
+  // enforced above); add-ons are open.
   const packageLine = lines.find((l) => l.isPackage) || null
-  const addonLines = lines.filter((l) => !l.isPackage)
+  const addonLines = lines.filter((l) => !l.isPackage && !l.isTreatment)
+  const treatmentLine = lines.find((l) => l.isTreatment) || null
 
   const subtotalCents = lines.reduce((sum, l) => sum + l.lineCents, 0)
   const taxCents = Math.round(subtotalCents * taxRatePercent) / 100
@@ -165,6 +213,7 @@ export async function priceCart(
       lines,
       packageLine,
       addonLines,
+      treatmentLine,
       subtotalCents,
       taxCents: Math.round(taxCents),
       totalCents,

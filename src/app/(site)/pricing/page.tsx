@@ -2,6 +2,7 @@ import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { AddonsGrid, PackageCards } from "@/components/site/islands/pricing-islands"
+import { BathClubSection } from "@/components/site/islands/bath-club-section"
 import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
@@ -60,6 +61,12 @@ export default function PricingPage() {
 
         <p className="mt-16 text-center text-[11px] italic leading-[1.7] text-ink-soft lg:mt-20">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
       </section>
+
+      {/* PAWFECTION BATH CLUB — the subscription menu. Tiers, includes,
+          terms, prepay + multi-pet rules all read from the tenant catalog
+          (subscription_plans). Service-menu member pricing (above) and these
+          tiers resolve from the same catalog. */}
+      <BathClubSection />
     </>
   )
 }

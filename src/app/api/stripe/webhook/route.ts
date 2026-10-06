@@ -129,6 +129,36 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
 
   console.log(`[stripe/webhook] checkout.session.completed: flow=${sourceFlow} type=${stripeMetaType} email=${customerEmail} amount=$${amountTotal}`)
 
+  // ---- BATH CLUB SIGNUPS (subscription mode) ----
+  // metadata.type bath_club_signup: activate the PENDING membership and
+  // post the subscription_purchased perk points (idempotent — the status
+  // verifier may race us; both paths are safe).
+  if (stripeMetaType === "bath_club_signup") {
+    try {
+      const { membershipByStripeIds, activateMembership } = await import("@/lib/subscriptions")
+      const { earnForEmail } = await import("@/lib/perks")
+      const membership = await membershipByStripeIds({ sessionId: session?.id })
+      if (membership) {
+        const stripeSubscriptionId =
+          typeof session?.subscription === "string" ? session.subscription : (session?.subscription as any)?.id ?? undefined
+        await activateMembership(membership.id, { stripeSubscriptionId })
+        if (customerEmail) {
+          await earnForEmail({
+            email: customerEmail,
+            event: "subscription_purchased",
+            amountCents: Number(session?.amount_total || 0),
+            sourceId: `membership-${membership.id}`,
+            note: `${membership.planName} — ${membership.billingInterval}`,
+          })
+        }
+        console.log(`[stripe/webhook] bath club activated: ${membership.id}`)
+      }
+    } catch (e: any) {
+      console.error("[stripe/webhook] bath club activation failed:", e?.message)
+    }
+    return // subscription signups have no shop/booked branches below
+  }
+
   // ---- BOOKING PAYMENTS (deposit or full) ----
   // The grooming booking flows: metadata.type booking_payment (new 5-step
   // flow, FULL or DEPOSIT) and booking_deposit (legacy $25 flow). The single
@@ -207,6 +237,23 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
         new_status: "confirmed",
         payload: { commerce_order_id: commerceOrderId, stripe_session_id: session?.id },
       })
+
+      // 4b. Perks — points post on the order being paid-complete
+      // (idempotent on source=order + source_id).
+      try {
+        const { earnForEmail } = await import("@/lib/perks")
+        if (customerEmail) {
+          await earnForEmail({
+            email: customerEmail,
+            event: "order_completed",
+            amountCents: Number(session?.amount_total || 0),
+            sourceId: String(commerceOrderId),
+            note: "shop order",
+          })
+        }
+      } catch (e: any) {
+        console.error("[stripe/webhook] perks earn failed:", e?.message)
+      }
     } catch (e: any) {
       console.error("[stripe/webhook] commerce_orders update failed:", e?.message)
     }
@@ -362,6 +409,40 @@ async function handleInvoicePaid(supabase: any, event: Stripe.Event) {
       const { enrollCustomer } = await import("@/lib/auth/enroll-customer")
       await enrollCustomer({ email: customerEmail, source: "purchase" })
     } catch {}
+  }
+
+  // ---- PAWFECTION BATH CLUB RENEWALS ----
+  // Each renewal payment earns perk points. The FIRST invoice posts at
+  // signup (checkout.session.completed above); renewals arrive here.
+  try {
+    const { membershipByStripeIds } = await import("@/lib/subscriptions")
+    const { earnForEmail } = await import("@/lib/perks")
+    const subscriptionId =
+      typeof invoice?.subscription === "string" ? invoice.subscription : (invoice?.subscription as any)?.id ?? null
+    const membership = subscriptionId ? await membershipByStripeIds({ subscriptionId }) : null
+    if (membership) {
+      const membershipEmail = (membership as any).email || customerEmail
+      if (membershipEmail) {
+        await earnForEmail({
+          email: String(membershipEmail),
+          event: "subscription_renewed",
+          amountCents: Number(invoice?.amount_paid || 0),
+          sourceId: `renewal-${invoice?.id}`,
+          note: `${membership.planName} renewal`,
+        })
+      }
+      // Keep the period window current on the membership row.
+      const { pgExec } = await import("@/lib/pg")
+      const { TENANT_ID } = await import("@/lib/crm/enterprise")
+      await pgExec(
+        `update public.subscriptions
+         set current_period_start = $3, current_period_end = $4, visits_used = 0, updated_at = now()
+         where tenant_id = $1 and id = $2 and status = 'ACTIVE'`,
+        [TENANT_ID(), membership.id, new Date((invoice?.period_start ?? Date.now() / 1000) * 1000), new Date((invoice?.period_end ?? Date.now() / 1000 + 30 * 86400) * 1000)],
+      )
+    }
+  } catch (e: any) {
+    console.error("[stripe/webhook] bath club renewal failed:", e?.message)
   }
 }
 

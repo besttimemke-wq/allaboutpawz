@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
-import { sendEmail } from "@/lib/email"
+import { sendEmail, sendAppointmentRescheduled, sendAppointmentCanceled } from "@/lib/email"
 import { sessionForPortal } from "@/lib/portal-session-scope"
 import {
   bookingSignal,
@@ -107,34 +107,9 @@ function payableCents(b: any): number {
   return 0
 }
 
-async function rescheduleEmailHtml(name: string, dog: string, service: string, oldDate: string, oldTime: string, newDate: string, newTime: string) {
-  return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
-    <p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Appointment Rescheduled</p>
-    <h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">See you then, ${name}!</h1>
-    <p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
-    <div style="background:#fff;border:1px solid #e0d6bf;padding:16px;margin:16px 0">
-      <p><strong>Dog:</strong> ${dog}</p>
-      <p><strong>Service:</strong> ${service}</p>
-      <p><strong>Was:</strong> ${oldDate} at ${oldTime}</p>
-      <p><strong>Now:</strong> <strong>${newDate} at ${newTime}</strong></p>
-    </div>
-    <p>Manage your appointments any time from <a href="https://aapawz.com/customer/appointments" style="color:#9a7b3c">your portal</a>.</p>
-  </body></html>`
-}
-
-async function cancellationEmailHtml(name: string, dog: string, service: string, date: string, time: string) {
-  return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
-    <p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Appointment Cancelled</p>
-    <h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">Cancelled, ${name}.</h1>
-    <p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
-    <div style="background:#fff;border:1px solid #e0d6bf;padding:16px;margin:16px 0">
-      <p><strong>Dog:</strong> ${dog}</p>
-      <p><strong>Service:</strong> ${service}</p>
-      <p><strong>Date:</strong> ${date} at ${time}</p>
-    </div>
-    <p>Your appointment has been cancelled. Deposit refunds are handled by the salon — reply to this email or call us at (901) 800-7182. We'd love to see you again: <a href="https://aapawz.com/book/appointment" style="color:#9a7b3c">book anytime</a>.</p>
-  </body></html>`
-}
+// Reschedule + cancellation customer emails ride the ENTERPRISE senders
+// (sendAppointmentRescheduled / sendAppointmentCanceled → branded
+// design-system frames). The inline Georgia HTML below is retired.
 
 // ---------------------------------------------------------------------------
 // GET — the registry
@@ -239,17 +214,18 @@ export async function POST(req: NextRequest) {
       const oldTime = booking.time
       const updated = await repo.update("bookings", booking.id, { date, time })
 
-      sendEmail({
-        to: email,
-        template: "booking_rescheduled",
-        subject: "Your appointment has been moved — All About Pawz",
-        html: await rescheduleEmailHtml(
-          booking.ownerName || user.name,
-          booking.dogName || "your pup",
-          booking.service || "Grooming",
-          oldDate, oldTime, date, time,
-        ),
-        relatedBookingId: booking.id,
+      sendAppointmentRescheduled({
+        customerId: booking.customerId || undefined,
+        email,
+        ownerName: booking.ownerName || user.name,
+        dogName: booking.dogName,
+        service: booking.service || "Grooming",
+        size: booking.size,
+        oldDate,
+        oldTime,
+        date,
+        time,
+        bookingId: booking.id,
       }).catch(() => {})
       sendEmail({
         to: salonNotifyTo,
@@ -272,17 +248,17 @@ export async function POST(req: NextRequest) {
       // The honest customer signal after losing their booking.
       await recomputeCustomerSignal(email).catch(() => {})
 
-      sendEmail({
-        to: email,
-        template: "booking_cancelled",
-        subject: "Your appointment is cancelled — All About Pawz",
-        html: await cancellationEmailHtml(
-          booking.ownerName || user.name,
-          booking.dogName || "your pup",
-          booking.service || "Grooming",
-          booking.date || "", booking.time || "",
-        ),
-        relatedBookingId: booking.id,
+      sendAppointmentCanceled({
+        customerId: booking.customerId || undefined,
+        email,
+        ownerName: booking.ownerName || user.name,
+        dogName: booking.dogName,
+        service: booking.service || "Grooming",
+        size: booking.size,
+        date: booking.date || "",
+        time: booking.time,
+        canceledBy: "customer",
+        bookingId: booking.id,
       }).catch(() => {})
       sendEmail({
         to: salonNotifyTo,

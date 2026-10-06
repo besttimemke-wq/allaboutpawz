@@ -198,6 +198,46 @@ export async function POST(req: NextRequest) {
           })
           .catch((e) => console.error("[appointments/actions] cancel email failed:", e?.message));
       }
+
+      // ─────────────────────────────────────────────────────────────────
+      // PERKS — the appointment happened (salon marks it complete): post
+      // the booking_completed points. The crm row links back to the
+      // customer-facing booking via source_appointment_id; the amount is
+      // the BOOKING's total (the register record). Idempotent on
+      // (source='booking', source_id=booking.id) — completing twice never
+      // double-posts.
+      // ─────────────────────────────────────────────────────────────────
+      if (shortAction === "complete" && newStatus === "completed") {
+        try {
+          const linkRows = await pgQuery<{ source_appointment_id: string | null }>(
+            `SELECT source_appointment_id FROM public.crm_appointments WHERE id = $1::uuid AND tenant_id = $2`,
+            [appointmentId, TENANT_ID()],
+          );
+          const bookingId = linkRows[0]?.source_appointment_id || null;
+          if (bookingId) {
+            const bookingRows = await pgQuery<{ email: string | null; total_cents: number | null }>(
+              `SELECT email, totalCents as total_cents FROM public.bookings WHERE id = $1::text LIMIT 1`,
+              [String(bookingId)],
+            );
+            const b = bookingRows[0];
+            if (b?.email && (b.total_cents ?? 0) > 0) {
+              const { earnForEmail } = await import("@/lib/perks");
+              const earned = await earnForEmail({
+                email: String(b.email),
+                event: "booking_completed",
+                amountCents: Number(b.total_cents),
+                sourceId: String(bookingId),
+                note: "grooming visit",
+              });
+              if (earned.posted) {
+                console.log(`[appointments/actions] perks posted: +${earned.points} for booking ${bookingId}`);
+              }
+            }
+          }
+        } catch (e: any) {
+          console.error("[appointments/actions] perks earn failed:", e?.message);
+        }
+      }
       return NextResponse.json({ ok: true, appointmentId, fromStatus, toStatus: newStatus });
     }
 

@@ -8,6 +8,8 @@ import { googleCalendarUrl, outlookCalendarUrl } from "@/lib/booking/ics"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { ServicePrice, MemberSavingsBadge } from "@/components/site/islands/service-price"
+import { PromoCodeBox, type AppliedPromo } from "@/components/site/islands/promo-code-box"
 import {
   AlertCircle as AlertIcon,
   Calendar as CalendarIcon,
@@ -21,6 +23,7 @@ import {
   PawPrint as PawPrintIcon,
   Scissors as ScissorsIcon,
   ShieldCheck as ShieldCheckIcon,
+  Sparkles as Sparkle,
   Sun as SunIcon,
   Sunrise as SunriseIcon,
 } from "lucide-react"
@@ -116,16 +119,29 @@ function useMounted() {
 // Types
 // ---------------------------------------------------------------------------
 type MenuItem = { id: string; name: string; category: string }
-type Pkg = MenuItem & { prices: Record<SizeTier, number | null> }
-type AddOn = MenuItem & { priceCents: number; priceDisplay: string }
+type Pkg = MenuItem & {
+  prices: Record<SizeTier, number | null>
+  memberPrices: Record<SizeTier, number | null>
+}
+type Treatment = MenuItem & {
+  prices: Record<SizeTier, number | null>
+  memberPrices: Record<SizeTier, number | null>
+  note: string | null
+}
+type AddOn = MenuItem & { priceCents: number; priceDisplay: string; memberPriceCents: number | null }
 type MenuData = {
   breeds: { id: string; name: string }[]
   packages: Pkg[]
+  treatments: Treatment[]
   addons: AddOn[]
   tiers: { tier: SizeTier; label: string; range: string }[]
   taxRatePercent: number
   salon: { name: string; address: string; cityState: string; phone: string }
   depositCents: number
+  /** signed-in visitor holds an ACTIVE PAWfection Bath Club membership */
+  isMember: boolean
+  bathClub: { id: string; sizeTier: string; sizeLabel: string; weightRange: string; monthlyPriceCents: number | null }[]
+  perks: { pointsPerDollar: number }
 }
 type SessionUser = { id: string; name: string; email: string; role: string } | null
 type PetOption = {
@@ -161,6 +177,8 @@ type StatusBooking = {
 type Cart = {
   pkg: Pkg
   pkgCents: number
+  treatment: Treatment | null
+  treatmentCents: number | null
   addons: AddOn[]
   addonCents: number
   subtotal: number
@@ -499,7 +517,40 @@ function PawSlider({ level, onChange }: { level: number; onChange: (level: numbe
   )
 }
 
-function CartSummaryCard({ cart, menu, pawRange }: { cart: Cart; menu: MenuData; pawRange: string }) {
+// The post-discount total — promo first, then points against what's left,
+// tax on the discounted subtotal (mirrors the server's register math).
+function finalTotal(
+  cart: Cart,
+  menu: MenuData,
+  appliedPromo: AppliedPromo | null,
+  validPoints: number,
+  pointsDiscountCents: number,
+): number {
+  const promoDiscount = appliedPromo?.discountCents ?? 0
+  const subtotal = Math.max(0, cart.subtotal - promoDiscount - pointsDiscountCents)
+  const tax = Math.round((subtotal * menu.taxRatePercent) / 100)
+  return subtotal + tax
+}
+
+function CartSummaryCard({
+  cart,
+  menu,
+  pawRange,
+  appliedPromo,
+  pointsRedeemed,
+  pointsDiscount,
+}: {
+  cart: Cart
+  menu: MenuData
+  pawRange: string
+  appliedPromo?: AppliedPromo | null
+  pointsRedeemed?: number
+  pointsDiscount?: number
+}) {
+  const promoDiscount = appliedPromo?.discountCents ?? 0
+  const subtotalAfterDiscounts = Math.max(0, cart.subtotal - promoDiscount - (pointsDiscount ?? 0))
+  const tax = Math.round((subtotalAfterDiscounts * menu.taxRatePercent) / 100)
+  const total = subtotalAfterDiscounts + tax
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-4 sm:p-5">
       <div className="space-y-2 text-[13.5px]">
@@ -510,10 +561,23 @@ function CartSummaryCard({ cart, menu, pawRange }: { cart: Cart; menu: MenuData;
           </span>
           <span className="font-semibold tabular-nums text-ink">{fmt(cart.pkgCents)}</span>
         </div>
+        {cart.treatment && (
+          <div className="flex justify-between">
+            <span className="text-neutral-600">
+              {cart.treatment.name}
+              <span className="text-neutral-400"> · treatment</span>
+            </span>
+            <span className="tabular-nums text-neutral-600">
+              {cart.treatmentCents == null ? "Custom quote" : fmt(cart.treatmentCents)}
+            </span>
+          </div>
+        )}
         {cart.addons.map((a) => (
           <div key={a.id} className="flex justify-between">
             <span className="text-neutral-600">{a.name}</span>
-            <span className="tabular-nums text-neutral-600">{fmt(a.priceCents)}</span>
+            <span className="tabular-nums text-neutral-600">
+              {fmt(menu.isMember && a.memberPriceCents != null ? a.memberPriceCents : a.priceCents)}
+            </span>
           </div>
         ))}
       </div>
@@ -522,14 +586,31 @@ function CartSummaryCard({ cart, menu, pawRange }: { cart: Cart; menu: MenuData;
           <span>Subtotal</span>
           <span className="tabular-nums">{fmt(cart.subtotal)}</span>
         </div>
+        {promoDiscount > 0 && appliedPromo && (
+          <div className="flex justify-between font-semibold text-gold-deep">
+            <span>Promo {appliedPromo.code}</span>
+            <span className="tabular-nums">−{fmt(promoDiscount)}</span>
+          </div>
+        )}
+        {(pointsDiscount ?? 0) > 0 && (
+          <div className="flex justify-between font-semibold text-gold-deep">
+            <span>Perks points ({pointsRedeemed} pts)</span>
+            <span className="tabular-nums">−{fmt(pointsDiscount ?? 0)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-neutral-500">
           <span>Tax ({menu.taxRatePercent}%)</span>
-          <span className="tabular-nums">{fmt(cart.tax)}</span>
+          <span className="tabular-nums">{fmt(tax)}</span>
         </div>
         <div className="flex justify-between pt-1 text-[17px] font-bold text-ink">
           <span>Total</span>
-          <span className="tabular-nums">{fmt(cart.total)}</span>
+          <span className="tabular-nums">{fmt(total)}</span>
         </div>
+        {cart.treatment && cart.treatmentCents == null && (
+          <p className="pt-1 text-[11.5px] leading-snug text-neutral-400">
+            The treatment is priced at the salon — it isn’t part of today’s online total.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -547,9 +628,11 @@ export function BookingFlow() {
   const [sessionChecked, setSessionChecked] = useState(false)
   const [pets, setPets] = useState<PetOption[] | null>(null)
 
-  // URL modes: Stripe success return / cancelled checkout
+  // URL modes: Stripe success return / cancelled checkout / deep-linked
+  // offer code (?promo=CODE from an Offers card CTA)
   const [confirmBookingId, setConfirmBookingId] = useState<string | null>(null)
   const [cancelledNotice, setCancelledNotice] = useState(false)
+  const [initialPromoCode, setInitialPromoCode] = useState<string | null>(null)
 
   // The vaccination gate — blocking modal between TIME and REVIEW
   const [gateOpen, setGateOpen] = useState(false)
@@ -638,6 +721,11 @@ export function BookingFlow() {
     loadSession()
 
     const sp = new URLSearchParams(window.location.search)
+    const promoParam = sp.get("promo")
+    if (promoParam) {
+      setInitialPromoCode(promoParam.toUpperCase())
+      window.history.replaceState(null, "", window.location.pathname)
+    }
     if (sp.get("success") === "booking") {
       const bid = sp.get("booking_id")
       if (bid) {
@@ -677,14 +765,30 @@ export function BookingFlow() {
   const cart = useMemo(() => {
     if (!menu || !tier) return null
     const pkg = menu.packages.find((p) => p.id === flow.packageId) || null
-    const pkgCents = pkg?.prices?.[tier] ?? null
+    // Bath Club members price at the member ladder (the server re-prices
+    // at checkout — this preview mirrors it).
+    const priceOf = (p: Pkg | Treatment) => {
+      if (menu.isMember) return p.memberPrices?.[tier] ?? p.prices?.[tier] ?? null
+      return p.prices?.[tier] ?? null
+    }
+    const pkgCents = pkg ? priceOf(pkg) : null
+    const treatment = menu.treatments.find((t) => t.id === flow.treatmentId) || null
+    // XL treatments carry no online price — custom quote at the salon.
+    const treatmentCents = treatment ? priceOf(treatment) : null
     const addons = menu.addons.filter((a) => flow.addonIds.includes(a.id))
-    const addonCents = addons.reduce((s, a) => s + a.priceCents, 0)
+    const addonCents = addons.reduce(
+      (s, a) => s + (menu.isMember && a.memberPriceCents != null ? a.memberPriceCents : a.priceCents),
+      0,
+    )
     if (!pkg || pkgCents == null) return null
-    const subtotal = pkgCents + addonCents
+    const subtotal = pkgCents + (treatmentCents ?? 0) + addonCents
     const tax = Math.round((subtotal * menu.taxRatePercent) / 100)
-    return { pkg, pkgCents, addons, addonCents, subtotal, tax, total: subtotal + tax }
-  }, [menu, tier, flow.packageId, flow.addonIds])
+    return {
+      pkg, pkgCents, treatment,
+      treatmentCents: treatment ? treatmentCents : null,
+      addons, addonCents, subtotal, tax, total: subtotal + tax,
+    }
+  }, [menu, tier, flow.packageId, flow.treatmentId, flow.addonIds])
 
   // Leaving TIME for REVIEW without acknowledgment → the gate opens first.
   const requestReview = useCallback(() => {
@@ -850,7 +954,7 @@ export function BookingFlow() {
         )}
         {flow.step === 3 && <StepTime flow={flow} menu={menu} requestReview={requestReview} />}
         {flow.step === 4 && (
-          <StepReview flow={flow} menu={menu} cart={cart} session={session} pawRange={pawRange} />
+          <StepReview flow={flow} menu={menu} cart={cart} session={session} pawRange={pawRange} initialPromoCode={initialPromoCode} />
         )}
       </div>
 
@@ -1422,6 +1526,7 @@ function StepService({
       <div role="radiogroup" aria-label="Grooming package" className="space-y-3">
         {menu.packages.map((p) => {
           const price = tier ? p.prices[tier] : null
+          const memberPrice = tier ? p.memberPrices?.[tier] ?? null : null
           const selected = flow.packageId === p.id
           return (
             <button
@@ -1439,19 +1544,46 @@ function StepService({
               <span className="min-w-0 flex-1">
                 <span className="type-body block text-[15px] font-bold text-ink">{p.name}</span>
                 <span className="mt-0.5 block text-[13px] leading-snug text-neutral-500">{pkgDesc(p.name)}</span>
+                {price != null && (
+                  <MemberSavingsBadge
+                    priceCents={price}
+                    memberPriceCents={memberPrice}
+                    className="mt-1.5"
+                  />
+                )}
               </span>
-              {price != null ? (
-                <span className="shrink-0 text-right">
-                  <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-400">from</span>
-                  <span className="type-body block text-[18px] font-bold tabular-nums text-ink">{fmt(price)}</span>
-                </span>
-              ) : (
-                <span className="shrink-0 text-[13px] text-neutral-400">—</span>
-              )}
+              <ServicePrice
+                priceCents={price}
+                memberPriceCents={memberPrice}
+                isMember={menu.isMember}
+              />
             </button>
           )
         })}
       </div>
+
+      {/* PAWfection Bath Club member notice — the member line resolves per
+          the visitor's membership; non-members see it as the upsell. */}
+      {!menu.isMember && menu.bathClub.length > 0 && (
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-gold-deep/30 bg-amber-50/30 p-4">
+          <Sparkle className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" aria-hidden="true" />
+          <p className="text-[12.5px] leading-relaxed text-ink-soft">
+            <a href="/pricing#bath-club" className="font-bold text-gold-deep underline underline-offset-2">
+              Join the PAWfection Bath Club
+            </a>{" "}
+            and every service drops to the member price — up to 4 baths a month on your membership.
+          </p>
+        </div>
+      )}
+      {menu.isMember && (
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-gold-deep/40 bg-amber-50/40 p-4">
+          <Sparkle className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" aria-hidden="true" />
+          <p className="text-[12.5px] leading-relaxed text-ink-soft">
+            <span className="font-bold text-gold-deep">Bath Club member pricing is on.</span>{" "}
+            Your membership price applies to every service, add-on, and treatment — automatically.
+          </p>
+        </div>
+      )}
 
       <div className="mt-5 rounded-lg bg-neutral-50 p-4 sm:p-5">
         <p className={LABEL_CLS}>All services include</p>
@@ -1465,6 +1597,80 @@ function StepService({
         </ul>
       </div>
 
+      {/* Premium Treatments — targeted upgrades, at most ONE per booking.
+          Size-tiered from the tenant catalog; XL = custom quote (no online
+          price — priced and confirmed at the salon). */}
+      {menu.treatments.length > 0 && (
+        <div className="mt-6">
+          <p className={LABEL_CLS}>
+            Premium Treatments{" "}
+            <span className="font-normal normal-case tracking-normal text-neutral-400">
+              (optional upgrade · select 1 max)
+            </span>
+          </p>
+          <div role="radiogroup" aria-label="Premium treatment (optional, max one)" className="mt-3 space-y-3">
+            {menu.treatments.map((t) => {
+              const price = tier ? t.prices[tier] : null
+              const memberPrice = tier ? t.memberPrices?.[tier] ?? null : null
+              const selected = flow.treatmentId === t.id
+              const customQuote = price == null
+              return (
+                <div
+                  key={t.id}
+                  className={cn(
+                    "rounded-lg border bg-white p-4 transition-colors sm:p-5",
+                    selected ? "border-gold-deep bg-amber-50/40" : "border-neutral-200",
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={`${t.name}${customQuote ? " — custom quote" : ""}`}
+                      onClick={() => flow.patch({ treatmentId: selected ? "" : t.id })}
+                      className="flex min-w-0 flex-1 items-center gap-4 text-left"
+                    >
+                      <RadioCircle selected={selected} />
+                      <span className="min-w-0 flex-1">
+                        <span className="type-body block text-[15px] font-bold text-ink">{t.name}</span>
+                        {!customQuote && (
+                          <MemberSavingsBadge
+                            priceCents={price}
+                            memberPriceCents={memberPrice}
+                            className="mt-1.5"
+                          />
+                        )}
+                      </span>
+                      <ServicePrice
+                        priceCents={price}
+                        memberPriceCents={memberPrice}
+                        isMember={menu.isMember}
+                        customQuote={customQuote}
+                      />
+                    </button>
+                  </div>
+                  {t.note && (
+                    <p className="mt-2.5 border-t border-neutral-100 pt-2.5 text-[12px] leading-relaxed text-neutral-500">
+                      {t.note}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Groomer's tip — the salon's walk-in nail service. */}
+      <div className="mt-5 rounded-lg border border-neutral-200 bg-white p-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-500">Groomer’s tip</p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-ink-soft">
+          Nails clicking on the floor? Walk into any salon for nail trim services without an
+          appointment! <span className="text-neutral-400">Subject to salon availability.</span>
+        </p>
+      </div>
+
       <div className="mt-6">
         <p className={LABEL_CLS}>
           Add-ons <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span>
@@ -1472,6 +1678,8 @@ function StepService({
         <div className="mt-3 flex flex-wrap gap-2.5">
           {menu.addons.map((a) => {
             const selected = flow.addonIds.includes(a.id)
+            const displayCents =
+              menu.isMember && a.memberPriceCents != null ? a.memberPriceCents : a.priceCents
             return (
               <button
                 key={a.id}
@@ -1487,8 +1695,16 @@ function StepService({
               >
                 <CheckSquare selected={selected} />
                 {a.name}
-                <span className={cn("text-[12px] font-bold tabular-nums", selected ? "text-gold-deep" : "text-neutral-400")}>
-                  +${a.priceDisplay}
+                <span
+                  className={cn(
+                    "text-[12px] font-bold tabular-nums",
+                    selected ? "text-gold-deep" : "text-neutral-400",
+                  )}
+                >
+                  +{fmt(displayCents)}
+                  {menu.isMember && a.memberPriceCents != null && a.memberPriceCents < a.priceCents && (
+                    <span className="ml-1 font-normal text-neutral-400 line-through">{fmt(a.priceCents)}</span>
+                  )}
                 </span>
               </button>
             )
@@ -1509,6 +1725,7 @@ function StepService({
           <div className="mb-3 flex items-baseline justify-between lg:hidden">
             <p className="type-body truncate text-[12.5px] font-semibold text-ink">
               {cart.pkg.name}
+              {cart.treatment ? ` · ${cart.treatment.name}` : ""}
               {cart.addons.length > 0 ? ` · +${cart.addons.length} add-on${cart.addons.length > 1 ? "s" : ""}` : ""}
             </p>
             <p className="type-body shrink-0 pl-3 text-[16px] font-bold tabular-nums text-ink">{fmt(cart.total)}</p>
@@ -1951,17 +2168,57 @@ function StepReview({
   cart,
   session,
   pawRange,
+  initialPromoCode,
 }: {
   flow: FlowStore
   menu: MenuData | null
   cart: Cart | null
   session: SessionUser
   pawRange: string
+  initialPromoCode?: string | null
 }) {
   const [payMode, setPayMode] = useState<PayMode>(flow.payMode)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [needSignin, setNeedSignin] = useState(false)
+
+  // ---- the promo (one code, server-validated) ----
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null)
+
+  // ---- the perks points redemption ----
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null)
+  const [pointsToRedeem, setPointsToRedeem] = useState("")
+  const pointsPerDollar = menu?.perks?.pointsPerDollar ?? 100
+
+  useEffect(() => {
+    if (!session) {
+      setPointsBalance(null)
+      return
+    }
+    let alive = true
+    fetch("/api/perks/balance", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d && typeof d.points === "number") setPointsBalance(d.points)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [session])
+
+  // Recompute the redeemable points when the promo changes (the cap is the
+  // post-promo subtotal).
+  const promoDiscount = appliedPromo?.discountCents ?? 0
+  const subtotalAfterPromo = cart ? Math.max(0, cart.subtotal - promoDiscount) : 0
+  const maxRedeemablePoints =
+    pointsBalance != null ? Math.floor(subtotalAfterPromo / 100 * pointsPerDollar) : 0
+  const parsedPoints = parseInt(pointsToRedeem, 10)
+  const validPoints =
+    Number.isFinite(parsedPoints) && parsedPoints > 0 && pointsBalance != null
+      ? Math.min(parsedPoints, pointsBalance, Math.max(0, maxRedeemablePoints))
+      : 0
+  const pointsDiscountCents = Math.floor((validPoints / pointsPerDollar) * 100)
 
   const pickPayMode = (m: PayMode) => {
     setPayMode(m)
@@ -1989,10 +2246,13 @@ function StepReview({
           time: flow.time,
           items: [
             ...(flow.packageId ? [{ id: flow.packageId, qty: 1 }] : []),
+            ...(flow.treatmentId ? [{ id: flow.treatmentId, qty: 1 }] : []),
             ...flow.addonIds.map((id) => ({ id, qty: 1 })),
           ],
           payMode,
           notes: flow.notes,
+          promoCode: appliedPromo?.code ?? "",
+          pointsToRedeem: validPoints > 0 ? validPoints : 0,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -2004,6 +2264,12 @@ function StepReview({
       if (res.status === 409 || data?.code === "SLOT_TAKEN") {
         setError(data?.error || "That time was just taken — pick another.")
         flow.setStep(3)
+        return
+      }
+      if (res.status === 422 && (data?.code === "PROMO_REJECTED" || data?.code === "POINTS")) {
+        setError(data?.error || "That promo no longer applies — remove it and try again.")
+        if (data?.code === "PROMO_REJECTED") setAppliedPromo(null)
+        if (data?.code === "POINTS") setPointsToRedeem("")
         return
       }
       if (!res.ok || !data?.url) {
@@ -2044,7 +2310,9 @@ function StepReview({
           label="Grooming Service"
           value={
             cart
-              ? cart.pkg.name + (cart.addons.length > 0 ? ` · +${cart.addons.length} add-on${cart.addons.length > 1 ? "s" : ""}` : "")
+              ? cart.pkg.name
+                + (cart.treatment ? ` · ${cart.treatment.name}` : "")
+                + (cart.addons.length > 0 ? ` · +${cart.addons.length} add-on${cart.addons.length > 1 ? "s" : ""}` : "")
               : "No services selected"
           }
           onEdit={() => flow.setStep(2)}
@@ -2058,7 +2326,83 @@ function StepReview({
 
       {cart && menu && (
         <div className="mt-5">
-          <CartSummaryCard cart={cart} menu={menu} pawRange={pawRange} />
+          <CartSummaryCard
+            cart={cart}
+            menu={menu}
+            pawRange={pawRange}
+            appliedPromo={appliedPromo}
+            pointsRedeemed={validPoints > 0 ? validPoints : undefined}
+            pointsDiscount={validPoints > 0 ? pointsDiscountCents : undefined}
+          />
+        </div>
+      )}
+
+      {/* PROMO + PERKS — the offer rails. One code (server-validated),
+          then points against what's left. The checkout recomputes both
+          server-side; these are the previews. */}
+      {cart && menu && (
+        <div className="mt-5 space-y-5">
+          <PromoCodeBox
+            initialCode={initialPromoCode}
+            context={{
+              serviceIds: [
+                ...(flow.packageId ? [flow.packageId] : []),
+                ...(flow.treatmentId ? [flow.treatmentId] : []),
+                ...flow.addonIds,
+              ],
+              subtotalCents: cart.subtotal,
+              dogId: flow.dogId || null,
+              dogBirthDate: flow.birthDate || null,
+            }}
+            onApplied={(p) => setAppliedPromo(p)}
+            onRemoved={() => setAppliedPromo(null)}
+          />
+
+          {session && pointsBalance != null && pointsBalance >= pointsPerDollar && (
+            <div className="rounded-lg border border-neutral-200 bg-white p-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className={LABEL_CLS}>Perks points</p>
+                <p className="text-[12px] font-semibold text-neutral-500">
+                  {pointsBalance.toLocaleString()} pts · {pointsPerDollar} pts = $1
+                </p>
+              </div>
+              <div className="mt-3 flex items-center gap-2.5">
+                <input
+                  id="points-input"
+                  type="number"
+                  min={0}
+                  max={Math.min(pointsBalance, maxRedeemablePoints)}
+                  inputMode="numeric"
+                  value={pointsToRedeem}
+                  onChange={(e) => setPointsToRedeem(e.target.value)}
+                  disabled={maxRedeemablePoints < pointsPerDollar}
+                  aria-label="Points to apply to this booking"
+                  className="h-12 w-32 rounded-md border border-neutral-300 bg-white px-3.5 text-[14px] font-semibold tabular-nums text-ink outline-none transition-colors focus:border-gold-deep focus:ring-2 focus:ring-gold-deep/30 disabled:opacity-40"
+                />
+                {maxRedeemablePoints >= pointsPerDollar && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPointsToRedeem(String(Math.min(pointsBalance, maxRedeemablePoints)))
+                    }
+                    className="h-12 rounded-md border border-neutral-300 bg-white px-4 text-[11px] font-bold uppercase tracking-[0.08em] text-ink transition-colors hover:border-ink hover:bg-neutral-50"
+                  >
+                    Use max
+                  </button>
+                )}
+                <p className="min-w-0 flex-1 text-[12px] leading-snug text-neutral-500">
+                  {validPoints > 0
+                    ? `−${fmt(pointsDiscountCents)} off this booking`
+                    : maxRedeemablePoints >= pointsPerDollar
+                      ? `Up to ${maxRedeemablePoints.toLocaleString()} pts apply here.`
+                      : "Not enough on this total to apply points."}{" "}
+                  <a href="/customer/orders/perks" className="font-semibold text-gold-deep">
+                    Perks Dashboard
+                  </a>
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2078,7 +2422,7 @@ function StepReview({
             <RadioCircle selected={payMode === "FULL"} />
             <span className="min-w-0">
               <span className="type-body block text-[14.5px] font-bold text-ink">
-                Pay in full{cart ? ` — ${fmt(cart.total)}` : ""}
+                Pay in full{cart && menu ? ` — ${fmt(finalTotal(cart, menu, appliedPromo, validPoints, pointsDiscountCents))}` : ""}
               </span>
               <span className="mt-1 block text-[12.5px] leading-relaxed text-neutral-500">
                 Everything settled today, tax included. Nothing owed at the visit.

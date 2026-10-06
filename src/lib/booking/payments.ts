@@ -1,7 +1,6 @@
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
-import { sendEmail } from "@/lib/email"
-import { buildBookingIcs } from "@/lib/booking/ics"
+import { sendBookingConfirmation } from "@/lib/email"
 import { syncCrmAppointment } from "@/lib/crm/enterprise"
 import { setCustomerSignal, bookingSignal, totalCentsOf } from "@/lib/booking/status"
 import { centsToDollars } from "@/lib/booking/pricing"
@@ -13,30 +12,13 @@ import { centsToDollars } from "@/lib/booking/pricing"
 // /api/bookings/status verifier (authoritative Stripe re-read). Idempotent:
 // a booking already paid at/above the session amount is left untouched, so
 // webhook + verifier racing each other is safe.
+//
+// The confirmation email rides the enterprise sender — sendBookingConfirmation
+// (branded design-system frame + the .ics calendar attachment + the salon's
+// internal notification) — with the payment facts rendered as a card.
 // ---------------------------------------------------------------------------
 
 const DEPOSIT_CENTS = 2500
-
-function confirmedHtml(name: string, dog: string, date: string, time: string, items: string[], total: string, paid: string, balance: string) {
-  const itemList = items.map((i) => `<p style="margin:2px 0">${i}</p>`).join("")
-  const balanceLine = Number(balance.replace(/[^0-9.]/g, "")) > 0
-    ? `<p><strong>Balance at the salon:</strong> ${balance}</p>`
-    : `<p><strong>Paid in full</strong> — nothing owed at the visit.</p>`
-  return `<!doctype html><html><body style="font-family:Georgia,serif;max-width:560px;margin:auto;background:#faf7f2;padding:32px;color:#1a1a1a">
-    <p style="font-size:10px;letter-spacing:0.18em;color:#9a7b3c;text-transform:uppercase;font-family:sans-serif;font-weight:700">Appointment Confirmed</p>
-    <h1 style="font-size:28px;line-height:1.1;margin:8px 0 0">You're booked, ${name}!</h1>
-    <p style="font-style:italic;color:#9a7b3c;font-size:20px;margin:4px 0 16px">From Pawz to PAWfection</p>
-    <div style="background:#fff;border:1px solid #e0d6bf;padding:16px;margin:16px 0">
-      <p><strong>Dog:</strong> ${dog}</p>
-      <p><strong>Date:</strong> ${date} at ${time}</p>
-      <p style="margin-bottom:2px"><strong>Services:</strong></p>${itemList}
-      <p><strong>Total (with tax):</strong> ${total}</p>
-      <p><strong>Paid now:</strong> ${paid}</p>
-      ${balanceLine}
-    </div>
-    <p>Need to change anything? Manage your appointment any time from <a href="https://aapawz.com/customer/appointments" style="color:#9a7b3c">your portal</a>.</p>
-  </body></html>`
-}
 
 type PaymentResult =
   | { ok: true; booking: any; changed: boolean }
@@ -96,6 +78,8 @@ export async function applyBookingPayment(opts: {
   await setCustomerSignal(booking.email, "ACTIVE").catch(() => {})
 
   // The confirmation email — fires once, on the transition to confirmed.
+  //  Branded design-system frame + .ics calendar attachment + the salon's
+  //  internal notification, all from the one enterprise sender.
   if (confirms && String(booking.status || "").toUpperCase() !== "CONFIRMED") {
     try {
       const items = Array.isArray(parseItems(booking.itemsJson)) ? parseItems(booking.itemsJson) : []
@@ -103,39 +87,24 @@ export async function applyBookingPayment(opts: {
         ? items.map((l: any) => `${l.name}${l.qty > 1 ? ` ×${l.qty}` : ""} — ${centsToDollars(Number(l.lineCents) || 0)}`)
         : [`${booking.service || "Grooming"} — ${booking.servicePrice || ""}`]
       if (booking.email) {
-        // The .ics attachment — Google/Apple/Outlook recognize the email as
-        // a calendar event and offer to save the appointment.
-        const icsContent = buildBookingIcs({
-          bookingId: booking.id,
+        await sendBookingConfirmation({
+          customerId: booking.customerId || undefined,
+          ownerName: booking.ownerName || "there",
           dogName: booking.dogName,
-          serviceNames: items.length > 0 ? items.map((l: any) => String(l.name)) : [booking.service || "Grooming"],
-          date: booking.date || "",
-          time: booking.time || "",
-          durationMinutes: 120,
-          totalDisplay: totalCents > 0 ? centsToDollars(totalCents) : booking.servicePrice || "",
-          balanceDisplay: centsToDollars(Math.max(0, totalCents - newPaid)),
-        })
-        await sendEmail({
-          to: booking.email,
-          template: "booking_confirmed",
-          subject: "Your appointment is confirmed — All About Pawz",
-          html: confirmedHtml(
-            booking.ownerName || "there",
-            booking.dogName || "your pup",
-            booking.date || "",
-            booking.time || "",
-            itemLines,
-            totalCents > 0 ? centsToDollars(totalCents) : booking.servicePrice || "",
-            centsToDollars(opts.amountCents),
-            centsToDollars(Math.max(0, totalCents - newPaid)),
-          ),
-          relatedBookingId: booking.id,
-          attachments: [
-            {
-              filename: "all-about-pawz-appointment.ics",
-              content: Buffer.from(icsContent, "utf8").toString("base64"),
-            },
-          ],
+          service: booking.service || "Grooming",
+          size: booking.size,
+          date: booking.date,
+          time: booking.time,
+          email: booking.email,
+          phone: booking.phone || "",
+          notes: booking.notes || "",
+          bookingId: booking.id,
+          payment: {
+            items: itemLines,
+            total: totalCents > 0 ? centsToDollars(totalCents) : booking.servicePrice || "",
+            paid: centsToDollars(opts.amountCents),
+            balance: centsToDollars(Math.max(0, totalCents - newPaid)),
+          },
         })
       }
     } catch (e: any) { console.error("[applyBookingPayment] confirmation email failed:", e.message) }

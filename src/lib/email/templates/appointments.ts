@@ -15,6 +15,14 @@ export interface AppointmentData {
   notes?: string
   bookingRef?: string
   size?: string
+  /** Optional payment summary — rendered as a second card when the caller
+   *  knows the amounts (deposit/paid-in-full confirmations). */
+  payment?: {
+    items: string[]
+    total: string
+    paid: string
+    balance: string
+  }
 }
 
 function whenLabel(d: AppointmentData): string {
@@ -42,6 +50,20 @@ function apptCard(title: string, d: AppointmentData, tone: "gold" | "brick" | "s
 // ---- Booking confirmed (deposit paid) -----------------------------------------
 
 export function bookingConfirmedHtml(d: AppointmentData): string {
+  const balanceNum = parseFloat((d.payment?.balance || "0").replace(/[^0-9.]/g, ""))
+  const paymentCard = d.payment
+    ? detailsCard("Your payment", [
+        ...(d.payment.items.length > 0
+          ? [{ label: "Services", value: d.payment.items.map((l) => esc(l)).join("<br/>") }]
+          : []),
+        { label: "Total (with tax)", value: esc(d.payment.total) },
+        { label: "Paid now", value: esc(d.payment.paid) },
+        {
+          label: balanceNum > 0 ? "Balance at the salon" : "Paid in full",
+          value: balanceNum > 0 ? esc(d.payment.balance) : "Nothing owed at the visit",
+        },
+      ])
+    : ""
   return frame({
     preheader: `${d.dogName || "Your pup"}'s appointment is confirmed — everything you need to know.`,
     body: [
@@ -49,9 +71,10 @@ export function bookingConfirmedHtml(d: AppointmentData): string {
       h1(`You're all set, ${esc(d.firstName)}!`),
       taglineFlourish(),
       p(
-        `${d.dogName ? `<strong style="color:#1a1a1a">${esc(d.dogName)}</strong> is booked in` : "Your appointment is booked in"} for <strong style="color:#1a1a1a">${esc(serviceLabel(d))}</strong>. Your $25 deposit is applied toward the groom — the balance is settled in the salon on the day.`,
+        `${d.dogName ? `<strong style="color:#1a1a1a">${esc(d.dogName)}</strong> is booked in` : "Your appointment is booked in"} for <strong style="color:#1a1a1a">${esc(serviceLabel(d))}</strong>${d.payment ? "" : ". Your $25 deposit is applied toward the groom — the balance is settled in the salon on the day"}.`,
       ),
       apptCard("Your appointment", d),
+      paymentCard,
       p(`Need a different time? You can reschedule from your portal up to 24 hours before — or just call us and we'll sort it out.`),
       button(BRAND.portalUrl, "Manage in my portal"),
       noteBox(`Arriving right on time keeps every pup's day running smoothly — please give us a 5-minute cushion. Late arrivals may need a shortened service so the next dog isn't kept waiting.`),
@@ -206,6 +229,49 @@ export function consultationRequestHtml(d: ConsultationData): string {
   })
 }
 
+// ---- Booking request received (the "We got it" morning design) ------------------
+
+export interface BookingRequestData {
+  firstName: string
+  dogName?: string
+  service: string
+  date: string
+  time?: string
+  bookingRef?: string
+  /** payment lines carried on the request (items + total) */
+  itemLines?: string[]
+  total?: string
+}
+
+export function bookingRequestHtml(d: BookingRequestData): string {
+  return frame({
+    preheader: `We got ${d.dogName ? d.dogName + "'s" : "your"} booking request — the $25 deposit finishes it.`,
+    body: [
+      eyebrow("Request received"),
+      h1(`We got it, ${esc(d.firstName)}!`),
+      taglineFlourish(),
+      p(
+        `This confirms we received your booking request${d.dogName ? ` for <strong style="color:#1a1a1a">${esc(d.dogName)}</strong>` : ""}. Once your $25 deposit clears, we'll send a full confirmation with everything you need.`,
+      ),
+      detailsCard("Your request", [
+        ...(d.dogName ? [{ label: "Dog", value: esc(d.dogName) }] : []),
+        { label: "Service", value: esc(d.service) },
+        { label: "Requested date", value: esc(d.date) },
+        ...(d.time ? [{ label: "Requested time", value: esc(d.time) }] : []),
+        ...(d.itemLines && d.itemLines.length > 0
+          ? [{ label: "Services", value: d.itemLines.map((l) => esc(l)).join("<br/>") }]
+          : []),
+        ...(d.total ? [{ label: "Total (with tax)", value: esc(d.total) }] : []),
+        ...(d.bookingRef ? [{ label: "Booking ref", value: esc(d.bookingRef) }] : []),
+      ]),
+      noteBox(
+        `Deposit not showing as paid? Keep an eye out for a <strong>Finish your booking</strong> email — it picks up right where you left off.`,
+      ),
+    ].join(""),
+    reason: `You're receiving this because you just submitted a booking request at aapawz.com.`,
+  })
+}
+
 // ---- Sample data (Template Studio previews & test sends) ------------------------
 
 export const SAMPLE_APPOINTMENT: AppointmentData = {
@@ -216,4 +282,13 @@ export const SAMPLE_APPOINTMENT: AppointmentData = {
   time: "10:00 AM",
   size: "Medium (36–50 lbs)",
   bookingRef: "BK-4F2A91",
+}
+
+export const SAMPLE_BOOKING_REQUEST: BookingRequestData = {
+  firstName: "Mark",
+  dogName: "Benji",
+  service: "Bath & Brush",
+  date: "2026-10-16",
+  time: "1:00 PM",
+  bookingRef: "BK-7C31D4",
 }
