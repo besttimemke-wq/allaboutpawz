@@ -34,7 +34,7 @@ export async function GET(request: Request) {
         .eq('status', 'active')
       const activeRoles = rolesData?.map((r: any) => r.role) || []
 
-      // Also check staff table for admin/groomer roles
+      // Also check staff table for admin/groomer/frontdesk roles
       const { data: staffData } = await supabase
         .from('staff')
         .select('role')
@@ -43,11 +43,16 @@ export async function GET(request: Request) {
         staffData.forEach((s: any) => {
           if (s.role === 'owner' || s.role === 'admin') activeRoles.push('admin')
           if (s.role === 'groomer' || (s.role && s.role.includes('groomer'))) activeRoles.push('groomer')
+          if (s.role === 'front_desk' || s.role === 'frontdesk' || s.role === 'reception') activeRoles.push('frontdesk')
         })
       }
 
-      if (activeRoles.includes('admin')) return NextResponse.redirect(`${origin}/portal/admin`)
-      if (activeRoles.includes('groomer')) return NextResponse.redirect(`${origin}/portal/groomer`)
+      // Destinations must match the PORTALS map in src/lib/pawz-auth.ts —
+      // /admin/dashboard, /groomer/dashboard, /frontdesk/dashboard all exist;
+      // the old /portal/* paths had no pages behind them.
+      if (activeRoles.includes('admin')) return NextResponse.redirect(`${origin}/admin/dashboard`)
+      if (activeRoles.includes('frontdesk')) return NextResponse.redirect(`${origin}/frontdesk/dashboard`)
+      if (activeRoles.includes('groomer')) return NextResponse.redirect(`${origin}/groomer/dashboard`)
 
       // Salon customers → their portal, never the Learning Center.
       try {

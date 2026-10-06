@@ -131,10 +131,15 @@ function securityHead(title: string): string {
 }
 
 function ifNotYou(): string {
-  return noteBox(
-    `If this wasn't you: <strong style="color:#1a1a1a">reset your password immediately</strong> from the sign-in page, then call the salon at <strong style="color:#1a1a1a">${BRAND.phone}</strong> so we can lock things down.`,
-    "brick"
-  )
+  return [
+    noteBox(
+      `If this wasn't you: <strong style="color:#1a1a1a">reset your password immediately</strong>, then call the salon at <strong style="color:#1a1a1a">${BRAND.phone}</strong> so we can lock things down.`,
+      "brick"
+    ),
+    // Every "act now" instruction gets a button that routes somewhere real
+    // — the sign-in door with the Forgot Password? link.
+    button(`${BRAND.portalUrl}`, `Reset my password now`, { tone: "brick", align: "left" }),
+  ].join("")
 }
 
 export function passwordChangedHtml(): string {
@@ -222,6 +227,7 @@ export function mfaAddedHtml(): string {
         { label: "Action needed", value: "None — informational" },
       ], { tone: "sage" }),
       noteBox(`If this wasn't you, reset your password right away and call the salon at <strong style="color:#1a1a1a">${BRAND.phone}</strong> — we'll help secure the account.`, "brick"),
+      button(`${BRAND.portalUrl}`, `Reset my password now`, { tone: "brick", align: "left" }),
     ].join(""),
     `Two-factor authentication was added to your account`
   )

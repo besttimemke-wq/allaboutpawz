@@ -1,14 +1,11 @@
 // ---------------------------------------------------------------------------
 // Supabase email template push — shared engine.
 //
-// One implementation, three callers:
+// One implementation, one caller:
 //   • CLI:     scripts/push-supabase-email-templates.ts (bun run email-templates:push)
-//   • Admin:   POST /api/admin/email-templates { action: "push" } (the Email
-//              Template Studio's PUSH TO SUPABASE button)
-//   • CI:      the email-templates GitHub Action (docs/email-templates-workflow.yml)
 //
 // Renders every Supabase-channel template from the design-system registry
-// (the same source of truth the Studio previews) and pushes subject + HTML
+// (the single source of truth) and pushes subject + HTML
 // to the HOSTED project through the Supabase Management API
 //   PATCH /v1/projects/{ref}/config/auth
 // with security-notice key names discovered from the live GET (never

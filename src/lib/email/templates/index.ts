@@ -1,13 +1,11 @@
 // ---------------------------------------------------------------------------
 // The master email template catalog — every email All About Pawz sends,
-// in one place, rendered with sample data for the Email Template Studio
-// (admin preview + test sends + Supabase exports).
+// in one place, rendered with sample data for previews and exports.
 //
 //   channel "supabase" → HTML contains GoTrue handlebars and is pushed to the
 //                        hosted Supabase project's auth config automatically:
 //                        `bun run email-templates:push` (Management API PATCH
-//                        with rollback snapshot + verify) or the GitHub Action
-//                        on merge to main. Manual dashboard paste = fallback.
+//                        with rollback snapshot + verify).
 //   channel "resend"   → rendered server-side with live data and sent via
 //                        the audit-trailed sendEmail() pipeline.
 // ---------------------------------------------------------------------------
@@ -82,7 +80,7 @@ export interface EmailTemplateDef {
 }
 
 export const TEMPLATE_GROUPS: { id: TemplateGroupId; label: string; description: string }[] = [
-  { id: "auth", label: "Supabase Auth — Account Emails", description: "Auto-pushed to the hosted Supabase project via `bun run email-templates:push` or CI. Supabase sends these automatically." },
+  { id: "auth", label: "Supabase Auth — Account Emails", description: "Auto-pushed to the hosted Supabase project via `bun run email-templates:push`. Supabase sends these automatically." },
   { id: "security", label: "Supabase Security Alerts", description: "Auto-pushed with the auth templates — security notice section of the Supabase project config." },
   { id: "appointments", label: "Appointments & Booking", description: "Sent via Resend from the booking flows and automations." },
   { id: "commerce", label: "Payments, Orders & Billing", description: "Sent via Resend from checkout, Stripe webhooks, and billing." },
@@ -93,10 +91,10 @@ export const TEMPLATE_GROUPS: { id: TemplateGroupId; label: string; description:
 ]
 
 const SUPABASE_NOTES = [
-  "Pushed to the hosted project in one command: bun run email-templates:push (or automatically by CI on merge to main).",
+  "Pushed to the hosted project in one command: bun run email-templates:push.",
   "Leave placeholders like {{ .ConfirmationURL }} and {{ .Token }} exactly as written — Supabase replaces them when the email is sent.",
-  "The preview shows the placeholders on purpose: that's the exact HTML being pushed.",
-  "Manual fallback: Copy HTML and paste into the dashboard editor — only if you prefer doing it by hand.",
+  "The sample render shows the placeholders on purpose: that's the exact HTML that gets pushed.",
+  "Manual fallback: copy the HTML and paste into the dashboard editor — only if you prefer doing it by hand.",
 ]
 
 const PASTE_PATH = "Supabase Dashboard → your project → Authentication → Email Templates"
@@ -418,7 +416,7 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     html: teamMemberInviteHtml({
       fullName: "Maya Johnson",
       role: "groomer",
-      actionLink: "https://aapawz.com/auth/callback?invite=sample",
+      actionLink: "https://aapawz.com/auth/set-password",
       invitedBy: "Brea",
     }),
     wired: "Sent when a team member is invited (Users & Access).",

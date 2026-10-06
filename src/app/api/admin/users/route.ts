@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import pg from "pg";
 import { requireAdminApi } from "@/lib/admin/gate";
 import { sendPortalInvite, sendPortalWelcome } from "@/lib/email";
+import { SITE_URL } from "@/lib/site-url";
 
 const SB_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "")?.replace(/\/$/, "");
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
@@ -31,8 +32,12 @@ async function deliverInviteEmail(
   supabaseAdmin: ReturnType<typeof createClient>,
   opts: { email: string; name: string; role: string },
 ): Promise<{ ok: boolean; via: "supabase" | "resend" | "none"; error?: string }> {
+  // Land the email's button on the password box — identical to every other
+  // invite lane (/api/auth/invite, enrollCustomer). Without redirectTo the
+  // button drops the recipient on the homepage with an unconsumed token.
   const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(opts.email, {
     data: { full_name: opts.name, role: opts.role },
+    redirectTo: `${SITE_URL}/auth/set-password`,
   });
   if (!inviteError) return { ok: true, via: "supabase" };
 
@@ -41,7 +46,11 @@ async function deliverInviteEmail(
   // through the audit-trailed Resend pipeline. generateLink sends no email
   // itself, which is what lets us own the envelope.
   try {
-    const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({ type: "invite", email: opts.email });
+    const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email: opts.email,
+      options: { redirectTo: `${SITE_URL}/auth/set-password` },
+    });
     const actionLink = (linkData as any)?.properties?.action_link || "";
     if (actionLink) {
       const parts = (opts.name || "").trim().split(/\s+/).filter(Boolean);
