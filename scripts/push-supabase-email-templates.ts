@@ -74,15 +74,20 @@ const CORE_KEYS: Record<string, string> = {
   supabase_reauthentication: "reauthentication",
 }
 
-// Fuzzy-match live API key suffixes for the seven security notices.
+// Match live API key suffixes (normalized uppercase) for the seven security
+// notices — real hosted-project key names, verified against the live GET:
+//   PASSWORD_CHANGED_NOTIFICATION, EMAIL_CHANGED_NOTIFICATION,
+//   PHONE_CHANGED_NOTIFICATION, IDENTITY_LINKED_NOTIFICATION,
+//   IDENTITY_UNLINKED_NOTIFICATION, MFA_FACTOR_ENROLLED_NOTIFICATION,
+//   MFA_FACTOR_UNENROLLED_NOTIFICATION
 const SECURITY_MATCHERS: { id: string; pattern: RegExp }[] = [
-  { id: "supabase_security_password_changed", pattern: /security[_-]?password/i },
-  { id: "supabase_security_email_changed", pattern: /security[_-]?email/i },
-  { id: "supabase_security_phone_changed", pattern: /security[_-]?phone/i },
-  { id: "supabase_security_signin_linked", pattern: /security[_-]?(signin|sso)[_-]?link/i },
-  { id: "supabase_security_signin_removed", pattern: /security[_-]?(signin|sso)[_-]?remov/i },
-  { id: "supabase_security_mfa_added", pattern: /security[_-]?mfa[_-]?(add|enabl)/i },
-  { id: "supabase_security_mfa_removed", pattern: /security[_-]?mfa[_-]?remov/i },
+  { id: "supabase_security_password_changed", pattern: /PASSWORD[_-]?CHANGED(?!.*EMAIL)(?!.*PHONE)/ },
+  { id: "supabase_security_email_changed", pattern: /EMAIL[_-]?CHANGED/ },
+  { id: "supabase_security_phone_changed", pattern: /PHONE[_-]?CHANGED/ },
+  { id: "supabase_security_signin_linked", pattern: /(IDENTITY|SSO|SIGNIN)[_-]?(LINKED|ADDED)/ },
+  { id: "supabase_security_signin_removed", pattern: /(IDENTITY|SSO|SIGNIN)[_-]?(UNLINKED|REMOVED)/ },
+  { id: "supabase_security_mfa_added", pattern: /MFA[_-]?(FACTOR[_-]?)?(ENROLLED|ADDED|ENABLED)/ },
+  { id: "supabase_security_mfa_removed", pattern: /MFA[_-]?(FACTOR[_-]?)?(UNENROLLED|REMOVED|DISABLED)/ },
 ]
 
 interface PlanItem {
@@ -143,14 +148,18 @@ async function main() {
       console.error((await res.text()).slice(0, 400))
       process.exit(1)
     }
-    live = (await res.json()) as Record<string, unknown>
+    const raw = (await res.json()) as Record<string, unknown>
+    // Normalize key casing once — the API's casing has drifted over the years
+    // (upper/lower/mixed); every lookup below works on the normalized map.
+    live = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k.toUpperCase(), v]))
 
     // Discover security-notice keys actually exposed by this project's API.
     const contentKeys = Object.keys(live).filter((k) => /^MAILER_TEMPLATES_(.+)_CONTENT$/.test(k))
+    console.log(`  template keys exposed by this project: ${contentKeys.join(", ").slice(0, 200) || "(none)"}`)
     let found = 0
     for (const ck of contentKeys) {
       const suffix = ck.match(/^MAILER_TEMPLATES_(.+)_CONTENT$/)![1]
-      if (!/security/i.test(suffix)) continue
+      if (/^(CONFIRMATION|INVITE|MAGIC_LINK|EMAIL_CHANGE|RECOVERY|REAUTHENTICATION)$/.test(suffix)) continue
       const matcher = SECURITY_MATCHERS.find((m) => m.pattern.test(suffix))
       const t = matcher ? byId.get(matcher.id) : undefined
       if (!t) continue
@@ -236,7 +245,9 @@ async function main() {
     console.error(`! Could not re-read config to verify (HTTP ${after.status}) — check the dashboard.`)
     process.exit(1)
   }
-  const cfg = (await after.json()) as Record<string, unknown>
+  const cfg = Object.fromEntries(
+    Object.entries((await after.json()) as Record<string, unknown>).map(([k, v]) => [k.toUpperCase(), v]),
+  )
   let okCount = 0
   const failed: string[] = []
   for (const item of plan) {

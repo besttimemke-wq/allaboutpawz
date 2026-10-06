@@ -2018,3 +2018,23 @@ Stage Summary:
 - The copy-paste era is over in code: one command (bun run email-templates:push) or one merge to main now updates the hosted Supabase project's auth email templates, with rollback snapshots and post-push verification built in.
 - The ONLY missing pieces are two credentials ONLY the owner can mint: (1) a live SUPABASE_ACCESS_TOKEN — the one in .env (and pasted 6 times over 31 days) has been revoked by Supabase's 2024 token rotation (401 on the Management API, verified twice with a cleanly-extracted byte-identical token); with a fresh one I run the push (templates live immediately) + github-put-secret.py (CI secret armed). (2) For hands-off CI: promote docs/email-templates-workflow.yml per its header (GitHub UI paste, or a workflow-scoped PAT). Both secret-paths proven against the real APIs this session with a disposable probe secret (PUT 201 / GET / DELETE 204).
 - Owner steps (one time, ~2 minutes total): (a) generate a fresh access token at supabase.com/dashboard/account/tokens and paste it here; (b) optionally promote the workflow file per docs/email-templates-workflow.yml's header, or hand over a workflow-scoped PAT and it gets promoted programmatically. After that, template updates flow code → Supabase automatically forever — no pasting, ever.
+
+---
+Task ID: 31
+Agent: Main agent (Z.ai Code)
+Task: Owner round 6 — supplied a FRESH Supabase access token and named the contradiction plainly: old default templates live in the hosted project, new branded code stuck in the repo; a design studio whose output gets hand-pasted adds complexity that serves no purpose.
+
+Work Log:
+- TOKEN VERIFIED FIRST (lesson from round 5): fresh sbp_fcaac051… token → HTTP 200 on both /v1/projects and /v1/projects/{ref}/config/auth; project visible as "allaboutpawz901-beep's Project" (ACTIVE_HEALTHY). Replaced the revoked token in .env (untracked vault, old value fully gone) — never written to any tracked file (git grep at HEAD: zero occurrences).
+- LIVE KEY DISCOVERY: the live GET exposed the REAL security-notice key names — *_notification suffixes (password_changed_notification, mfa_factor_enrolled_notification, identity_linked_notification, …), NOT the "security_*" names guessed in round 5. Fixed the script's SECURITY_MATCHERS to the verified names + core-key exclusion guard + key-casing normalization (upper-cased once at read).
+- LIVE PUSH EXECUTED: bun run email-templates:push — GET (13 template keys, 7 security notices matched) → rollback snapshot /tmp/supabase-auth-config-backup-2026-10-06T09-41-03-243Z.json → PATCH (26 keys: 13 subjects + 13 HTML bodies, ~100KB branded documents) → HTTP 200 → script verify 13/13 ✓.
+- INDEPENDENT VERIFICATION (raw GET, outside the script): 13/13 subjects exactly branded; every HTML body carries ALL ABOUT PAWZ + aapawz.com; old single-box templates gone (bodies 7.3–8.5KB vs the old stub); GoTrue handlebars intact ({{ .ConfirmationURL }} in confirmation, {{ .Token }} in magic link). The old defaults ("You've been invited", "{{ .Token }} is your verification code") are fully overridden.
+- CI ARMED: repo secret SUPABASE_ACCESS_TOKEN created via scripts/github-put-secret.py (libsodium sealed box) and verified landed (updated 2026-10-06T09:41:43Z). The Action at docs/email-templates-workflow.yml fires automatically once promoted (needs a workflow-scoped GitHub credential — owner PAT lacks workflow scope).
+- DRIFT DETECTOR GREEN: bun run email-templates:check exits 0 — "live project matches the registry ✓". bun run lint EXIT 0.
+- PUSHED script fixes (matchers + normalization) to GitHub main.
+
+Stage Summary:
+- The hosted Supabase project now sends ALL 13 auth/security emails in the branded design — old single-box code overridden, verified independently, rollback snapshot retained. No dashboard pasting at any point.
+- Answer to the owner's Studio question, for the record: Brea does not compose emails — all sends are code-driven (booking/checkout/webhook/cron → Resend; account emails → Supabase auth lane, now branded). The Studio is a preview/test-send console; its paste-centric install card is obsolete as of this push (automation-first messaging already shipped in round 5).
+- Token residence (fresh sbp_fcaac051…): chat paste, .env (untracked), GitHub encrypted repo secret for CI — nowhere in tracked files. GitHub PAT still needs the owner's revocation when she's done with this round.
+- Remaining optional: promote docs/email-templates-workflow.yml → .github/workflows/ for hands-off CI on merges (60-second paths in its header). The push itself is done and verified; promotion only future-proofs it.
