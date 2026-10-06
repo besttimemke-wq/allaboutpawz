@@ -5,6 +5,7 @@ import { sendEmail } from "@/lib/email"
 import { callbackBase } from "@/lib/site-url"
 import { syncCrmAppointment, writeCommercePayment, withPg, TENANT_ID } from "@/lib/crm/enterprise"
 import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
+import { friendlyDbError } from "@/lib/db-errors"
 
 const salonNotifyTo = "booking@aapawz.com"
 
@@ -276,7 +277,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url, sessionId: session.id, bookingId: booking?.id })
   } catch (e: any) {
-    console.error("[booking checkout]", e)
-    return NextResponse.json({ error: e.message || "Checkout failed" }, { status: 500 })
+    // Visitor-safe copy — raw Stripe/Postgres payloads stay in server logs.
+    const friendly = friendlyDbError(e, "booking")
+    return NextResponse.json({ error: friendly.error }, { status: 500 })
   }
 }

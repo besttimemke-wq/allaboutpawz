@@ -3,6 +3,7 @@ import { repo, type CmsResource, supabaseConfig, supabaseReady, usingSupabase } 
 import { sendBookingConfirmation, sendConsultationRequest } from "@/lib/email"
 import { captureServerEvent, logAnalyticsEvent } from "@/lib/analytics-server"
 import { requireAdminApi } from "@/lib/admin/gate"
+import { withTriggerSelfHeal, friendlyDbError } from "@/lib/db-errors"
 
 const RESOURCES = new Set<CmsResource>([
   "services", "products", "gallery", "packages", "addons", "faqs",
@@ -140,7 +141,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
   if (writeGate) return writeGate
 
   const body = await req.json()
-  const rec = await repo.create(resource, body)
+
+  // Public-form writes get the self-heal guard + visitor-safe errors. A raw
+  // Postgres payload (the 42804 production incident class) must never reach
+  // a booking customer — the guard drops known-broken triggers and retries;
+  // anything else maps to plain language with a server-side ref code.
+  let rec: any
+  try {
+    rec = await withTriggerSelfHeal(() => repo.create(resource, body))
+  } catch (error: any) {
+    if (PUBLIC_WRITE_RESOURCES.has(resource)) {
+      const what = resource === "dogs" ? "pet's details" : resource === "bookings" || resource === "consultations" ? "request" : "details"
+      const friendly = friendlyDbError(error, what)
+      return NextResponse.json({ error: friendly.error }, { status: 500 })
+    }
+    console.error(`[api/cms POST ${resource}]`, error)
+    return NextResponse.json({ error: error.message || `Failed to save ${resource}` }, { status: 500 })
+  }
 
   // ---- Email notifications (fail-soft) ----
   if (resource === "bookings") {
@@ -183,7 +200,17 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ slug: strin
   const writeGate = await enforceWriteGate(resource)
   if (writeGate) return writeGate
   const body = await req.json()
-  const rec = await repo.update(resource, id, body)
+  let rec: any
+  try {
+    rec = await withTriggerSelfHeal(() => repo.update(resource, id, body))
+  } catch (error: any) {
+    if (PUBLIC_WRITE_RESOURCES.has(resource)) {
+      const friendly = friendlyDbError(error, "details")
+      return NextResponse.json({ error: friendly.error }, { status: 500 })
+    }
+    console.error(`[api/cms PUT ${resource}/${id}]`, error)
+    return NextResponse.json({ error: error.message || `Failed to save ${resource}` }, { status: 500 })
+  }
   return NextResponse.json(rec)
 }
 

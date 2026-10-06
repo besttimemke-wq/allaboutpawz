@@ -4,6 +4,7 @@ import { repo } from "@/lib/repo";
 import { isAdmin } from "@/lib/auth/server";
 import { enrollCustomer } from "@/lib/auth/enroll-customer";
 import { withPg, TENANT_ID } from "@/lib/crm/enterprise";
+import { withTriggerSelfHeal, friendlyDbError } from "@/lib/db-errors";
 
 let _stripe: Stripe | null = null;
 function getStripe(): Stripe | null {
@@ -171,9 +172,12 @@ export async function POST(req: NextRequest) {
 
     let customer: any;
     if (found) {
-      customer = await repo.update("customers", found.id, data);
+      // Self-heal: if a rogue identity-sync trigger reappears on customers
+      // (the 42804 production incident class), it is dropped and the write
+      // retried once — a returning customer's booking never dies to it.
+      customer = await withTriggerSelfHeal(() => repo.update("customers", found.id, data));
     } else {
-      customer = await repo.create("customers", data);
+      customer = await withTriggerSelfHeal(() => repo.create("customers", data));
     }
 
     // Walk-in: when an ADMIN creates the customer, the identical
@@ -197,7 +201,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ...customer, invited }, { status: found ? 200 : 201 });
   } catch (error: any) {
-    console.error("[api/customers POST]", error);
-    return NextResponse.json({ error: error.message || "Failed to save customer" }, { status: 500 });
+    // Visitor-safe copy only — the raw Postgres/PostgREST payload is logged
+    // server-side with a reference code, never shown to a customer.
+    const friendly = friendlyDbError(error, "details");
+    return NextResponse.json({ error: friendly.error }, { status: 500 });
   }
 }

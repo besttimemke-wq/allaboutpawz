@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react"
 import { useWizard, type BookingType, type OnFileDog } from "@/lib/wizard/wizard-store"
 import { track, identifyViewer } from "@/lib/analytics"
+import { sanitizeApiErrorText } from "@/lib/api-error-text"
 
 // ---------------------------------------------------------------------------
 // Types — everything the wizard needs comes from server-side props.
@@ -217,13 +218,13 @@ export function BookingWizardV2({
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({ error: "Failed to save your details" }))
-          setApiError(e.error || "Failed to save your details")
+          setApiError(sanitizeApiErrorText(e.error, "Failed to save your details"))
           return
         }
         const data = await res.json()
         useWizard.getState().patch({ customerId: data.id })
       } catch (e: any) {
-        setApiError(e.message || "Network error")
+        setApiError(sanitizeApiErrorText(e?.message, "We couldn't reach the booking system — please check your connection and try again."))
         return
       }
     }
@@ -246,13 +247,13 @@ export function BookingWizardV2({
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({ error: "Failed to update your contact details" }))
-          setApiError(e.error || "Failed to update your contact details")
+          setApiError(sanitizeApiErrorText(e.error, "Failed to update your contact details"))
           return
         }
         const data = await res.json()
         useWizard.getState().patch({ customerId: data.id })
       } catch (e: any) {
-        setApiError(e.message || "Network error")
+        setApiError(sanitizeApiErrorText(e?.message, "We couldn't reach the booking system — please check your connection and try again."))
         return
       }
     }
@@ -317,7 +318,7 @@ export function BookingWizardV2({
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({ error: "Failed to save dog" }))
-          setApiError(e.error || "Failed to save dog")
+          setApiError(sanitizeApiErrorText(e.error, "Failed to save dog"))
           return
         }
         const data = await res.json()
@@ -336,7 +337,7 @@ export function BookingWizardV2({
           }).catch(() => {/* non-fatal */})
         }
       } catch (e: any) {
-        setApiError(e.message || "Network error")
+        setApiError(sanitizeApiErrorText(e?.message, "We couldn't reach the booking system — please check your connection and try again."))
         return
       }
     }
@@ -374,7 +375,7 @@ export function BookingWizardV2({
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({ error: "Failed to submit" }))
-          setApiError(e.error || "Failed to submit consultation")
+          setApiError(sanitizeApiErrorText(e.error, "Failed to submit consultation"))
           setSubmitting(false)
           return
         }
@@ -442,7 +443,7 @@ export function BookingWizardV2({
         })
         if (!res.ok) {
           const e = await res.json().catch(() => ({ error: "Checkout failed" }))
-          setApiError(e.error || "Checkout failed")
+          setApiError(sanitizeApiErrorText(e.error, "Checkout failed"))
           setSubmitting(false)
           return
         }
@@ -460,7 +461,7 @@ export function BookingWizardV2({
         }
       }
     } catch (e: any) {
-      setApiError(e.message || "Network error")
+      setApiError(sanitizeApiErrorText(e?.message, "We couldn't reach the booking system — please check your connection and try again."))
     } finally {
       setSubmitting(false)
     }
@@ -576,7 +577,7 @@ export function BookingWizardV2({
                     window.location.href = data.url
                     return
                   }
-                  setResumeError(data.error || "Could not reopen the deposit checkout — continue below and resubmit.")
+                  setResumeError(sanitizeApiErrorText(data.error, "Could not reopen the deposit checkout — continue below and resubmit."))
                   setResumable(false)
                 } catch {
                   setResumeError("Network error — continue below and resubmit.")
@@ -1049,7 +1050,7 @@ function StepDog({ breeds, submitting }: { breeds: Breed[]; submitting: boolean 
       const data = await res.json()
       s.patch({ photoUrl: data.url })
     } catch (err: any) {
-      setUploadError(err.message || "Upload failed")
+      setUploadError(sanitizeApiErrorText(err?.message, "Upload failed — please try a smaller photo or continue without one."))
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
