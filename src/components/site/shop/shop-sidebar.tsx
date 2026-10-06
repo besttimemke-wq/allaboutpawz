@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { X, ChevronDown, Search, Star, PawPrint } from "lucide-react"
@@ -10,15 +10,16 @@ import type { FilterSection, NavCategory, MerchCollection } from "@/lib/shop/typ
 // ---------------------------------------------------------------------------
 // ShopSidebar — the desktop rail / mobile drawer for every PLP.
 //
-// Architecture (per the spec):
+// Architecture (enterprise faceting — the Petco/Amazon model):
 //   CATEGORIES  → navigation. Icon + name + count rows that LINK to the
 //                 category route. NO checkboxes. The current category gets
 //                 an active state (weight + background + icon tint).
-//   FILTERS     → checkbox-driven refinement INSIDE the current scope.
-//                 Price ($ MIN / $ MAX), Rating (star rows), Availability,
-//                 plus SQL-mapped groups when product data supports them.
-//   APPLY       → commits the staged draft to the URL (shareable, server-
-//                 readable); the server re-renders the filtered result.
+//   FILTERS     → INSTANT-APPLY refinement. Every checkbox, price bucket, and
+//                 rating row commits to the URL the moment it's clicked —
+//                 shareable, server-rendered, no separate APPLY step. The
+//                 results grid behind updates immediately. Price MIN/MAX
+//                 inputs commit on Enter/blur so typing isn't thrashed.
+//                 "Clear all" sits at the top of the section.
 // ---------------------------------------------------------------------------
 
 export type SidebarData = {
@@ -66,14 +67,15 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
   const router = useRouter()
   const pathname = usePathname()
 
-  // Staged draft — the rail edits this; APPLY commits to the URL.
+  // The live filter state — kept in lockstep with the URL. Every change
+  // COMMITS immediately (instant-apply faceting); there is no draft/apply
+  // step, so the rail can never drift out of sync with the results.
   const [draft, setDraft] = useState<AppliedUrl>(data.applied)
   const [brandQuery, setBrandQuery] = useState("")
 
   const appliedCount = countApplied(data.applied)
-  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(data.applied), [draft, data.applied])
 
-  // ---- apply / clear ----
+  // ---- instant apply ----
   const buildHref = (next: AppliedUrl, path: string): string => {
     const params = new URLSearchParams()
     if (next.minPrice.trim()) params.set("minPrice", next.minPrice.trim())
@@ -85,9 +87,11 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
     return qs ? `${path}?${qs}` : path
   }
 
-  const apply = () => {
-    router.push(buildHref(draft, pathname), { scroll: false })
-    onClose?.()
+  /** Commit a filter change to the URL — the results re-render server-side. */
+  const commit = (next: AppliedUrl) => {
+    console.log("[sidebar] commit", JSON.stringify(next))
+    setDraft(next)
+    router.push(buildHref(next, pathname), { scroll: false })
   }
 
   const clearAll = () => {
@@ -97,20 +101,20 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
 
   // ---- helpers ----
   const toggleAvailability = (value: string) => {
-    setDraft((d) => ({
-      ...d,
-      availability: d.availability.includes(value)
-        ? d.availability.filter((v) => v !== value)
-        : [...d.availability, value],
-    }))
+    commit({
+      ...draft,
+      availability: draft.availability.includes(value)
+        ? draft.availability.filter((v) => v !== value)
+        : [...draft.availability, value],
+    })
   }
 
   const setBucket = (value: string) => {
-    setDraft((d) => ({ ...d, priceBucket: d.priceBucket === value ? null : value }))
+    commit({ ...draft, priceBucket: draft.priceBucket === value ? null : value })
   }
 
   const setRating = (value: string) => {
-    setDraft((d) => ({ ...d, rating: d.rating === value ? null : value }))
+    commit({ ...draft, rating: draft.rating === value ? null : value })
   }
 
   const isCurrent = (node: NavCategory | null) => {
@@ -140,7 +144,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
         )}
       </div>
 
-      {/* ---- Scrollable body: CATEGORIES nav + FILTERS ---- */}
+      {/* ---- Scrollable body: CATEGORIES nav + FILTERS (instant-apply) ---- */}
       <div className="flex-1 overflow-y-auto px-5 pb-5 pt-5">
         {/* ================= CATEGORIES (navigation) ================= */}
         <nav aria-label="Shop categories">
@@ -276,6 +280,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
                           value={draft.minPrice}
                           placeholder="MIN"
                           onChange={(v) => setDraft((d) => ({ ...d, minPrice: v, priceBucket: null }))}
+                          onCommit={() => commit(draft)}
                         />
                         <span className="text-[11px] text-ink-soft/70">—</span>
                         <PriceInput
@@ -283,6 +288,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
                           value={draft.maxPrice}
                           placeholder="MAX"
                           onChange={(v) => setDraft((d) => ({ ...d, maxPrice: v, priceBucket: null }))}
+                          onCommit={() => commit(draft)}
                         />
                       </div>
                       <ul className="space-y-0.5">
@@ -389,19 +395,6 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
           </div>
         )}
       </div>
-
-      {/* ---- APPLY pinned to the rail bottom ---- */}
-      {data.filterSections.length > 0 && (
-        <div className="border-t border-ink/10 p-4">
-          <button
-            type="button"
-            onClick={apply}
-            className={`btn-gold w-full text-[9.5px] ${dirty ? "" : "opacity-90"}`}
-          >
-            APPLY FILTERS{appliedCount > 0 ? ` (${appliedCount})` : ""}
-          </button>
-        </div>
-      )}
     </div>
   )
 }
@@ -448,11 +441,13 @@ function PriceInput({
   value,
   placeholder,
   onChange,
+  onCommit,
 }: {
   label: string
   value: string
   placeholder: string
   onChange: (v: string) => void
+  onCommit: () => void
 }) {
   return (
     <label className="relative block flex-1">
@@ -463,6 +458,13 @@ function PriceInput({
         inputMode="decimal"
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))}
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault()
+            onCommit()
+          }
+        }}
         placeholder={placeholder}
         aria-label={`${label} price in dollars`}
         className="w-full border border-ink/15 bg-cream py-1.5 pl-5 pr-2 text-[11px] text-ink placeholder:font-semibold placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
@@ -490,7 +492,11 @@ function CheckRow({
         <input
           type="checkbox"
           checked={checked}
-          onChange={onToggle}
+          onChange={(e) => {
+            console.log("[CheckRow] onChange fired:", name, e.target.checked)
+            onToggle()
+          }}
+          onClick={(e) => console.log("[CheckRow] onClick fired:", name)}
           name={name}
           className="peer h-[15px] w-[15px] cursor-pointer appearance-none border border-ink/30 bg-white checked:border-gold-deep checked:bg-gold-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep/40"
         />

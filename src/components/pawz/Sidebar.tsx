@@ -50,6 +50,8 @@ import {
   Bell,
   LifeBuoy,
   LogOut,
+  CalendarPlus,
+  Store,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -266,6 +268,15 @@ interface CustomerNavBlock {
 }
 
 const CUSTOMER_NAV: CustomerNavBlock[] = [
+  // The two tenets the portal owes every signed-in visitor: a way BACK to
+  // the public site (shop/services) and a way to start the NEXT booking —
+  // both pinned at the very top of the rail, above everything else.
+  {
+    items: [
+      { label: 'Book a New Appointment', icon: CalendarPlus, href: '/book/appointment' },
+      { label: 'Back to the Shop', icon: Store, href: '/shop' },
+    ],
+  },
   {
     category: 'My Orders',
     items: [

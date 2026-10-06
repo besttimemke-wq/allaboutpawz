@@ -21,12 +21,16 @@ import Link from 'next/link';
 import {
   AlertTriangle,
   Cake,
+  CalendarDays,
+  ImagePlus,
   Loader2,
   PawPrint,
   Pencil,
   Plus,
   Scale,
+  Syringe,
   Trash2,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,6 +63,19 @@ interface Pet {
   weightLbs: string | number | null;
   size: string | null;
   photoUrl: string | null;
+  vaccinationNotes?: string | null;
+  vaccinationPhotoUrls?: string[];
+}
+
+/** A past visit for the history column (from /api/customer/appointments). */
+interface HistoryBooking {
+  id: string;
+  dogId: string | null;
+  date: string | null;
+  time?: string | null;
+  service: string | null;
+  signalLabel?: string;
+  status?: string;
 }
 
 const displayFont = { fontFamily: 'var(--font-display)' } as const;
@@ -212,6 +229,101 @@ export default function CustomerPetsPage() {
   };
 
   // ---------------------------------------------------------------------------
+  // Grooming history — the SAME bookings registry the appointments page reads,
+  // grouped per dog so every pet card carries its visit history.
+  // ---------------------------------------------------------------------------
+  const [historyByDog, setHistoryByDog] = useState<Record<string, HistoryBooking[]>>({});
+
+  useEffect(() => {
+    fetch('/api/customer/appointments')
+      .then(async (r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        const past: HistoryBooking[] = Array.isArray(d.past) ? d.past : [];
+        const map: Record<string, HistoryBooking[]> = {};
+        for (const b of past) {
+          if (!b.dogId) continue;
+          (map[b.dogId] ||= []).push(b);
+        }
+        for (const k of Object.keys(map)) {
+          map[k].sort((x, y) => String(y.date ?? '').localeCompare(String(x.date ?? '')));
+        }
+        setHistoryByDog(map);
+      })
+      .catch(() => { /* history is supplementary — never blocks the page */ });
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Vaccination records — upload photos, remove a photo, save notes. Writes go
+  // to the same dogs columns the admin CRM reads (one registry, no copies).
+  // ---------------------------------------------------------------------------
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [vaxError, setVaxError] = useState<{ petId: string; message: string } | null>(null);
+  const [notesDraft, setNotesDraft] = useState<Record<string, string>>({});
+  const [savingNotesFor, setSavingNotesFor] = useState<string | null>(null);
+
+  const uploadVax = async (pet: Pet, files: File[]) => {
+    setUploadingFor(pet.id);
+    setVaxError(null);
+    try {
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('id', pet.id);
+        const res = await fetch('/api/customer/pets/vaccinations', { method: 'POST', body: fd });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setVaxError({ petId: pet.id, message: d?.error || 'Upload failed — please try again.' });
+          return;
+        }
+      }
+      load();
+    } catch {
+      setVaxError({ petId: pet.id, message: 'Network problem — please try again.' });
+    } finally {
+      setUploadingFor(null);
+    }
+  };
+
+  const removeVax = async (pet: Pet, url: string) => {
+    setUploadingFor(pet.id);
+    setVaxError(null);
+    try {
+      const res = await fetch(
+        `/api/customer/pets/vaccinations?id=${encodeURIComponent(pet.id)}&url=${encodeURIComponent(url)}`,
+        { method: 'DELETE' },
+      );
+      if (res.ok) load();
+    } catch {
+      /* best-effort — the card just keeps the photo */
+    } finally {
+      setUploadingFor(null);
+    }
+  };
+
+  const saveNotes = async (pet: Pet) => {
+    setSavingNotesFor(pet.id);
+    setVaxError(null);
+    try {
+      const res = await fetch('/api/customer/pets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pet.id, vaccinationNotes: notesDraft[pet.id] ?? '' }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setVaxError({ petId: pet.id, message: d?.error || 'Could not save notes — please try again.' });
+        return;
+      }
+      load();
+    } catch {
+      setVaxError({ petId: pet.id, message: 'Network problem — please try again.' });
+    } finally {
+      setSavingNotesFor(null);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // 401 — session expired mid-visit (the layout gate normally handles this)
   // ---------------------------------------------------------------------------
   if (unauthorized) {
@@ -266,10 +378,9 @@ export default function CustomerPetsPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <Skeleton className="h-36 rounded-xl" />
-          <Skeleton className="h-36 rounded-xl" />
-          <Skeleton className="h-36 rounded-xl" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Skeleton className="h-72 rounded-xl" />
+          <Skeleton className="h-72 rounded-xl" />
         </div>
       ) : pageError ? (
         <div className="rounded-xl border border-ink/10 bg-white p-6 text-center shadow-sm">
@@ -308,18 +419,23 @@ export default function CustomerPetsPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {petList.map((pet) => {
             const weight = petWeight(pet);
             const birthday = prettyBirthday(pet.birthDate);
             const sizeChip = SIZE_LABEL[String(pet.size ?? '')] ?? null;
+            const history = historyByDog[pet.id] ?? [];
+            const vaxPhotos = pet.vaccinationPhotoUrls ?? [];
+            const notesValue = notesDraft[pet.id] ?? pet.vaccinationNotes ?? '';
+            const notesUnchanged = (notesDraft[pet.id] ?? '') === (pet.vaccinationNotes ?? '');
 
             return (
               <article
                 key={pet.id}
-                className="rounded-xl border border-ink/10 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                className="overflow-hidden rounded-xl border border-ink/10 bg-white shadow-sm transition-shadow hover:shadow-md"
               >
-                <div className="flex items-start gap-4">
+                {/* Header — identity + quick facts */}
+                <div className="flex items-start gap-4 p-5">
                   {pet.photoUrl ? (
                     <img
                       src={pet.photoUrl}
@@ -357,28 +473,175 @@ export default function CustomerPetsPage() {
                         </span>
                       )}
                     </div>
-                    {/* Edit | Remove — spec §8.3: the pet record is the
-                        customer's own; writes go straight to the salon's
-                        registry (the same dogs rows the CRM reads). */}
-                    <div className="mt-3.5 flex items-center gap-4 border-t border-ink/10 pt-3">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(pet)}
-                        className="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-gold-deep transition-colors hover:text-ink"
-                      >
-                        <Pencil className="size-3.5" />
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRemovingPet(pet)}
-                        className="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-red-600 transition-colors hover:text-red-700"
-                      >
-                        <Trash2 className="size-3.5" />
-                        Remove
-                      </button>
-                    </div>
                   </div>
+                  {/* Edit | Remove — spec §8.3: the pet record is the
+                      customer's own; writes go straight to the salon's
+                      registry (the same dogs rows the CRM reads). */}
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(pet)}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-gold-deep transition-colors hover:text-ink"
+                    >
+                      <Pencil className="size-3.5" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRemovingPet(pet)}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-red-600 transition-colors hover:text-red-700"
+                    >
+                      <Trash2 className="size-3.5" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                {/* Records — the same fields the admin CRM carries for this
+                    dog: vaccination photos + notes on one side, visit history
+                    on the other. One registry, both sides of the counter. */}
+                <div className="grid divide-y divide-ink/10 border-t border-ink/10 md:grid-cols-2 md:divide-x md:divide-y-0">
+                  <section className="p-5" aria-label={`${pet.name} vaccination records`}>
+                    <h3 className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-ink-soft">
+                      <Syringe className="size-3.5 text-gold-deep" aria-hidden="true" />
+                      Vaccination records
+                      {vaxPhotos.length > 0 && (
+                        <span className="rounded-full bg-cream px-1.5 py-0.5 text-[9.5px] font-semibold text-ink-soft">
+                          {vaxPhotos.length}
+                        </span>
+                      )}
+                    </h3>
+
+                    {vaxPhotos.length > 0 ? (
+                      <ul className="mt-3 grid grid-cols-3 gap-2">
+                        {vaxPhotos.map((u) => (
+                          <li key={u} className="relative">
+                            <a href={u} target="_blank" rel="noreferrer" aria-label={`Open ${pet.name}'s vaccination record image`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={u}
+                                alt={`${pet.name} vaccination record`}
+                                className="h-20 w-full rounded-md border border-ink/10 object-cover transition-opacity hover:opacity-90"
+                              />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => removeVax(pet, u)}
+                              disabled={uploadingFor === pet.id}
+                              aria-label="Remove this vaccination record"
+                              className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-ink/70 text-white transition-colors hover:bg-red-600"
+                            >
+                              <X className="size-3" strokeWidth={2.5} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+                        No vaccination photos on file yet. Upload rabies, DHPP, or
+                        bordetella certificates so check-in is instant — your
+                        groomer sees them before every visit.
+                      </p>
+                    )}
+
+                    <label
+                      className={`mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gold/50 bg-cream px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-gold-deep transition-colors hover:border-gold-deep hover:bg-gold-light/30 ${
+                        uploadingFor === pet.id ? 'pointer-events-none opacity-60' : ''
+                      }`}
+                    >
+                      {uploadingFor === pet.id ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <ImagePlus className="size-3.5" />
+                      )}
+                      {uploadingFor === pet.id ? 'Uploading…' : 'Upload records'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="sr-only"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          e.target.value = '';
+                          if (files.length > 0) uploadVax(pet, files);
+                        }}
+                      />
+                    </label>
+
+                    {vaxError?.petId === pet.id && (
+                      <p className="mt-2 text-[11px] font-medium text-red-600">{vaxError.message}</p>
+                    )}
+
+                    <div className="mt-3">
+                      <Label
+                        htmlFor={`vax-notes-${pet.id}`}
+                        className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-soft"
+                      >
+                        Vaccination notes
+                      </Label>
+                      <textarea
+                        id={`vax-notes-${pet.id}`}
+                        value={notesValue}
+                        onChange={(e) => setNotesDraft((m) => ({ ...m, [pet.id]: e.target.value }))}
+                        placeholder="e.g. Rabies due March 2027 — Dr. Nguyen, Pacific Vet"
+                        rows={2}
+                        className="mt-1 w-full rounded-md border border-ink/15 bg-white p-2 text-[12px] text-ink placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={notesUnchanged || savingNotesFor === pet.id}
+                        onClick={() => saveNotes(pet)}
+                        className="mt-1.5 h-8 rounded-md border-ink/20 px-3 text-[11px] font-semibold text-ink"
+                      >
+                        {savingNotesFor === pet.id && <Loader2 className="size-3 animate-spin" />}
+                        Save notes
+                      </Button>
+                    </div>
+                  </section>
+
+                  <section className="p-5" aria-label={`${pet.name} grooming history`}>
+                    <h3 className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-ink-soft">
+                      <CalendarDays className="size-3.5 text-gold-deep" aria-hidden="true" />
+                      Grooming history
+                      {history.length > 0 && (
+                        <span className="rounded-full bg-cream px-1.5 py-0.5 text-[9.5px] font-semibold text-ink-soft">
+                          {history.length}
+                        </span>
+                      )}
+                    </h3>
+
+                    {history.length > 0 ? (
+                      <ul className="mt-3 max-h-44 space-y-2.5 overflow-y-auto custom-scrollbar pr-1">
+                        {history.map((b) => (
+                          <li key={b.id} className="flex items-baseline justify-between gap-3 text-[12px]">
+                            <span className="shrink-0 text-ink-soft">
+                              {b.date || '—'}
+                              {b.time ? ` · ${b.time}` : ''}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-right font-semibold text-ink">
+                              {b.service || 'Groom'}
+                            </span>
+                            <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-[0.08em] text-ink-soft/70">
+                              {b.signalLabel || b.status || ''}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-[12px] leading-relaxed text-ink-soft">
+                        No visits yet — {pet.name}&apos;s completed grooms will appear
+                        here.
+                      </p>
+                    )}
+
+                    <Link
+                      href="/customer/appointments"
+                      className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.08em] text-gold-deep underline-offset-2 hover:underline"
+                    >
+                      View all appointments
+                    </Link>
+                  </section>
                 </div>
               </article>
             );

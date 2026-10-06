@@ -26,7 +26,6 @@ import {
   X,
   GraduationCap,
   Activity,
-  Mail,
 } from 'lucide-react';
 
 // Import All 16 Dedicated Design Screens
@@ -50,7 +49,6 @@ import { OmsAddProductScreen } from './settings/screens/OmsAddProductScreen';
 import { SystemHealthTelemetryScreen } from './settings/screens/SystemHealthTelemetryScreen';
 import { AnalyticsReportingScreen } from './settings/screens/AnalyticsReportingScreen';
 import { EscrowDepositsForfeituresScreen } from './settings/screens/EscrowDepositsForfeituresScreen';
-import { EmailTemplatesScreen } from './settings/screens/EmailTemplatesScreen';
 
 // Secondary LMS Tab
 import { LMSTab } from './settings/LMSTab';
@@ -88,7 +86,6 @@ export type SettingsTabId =
   | 'portal'
   | 'customer-portal'
   | 'communications'
-  | 'email-templates'
   | 'org-social'
   | 'inventory'
   | 'oms-add-product'
@@ -150,12 +147,6 @@ const TAB_CATEGORIES: TabCategory[] = [
       { id: 'legal-waivers', label: 'Legal & Waivers', icon: FileText },
       { id: 'customer-portal', label: 'Customer Portal Settings', icon: UserCheck },
       { id: 'revenue-stripe', label: 'Payments & Gateway Settings', icon: CreditCard },
-    ],
-  },
-  {
-    title: '4.2 COMMUNICATIONS & EMAIL',
-    tabs: [
-      { id: 'email-templates', label: 'Email Templates', icon: Mail, badge: '35' },
     ],
   },
   {
@@ -446,13 +437,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onSelectLocation={onSelectLocation}
               systemSettings={systemSettings}
               saveSettingsToDb={saveSettingsToDb}
-            />
-          )}
-          {(activeTab === 'email-templates' || activeTab === 'communications') && (
-            <EmailTemplatesScreen
-              onNavigateScreen={navigateToScreen}
-              selectedLocation={selectedLocation}
-              onSelectLocation={onSelectLocation}
             />
           )}
           {(activeTab === 'system-telemetry' || activeTab === 'system' || activeTab === 'health') && (

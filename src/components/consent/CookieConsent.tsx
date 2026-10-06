@@ -141,82 +141,74 @@ function ConsentBanner({
   onCustomize: () => void;
 }) {
   return (
+    // Enterprise mini-banner (the Petco/OneTrust pattern): a compact card
+    // anchored bottom-RIGHT. The fixed container is pointer-events-none and
+    // only the card re-enables them — so while the notice is up, EVERYTHING
+    // behind it (shop filters, nav, product grid) stays fully interactive.
+    // The full "Privacy Governance" experience lives in the ConsentCenter
+    // dialog (Customize); the banner itself is a notice, not a blockade.
     <div
       role="dialog"
       aria-modal="false"
       aria-label="Cookie consent"
-      className="fixed inset-x-0 bottom-0 z-[90] flex justify-center px-3 pb-3 sm:px-6 sm:pb-6"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[90] flex justify-end px-3 pb-3 sm:px-6 sm:pb-6"
     >
-      <div className="consent-rise w-full max-w-3xl overflow-hidden rounded-lg border border-gold/40 bg-cream shadow-[0_24px_60px_-12px_rgba(26,20,10,0.45)]">
-        {/* Header strip — shield, governance title, compliance badges, close.
-            The X is a full-size, high-contrast close button (40px target,
-            gold on ink): a visitor looking for a way to close the banner
-            finds it instantly — it is never buried among the badges. */}
-        <div className="flex items-center gap-3 border-b border-gold/25 bg-ink px-4 py-2 sm:px-6">
-          <Shield className="h-4 w-4 shrink-0 text-gold" strokeWidth={1.8} aria-hidden="true" />
-          <span className="truncate text-[9px] font-bold tracking-[0.22em] text-on-dark sm:text-[10px]">
-            ALL ABOUT PAWZ · PRIVACY GOVERNANCE
-          </span>
-          <span className="ml-auto hidden items-center gap-2 sm:flex">
-            <span className="border border-gold/35 px-2 py-0.5 text-[8px] font-bold tracking-[0.18em] text-gold">
-              GDPR / CCPA
-            </span>
-            <span className="border border-gold/35 px-2 py-0.5 text-[8px] font-bold tracking-[0.18em] text-gold">
-              256-BIT SSL
-            </span>
+      <div className="consent-rise pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg border border-gold/40 bg-cream shadow-[0_24px_60px_-12px_rgba(26,20,10,0.45)]">
+        {/* Compact header strip — shield, governance mark, close (40px
+            target, gold on ink): a visitor looking for a way to close the
+            notice finds it instantly. */}
+        <div className="flex items-center gap-2 border-b border-gold/25 bg-ink px-3.5 py-2">
+          <Shield className="h-3.5 w-3.5 shrink-0 text-gold" strokeWidth={1.8} aria-hidden="true" />
+          <span className="truncate text-[8.5px] font-bold tracking-[0.18em] text-on-dark">
+            ALL ABOUT PAWZ · PRIVACY
           </span>
           <button
             type="button"
             onClick={onRejectNonEssential}
             title="Close (keep only essential cookies)"
             aria-label="Close and keep only essential cookies"
-            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/70 text-gold transition-colors hover:bg-gold hover:text-ink sm:ml-3"
+            className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/70 text-gold transition-colors hover:bg-gold hover:text-ink"
           >
-            <X className="h-5 w-5" strokeWidth={2.4} aria-hidden="true" />
+            <X className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
 
-        <div className="px-5 py-5 sm:px-7 sm:py-6">
-          <h2 className="font-display text-[22px] leading-[1.15] text-ink sm:text-[26px]">
-            We Value Your Privacy &amp; Tailored Care
+        <div className="px-4 py-3.5">
+          <h2 className="font-display text-[15px] leading-tight text-ink">
+            We value your privacy &amp; tailored care
           </h2>
-          <p className="mt-3 max-w-[62ch] text-[11.5px] leading-[1.75] text-ink-soft sm:text-[12px]">
-            We use cookies and similar secure technologies to enhance your salon booking experience,
-            remember your pet profile preferences, and analyze site performance. Essential cookies
-            are required for site security, appointment reservations, and core functionality;
-            optional cookies support personalized features and performance analytics. By clicking{" "}
-            <strong className="font-bold text-ink">Accept All Cookies</strong>, you agree to our use
-            of optional cookies. You can adjust your cookie consent anytime via{" "}
-            <strong className="font-bold text-ink">Customize Preferences</strong> or read our full{" "}
+          <p className="mt-1.5 text-[11px] leading-[1.6] text-ink-soft">
+            Essential cookies keep booking and your pet profile secure; optional
+            cookies add personalization and analytics. Adjust anytime or read our{" "}
             <Link href="/policies/privacy-policy" className="font-bold text-gold-deep underline decoration-gold/50 underline-offset-2 hover:text-gold">
               Privacy Policy
             </Link>
             .
           </p>
 
-          {/* Actions */}
-          <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+          {/* Actions — one compact row */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={onCustomize}
-              className="flex items-center justify-center gap-2 border border-ink/25 bg-transparent px-4 py-3 text-[9.5px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:border-gold-deep hover:text-gold-deep"
+              className="inline-flex items-center gap-1.5 border border-ink/25 bg-transparent px-3 py-2 text-[8.5px] font-bold tracking-[0.14em] text-ink-soft transition-colors hover:border-gold-deep hover:text-gold-deep"
             >
-              <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
-              CUSTOMIZE PREFERENCES
+              <SlidersHorizontal className="h-3 w-3" strokeWidth={1.8} aria-hidden="true" />
+              CUSTOMIZE
             </button>
             <button
               type="button"
               onClick={onRejectNonEssential}
-              className="flex-1 border border-gold-deep/60 bg-transparent px-4 py-3 text-[9.5px] font-bold tracking-[0.16em] text-gold-deep transition-colors hover:bg-gold/10 sm:flex-none"
+              className="border border-gold-deep/60 bg-transparent px-3 py-2 text-[8.5px] font-bold tracking-[0.14em] text-gold-deep transition-colors hover:bg-gold/10"
             >
-              REJECT NON-ESSENTIAL
+              REJECT OPTIONAL
             </button>
             <button
               type="button"
               onClick={onAcceptAll}
-              className="flex-1 bg-gold-deep px-5 py-3 text-[9.5px] font-bold tracking-[0.16em] text-on-dark transition-colors hover:bg-ink hover:text-gold sm:flex-none"
+              className="ml-auto bg-gold-deep px-4 py-2 text-[8.5px] font-bold tracking-[0.14em] text-on-dark transition-colors hover:bg-ink hover:text-gold"
             >
-              ACCEPT ALL COOKIES
+              ACCEPT ALL
             </button>
           </div>
         </div>

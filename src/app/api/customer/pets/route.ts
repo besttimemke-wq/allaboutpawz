@@ -34,6 +34,10 @@ async function resolveCustomer(user: any) {
 }
 
 function petShape(d: any) {
+  const rawVax = d.vaccinationPhotoUrls
+  const vaxArr = Array.isArray(rawVax)
+    ? rawVax
+    : (() => { try { const v = JSON.parse(String(rawVax)); return Array.isArray(v) ? v : [] } catch { return [] } })()
   return {
     id: d.id,
     name: d.name,
@@ -44,6 +48,7 @@ function petShape(d: any) {
     size: d.size || null,
     photoUrl: d.photoUrl || null,
     vaccinationNotes: d.vaccinationNotes || null,
+    vaccinationPhotoUrls: vaxArr.filter((u: unknown) => typeof u === "string"),
     createdAt: d.createdAt,
   }
 }
@@ -155,6 +160,9 @@ export async function PATCH(req: NextRequest) {
       }
       updates.weightLbs = String(weight)
       updates.size = sizeTierFromWeight(weight)
+    }
+    if (body.vaccinationNotes !== undefined) {
+      updates.vaccinationNotes = String(body.vaccinationNotes || "").trim() || null as any
     }
 
     const updated = await repo.update("dogs", petId, updates)
