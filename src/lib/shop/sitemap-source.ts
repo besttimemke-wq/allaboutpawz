@@ -537,7 +537,7 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
   const sellerEntries: SitemapEntry[] = SELLER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
   const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
 
-  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...customerEntries, ...frontdeskEntries, ...groomerEntries, ...sellerEntries, ...collectionEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
+  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...sellerEntries, ...collectionEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
   const seen = new Set<string>()
   const deduped = all
     .filter((e) => {
