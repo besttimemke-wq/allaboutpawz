@@ -72,7 +72,7 @@ export function SiteFooter() {
       <div className="w-full px-8 lg:px-12">
 
         {/* ===== TIER 1: 5-COLUMN GRID WITH VERTICAL DIVIDING LINES BETWEEN COLUMNS ===== */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 items-start gap-0 py-12">
+        <div className="grid grid-cols-2 lg:grid-cols-5 items-start gap-0 py-16">
           {/* Column 1: Brand */}
           <div className="px-6 border-r border-gold/10">
             <img src="/brand/footer-logo.png" alt="All About Pawz — Luxury Pet Grooming, Memphis, TN" width={1021} height={729} className="h-16 w-auto" />
@@ -178,7 +178,7 @@ export function SiteFooter() {
             the text links group, short | pipes separate individual links.
             Expandable sections push DOWN within their column. No box/border
             around expanded content — flat on black canvas. */}
-        <div className="mt-8 flex items-start justify-evenly border-t border-gold/15 pt-6">
+        <div className="mt-10 flex items-start justify-evenly border-t border-gold/15 pt-8 pb-10">
           {/* Group 1: Text links (short pipes between items, no tall line) */}
           <div className="flex items-center gap-2">
             <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Pricing</Link>
@@ -236,7 +236,7 @@ export function SiteFooter() {
 
         {/* ===== TIER 3: COPYRIGHT + REAL PAYMENT LOGOS + SCROLL TOP =====
               Horizontal dividing line ABOVE this row. */}
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-gold/15 py-6 sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-6 border-t border-gold/15 py-10 sm:flex-row">
           <p className="text-sm text-on-dark-muted">© {new Date().getFullYear()} {BUSINESS.legalName}. All rights reserved.</p>
           <div className="flex items-center gap-3">
             <VisaLogo />
