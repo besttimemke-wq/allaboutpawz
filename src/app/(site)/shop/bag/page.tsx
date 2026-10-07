@@ -68,7 +68,7 @@ export default async function BagPage() {
     <>
       <PageHeader n="06" label="SHOP" />
       <ShopNavBar />
-      <section className="marble bg-cream px-8 pb-14 pt-12 lg:px-12">
+      <section className="marble bg-white px-8 pb-14 pt-12 lg:px-12">
         <h1 className="sr-only">Your Bag — All About Pawz Boutique</h1>
         <BagClient products={visible} ratings={ratings} />
       </section>

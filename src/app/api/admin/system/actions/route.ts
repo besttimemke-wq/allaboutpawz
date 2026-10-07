@@ -410,7 +410,7 @@ export async function POST(req: NextRequest) {
            VALUES (gen_random_uuid(), $1, $2::uuid, 'email', 'outbound', 'queued', $3,
                    'Your magic link to AllAboutPawz',
                    $4, 'resend', now(), now())`,
-          [TENANT_ID(), customerId, email, `Click here to sign in: https://aapawz.com/magic?token=${rawToken}`],
+          [TENANT_ID(), customerId, email, `Click here to sign in: https://www.aapawz.com/magic?token=${rawToken}`],
         );
         await auditAction({ action, domain: "crm", tableName: "portal_magic_links", recordId: linkId, afterData: { email, purpose, expiresAt }, actorUserId: actorId, ipAddress: ip });
         return NextResponse.json({ ok: true, linkId, email, expiresAt, message: "Magic link generated — email queued for delivery" });

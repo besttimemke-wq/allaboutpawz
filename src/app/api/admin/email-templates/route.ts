@@ -17,7 +17,7 @@ import { SITE_URL } from "@/lib/site-url"
 // copy button is how they get into the Supabase dashboard editor.
 //
 // previewHtml: the studio iframe renders srcDoc content that INHERITS the
-// parent origin, so rewriting the site's absolute URLs (https://aapawz.com/…)
+// parent origin, so rewriting the site's absolute URLs (https://www.aapawz.com/…)
 // to same-origin paths (/…) makes brand assets like the paw logo load in the
 // preview wherever the admin app runs — sandbox preview or production —
 // instead of 404ing on the production domain before a deploy lands.

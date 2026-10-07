@@ -378,16 +378,8 @@ export function breadcrumbSchema(trail: { name: string; url: string }[]) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helper — the Buy Local MidSouth top bar copy. Never rotates away.
-// Per owner spec: header strip is SHORT to avoid keyword stuffing
-// ("Proudly Local — Memphis, TN · Serving Shelby County"). The full city
-// list lives in the footer NAP block + the dedicated /grooming/[city]
-// location pages, which is the proper place for it.
-// ---------------------------------------------------------------------------
-
-export const LOCAL_BAR = {
-  // Single short string — rendered as one slim strip, no city list, no paw
-  // icon (avoids competing with the sidebar logo → no double-header).
-  text: "Proudly Local — Memphis, TN · Serving Shelby County",
-} as const
+// LOCAL_BAR constant removed — the Buy Local top bar was deleted per owner
+// directive. The Buy Local signal lives ONLY in the footer NAP block
+// (SiteFooter in site-chrome.tsx). The top strip slot in SiteChrome is
+// reserved for a future CMS-driven promo strip (promo headline + code +
+// CTA, fed by the promo engine).

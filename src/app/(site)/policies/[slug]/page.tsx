@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import type { Metadata } from "next"
 import { Plus } from "lucide-react"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { getResource } from "@/lib/site-data"
+import { SITE_URL } from "@/lib/site-url"
 
 type Policy = { id: string; title: string; body?: string }
 
@@ -49,12 +51,17 @@ const BUILTIN_PRIVACY = {
   ].join("\n"),
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const policy = await getPolicy(slug)
   return {
     title: policy ? `${policy.title} | All About Pawz` : "Policy | All About Pawz",
     description: policy?.body?.slice(0, 150) || "All About Pawz salon policies.",
+    alternates: { canonical: `/policies/${slug}` },
+    openGraph: {
+      url: `${SITE_URL}/policies/${slug}`,
+      type: "article",
+    },
   }
 }
 

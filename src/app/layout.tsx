@@ -92,7 +92,11 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
-  alternates: { canonical: "/" },
+  // No root-level canonical — each page self-canonicals via its own
+  // metadata.alternates.canonical. The previous `canonical: "/"` made
+  // every page without its own metadata tell Google "my canonical is the
+  // homepage" — causing interior pages (policies, products, categories)
+  // to be de-indexed. Removed per owner directive.
 };
 
 // Desktop-mode phones ("Request desktop site" in Chrome/Firefox on Android,

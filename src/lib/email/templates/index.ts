@@ -315,7 +315,7 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
       service: "Bath & Brush + Deshedding",
       date: "Saturday",
       time: "10:00 AM",
-      resumeUrl: "https://aapawz.com/book/appointment?resume=sample",
+      resumeUrl: "https://www.aapawz.com/book/appointment?resume=sample",
     }),
     wired: "Sent by the daily abandoned-booking sweep (deposit never completed).",
   },
@@ -425,7 +425,7 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     html: newAccountCreatedHtml({
       firstName: "Brea",
       role: "customer",
-      signinUrl: "https://aapawz.com/access-customer",
+      signinUrl: "https://www.aapawz.com/access-customer",
       hasTempPassword: true,
     }),
     wired: "Sent when the salon creates an account from the CRM.",
@@ -440,7 +440,7 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     html: teamMemberInviteHtml({
       fullName: "Maya Johnson",
       role: "groomer",
-      actionLink: "https://aapawz.com/auth/set-password",
+      actionLink: "https://www.aapawz.com/auth/set-password",
       invitedBy: "Brea",
     }),
     wired: "Sent when a team member is invited (Users & Access).",

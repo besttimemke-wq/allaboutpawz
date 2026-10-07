@@ -39,7 +39,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
       <ShopNavBar />
 
       {/* Hero — brand band above the listing */}
-      <section className="marble grid grid-cols-1 items-stretch gap-10 bg-cream px-8 pt-6 pb-10 lg:min-h-[420px] lg:grid-cols-[1fr_0.8fr] lg:px-12 lg:pt-8">
+      <section className="marble grid grid-cols-1 items-stretch gap-10 bg-white px-8 pt-6 pb-10 lg:min-h-[420px] lg:grid-cols-[1fr_0.8fr] lg:px-12 lg:pt-8">
         <div className="flex flex-col justify-center pb-6">
           <p className="eyebrow flex items-center gap-2">
             <Sparkle className="h-3.5 w-3.5" strokeWidth={1.5} /> THE PAWZ COLLECTION
@@ -74,7 +74,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
       </section>
 
       {/* The listing: sidebar + grid, all resolved server-side */}
-      <section id="collection" className="marble scroll-mt-24 bg-cream px-8 pb-14 pt-10 lg:px-12">
+      <section id="collection" className="marble scroll-mt-24 bg-white px-8 pb-14 pt-10 lg:px-12">
         <CheckoutIsland />
         <Plp scope={{ kind: "all" }} searchParams={sp} />
       </section>

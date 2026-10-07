@@ -30,7 +30,7 @@ import {
 //          (production, or any origin added in the console later — verified
 //          live, cached 60 s), the flow runs direct against it.
 //       2. Otherwise the flow runs against the REGISTERED production callback
-//          (https://aapawz.com/api/auth/google/callback) — exactly his
+//          (https://www.aapawz.com/api/auth/google/callback) — exactly his
 //          repo's strategy. Preview flows additionally record returnOrigin
 //          in the signed server-side state, so the callback relays the
 //          browser back to the preview to finish sign-in there — active the

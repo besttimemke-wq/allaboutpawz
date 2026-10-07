@@ -1,0 +1,289 @@
+=== Taxonomy SQL object counts ===
+Tables: 48
+Views: 20
+Indexes: 22
+Functions: 27
+ALTER TABLEs: 1
+
+=== Querying live Supabase database ===
+Live tables: 442
+Live views: 32
+Live functions: 324
+Live indexes: 1758
+
+========================================
+LIST (a) — CREATES CLEANLY (not on live DB)
+========================================
+
+Tables (43):
+  + location_hours
+  + location_hour_exceptions
+  + taxonomy_nodes
+  + attributes
+  + attribute_values
+  + node_filters
+  + node_filter_values
+  + sellers
+  + brands
+  + brand_placements
+  + seller_brand_authorizations
+  + seller_category_approvals
+  + products
+  + product_nodes
+  + product_variants
+  + variant_axis_values
+  + product_attribute_values
+  + product_media
+  + offers
+  + inventory_levels
+  + vendors
+  + purchase_order_lines
+  + goods_receipts
+  + goods_receipt_lines
+  + vendor_invoices
+  + vendor_invoice_lines
+  + seo_templates
+  + seo_overrides
+  + route_redirects
+  + related_search_pages
+  + related_search_page_products
+  + cms_slots
+  + cms_slot_items
+  + page_components
+  + grooming_services
+  + location_grooming_services
+  + supply_service_map
+  + membership_plans
+  + customer_memberships
+  + reviews
+  + merchandising_modules
+  + node_associations
+  + product_relations
+
+Views (20):
+  + v_routes
+  + v_sitemap
+  + v_node_breadcrumbs
+  + v_node_children
+  + v_node_filter_spec
+  + v_cms_product_form
+  + v_brand_facets
+  + v_brand_pages
+  + v_related_search_links
+  + v_variant_stock
+  + v_variant_availability
+  + v_buy_box
+  + v_pickup_availability
+  + v_product_rating
+  + v_product_cards
+  + v_po_three_way_match
+  + v_brand_publish_status
+  + v_new_filter_values_review
+  + v_supply_service_links
+  + v_orphan_pages
+
+Functions (27):
+  + slugify
+  + touch_updated_at
+  + paths_related
+  + first_party_seller
+  + trg_fill_tenant
+  + trg_taxonomy_node_before
+  + trg_taxonomy_node_after
+  + effective_filter_node
+  + brand_supply_source
+  + brand_supply_ok
+  + trg_brand_before
+  + trg_brand_after
+  + trg_brand_placement_before
+  + trg_brand_placement_after
+  + product_has_live_brand
+  + trg_product_before
+  + trg_product_after
+  + trg_offer_before
+  + revalidate_brand
+  + trg_po_status
+  + trg_po_revoke
+  + trg_authorization_revoke
+  + trg_seller_status
+  + register_product_attributes
+  + trg_register_attributes
+  + set_product_attribute
+  + trg_goods_receipt_line
+
+Indexes (22):
+  + ux_taxonomy_sibling_slug
+  + ux_taxonomy_root_slug
+  + ix_taxonomy_parent
+  + ix_taxonomy_path
+  + ix_taxonomy_animal
+  + ix_node_filters_node
+  + ux_one_first_party_seller
+  + ix_brand_placements_node
+  + ix_products_brand
+  + ix_product_nodes_node
+  + ux_product_primary_node
+  + ux_variant_gtin
+  + ux_pav_enum
+  + ix_pav_facet
+  + ix_offers_variant
+  + ix_inventory_variant
+  + ux_customers_email
+  + ix_po_brand_status
+  + ix_pol_node
+  + ux_related_legacy_path
+  + ix_related_target
+  + ix_reviews_product
+
+========================================
+LIST (b) — COLLIDES (exists on live DB — check columns/constraints)
+========================================
+
+Tables (5):
+  ! tenants
+  ! locations
+  ! customers
+  ! purchase_orders
+  ! faqs
+
+Views (0):
+
+Functions (0):
+
+Indexes (0):
+
+========================================
+LIST (b) detail — TABLE COLUMN DIFFS
+========================================
+
+  tenants (live columns: 29):
+    id : uuid
+    name : text
+    slug : text
+    active : boolean
+    created_at : timestamp with time zone
+    stripe_connect_account_id : text
+    stripe_connect_status : text
+    stripe_customer_id : text
+    stripe_subscription_id : text
+    subscription_status : text
+    plan_tier : text
+    tenant_kind : text
+    status : text
+    updated_at : timestamp with time zone
+    legal_name : text
+    dba_name : text
+    tax_id : text
+    logo_url : text
+    logo_dark_url : text
+    favicon_url : text
+    primary_color : text
+    secondary_color : text
+    accent_color : text
+    brand_font : text
+    support_email : text
+    support_phone : text
+    website_url : text
+    custom_domain : text
+    social_links : jsonb
+
+  locations (live columns: 17):
+    id : uuid
+    tenant_id : uuid
+    name : text
+    type : text
+    address : text
+    city : text
+    state : text
+    zip : text
+    phone : text
+    email : text
+    manager : text
+    status : text
+    station_count : integer
+    operating_hours : text
+    is_default : boolean
+    created_at : timestamp with time zone
+    updated_at : timestamp with time zone
+
+  customers (live columns: 23):
+    id : text
+    firstName : text
+    lastName : text
+    email : text
+    phone : text
+    stripeCustomerId : text
+    createdAt : timestamp with time zone
+    address : text
+    addressLine2 : text
+    city : text
+    state : text
+    postalCode : text
+    customerStatus : text
+    emailMarketingOptIn : boolean
+    smsMarketingOptIn : boolean
+    emailTransactionalOptIn : boolean
+    smsTransactionalOptIn : boolean
+    userId : text
+    search_vector : tsvector
+    tenant_id : uuid
+    ar_account_id : uuid
+    ap_account_id : uuid
+    currency : text
+
+  purchase_orders (live columns: 15):
+    id : uuid
+    tenant_id : uuid
+    number : text
+    vendor_id : text
+    issue_date : date
+    expected_date : date
+    status : USER-DEFINED
+    currency : text
+    subtotal : numeric
+    tax_total : numeric
+    total : numeric
+    notes : text
+    converted_bill_id : uuid
+    created_at : timestamp with time zone
+    updated_at : timestamp with time zone
+
+  faqs (live columns: 7):
+    id : text
+    question : text
+    answer : text
+    order : integer
+    createdAt : timestamp with time zone
+    updatedAt : timestamp with time zone
+    tenant_id : uuid
+
+========================================
+LIST (c) — DDL WRITES (ALTER TABLE + indexes on existing tables)
+========================================
+
+ALTER TABLE targets (1):
+  ~ locations (exists — ALTER will modify)
+
+Indexes on EXISTING tables (will add to live tables):
+  CREATE ux_taxonomy_sibling_slug
+  CREATE ux_taxonomy_root_slug
+  CREATE ix_taxonomy_parent
+  CREATE ix_taxonomy_path
+  CREATE ix_taxonomy_animal
+  CREATE ix_node_filters_node
+  CREATE ux_one_first_party_seller
+  CREATE ix_brand_placements_node
+  CREATE ix_products_brand
+  CREATE ix_product_nodes_node
+  CREATE ux_product_primary_node
+  CREATE ux_variant_gtin
+  CREATE ux_pav_enum
+  CREATE ix_pav_facet
+  CREATE ix_offers_variant
+  CREATE ix_inventory_variant
+  CREATE ux_customers_email
+  CREATE ix_po_brand_status
+  CREATE ix_pol_node
+  CREATE ux_related_legacy_path
+  CREATE ix_related_target
+  CREATE ix_reviews_product

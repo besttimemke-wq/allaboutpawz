@@ -59,7 +59,7 @@ function requestOrigin(req: NextRequest): string {
     const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim().toLowerCase()
     return `${proto === "http" ? "http" : "https"}://${xfh}`
   }
-  return (req.nextUrl.origin || process.env.NEXT_PUBLIC_SITE_URL || "https://aapawz.com").replace(/\/$/, "")
+  return (req.nextUrl.origin || process.env.NEXT_PUBLIC_SITE_URL || "https://www.aapawz.com").replace(/\/$/, "")
 }
 
 export async function POST(req: NextRequest) {

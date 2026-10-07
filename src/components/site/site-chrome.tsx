@@ -13,7 +13,7 @@ import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
 import { useNavPromoGate, type PromoPlacement } from "./islands/promo-popup"
 import { useCart } from "@/lib/wizard/cart-store"
-import { BUSINESS, LOCAL_BAR } from "@/lib/business"
+import { BUSINESS } from "@/lib/business"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet"
@@ -536,25 +536,6 @@ export function TopUtilityBar() {
     <div className="hidden items-center justify-end gap-5 border-b border-gold/25 bg-cream px-8 py-2.5 lg:flex">
       <HeaderAccountLink />
       <HeaderBagLink />
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// LocalBar — the "Buy Local MidSouth" top strip on every page. Per owner
-// spec: SINGLE slim header (no double-header), SHORT text to avoid keyword
-// stuffing ("Proudly Local — Memphis, TN · Serving Shelby County"). The
-// full city list lives in the footer NAP block + the /grooming/[city]
-// location pages. No paw icon — the sidebar logo carries the brand; this
-// strip carries only the local citation signal. Renders as the first
-// element inside SiteChrome so it lands on every SEO page type.
-// ---------------------------------------------------------------------------
-export function LocalBar() {
-  return (
-    <div className="border-b border-gold/30 bg-ink">
-      <div className="mx-auto max-w-7xl px-4 py-2 text-center text-xs font-semibold tracking-[0.12em] text-cream sm:px-6 lg:ml-[232px] lg:px-10">
-        {LOCAL_BAR.text}
-      </div>
     </div>
   )
 }

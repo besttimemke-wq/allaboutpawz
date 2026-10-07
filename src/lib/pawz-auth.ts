@@ -63,7 +63,7 @@ export function googleCallbackUri(origin: string): string {
  *  never all be pre-registered, so their flows are routed THROUGH this
  *  registered callback and relayed back (see /api/auth/google/callback). */
 export function productionRelayOrigin(): string {
-  return (process.env.GOOGLE_RELAY_ORIGIN || "https://aapawz.com").replace(/\/$/, "");
+  return (process.env.GOOGLE_RELAY_ORIGIN || "https://www.aapawz.com").replace(/\/$/, "");
 }
 
 export function productionRelayCallbackUri(): string {
@@ -124,7 +124,7 @@ let relayCheck: { ok: boolean; status: number | null; at: number } | null = null
  *  probe never routes anyone into a dead end.
  *
  *  Redirects are FOLLOWED: the registered redirect URI is the apex
- *  (https://aapawz.com/...) while the deployment may sit behind an apex→www
+ *  (https://www.aapawz.com/...) while the deployment may sit behind an apex→www
  *  308 — a manual-redirect probe would report "not capable" forever even
  *  after the build is deployed. The JSON + content-type check on the final
  *  response keeps the probe honest (an HTML catch-all page never passes). */
@@ -575,7 +575,7 @@ export function sessionCookieOptions(reqHost?: string | null) {
 // ---------------------------------------------------------------------------
 // Apex ↔ www cookie continuity (THE production sign-in killer, fixed)
 // ---------------------------------------------------------------------------
-// The registered Google redirect URI is the APEX (https://aapawz.com/...),
+// The registered Google redirect URI is the APEX (https://www.aapawz.com/...),
 // but the platform 308-redirects the apex to https://www.aapawz.com — so a
 // flow that starts on one host always finishes on the other. Host-only
 // cookies (no Domain attribute) set by the initiator on the apex were

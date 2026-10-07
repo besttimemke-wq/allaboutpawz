@@ -6,7 +6,7 @@ import type { NextRequest } from "next/server"
 // override it for preview deployments, but the default is the live site.
 // ---------------------------------------------------------------------------
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://aapawz.com").replace(/\/$/, "")
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.aapawz.com").replace(/\/$/, "")
 
 // Base for Stripe success/cancel/return URLs.
 export function callbackBase(_req?: NextRequest): string {

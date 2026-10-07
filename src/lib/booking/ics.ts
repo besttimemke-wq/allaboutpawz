@@ -133,7 +133,7 @@ export function buildBookingIcs(input: BookingIcsInput): string {
         input.totalDisplay ? `Total: ${input.totalDisplay}` : "",
         input.balanceDisplay && input.balanceDisplay !== "$0.00" ? `Balance due at the salon: ${input.balanceDisplay}` : "",
         `Questions? ${SALON.phone}`,
-        `Manage: https://aapawz.com/customer/appointments`,
+        `Manage: https://www.aapawz.com/customer/appointments`,
       ].filter(Boolean).join("\\n"),
     )}`,
     `STATUS:CONFIRMED`,
@@ -157,7 +157,7 @@ export function googleCalendarUrl(input: BookingIcsInput): string | null {
     text: `${input.dogName || "Your pup"}'s groom — All About Pawz`,
     dates: `${t.startUtc}/${t.endUtc}`,
     location: SALON.address,
-    details: `${(input.serviceNames.length > 0 ? input.serviceNames : ["Grooming appointment"]).join(" + ")}${input.totalDisplay ? ` — ${input.totalDisplay}` : ""} · Manage: https://aapawz.com/customer/appointments`,
+    details: `${(input.serviceNames.length > 0 ? input.serviceNames : ["Grooming appointment"]).join(" + ")}${input.totalDisplay ? ` — ${input.totalDisplay}` : ""} · Manage: https://www.aapawz.com/customer/appointments`,
   })
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
