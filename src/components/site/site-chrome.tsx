@@ -437,6 +437,11 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
                   href={item.to}
                   aria-current={active ? "page" : undefined}
                   onClick={(e) => {
+                    if (isShop) {
+                      e.preventDefault()
+                      setShopHovered(h => !h)
+                      return
+                    }
                     onClose()
                     const placement = NAV_PROMO_PLACEMENTS[item.label]
                     if (placement) gate(placement, e, item.to)
@@ -449,7 +454,7 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
                   <span className={`text-[10.5px] font-bold tracking-[0.13em] transition-colors ${active ? "text-black" : "text-ink-soft group-hover:text-black"}`}>
                     {item.label}
                   </span>
-                  {isShop && <ChevronRight size={10} className="text-gray-400" />}
+                  {isShop && <ChevronRight size={10} className="text-ink-soft" />}
                 </Link>
                 {isShop && shopHovered && (
                   <ShopFlyout onClose={onClose} />
