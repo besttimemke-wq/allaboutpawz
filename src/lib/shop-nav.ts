@@ -1,236 +1,445 @@
 // ---------------------------------------------------------------------------
-// Shop navigation data — the NINE departments of the shop nav bar, shared by
-// the header ShopNavBar (every /shop route). Static, data-driven config per
-// the owner's spec (never hardcoded per page): each category carries its
-// subcategory column, its What's New column, and its three-image rail.
+// Shop navigation data — the FULL cat + dog taxonomy tree per the owner's
+// spec. Drives the mega menu, the shop sidebar, the HTML sitemap, and the
+// SSR category pages. Data-driven: one change here updates every surface.
 //
-// Slugs are the REAL taxonomy slugs (/shop/category/<slug>) from the live
-// category tree — customer-facing names stay flattened (Grooming, Treats,
-// Travel & Outdoor, Wellness — never "Dog Grooming Supplies").
+// URL pattern: /shop/{animal}/{department-slug}/{subcategory-slug}
+// Per the Shop SEO Page Architecture spec §2 — segments are opaque path
+// segments resolved from data.
+//
+// The tree mirrors the live taxonomy_nodes table (333 rows seeded by the
+// Pet Supply Taxonomy SQL migration). This file is the client-side mirror
+// of that data for mega-menu rendering (the server reads from the DB
+// directly via getNavTree(); this file is for the client islands).
 // ---------------------------------------------------------------------------
 
 export type ShopNavSubcategory = {
   slug: string
   name: string
+  children?: ShopNavSubcategory[]
 }
 
-export type ShopNavWhatsNew = {
-  label: string
-  href: string
-}
-
-export type ShopNavImage = {
-  src: string
-  alt: string
-  href: string
-}
-
-export type ShopCategory = {
+export type ShopNavDepartment = {
   slug: string
   name: string
   subcategories: ShopNavSubcategory[]
-  whatsNew?: ShopNavWhatsNew[]
-  images: ShopNavImage[]
 }
 
-const cat = (slug: string) => `/shop/category/${slug}`
+export type ShopNavAnimal = {
+  slug: string
+  name: string
+  tagline: string
+  departments: ShopNavDepartment[]
+}
 
-export const SHOP_NAV_CATEGORIES: ShopCategory[] = [
+const cat = (slug: string) => slug
+
+export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
   {
-    slug: "dog-feeding-watering-supplies",
-    name: "Feeding & Watering",
-    subcategories: [
-      { slug: "bowls-dishes", name: "Bowls & Dishes" },
-      { slug: "automatic-feeders", name: "Automatic Feeders" },
-      { slug: "water-bottles", name: "Water Bottles" },
-      { slug: "fountains", name: "Fountains" },
-      { slug: "food-storage", name: "Food Storage" },
-      { slug: "feeding-mats", name: "Feeding Mats" },
-      { slug: "lick-mats", name: "Lick Mats" },
-      { slug: "nursing-supplies", name: "Nursing Supplies" },
-    ],
-    whatsNew: [
-      { label: "Bowls & Dishes", href: cat("bowls-dishes") },
-      { label: "Automatic Feeders", href: cat("automatic-feeders") },
-      { label: "Lick Mats", href: cat("lick-mats") },
-    ],
-    images: [
-      { src: "/Shop/heroes/beagle.jpeg", alt: "Beagle portrait — shop Feeding & Watering", href: cat("bowls-dishes") },
-      { src: "/Shop/heroes/cocker-spaniel.jpeg", alt: "Cocker Spaniel portrait — shop Feeding & Watering", href: cat("automatic-feeders") },
-      { src: "/Shop/heroes/pomeranian.jpeg", alt: "Pomeranian portrait — shop Feeding & Watering", href: cat("lick-mats") },
+    slug: "cat",
+    name: "Cat Supplies",
+    tagline: "Everything for your feline family",
+    departments: [
+      {
+        slug: "beds-bedding",
+        name: "Cat Beds & Bedding",
+        subcategories: [
+          { slug: "bolster-cat-beds", name: "Bolster Cat Beds" },
+          { slug: "cat-blankets-throws", name: "Cat Blankets & Throws" },
+          { slug: "cat-cave-beds-hideaways", name: "Cat Cave Beds & Hideaways" },
+          { slug: "designer-cat-beds", name: "Designer Cat Beds" },
+          { slug: "heated-cat-beds", name: "Heated Cat Beds" },
+          { slug: "pillow-cat-beds", name: "Pillow Cat Beds" },
+        ],
+      },
+      {
+        slug: "bowls-feeders",
+        name: "Cat Bowls & Feeders",
+        subcategories: [
+          { slug: "automatic-cat-feeders", name: "Automatic Cat Feeders" },
+          { slug: "cat-bowls", name: "Cat Bowls" },
+          { slug: "cat-feeding-accessories", name: "Cat Feeding Accessories" },
+          { slug: "cat-placemats", name: "Cat Placemats" },
+        ],
+      },
+      {
+        slug: "carriers-containment",
+        name: "Cat Carriers & Containment",
+        subcategories: [
+          { slug: "cat-carriers-crates-kennels", name: "Cat Carriers, Crates & Kennels" },
+          { slug: "cat-gates-doors", name: "Cat Gates & Doors" },
+        ],
+      },
+      {
+        slug: "cleaners-waste-disposal",
+        name: "Cat Cleaners & Waste Disposal",
+        subcategories: [],
+      },
+      {
+        slug: "clothing-accessories",
+        name: "Cat Clothing & Accessories",
+        subcategories: [
+          { slug: "cat-accessories", name: "Cat Accessories" },
+          { slug: "cat-clothing", name: "Cat Clothing" },
+          { slug: "cat-collars-leashes-harnesses", name: "Cat Collars, Leashes & Harnesses", children: [
+            { slug: "cat-collar-charms-accessories", name: "Cat Collar Charms & Accessories" },
+            { slug: "cat-harnesses", name: "Cat Harnesses" },
+            { slug: "cat-id-tags", name: "Cat ID Tags" },
+            { slug: "cat-leashes", name: "Cat Leashes" },
+          ]},
+        ],
+      },
+      {
+        slug: "food",
+        name: "Cat Food",
+        subcategories: [
+          { slug: "cat-broths-toppers", name: "Cat Broths & Toppers" },
+          { slug: "fresh-frozen-freeze-dried-cat-food", name: "Fresh, Frozen, & Freeze-Dried Cat Food" },
+          { slug: "highest-quality-cat-food", name: "Highest Quality Cat Food" },
+          { slug: "shop-cat-food-by-dietary-preference", name: "Shop Cat Food By Dietary Preference" },
+          { slug: "shop-cat-food-by-health-condition", name: "Shop Cat Food By Health Condition" },
+          { slug: "shop-cat-food-by-life-stage", name: "Shop Cat Food By Life Stage" },
+          { slug: "veterinary-diet-cat-food", name: "Veterinary Diet Cat Food" },
+          { slug: "wet-cat-food", name: "Wet Cat Food" },
+        ],
+      },
+      {
+        slug: "furniture-scratchers",
+        name: "Cat Furniture & Scratchers",
+        subcategories: [
+          { slug: "cat-condos-covered-beds", name: "Cat Condos & Covered Beds" },
+          { slug: "cat-scratching-posts-cardboard", name: "Cat Scratching Posts & Cardboard" },
+          { slug: "cat-window-perches-wall-shelves", name: "Cat Window Perches & Wall Shelves" },
+          { slug: "modern-cat-furniture", name: "Modern Cat Furniture" },
+          { slug: "outdoor-cat-houses-furniture", name: "Outdoor Cat Houses & Furniture" },
+        ],
+      },
+      {
+        slug: "grooming-bathing",
+        name: "Cat Grooming & Bathing",
+        subcategories: [
+          { slug: "cat-brushes-combs-grooming-gloves", name: "Cat Brushes, Combs & Grooming Gloves" },
+          { slug: "cat-deodorizers", name: "Cat Deodorizers" },
+          { slug: "cat-nail-care", name: "Cat Nail Care" },
+          { slug: "cat-wipes-waterless-grooming", name: "Cat Wipes & Waterless Grooming" },
+        ],
+      },
+      {
+        slug: "health-wellness",
+        name: "Cat Health & Wellness",
+        subcategories: [
+          { slug: "calming-aids-for-cats", name: "Calming Aids for Cats" },
+          { slug: "cat-allergy-itch-relief", name: "Cat Allergy & Itch Relief" },
+          { slug: "cat-dna-tests", name: "Cat DNA Tests" },
+          { slug: "cat-dental-care", name: "Cat Dental Care" },
+          { slug: "cat-ear-eye-care", name: "Cat Ear & Eye Care" },
+          { slug: "cat-hairball-control", name: "Cat Hairball Control" },
+          { slug: "cat-recovery-cones-surgical-suits", name: "Cat Recovery Cones & Surgical Suits" },
+          { slug: "cat-vitamins-supplements", name: "Cat Vitamins & Supplements" },
+        ],
+      },
+      {
+        slug: "litter-litter-boxes-accessories",
+        name: "Cat Litter, Litter Boxes & Accessories",
+        subcategories: [
+          { slug: "cat-litter-boxes-accessories", name: "Cat Litter Boxes & Accessories" },
+          { slug: "cat-litter", name: "Cat Litter" },
+        ],
+      },
+      {
+        slug: "steps-ramps",
+        name: "Cat Steps & Ramps",
+        subcategories: [],
+      },
+      {
+        slug: "toys",
+        name: "Cat Toys",
+        subcategories: [
+          { slug: "cat-ball-chaser-toys", name: "Cat Ball & Chaser Toys" },
+          { slug: "cat-chew-toys", name: "Cat Chew Toys" },
+          { slug: "cat-teasers-wands", name: "Cat Teasers & Wands" },
+          { slug: "interactive-electronic-cat-toys", name: "Interactive & Electronic Cat Toys" },
+          { slug: "mice-plush-cat-toys", name: "Mice & Plush Cat Toys" },
+        ],
+      },
+      {
+        slug: "training-behavior",
+        name: "Cat Training & Behavior",
+        subcategories: [
+          { slug: "cat-potty-training", name: "Cat Potty Training" },
+          { slug: "cat-repellents-deterrents", name: "Cat Repellents & Deterrents" },
+        ],
+      },
+      {
+        slug: "treats",
+        name: "Cat Treats",
+        subcategories: [
+          { slug: "cat-dental-treats-chews", name: "Cat Dental Treats & Chews" },
+          { slug: "catnip-cat-grass", name: "Catnip & Cat Grass" },
+          { slug: "crunchy-cat-treats", name: "Crunchy Cat Treats" },
+          { slug: "kitten-treats", name: "Kitten Treats" },
+          { slug: "natural-cat-treats", name: "Natural Cat Treats" },
+          { slug: "prescription-cat-treats", name: "Prescription Cat Treats" },
+          { slug: "puree-lickable-cat-treats", name: "Puree & Lickable Cat Treats" },
+          { slug: "soft-chewy-cat-treats", name: "Soft & Chewy Cat Treats" },
+          { slug: "weight-management-cat-treats", name: "Weight Management Cat Treats" },
+        ],
+      },
+      {
+        slug: "flea-tick-solutions",
+        name: "Flea & Tick Solutions for Cats",
+        subcategories: [
+          { slug: "cat-flea-tick-pills-chews", name: "Cat Flea & Tick Pills & Chews" },
+          { slug: "cat-flea-prevention-collars", name: "Cat Flea Prevention Collars" },
+          { slug: "cat-house-yard-flea-treatments", name: "Cat House & Yard Flea Treatments" },
+          { slug: "flea-combs-for-cats", name: "Flea Combs for Cats" },
+          { slug: "flea-drops-for-cats", name: "Flea Drops for Cats" },
+          { slug: "flea-shampoo-for-cats", name: "Flea Shampoo for Cats" },
+          { slug: "flea-sprays-for-cats", name: "Flea Sprays for Cats" },
+        ],
+      },
     ],
   },
   {
-    slug: "dog-grooming-supplies",
-    name: "Grooming",
-    subcategories: [
-      { slug: "shampoos-conditioners", name: "Shampoos & Conditioners" },
-      { slug: "brushes", name: "Brushes" },
-      { slug: "combs", name: "Combs" },
-      { slug: "claw-care", name: "Claw Care" },
-      { slug: "colognes", name: "Colognes" },
-      { slug: "shower-bath-supplies", name: "Shower & Bath Supplies" },
-      { slug: "dematting-tools", name: "Dematting Tools" },
-      { slug: "shedding-tools", name: "Shedding Tools" },
-    ],
-    whatsNew: [
-      { label: "Shampoos & Conditioners", href: cat("shampoos-conditioners") },
-      { label: "Claw Care", href: cat("claw-care") },
-      { label: "Colognes", href: cat("colognes") },
-    ],
-    images: [
-      { src: "/Shop/heroes/poodle.jpeg", alt: "Groomed poodle portrait — shop Grooming", href: cat("shampoos-conditioners") },
-      { src: "/Shop/heroes/shih-tzu.jpeg", alt: "Groomed Shih Tzu portrait — shop Grooming", href: cat("claw-care") },
-      { src: "/Shop/heroes/cocker-spaniel.jpeg", alt: "Cocker Spaniel portrait — shop Grooming", href: cat("colognes") },
-    ],
-  },
-  {
-    slug: "dog-beds-furniture",
-    name: "Beds & Furniture",
-    subcategories: [
-      { slug: "beds", name: "Beds" },
-      { slug: "bed-blankets", name: "Bed Blankets" },
-      { slug: "bed-covers", name: "Bed Covers" },
-      { slug: "bed-mats", name: "Bed Mats" },
-      { slug: "bed-pillows", name: "Bed Pillows" },
-      { slug: "bed-liners", name: "Bed Liners" },
-      { slug: "sofas-chairs", name: "Sofas & Chairs" },
-      { slug: "stairs-steps", name: "Stairs & Steps" },
-    ],
-    whatsNew: [
-      { label: "Beds", href: cat("beds") },
-      { label: "Bed Blankets", href: cat("bed-blankets") },
-      { label: "Stairs & Steps", href: cat("stairs-steps") },
-    ],
-    images: [
-      { src: "/Shop/heroes/french-bulldog.jpeg", alt: "French Bulldog portrait — shop Beds & Furniture", href: cat("beds") },
-      { src: "/Shop/heroes/pomeranian.jpeg", alt: "Pomeranian portrait — shop Beds & Furniture", href: cat("bed-blankets") },
-      { src: "/Shop/heroes/shih-tzu.jpeg", alt: "Groomed Shih Tzu portrait — shop Beds & Furniture", href: cat("stairs-steps") },
-    ],
-  },
-  {
-    slug: "dog-treat-cookies-biscuits-snacks",
-    name: "Treats",
-    subcategories: [
-      { slug: "biscuits", name: "Biscuits" },
-      { slug: "cookies", name: "Cookies" },
-      { slug: "snacks", name: "Snacks" },
-    ],
-    whatsNew: [
-      { label: "Biscuits", href: cat("biscuits") },
-      { label: "Cookies", href: cat("cookies") },
-      { label: "Snacks", href: cat("snacks") },
-    ],
-    images: [
-      { src: "/Shop/heroes/beagle.jpeg", alt: "Beagle portrait — shop Treats", href: cat("biscuits") },
-      { src: "/Shop/heroes/border-collie.jpeg", alt: "Border Collie portrait — shop Treats", href: cat("cookies") },
-      { src: "/Shop/heroes/pomeranian.jpeg", alt: "Pomeranian portrait — shop Treats", href: cat("snacks") },
-    ],
-  },
-  {
-    slug: "dog-apparel-accessories",
-    name: "Apparel & Accessories",
-    subcategories: [
-      { slug: "bandanas", name: "Bandanas" },
-      { slug: "sweaters", name: "Sweaters" },
-      { slug: "hoodies", name: "Hoodies" },
-      { slug: "raincoats", name: "Raincoats" },
-      { slug: "cold-weather-coats", name: "Cold Weather Coats" },
-      { slug: "boots-paw-protectors", name: "Boots & Paw Protectors" },
-      { slug: "dresses", name: "Dresses" },
-      { slug: "hats", name: "Hats" },
-    ],
-    whatsNew: [
-      { label: "Bandanas", href: cat("bandanas") },
-      { label: "Sweaters", href: cat("sweaters") },
-      { label: "Raincoats", href: cat("raincoats") },
-    ],
-    images: [
-      { src: "/Shop/heroes/pomeranian.jpeg", alt: "Pomeranian portrait — shop Apparel & Accessories", href: cat("bandanas") },
-      { src: "/Shop/heroes/cocker-spaniel.jpeg", alt: "Cocker Spaniel portrait — shop Apparel & Accessories", href: cat("sweaters") },
-      { src: "/Shop/heroes/shih-tzu.jpeg", alt: "Groomed Shih Tzu portrait — shop Apparel & Accessories", href: cat("raincoats") },
-    ],
-  },
-  {
-    slug: "dog-chew-toys",
-    name: "Chew Toys",
-    subcategories: [{ slug: "chew-toys", name: "Chew Toys" }],
-    whatsNew: [{ label: "Chew Toys", href: cat("chew-toys") }],
-    images: [
-      { src: "/Shop/heroes/border-collie.jpeg", alt: "Border Collie portrait — shop Chew Toys", href: cat("chew-toys") },
-      { src: "/Shop/heroes/beagle.jpeg", alt: "Beagle portrait — shop Chew Toys", href: cat("chew-toys") },
-      { src: "/Shop/heroes/husky.jpeg", alt: "Siberian Husky portrait — shop Chew Toys", href: cat("chew-toys") },
-    ],
-  },
-  {
-    slug: "collars-harnesses-leashes",
-    name: "Collars, Harnesses & Leashes",
-    subcategories: [
-      { slug: "collars", name: "Collars" },
-      { slug: "harnesses", name: "Harnesses" },
-      { slug: "leashes", name: "Leashes" },
-      { slug: "id-tags-collar-accessories", name: "ID Tags & Collar Accessories" },
-      { slug: "activity-trackers", name: "Activity Trackers" },
-      { slug: "location-trackers", name: "Location Trackers" },
-      { slug: "muzzles", name: "Muzzles" },
-    ],
-    whatsNew: [
-      { label: "Collars", href: cat("collars") },
-      { label: "Harnesses", href: cat("harnesses") },
-      { label: "Leashes", href: cat("leashes") },
-    ],
-    images: [
-      { src: "/Shop/heroes/german-shepherd.jpeg", alt: "German Shepherd portrait — shop Collars, Harnesses & Leashes", href: cat("collars") },
-      { src: "/Shop/heroes/border-collie.jpeg", alt: "Border Collie portrait — shop Collars, Harnesses & Leashes", href: cat("harnesses") },
-      { src: "/Shop/heroes/beagle.jpeg", alt: "Beagle portrait — shop Collars, Harnesses & Leashes", href: cat("leashes") },
-    ],
-  },
-  {
-    slug: "carriers-travel-products",
-    name: "Travel & Outdoor",
-    subcategories: [
-      { slug: "carriers", name: "Carriers" },
-      { slug: "car-travel-accessories", name: "Car Travel Accessories" },
-      { slug: "backpack-carriers", name: "Backpack Carriers" },
-      { slug: "strollers", name: "Strollers" },
-      { slug: "slings", name: "Slings" },
-      { slug: "purses", name: "Purses" },
-      { slug: "bicycle-carriers", name: "Bicycle Carriers" },
-      { slug: "bicycle-trailers", name: "Bicycle Trailers" },
-    ],
-    whatsNew: [
-      { label: "Carriers", href: cat("carriers") },
-      { label: "Car Travel Accessories", href: cat("car-travel-accessories") },
-      { label: "Strollers", href: cat("strollers") },
-    ],
-    images: [
-      { src: "/Shop/heroes/husky.jpeg", alt: "Siberian Husky portrait — shop Travel & Outdoor", href: cat("carriers") },
-      { src: "/Shop/heroes/german-shepherd.jpeg", alt: "German Shepherd portrait — shop Travel & Outdoor", href: cat("car-travel-accessories") },
-      { src: "/Shop/heroes/border-collie.jpeg", alt: "Border Collie portrait — shop Travel & Outdoor", href: cat("strollers") },
-    ],
-  },
-  {
-    slug: "health-supplies",
-    name: "Wellness",
-    subcategories: [
-      { slug: "supplements-vitamins", name: "Supplements & Vitamins" },
-      { slug: "hip-joint-care", name: "Hip & Joint Care" },
-      { slug: "dental-care", name: "Dental Care" },
-      { slug: "ear-care", name: "Ear Care" },
-      { slug: "eye-care", name: "Eye Care" },
-      { slug: "digestive-remedies", name: "Digestive Remedies" },
-      { slug: "itch-remedies", name: "Itch Remedies" },
-      { slug: "dna-tests", name: "DNA Tests" },
-    ],
-    whatsNew: [
-      { label: "Supplements & Vitamins", href: cat("supplements-vitamins") },
-      { label: "Dental Care", href: cat("dental-care") },
-      { label: "Hip & Joint Care", href: cat("hip-joint-care") },
-    ],
-    images: [
-      { src: "/Shop/heroes/german-shepherd.jpeg", alt: "German Shepherd portrait — shop Wellness", href: cat("supplements-vitamins") },
-      { src: "/Shop/heroes/husky.jpeg", alt: "Siberian Husky portrait — shop Wellness", href: cat("dental-care") },
-      { src: "/Shop/heroes/french-bulldog.jpeg", alt: "French Bulldog portrait — shop Wellness", href: cat("hip-joint-care") },
+    slug: "dog",
+    name: "Dog Supplies",
+    tagline: "Everything for your canine companion",
+    departments: [
+      {
+        slug: "cleaning-potty-supplies",
+        name: "Cleaning & Potty Supplies",
+        subcategories: [
+          { slug: "artificial-grass-for-dogs", name: "Artificial Grass for Dogs" },
+          { slug: "dog-diapers-wraps", name: "Dog Diapers & Wraps" },
+          { slug: "dog-litter-litter-boxes", name: "Dog Litter & Litter Boxes" },
+          { slug: "dog-poop-bags-dispensers", name: "Dog Poop Bags & Dispensers" },
+          { slug: "dog-potty-pads", name: "Dog Potty Pads" },
+          { slug: "dog-waste-disposal", name: "Dog Waste Disposal" },
+        ],
+      },
+      {
+        slug: "beds-bedding",
+        name: "Dog Beds & Bedding",
+        subcategories: [
+          { slug: "cooling-dog-beds-pads", name: "Cooling Dog Beds & Pads" },
+          { slug: "covered-dog-beds", name: "Covered Dog Beds" },
+          { slug: "customizable-dog-beds", name: "Customizable Dog Beds" },
+          { slug: "dog-bed-pet-size", name: "Dog Bed Pet Size" },
+          { slug: "dog-couches-sofa-beds", name: "Dog Couches & Sofa Beds" },
+          { slug: "dog-crate-mats-pads", name: "Dog Crate Mats & Pads" },
+          { slug: "elevated-dog-beds-raised-cots", name: "Elevated Dog Beds & Raised Cots" },
+          { slug: "furniture-protection-covers-for-dogs", name: "Furniture Protection & Covers for Dogs" },
+          { slug: "heated-dog-beds-pads", name: "Heated Dog Beds & Pads" },
+          { slug: "memory-foam-dog-beds", name: "Memory Foam Dog Beds" },
+          { slug: "orthopedic-dog-beds", name: "Orthopedic Dog Beds" },
+          { slug: "outdoor-dog-beds", name: "Outdoor Dog Beds" },
+        ],
+      },
+      {
+        slug: "bowls-feeding-supplies",
+        name: "Dog Bowls & Feeding Supplies",
+        subcategories: [
+          { slug: "automatic-dog-feeders", name: "Automatic Dog Feeders" },
+          { slug: "dog-bowls", name: "Dog Bowls" },
+          { slug: "dog-food-scoops-accessories", name: "Dog Food Scoops & Accessories" },
+          { slug: "dog-food-storage", name: "Dog Food Storage" },
+          { slug: "dog-slow-feeders", name: "Dog Slow Feeders" },
+          { slug: "dog-water-bottles", name: "Dog Water Bottles" },
+          { slug: "dog-waterers-fountains-accessories", name: "Dog Waterers, Fountains & Accessories" },
+          { slug: "lick-snuffle-mats-for-dogs", name: "Lick & Snuffle Mats for Dogs" },
+        ],
+      },
+      {
+        slug: "clothes-accessories",
+        name: "Dog Clothes & Accessories",
+        subcategories: [
+          { slug: "dog-apparel-accessories", name: "Dog Apparel Accessories" },
+          { slug: "dog-coats-jackets", name: "Dog Coats & Jackets" },
+          { slug: "dog-life-jackets-swimsuits", name: "Dog Life Jackets & Swimsuits" },
+          { slug: "dog-onesies-dog-pajamas", name: "Dog Onesies & Dog Pajamas" },
+          { slug: "dog-shirts-tank-tops", name: "Dog Shirts & Tank Tops" },
+          { slug: "dog-sweaters-hoodies", name: "Dog Sweaters & Hoodies" },
+        ],
+      },
+      {
+        slug: "collars-leashes-harnesses",
+        name: "Dog Collars, Leashes & Harnesses",
+        subcategories: [
+          { slug: "dog-collars", name: "Dog Collars" },
+          { slug: "dog-harnesses", name: "Dog Harnesses" },
+          { slug: "dog-id-tags-accessories", name: "Dog ID Tags & Accessories" },
+          { slug: "dog-leashes", name: "Dog Leashes" },
+          { slug: "dog-stakes-tie-outs", name: "Dog Stakes & Tie-Outs" },
+          { slug: "dog-walking-gear-sets", name: "Dog Walking Gear Sets" },
+        ],
+      },
+      {
+        slug: "crates-gates-housing-accessories",
+        name: "Dog Crates, Gates, & Housing Accessories",
+        subcategories: [
+          { slug: "dog-crates-kennels-accessories", name: "Dog Crates, Kennels, & Accessories" },
+          { slug: "dog-doors-flaps", name: "Dog Doors & Flaps" },
+          { slug: "dog-gates-pens", name: "Dog Gates & Pens" },
+          { slug: "outdoor-dog-enclosures", name: "Outdoor Dog Enclosures" },
+        ],
+      },
+      {
+        slug: "food",
+        name: "Dog Food",
+        subcategories: [
+          { slug: "air-dried-dog-food", name: "Air-Dried Dog Food" },
+          { slug: "dog-food-toppers", name: "Dog Food Toppers" },
+          { slug: "dry-dog-food-kibble", name: "Dry Dog Food & Kibble" },
+          { slug: "fresh-frozen-freeze-dried-dog-food", name: "Fresh, Frozen, & Freeze Dried Dog Food" },
+          { slug: "highest-quality-dog-food", name: "Highest Quality Dog Food" },
+          { slug: "shop-dog-food-by-breed-size", name: "Shop Dog Food By Breed Size" },
+          { slug: "shop-dog-food-by-dietary-preference", name: "Shop Dog Food By Dietary Preference" },
+          { slug: "shop-dog-food-by-health-condition", name: "Shop Dog Food By Health Condition" },
+          { slug: "shop-dog-food-by-life-stage", name: "Shop Dog Food By Life Stage" },
+          { slug: "wet-dog-food", name: "Wet Dog Food" },
+        ],
+      },
+      {
+        slug: "grooming-supplies",
+        name: "Dog Grooming Supplies",
+        subcategories: [
+          { slug: "dog-bathing-equipment-supplies", name: "Dog Bathing Equipment & Supplies" },
+          { slug: "dog-brushes-combs-deshedding-tools", name: "Dog Brushes, Combs, & Deshedding Tools" },
+          { slug: "dog-hair-clippers-shears-blades", name: "Dog Hair Clippers, Shears & Blades" },
+          { slug: "dog-paw-nail-care", name: "Dog Paw & Nail Care" },
+          { slug: "dog-shampoos-conditioners-sprays", name: "Dog Shampoos, Conditioners & Sprays" },
+          { slug: "dog-wipes-waterless-grooming", name: "Dog Wipes & Waterless Grooming" },
+        ],
+      },
+      {
+        slug: "health-wellness",
+        name: "Dog Health & Wellness",
+        subcategories: [
+          { slug: "dog-allergy-medicine-itch-relief", name: "Dog Allergy Medicine & Itch Relief" },
+          { slug: "dog-calming-aids-supplements", name: "Dog Calming Aids and Supplements" },
+          { slug: "dog-dental-care", name: "Dog Dental Care" },
+          { slug: "dog-dewormers-worm-medicine", name: "Dog Dewormers & Worm Medicine" },
+          { slug: "dog-ear-eye-care", name: "Dog Ear & Eye Care" },
+          { slug: "dog-first-aid-recovery", name: "Dog First Aid & Recovery" },
+          { slug: "dog-pill-capsules", name: "Dog Pill Capsules" },
+          { slug: "dog-vitamins-supplements", name: "Dog Vitamins & Supplements" },
+        ],
+      },
+      {
+        slug: "outdoor-travel-gear",
+        name: "Dog Outdoor & Travel Gear",
+        subcategories: [
+          { slug: "dog-car-accessories", name: "Dog Car Accessories" },
+          { slug: "dog-carriers-strollers-totes", name: "Dog Carriers, Strollers & Totes" },
+          { slug: "dog-stairs-ramps", name: "Dog Stairs & Ramps" },
+          { slug: "dog-travel-crates-carriers-kennels", name: "Dog Travel Crates, Carriers & Kennels" },
+          { slug: "outdoor-dog-gear", name: "Outdoor Dog Gear" },
+        ],
+      },
+      {
+        slug: "toys",
+        name: "Dog Toys",
+        subcategories: [
+          { slug: "dental-dog-toys", name: "Dental Dog Toys" },
+          { slug: "dog-chew-toys", name: "Dog Chew Toys" },
+          { slug: "fetch-outdoor-dog-toys", name: "Fetch & Outdoor Dog Toys" },
+          { slug: "interactive-treat-dispensing-dog-toys", name: "Interactive & Treat Dispensing Dog Toys" },
+          { slug: "plush-dog-toys", name: "Plush Dog Toys" },
+          { slug: "puppy-toys", name: "Puppy Toys" },
+          { slug: "tough-durable-dog-toys", name: "Tough & Durable Dog Toys" },
+        ],
+      },
+      {
+        slug: "training-behavior-supplies",
+        name: "Dog Training & Behavior Supplies",
+        subcategories: [
+          { slug: "bark-solutions-for-dog-training", name: "Bark Solutions for Dog Training" },
+          { slug: "dog-chewing-solutions", name: "Dog Chewing Solutions" },
+          { slug: "dog-harnesses-leashes-for-pulling", name: "Dog Harnesses and Leashes for Pulling" },
+          { slug: "dog-potty-training-cleanup", name: "Dog Potty Training & Cleanup" },
+          { slug: "dog-repellents-attractants", name: "Dog Repellents & Attractants" },
+        ],
+      },
+      {
+        slug: "treats-chews",
+        name: "Dog Treats & Chews",
+        subcategories: [
+          { slug: "alternative-rawhide-for-dogs", name: "Alternative Rawhide for Dogs" },
+          { slug: "bakery-dog-treats", name: "Bakery Dog Treats" },
+          { slug: "bully-sticks-for-dogs", name: "Bully Sticks for Dogs" },
+          { slug: "dental-dog-chews", name: "Dental Dog Chews" },
+          { slug: "dog-biscuits-cookies-snacks", name: "Dog Biscuits, Cookies & Snacks" },
+          { slug: "dog-bones-chews", name: "Dog Bones & Chews" },
+          { slug: "dog-training-treats", name: "Dog Training Treats" },
+          { slug: "freeze-dried-dog-treats", name: "Freeze-Dried Dog Treats" },
+          { slug: "grain-free-dog-treats", name: "Grain Free Dog Treats" },
+          { slug: "jerky-dog-treats", name: "Jerky Dog Treats" },
+          { slug: "prescription-dog-treats", name: "Prescription Dog Treats" },
+          { slug: "puppy-treats", name: "Puppy Treats" },
+          { slug: "soft-chewy-dog-treats", name: "Soft & Chewy Dog Treats" },
+        ],
+      },
+      {
+        slug: "flea-tick-solutions",
+        name: "Flea & Tick Solutions for Dogs",
+        subcategories: [
+          { slug: "dog-flea-tick-combs", name: "Dog Flea & Tick Combs" },
+          { slug: "dog-flea-sprays-for-houses-yards", name: "Dog Flea Sprays for Houses & Yards" },
+          { slug: "flea-tick-prevention-collars-for-dogs", name: "Flea & Tick Prevention Collars for Dogs" },
+          { slug: "flea-tick-treatment-sprays-for-dogs", name: "Flea & Tick Treatment Sprays for Dogs" },
+          { slug: "flea-bombs-foggers-for-dogs", name: "Flea Bombs & Foggers for Dogs" },
+          { slug: "topical-flea-tick-treatment", name: "Topical Flea & Tick Treatment" },
+        ],
+      },
     ],
   },
 ]
+
+// ---------------------------------------------------------------------------
+// Helpers — build full paths from the taxonomy tree
+// ---------------------------------------------------------------------------
+
+export function departmentPath(animalSlug: string, deptSlug: string): string {
+  return `/shop/${animalSlug}/${deptSlug}`
+}
+
+export function subcategoryPath(animalSlug: string, deptSlug: string, subSlug: string): string {
+  return `/shop/${animalSlug}/${deptSlug}/${subSlug}`
+}
+
+// Flatten the tree for sitemap + sidebar rendering
+export function flattenTaxonomy(): { animal: string; department: string; subcategory?: string; path: string; name: string }[] {
+  const flat: { animal: string; department: string; subcategory?: string; path: string; name: string }[] = []
+  for (const animal of SHOP_NAV_TAXONOMY) {
+    for (const dept of animal.departments) {
+      flat.push({ animal: animal.slug, department: dept.slug, path: departmentPath(animal.slug, dept.slug), name: dept.name })
+      for (const sub of dept.subcategories) {
+        flat.push({ animal: animal.slug, department: dept.slug, subcategory: sub.slug, path: subcategoryPath(animal.slug, dept.slug, sub.slug), name: sub.name })
+      }
+    }
+  }
+  return flat
+}
+
+// Backwards compat — the old ShopNavBar still imports SHOP_NAV_CATEGORIES.
+// This wraps the new taxonomy in the old shape so the existing component
+// keeps rendering until we update the mega-menu component.
+export const SHOP_NAV_CATEGORIES = SHOP_NAV_TAXONOMY.flatMap(animal =>
+  animal.departments.map(dept => ({
+    slug: `${animal.slug}/${dept.slug}`,
+    name: dept.name,
+    subcategories: dept.subcategories.map(sub => ({ slug: sub.slug, name: sub.name })),
+    whatsNew: dept.subcategories.slice(0, 3).map(sub => ({
+      label: sub.name,
+      href: subcategoryPath(animal.slug, dept.slug, sub.slug),
+    })),
+    images: [
+      { src: "/Shop/heroes/beagle.jpeg", alt: `${dept.name} — All About Pawz`, href: departmentPath(animal.slug, dept.slug) },
+      { src: "/Shop/heroes/cocker-spaniel.jpeg", alt: `${dept.name} — All About Pawz`, href: departmentPath(animal.slug, dept.slug) },
+      { src: "/Shop/heroes/pomeranian.jpeg", alt: `${dept.name} — All About Pawz`, href: departmentPath(animal.slug, dept.slug) },
+    ],
+  }))
+)
+
+// Legacy compat — old code imports `cat()` helper
+export { departmentPath as cat }

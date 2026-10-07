@@ -1,0 +1,22 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "```json\n{\n  \"faqs\": [\n    {\n      \"q\": \"How often should I groom my Labrador in Arlington?\",\n      \"a\": \"For Labradors common in Arlington neighborhoods like Lakeland, brush weekly and bathe every 4-6 weeks. Regular grooming prevents matting and keeps their coat healthy. Schedule appointments at All About Pawz near US-64 for professional care tailored to your dog's needs.\"\n    },\n    {\n      \"q\": \"What's the best grooming route for me in Arlington?\",\n      \"a\": \"From Arlington's east side near US-64, take the scenic drive west to All About Pawz. We're conveniently located for residents of neighborhoods like Arlington Heights. Our easy-to-access location makes your dog's grooming appointment stress-free and convenient.\"\n    },\n    {\n      \"q\": \"Do you groom Golden Retrievers in Arlington?\",\n      \"a\": \"Yes! Golden Retrievers are popular in Arlington, and we specialize in their grooming needs. Regular brushing prevents matting in their thick coats. All About Pawz provides breed-specific care to keep your Golden comfortable and looking great, especially after playing at Arlington parks.\"\n    },\n    {\n      \"q\": \"What makes grooming different for small dogs in Arlington?\",\n      \"a\": \"Small breeds like Chihuahuas common in Arlington need gentle handling. Their grooming focuses on sensitive skin and tear stain management. All About Pawz offers specialized care for tiny companions, ensuring a stress-free experience during their visit near US-64.\"\n    }\n  ]\n}\n```",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791389747,
+  "id": "20261008001544d050047f10a14560",
+  "model": "glm-4-plus",
+  "object": "chat.completion",
+  "request_id": "20261008001544d050047f10a14560",
+  "usage": {
+    "completion_tokens": 317,
+    "prompt_tokens": 74,
+    "total_tokens": 391
+  }
+}

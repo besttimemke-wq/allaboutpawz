@@ -1,0 +1,22 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "```json\n{\n  \"faqs\": [\n    {\n      \"q\": \"How does Memphis summer heat affect dog grooming needs?\",\n      \"a\": \"Memphis summers are brutal on dogs! Regular grooming prevents overheating by removing excess undercoat. We recommend shorter trims for breeds like doodles to keep them cool, while avoiding shaving to protect their skin from sunburn. Our cool baths and conditioning treatments help Memphis dogs beat the heat.\"\n    },\n    {\n      \"q\": \"What special grooming do dogs need after Shelby Farms Park visits?\",\n      \"a\": \"Shelby Farms Park is a Memphis dog paradise, but those trails leave pups covered in burrs, pollen, and mud! We offer thorough de-shedding and paw pad cleaning to remove allergens and debris. Our post-park grooming includes ear cleaning to prevent infections from swimming in Patriot Lake.\"\n    },\n    {\n      \"q\": \"How should Memphis owners care for their doodle's coat in our humid climate?\",\n      \"a\": \"Memphis humidity makes doodle coats prone to matting. We recommend professional grooming every 4-6 weeks to prevent painful tangles. Daily brushing at home is crucial, especially after humid days when coats tend to clump. Our de-matting services keep your doodle comfortable in our sticky Southern weather.\"\n    },\n    {\n      \"q\": \"What grooming challenges do Memphis German Shepherd owners face?\",\n      \"a\": \"German Shepherds in Memphis struggle with seasonal shedding and heat sensitivity. We offer specialized de-shedding treatments to manage their thick double coats. Regular trims help them stay cooler, while keeping enough coat for insulation. Our Memphis groomers understand the balance needed for this popular local breed.\"\n    }\n  ]\n}\n```",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791389183,
+  "id": "202610080006199943edf49df146dc",
+  "model": "glm-4-plus",
+  "object": "chat.completion",
+  "request_id": "202610080006199943edf49df146dc",
+  "usage": {
+    "completion_tokens": 359,
+    "prompt_tokens": 130,
+    "total_tokens": 489
+  }
+}

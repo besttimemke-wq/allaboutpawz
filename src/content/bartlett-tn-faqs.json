@@ -1,0 +1,22 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "```json\n{\n  \"faqs\": [\n    {\n      \"q\": \"What dog breeds in Bartlett require frequent grooming?\",\n      \"a\": \"Common Bartlett breeds like Golden Retrievers from Bartlett Woods and Bulldogs from Oak Court need regular grooming. All About Pawz on Waring Rd offers specialized services for these breeds, keeping them comfortable and stylish with minimal travel time from your neighborhood.\"\n    },\n    {\n      \"q\": \"How far is All About Pawz salon from my Bartlett home?\",\n      \"a\": \"Located conveniently on Ward Road, All About Pawz is just a short drive from any Bartlett neighborhood. Whether you're in Bartlett Station or Autumn Creek, our easily accessible salon makes professional dog grooming convenient for you and your furry friend.\"\n    },\n    {\n      \"q\": \"Do you offer breed-specific grooming for Bartlett's popular dogs?\",\n      \"a\": \"Absolutely! We specialize in grooming popular Bartlett breeds like Poodles from Bartlett and Labradors from Ellendale. Our expert groomers on Waring Rd understand the unique needs of each breed, ensuring your dog looks and feels their best.\"\n    },\n    {\n      \"q\": \"What's the best time to book grooming for my Bartlett dog?\",\n      \"a\": \"Early morning appointments are ideal for Bartlett pet owners. Beat the traffic from your neighborhood and get your dog pampered before the day heats up. All About Pawz on Waring Rd offers flexible scheduling to accommodate your busy Bartlett lifestyle.\"\n    }\n  ]\n}\n```",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791389730,
+  "id": "2026100800152791cc778b19dc4cb3",
+  "model": "glm-4-plus",
+  "object": "chat.completion",
+  "request_id": "2026100800152791cc778b19dc4cb3",
+  "usage": {
+    "completion_tokens": 317,
+    "prompt_tokens": 84,
+    "total_tokens": 401
+  }
+}

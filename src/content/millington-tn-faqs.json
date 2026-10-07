@@ -1,0 +1,22 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "```json\n{\n  \"faqs\": [\n    {\n      \"q\": \"How often should I groom my dog living in Millington's neighborhoods?\",\n      \"a\": \"For Millington's climate, we recommend grooming every 4-6 weeks. Regular baths and brushing prevent matting, especially for dogs in neighborhoods like Cedar Chase. Monthly visits keep your pup comfortable and healthy year-round.\"\n    },\n    {\n      \"q\": \"Do you offer special services for NSA Mid-South military families?\",\n      \"a\": \"Absolutely! We proudly serve NSA Mid-South families with flexible scheduling and discounts. We understand the unique challenges of military life and provide stress-free grooming experiences for your pets while you serve our country.\"\n    },\n    {\n      \"q\": \"Can I book an appointment while traveling on Highway 51?\",\n      \"a\": \"Yes! Our salon is conveniently located near Highway 51 for easy access. Whether you're driving through Millington or a local resident, we welcome drop-ins and offer online scheduling to accommodate your travel plans along this major route.\"\n    },\n    {\n      \"q\": \"What grooming packages work best for Millington's seasonal weather?\",\n      \"a\": \"Our seasonal packages address Millington's climate changes. Summer includes cooling trims and flea treatments, while winter offers de-shedding for heavy coats. We adjust services based on whether you're in the lakes area or closer to downtown Millington.\"\n    }\n  ]\n}\n```",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791389751,
+  "id": "202610080015476a67439f3de94762",
+  "model": "glm-4-plus",
+  "object": "chat.completion",
+  "request_id": "202610080015476a67439f3de94762",
+  "usage": {
+    "completion_tokens": 299,
+    "prompt_tokens": 79,
+    "total_tokens": 378
+  }
+}

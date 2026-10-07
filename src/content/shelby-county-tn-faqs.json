@@ -1,0 +1,22 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "```json\n{\n  \"faqs\": [\n    {\n      \"q\": \"Does All About Pawz provide grooming services across all of Shelby County?\",\n      \"a\": \"Yes, we proudly serve Memphis, Bartlett, Arlington, Collierville, and Millington. Our county-wide coverage ensures your pup receives professional grooming no matter where you are in Shelby County.\"\n    },\n    {\n      \"q\": \"What grooming services do you offer for Shelby County dogs?\",\n      \"a\": \"We provide full-service grooming including baths, haircuts, nail trims, ear cleaning, and teeth brushing. Our Shelby County salon caters to all breeds and sizes with personalized care for every furry client.\"\n    },\n    {\n      \"q\": \"How far in advance should I book grooming for my Shelby County dog?\",\n      \"a\": \"We recommend booking 1-2 weeks in advance, especially during peak seasons. Our county-wide popularity means slots fill quickly. Call our Memphis location to schedule your pup's grooming appointment at your convenience.\"\n    },\n    {\n      \"q\": \"Do you offer mobile grooming services throughout Shelby County?\",\n      \"a\": \"Currently, we provide premium in-store grooming at our Memphis location. While we don't offer mobile services yet, our convenient central location easily serves all Shelby County residents with easy access from anywhere in the county.\"\n    }\n  ]\n}\n```",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791389755,
+  "id": "20261008001551a41c2933b42c4b34",
+  "model": "glm-4-plus",
+  "object": "chat.completion",
+  "request_id": "20261008001551a41c2933b42c4b34",
+  "usage": {
+    "completion_tokens": 281,
+    "prompt_tokens": 74,
+    "total_tokens": 355
+  }
+}

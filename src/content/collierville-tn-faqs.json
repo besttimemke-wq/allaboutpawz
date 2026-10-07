@@ -1,0 +1,22 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "```json\n{\n  \"faqs\": [\n    {\n      \"q\": \"How often should I groom my Golden Retriever in Collierville's Wolf Creek neighborhood?\",\n      \"a\": \"Golden Retrievers in Collierville should be groomed every 6-8 weeks. Regular brushing prevents matting, especially important during hot months when they play near Poplar Avenue. Professional grooming keeps their coat healthy and reduces shedding in your home.\"\n    },\n    {\n      \"q\": \"What special care do French Bulldogs need in Collierville's summer heat?\",\n      \"a\": \"French Bulldogs in Collierville's hottest neighborhoods need regular grooming to prevent skin issues. Their facial folds should be cleaned weekly, and we offer cooling baths. After walks on Poplar Avenue, a thorough paw cleaning removes hot pavement residue that can irritate their sensitive skin.\"\n    },\n    {\n      \"q\": \"Should I groom my indoor Persian cat in Collierville's Saddle Creek area?\",\n      \"a\": \"Yes, even indoor Persian cats in Collierville's Saddle Creek area need monthly grooming. Their long coats easily mat, and regular brushing prevents hairballs. We offer gentle cat grooming services to keep your feline comfortable, especially important when they shed seasonally near Poplar Avenue shopping areas.\"\n    },\n    {\n      \"q\": \"How can I prepare my Labradoodle for grooming near Collierville's Town Square?\",\n      \"a\": \"For Labradoodle grooming near Collierville's Town Square, brush them thoroughly before appointments. Bring their favorite toy from home to ease anxiety. We're familiar with this breed's specific needs near Poplar Avenue and use positive reinforcement techniques for a stress-free experience.\"\n    }\n  ]\n}\n```",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1791389735,
+  "id": "202610080015301a97460de28f415c",
+  "model": "glm-4-plus",
+  "object": "chat.completion",
+  "request_id": "202610080015301a97460de28f415c",
+  "usage": {
+    "completion_tokens": 356,
+    "prompt_tokens": 80,
+    "total_tokens": 436
+  }
+}
