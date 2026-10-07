@@ -82,7 +82,7 @@ function DropdownBar({
         {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 z-50 mb-2 rounded border border-gold/20 bg-ink px-4 py-3 shadow-xl">
+        <div className="absolute left-0 top-full z-50 mt-2 rounded border border-gold/20 bg-ink px-4 py-3 shadow-xl">
           <ul className="space-y-2">
             {items.map(item => (
               <li key={item.href}>
@@ -110,7 +110,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-7xl px-6 lg:px-12">
 
         {/* ===== TIER 1: 5-COLUMN GRID ===== */}
-        <div className="grid grid-cols-2 gap-8 py-14 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 items-start gap-8 py-14 sm:grid-cols-3 lg:grid-cols-5">
 
           {/* Column 1: Brand */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-1">
