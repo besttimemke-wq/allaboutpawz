@@ -14,7 +14,7 @@ import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-n
 // Panel extends right from the sidebar with two columns (Cat + Dog).
 // ---------------------------------------------------------------------------
 
-export function ShopFlyout({ onClose }: { onClose: () => void }) {
+export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; onEnter: () => void; onLeave: () => void }) {
   const [hoveredAnimal, setHoveredAnimal] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -27,7 +27,9 @@ export function ShopFlyout({ onClose }: { onClose: () => void }) {
   return (
     <div
       ref={ref}
-      className="absolute left-full top-0 z-[60] flex h-screen w-[calc(100vw-232px)] bg-cream shadow-2xl"
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      className="fixed left-[232px] top-0 z-[60] flex h-screen w-[calc(100vw-232px)] bg-cream shadow-2xl"
     >
       {/* Close button */}
       <button onClick={onClose} aria-label="Close flyout" className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center text-ink-soft hover:text-ink">

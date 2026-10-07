@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
+import { useEffect, useState, useSyncExternalStore, useRef, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -354,6 +354,22 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
 export function SiteChrome({ children, settings: initialSettings }: { children: ReactNode; settings?: Record<string, string> }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  const [shopHovered, setShopHovered] = useState(false)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const openShopFlyout = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    setShopHovered(true)
+  }
+  const scheduleCloseShopFlyout = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    closeTimer.current = setTimeout(() => setShopHovered(false), 300)
+  }
+  const closeShopFlyout = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    setShopHovered(false)
+  }
+
   // Nav promo popups — the Services / Pricing / Shop / Book nav clicks offer
   // the eligible published promos for that page (once per session per
   // placement; no offers → straight through). Owner spec §2.
@@ -379,10 +395,8 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
     <div className="min-h-screen bg-white">
       {/* Hamburger sidebar — slides in from left on ALL screen sizes. */}
 
-      <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => setOpen(false)} />
-      {/* ONE tan header bar — All About Pawz + login + cart. Per spec D:
-          one bar only, no second bar, no local-pride strip. Everything else
-          on every page is white. */}
+      <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => { setOpen(false); closeShopFlyout(); }} onShopHover={openShopFlyout} onShopLeave={scheduleCloseShopFlyout} />
+      {/* ONE tan header bar */}
       <div className="sticky top-0 z-30 flex items-center justify-between bg-cream px-4 py-3 lg:px-6">
         <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-ink hover:bg-black/5">
           <Menu className="h-5 w-5" />
@@ -392,6 +406,12 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           <HeaderBagLink variant="icon" />
         </div>
       </div>
+      {/* Shop mega-menu flyout — rendered at SiteChrome level (outside
+          sidebar's transform) so fixed positioning works correctly.
+          Grace period: 300ms between trigger-leave and panel-enter. */}
+      {open && shopHovered && (
+        <ShopFlyout onClose={closeShopFlyout} onEnter={openShopFlyout} onLeave={scheduleCloseShopFlyout} />
+      )}
       <main>{children}</main>
       {dialog}
       <SiteFooter />
@@ -399,8 +419,7 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   )
 }
 
-function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record<string, string>; pathname: string; gate: ReturnType<typeof useNavPromoGate>["gate"]; open: boolean; onClose: () => void }) {
-  const [shopHovered, setShopHovered] = useState(false)
+function Sidebar({ settings, pathname, gate, open, onClose, onShopHover, onShopLeave }: { settings: Record<string, string>; pathname: string; gate: ReturnType<typeof useNavPromoGate>["gate"]; open: boolean; onClose: () => void; onShopHover: () => void; onShopLeave: () => void }) {
   const s = settings
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
@@ -430,13 +449,14 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
               <li
                 key={item.to}
                 className={isShop ? "relative" : ""}
-                onMouseEnter={isShop ? () => setShopHovered(true) : undefined}
-                onMouseLeave={isShop ? () => setShopHovered(false) : undefined}
+                onMouseEnter={isShop ? onShopHover : undefined}
+                onMouseLeave={isShop ? onShopLeave : undefined}
               >
                 {isShop ? (
                   <button
                     type="button"
-                    onClick={() => setShopHovered(h => !h)}
+                    onMouseEnter={onShopHover}
+                    onMouseLeave={onShopLeave}
                     className="group relative flex w-full cursor-pointer items-center gap-3"
                   >
                     <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-black"}`}>
@@ -466,7 +486,7 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
                     </span>
                   </Link>
                 )}
-                {isShop && shopHovered && (
+                {isShop && false && (
                   <ShopFlyout onClose={onClose} />
                 )}
               </li>
