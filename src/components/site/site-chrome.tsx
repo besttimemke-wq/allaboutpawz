@@ -7,7 +7,7 @@ import {
   Phone, Mail, Clock, CalendarDays, Facebook, Instagram, Menu, ShoppingBag, User,
   LayoutDashboard, Receipt, RotateCcw, Heart, Repeat, CalendarClock, Gift, Calendar,
   Stethoscope, GraduationCap, Pill, Building2, ShieldCheck, PawPrint, CreditCard,
-  House, Bell, LifeBuoy, BriefcaseBusiness, LogOut, ChevronRight,
+  House, Bell, LifeBuoy, BriefcaseBusiness, LogOut, ChevronRight, X,
 } from "lucide-react"
 import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
@@ -381,19 +381,32 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           local-pride bar was removed per owner directive — the Buy Local
           signal lives ONLY in the footer NAP block. Do NOT render a
           local-pride strip here. */}
-      <Sidebar settings={s} pathname={pathname} gate={gate} />
-      {/* Mobile bar — logo left, bag + menu right (sticky, top of every page) */}
-      <div className="sticky top-0 z-50 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3 lg:hidden">
-        <Link href="/" className="flex items-center gap-2">
-          <PawGlyph className="h-5 w-5 text-gold-deep" />
-          <span className="font-display text-[13px] tracking-[0.14em] text-ink">ALL ABOUT PAWZ</span>
-        </Link>
+      {/* Hamburger sidebar — slides in from left on ALL screen sizes.
+          Backdrop overlay closes on click. No permanent desktop sidebar. */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => setOpen(false)} />
+      {/* Header bar — logo left, bag + account + hamburger right.
+          Visible on ALL screen sizes (was lg:hidden — now always visible
+          since the sidebar is no longer permanently fixed on desktop). */}
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded border border-gold/25 text-ink hover:border-gold-deep hover:text-gold-deep">
+            <Menu className="h-5 w-5" />
+          </button>
+          <Link href="/" className="flex items-center gap-2">
+            <PawGlyph className="h-5 w-5 text-gold-deep" />
+            <span className="font-display text-[13px] tracking-[0.14em] text-ink">ALL ABOUT PAWZ</span>
+          </Link>
+        </div>
         <div className="flex items-center gap-3">
           <HeaderAccountLink variant="icon" />
           <HeaderBagLink variant="icon" />
-          <button onClick={() => setOpen((o) => !o)} aria-label="Menu">
-            <Menu className="h-5 w-5 text-ink" />
-          </button>
         </div>
       </div>
       {open && (
@@ -416,8 +429,6 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
               </li>
             ))}
           </ul>
-          {/* Same direct-to-wizard CTA as the desktop sidebar — mobile has no
-              sidebar, so the menu carries it. */}
           <Link
             href="/book/appointment"
             onClick={() => setOpen(false)}
@@ -428,7 +439,7 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           </Link>
         </nav>
       )}
-      <main className="lg:pl-[232px]">{children}</main>
+      <main>{children}</main>
       {dialog}
       {/* Enterprise footer — 7 columns + NAP block. Data-driven from
           src/lib/footer-nav.ts. Renders on every page via SiteChrome. */}
@@ -437,21 +448,25 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   )
 }
 
-function Sidebar({ settings, pathname, gate }: { settings: Record<string, string>; pathname: string; gate: ReturnType<typeof useNavPromoGate>["gate"] }) {
+function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record<string, string>; pathname: string; gate: ReturnType<typeof useNavPromoGate>["gate"]; open: boolean; onClose: () => void }) {
   const s = settings
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
   return (
-    <aside className="marble fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream lg:flex">
+    <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      {/* Close button — top right of the sidebar */}
+      <button onClick={onClose} aria-label="Close menu" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-ink-soft hover:text-gold-deep">
+        <X className="h-5 w-5" />
+      </button>
       <div className="px-7 pt-8">
-        <Link href="/" className="block w-full cursor-pointer text-center">
+        <Link href="/" onClick={onClose} className="block w-full cursor-pointer text-center">
           <PawGlyph className="mx-auto h-9 w-9 text-gold-deep" />
           <div className="mt-3 font-display text-[15px] tracking-[0.16em] text-ink">ALL ABOUT PAWZ</div>
         </Link>
       </div>
       <div className="mt-6 h-px bg-gold/20" />
       <div className="px-7 pt-5">
-        <Link href="/book/appointment" className="flex w-full cursor-pointer items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
+        <Link href="/book/appointment" onClick={onClose} className="flex w-full cursor-pointer items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
           <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
           BOOK APPOINTMENT
         </Link>
@@ -470,6 +485,7 @@ function Sidebar({ settings, pathname, gate }: { settings: Record<string, string
                   href={item.to}
                   aria-current={active ? "page" : undefined}
                   onClick={(e) => {
+                    onClose()
                     const placement = NAV_PROMO_PLACEMENTS[item.label]
                     if (placement) gate(placement, e, item.to)
                   }}

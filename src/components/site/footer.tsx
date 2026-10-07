@@ -12,13 +12,16 @@ function TikTokIcon() { return (<svg viewBox="0 0 24 24" className="h-5 w-5" fil
 function PinterestIcon() { return (<svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.08 3.16 9.43 7.63 11.18-.11-.95-.2-2.4.04-3.44.22-.93 1.4-5.94 1.4-5.94s-.36-.72-.36-1.78c0-1.67.97-2.92 2.18-2.92 1.03 0 1.53.77 1.53 1.7 0 1.04-.66 2.59-1 4.03-.28 1.2.6 2.18 1.78 2.18 2.14 0 3.78-2.26 3.78-5.52 0-2.88-2.07-4.9-5.03-4.9-3.43 0-5.44 2.57-5.44 5.23 0 1.04.4 2.15.9 2.75.1.12.11.22.08.34l-.33 1.37c-.05.22-.17.27-.4.16-1.5-.7-2.44-2.88-2.44-4.65 0-3.78 2.75-7.26 7.93-7.26 4.16 0 7.4 2.97 7.4 6.93 0 4.14-2.6 7.47-6.21 7.47-1.21 0-2.35-.63-2.74-1.38l-.75 2.85c-.27 1.04-1 2.35-1.49 3.15A12 12 0 1 0 12 0z"/></svg>) }
 
 // Real payment SVG logos
-function VisaLogo() { return (<svg viewBox="0 0 80 26" className="h-6 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="26" rx="4" fill="#1A1F71"/><text x="40" y="18" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="bold" fontFamily="Arial">VISA</text></svg>) }
+function VisaLogo() { return (<svg viewBox="0 0 80 26" className="h-6 w-auto"><rect width="80" height="26" rx="4" fill="#1A1F71"/><text x="40" y="18" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="bold" fontFamily="Arial">VISA</text></svg>) }
 function MastercardLogo() { return (<svg viewBox="0 0 80 26" className="h-6 w-auto"><rect width="80" height="26" rx="4" fill="#16161D"/><circle cx="32" cy="13" r="9" fill="#EB001B"/><circle cx="48" cy="13" r="9" fill="#F79E1B"/><path d="M40 6.5a9 9 0 0 0 0 13 9 9 0 0 0 0-13" fill="#FF5F00"/></svg>) }
 function AmexLogo() { return (<svg viewBox="0 0 80 26" className="h-6 w-auto"><rect width="80" height="26" rx="4" fill="#2E77BB"/><text x="40" y="18" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="bold" fontFamily="Arial">AMEX</text></svg>) }
 function ApplePayLogo() { return (<svg viewBox="0 0 80 26" className="h-6 w-auto"><rect width="80" height="26" rx="4" fill="#16161D"/><text x="40" y="18" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="600" fontFamily="Arial">Pay</text></svg>) }
 function GooglePayLogo() { return (<svg viewBox="0 0 80 26" className="h-6 w-auto"><rect width="80" height="26" rx="4" fill="#16161D"/><text x="40" y="18" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="600" fontFamily="Arial">G Pay</text></svg>) }
 
-// Expandable section — expands DOWN, no box/border, natural inline
+// Pipe divider between groups in secondary nav
+function Pipe() { return <span className="text-gold/20 mx-2">|</span> }
+
+// Expandable — FLAT on black canvas, no box/border/container. Pushes content DOWN inline.
 function Expandable({ label, href, subItems }: { label: string; href: string; subItems: { label: string; href: string }[] }) {
   const [open, setOpen] = useState(false)
   return (
@@ -40,18 +43,20 @@ function Expandable({ label, href, subItems }: { label: string; href: string; su
   )
 }
 
+// DropdownBar — INLINE ACCORDION (push down), NOT popup/overlay. No box, no border.
+// Flat text on black canvas, just like the Expandable component.
 function DropdownBar({ icon: Icon, label, items }: { icon: React.ComponentType<{ className?: string; size?: number }>; label: string; items: { label: string; href: string }[] }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="relative">
+    <div>
       <button onClick={() => setOpen(o => !o)} className="flex items-center gap-1.5 text-sm font-semibold text-on-dark-muted hover:text-gold">
         <Icon size={14} className="text-gold" /> {label}
         {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 rounded bg-ink px-4 py-3 shadow-xl border border-gold/10">
+        <div className="mt-2">
           {items.map(item => (
-            <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block whitespace-nowrap py-1 text-sm text-on-dark-muted hover:text-gold">
+            <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="block py-1 text-sm text-on-dark-muted/70 hover:text-gold whitespace-nowrap">
               {item.label}
             </Link>
           ))}
@@ -63,13 +68,12 @@ function DropdownBar({ icon: Icon, label, items }: { icon: React.ComponentType<{
 
 export function SiteFooter() {
   return (
-    <footer className="bg-ink lg:ml-[232px]">
-      {/* Full width — no large margins */}
+    <footer className="bg-ink">
       <div className="w-full px-8 lg:px-12">
 
-        {/* ===== TIER 1: 5-COLUMN GRID WITH VERTICAL DIVIDING LINES ===== */}
+        {/* ===== TIER 1: 5-COLUMN GRID WITH VERTICAL DIVIDING LINES BETWEEN COLUMNS ===== */}
         <div className="grid grid-cols-2 lg:grid-cols-5 items-start gap-0 py-12">
-          {/* Column 1: Brand — no right border on last col */}
+          {/* Column 1: Brand */}
           <div className="px-6 border-r border-gold/10">
             <img src="/brand/footer-logo.png" alt="All About Pawz — Luxury Pet Grooming, Memphis, TN" width={1021} height={729} className="h-16 w-auto" />
             <p className="mt-3 text-sm font-bold tracking-[0.15em] text-gold">LUXURY PET GROOMING</p>
@@ -79,7 +83,6 @@ export function SiteFooter() {
               <p className="flex items-center gap-2"><Phone size={14} className="text-gold" /> <a href={`tel:${BUSINESS.phone}`} className="hover:text-gold">{BUSINESS.phoneDisplay}</a></p>
               <p className="flex items-center gap-2"><Mail size={14} className="text-gold" /> <a href={`mailto:${BUSINESS.email}`} className="hover:text-gold">{BUSINESS.email}</a></p>
             </div>
-            {/* Real social media SVG icons */}
             <div className="mt-5 flex items-center gap-4">
               <a href="https://www.facebook.com/allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on Facebook" className="text-on-dark-muted hover:text-gold"><FacebookIcon /></a>
               <a href="https://www.instagram.com/allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on Instagram" className="text-on-dark-muted hover:text-gold"><InstagramIcon /></a>
@@ -169,28 +172,37 @@ export function SiteFooter() {
           </div>
         </div>
 
-        {/* ===== TIER 2: SECONDARY NAV BAR ===== */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-gold/15 py-6">
+        {/* ===== TIER 2: SECONDARY NAV BAR =====
+            Groups separated by VERTICAL PIPE dividers.
+            Expandable sections are INLINE ACCORDION (push down, no box).
+            Horizontal dividing line ABOVE this row separates it from Tier 1.
+            Horizontal dividing line BELOW separates from Tier 3. */}
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-4 border-t border-gold/15 py-6">
+          {/* Group 1: Text links */}
           <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Pricing</Link>
-          <span className="text-gold/20">|</span>
+          <Pipe />
           <Link href="/services" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Services</Link>
-          <span className="text-gold/20">|</span>
+          <Pipe />
           <Link href="/contact" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Contact</Link>
-          <span className="text-gold/20">|</span>
+          <Pipe />
           <Link href="/process" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Our Process</Link>
-          <span className="text-gold/20">|</span>
+          <Pipe />
           <Link href="/shop" className="text-sm font-semibold text-on-dark-muted hover:text-gold">/shop</Link>
-          <span className="text-gold/20">|</span>
+          <Pipe />
+          {/* Group 2: Pet type nav */}
           <Link href="/shop/dog" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Dog size={14} className="text-gold" /> Dog</Link>
           <Link href="/shop/cat" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Cat size={14} className="text-gold" /> Cat</Link>
           <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Package size={14} className="text-gold" /> Product</Link>
           <Link href="/shop/collections" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><LayoutGrid size={14} className="text-gold" /> Collections</Link>
-          <span className="text-gold/20">|</span>
+          <Pipe />
+          {/* Group 3: Booking dropdown (inline accordion, push down) */}
           <DropdownBar icon={CalendarDays} label="Booking" items={[
             { label: "Booking Overview", href: "/book" },
             { label: "Book Appointment", href: "/book/appointment" },
             { label: "Free Consultation", href: "/book/consultation" },
           ]} />
+          <Pipe />
+          {/* Group 4: Serving dropdown */}
           <DropdownBar icon={MapPin} label="Serving" items={[
             { label: "Dog Grooming in Arlington, TN", href: "/grooming/arlington-tn" },
             { label: "Dog Grooming in Bartlett, TN", href: "/grooming/bartlett-tn" },
@@ -199,6 +211,8 @@ export function SiteFooter() {
             { label: "Dog Grooming in Millington, TN", href: "/grooming/millington-tn" },
             { label: "Dog Grooming in Shelby County, TN", href: "/grooming/shelby-county-tn" },
           ]} />
+          <Pipe />
+          {/* Group 5: Policies dropdown */}
           <DropdownBar icon={ShieldCheck} label="Policies" items={[
             { label: "Cancellations", href: "/policies/cancellations" },
             { label: "Late Arrivals", href: "/policies/late-arrivals" },
@@ -213,17 +227,16 @@ export function SiteFooter() {
           ]} />
         </div>
 
-        {/* ===== TIER 3: COPYRIGHT + REAL PAYMENT LOGOS + SCROLL TOP ===== */}
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-gold/15 py-5 sm:flex-row">
+        {/* ===== TIER 3: COPYRIGHT + REAL PAYMENT LOGOS + SCROLL TOP =====
+              Horizontal dividing line ABOVE this row. */}
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-gold/15 py-6 sm:flex-row">
           <p className="text-sm text-on-dark-muted">© {new Date().getFullYear()} {BUSINESS.legalName}. All rights reserved.</p>
           <div className="flex items-center gap-3">
-            {/* Real payment SVG logos */}
             <VisaLogo />
             <MastercardLogo />
             <AmexLogo />
             <ApplePayLogo />
             <GooglePayLogo />
-            {/* Scroll to top */}
             <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Scroll to top"
               className="flex h-9 w-9 items-center justify-center rounded border border-gold/30 text-gold hover:border-gold hover:bg-gold hover:text-ink">
               <ArrowUp size={16} />
