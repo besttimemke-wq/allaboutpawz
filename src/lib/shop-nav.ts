@@ -443,3 +443,65 @@ export const SHOP_NAV_CATEGORIES = SHOP_NAV_TAXONOMY.flatMap(animal =>
 
 // Legacy compat — old code imports `cat()` helper
 export { departmentPath as cat }
+
+// ---------------------------------------------------------------------------
+// Convert SHOP_NAV_TAXONOMY → NavCategory[] shape (the sidebar's existing
+// contract from src/lib/shop/types.ts). The sidebar used to read the OLD
+// legacy SQL taxonomy via getNavTree() (Feeding & Watering, Grooming, Beds
+// & Furniture, Treats, Apparel & Accessories, Chew Toys, …). That no longer
+// matches the new shop routes (/shop/cat, /shop/dog/food, …). This converter
+// produces the new NavCategory tree directly from SHOP_NAV_TAXONOMY so the
+// sidebar renders the real cat/dog departments the owner specified.
+//
+// Shape produced:
+//   level 0  →  animal (Dog Supplies, Cat Supplies) — virtual parent
+//   level 1  →  department (Dog Food, Dog Treats, …) — primary
+//   level 2  →  subcategory (Dry Dog Food, Wet Dog Food, …) — leaf
+// ---------------------------------------------------------------------------
+
+type NavCategoryLike = {
+  key: string
+  displayName: string
+  path: string
+  level: number
+  count: number
+  rawIds: number[]
+  children: NavCategoryLike[]
+  parentKey: string | null
+}
+
+export function buildNavTreeFromTaxonomy(): NavCategoryLike[] {
+  const tree: NavCategoryLike[] = []
+  for (const animal of SHOP_NAV_TAXONOMY) {
+    const animalNode: NavCategoryLike = {
+      key: animal.slug,
+      displayName: animal.name,
+      path: `/shop/${animal.slug}`,
+      level: 0,
+      count: 0,
+      rawIds: [],
+      parentKey: null,
+      children: animal.departments.map((dept) => ({
+        key: `${animal.slug}/${dept.slug}`,
+        displayName: dept.name,
+        path: departmentPath(animal.slug, dept.slug),
+        level: 1,
+        count: 0,
+        rawIds: [],
+        parentKey: animal.slug,
+        children: dept.subcategories.map((sub) => ({
+          key: `${animal.slug}/${dept.slug}/${sub.slug}`,
+          displayName: sub.name,
+          path: subcategoryPath(animal.slug, dept.slug, sub.slug),
+          level: 2,
+          count: 0,
+          rawIds: [],
+          parentKey: `${animal.slug}/${dept.slug}`,
+          children: [],
+        })),
+      })),
+    }
+    tree.push(animalNode)
+  }
+  return tree
+}

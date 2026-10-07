@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { X, ChevronLeft, ChevronRight, PawPrint } from "lucide-react"
 import {
-  getNavTree,
   getMerchCollections,
   getFilterSections,
   queryProducts,
@@ -10,6 +9,7 @@ import {
   type MerchKey,
   type SortKey,
 } from "@/lib/shop/catalog"
+import { buildNavTreeFromTaxonomy } from "@/lib/shop-nav"
 import { ShopSidebar, type SidebarData } from "./shop-sidebar"
 import { PlpToolbar } from "./plp-toolbar"
 import { ProductCard } from "./product-card"
@@ -50,8 +50,13 @@ export async function Plp({
 
   const currentPath = path || (scope.kind === "category" ? scope.node.path : scope.kind === "merch" ? `/shop/${scope.merch}` : "/shop")
 
-  const [navTree, merch, filterSections, state] = await Promise.all([
-    getNavTree(),
+  // The new shop taxonomy (SHOP_NAV_TAXONOMY from shop-nav.ts) — this is the
+  // REAL cat/dog tree the owner specified, NOT the legacy SQL taxonomy.
+  // The sidebar's CATEGORIES section now navigates to /shop/cat,
+  // /shop/cat/food, /shop/cat/food/dry-food, etc. — matching the new routes.
+  const navTree = buildNavTreeFromTaxonomy() as unknown as NavCategory[]
+
+  const [merch, filterSections, state] = await Promise.all([
     getMerchCollections(),
     getFilterSections(scopeIds, currentPath),
     Promise.resolve(parseSearchParams(searchParams)),
@@ -103,11 +108,11 @@ export async function Plp({
   return (
     <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
       {/* Desktop rail — sticky; categories navigate, filters refine.
-          Canvas-native: the ShopSidebar carries the deeper-cream panel tone
-          itself (so the mobile drawer gets the same treatment); this wrapper
-          just frames it. */}
-      <aside className="hidden w-[240px] shrink-0 self-start border border-ink/10 lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)]">
-        <div className="flex max-h-[calc(100vh-3rem)] flex-col">
+          Height-constrained to the viewport so the rail never extends past
+          the footer (the bug the owner called out). overflow-y-auto lets
+          the categories + filters scroll independently inside the rail. */}
+      <aside className="hidden w-[240px] shrink-0 self-start lg:sticky lg:top-6 lg:block">
+        <div className="max-h-[calc(100vh-3rem)] overflow-y-auto border border-neutral-200 bg-white">
           <ShopSidebar key={JSON.stringify(applied)} data={sidebar} />
         </div>
       </aside>
