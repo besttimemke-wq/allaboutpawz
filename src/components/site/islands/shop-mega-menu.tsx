@@ -4,34 +4,150 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { SquaresFour, CaretDown } from "@phosphor-icons/react"
 import { loadShopDepartments, type ShopDepartment } from "@/lib/shop-departments"
+import { SHOP_NAV_TAXONOMY, type ShopNavAnimal, type ShopNavDepartment } from "@/lib/shop-nav"
+import { TAXONOMY_ENABLED } from "@/lib/taxonomy-flag"
 
 // ---------------------------------------------------------------------------
-// Shop mega menu — the departments nav that used to live in the collection
-// sidebar. Rendered in the PageHeader bar on every /shop route so the
-// collection sidebar can stay clean: just this route's subcategories + price
-// (the facet filters surface on demand from the FILTERS icon in the toolbar).
+// Shop mega menu — national-chain standard. Full-width dropdown with
+// Cat Supplies + Dog Supplies sections. Each section shows departments
+// with subcategory links.
 //
-//   ALL DEPARTMENTS ▾  →  full-width panel under the header bar:
-//   ┌────────────────────────────────────────────────────────────┐
-//   │ 10 DEPARTMENTS                             VIEW COLLECTION │
-//   │ [ Department name ] + subcategory links (capped, +N more)  │
-//   └────────────────────────────────────────────────────────────┘
+// Feature-flagged: when TAXONOMY_ENABLED is true, renders the new taxonomy
+// tree (SHOP_NAV_TAXONOMY from shop-nav.ts — 30 departments, ~120
+// subcategories). When false, falls back to the old loadShopDepartments()
+// fetch from /api/shop/categories.
 //
-// Pattern: the design library's MainHeader mega dropdown (click to open,
-// outside click / Escape closes), in the site token system.
+// Design rules (per focus group feedback):
+//   • Readable fonts: button 14px, department headers 16px bold,
+//     subcategory links 14px regular
+//   • Full-width dropdown panel (uses the full site width)
+//   • Two-column layout: Cat Supplies (left) + Dog Supplies (right)
+//   • Minimum 44px touch targets for accessibility
+//   • +N more links for departments with many subcategories
 // ---------------------------------------------------------------------------
 
-const MAX_SUBS_PER_DEPT = 8
+const MAX_SUBS_PER_DEPT = 6
 
-// A department's navigable leaves: direct leaf children plus every wrapper's
-// leaves (the wrappers themselves are grouping labels, not destinations).
-function leavesOf(dept: ShopDepartment): ShopDepartment[] {
-  const out: ShopDepartment[] = []
-  for (const c of dept.children) {
-    if (c.children.length > 0) out.push(...c.children)
-    else out.push(c)
-  }
-  return out
+function DepartmentColumn({
+  dept,
+  animalSlug,
+  onNavigate,
+}: {
+  dept: ShopNavDepartment
+  animalSlug: string
+  onNavigate: () => void
+}) {
+  const shown = dept.subcategories.slice(0, MAX_SUBS_PER_DEPT)
+  const more = dept.subcategories.length - shown.length
+  const deptPath = `/shop/${animalSlug}/${dept.slug}`
+
+  return (
+    <div>
+      <Link
+        href={deptPath}
+        onClick={onNavigate}
+        className="block text-base font-bold text-ink transition-colors hover:text-gold-deep hover:underline"
+      >
+        {dept.name}
+      </Link>
+      <ul className="mt-2 space-y-2">
+        {shown.map(sub => (
+          <li key={sub.slug}>
+            <Link
+              href={`/shop/${animalSlug}/${dept.slug}/${sub.slug}`}
+              onClick={onNavigate}
+              className="text-sm leading-relaxed text-ink-soft transition-colors hover:text-gold-deep hover:underline"
+            >
+              {sub.name}
+            </Link>
+          </li>
+        ))}
+        {more > 0 && (
+          <li>
+            <Link
+              href={deptPath}
+              onClick={onNavigate}
+              className="text-sm font-semibold text-gold-deep transition-colors hover:underline"
+            >
+              + {more} more
+            </Link>
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+function OldDepartmentColumn({ dept, onNavigate }: { dept: ShopDepartment; onNavigate: () => void }) {
+  const leaves = dept.children.flatMap(c => (c.children.length > 0 ? c.children : [c]))
+  const shown = leaves.slice(0, MAX_SUBS_PER_DEPT)
+  const more = leaves.length - shown.length
+
+  return (
+    <div>
+      <Link
+        href={dept.navPath || `/shop/category/${dept.slug}`}
+        onClick={onNavigate}
+        className="block text-base font-bold text-ink transition-colors hover:text-gold-deep hover:underline"
+      >
+        {dept.name}
+      </Link>
+      <ul className="mt-2 space-y-2">
+        {shown.map(s => (
+          <li key={s.id}>
+            <Link
+              href={s.navPath || `/shop/category/${s.slug}`}
+              onClick={onNavigate}
+              className="text-sm leading-relaxed text-ink-soft transition-colors hover:text-gold-deep hover:underline"
+            >
+              {s.name}
+            </Link>
+          </li>
+        ))}
+        {more > 0 && (
+          <li>
+            <Link
+              href={dept.navPath || `/shop/category/${dept.slug}`}
+              onClick={onNavigate}
+              className="text-sm font-semibold text-gold-deep transition-colors hover:underline"
+            >
+              + {more} more
+            </Link>
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+function TaxonomySection({
+  animal,
+  onNavigate,
+}: {
+  animal: ShopNavAnimal
+  onNavigate: () => void
+}) {
+  return (
+    <div>
+      <Link
+        href={`/shop/${animal.slug}`}
+        onClick={onNavigate}
+        className="mb-3 block border-b border-gold/20 pb-2 text-lg font-bold tracking-wide text-gold-deep"
+      >
+        {animal.name}
+      </Link>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+        {animal.departments.map(dept => (
+          <DepartmentColumn
+            key={dept.slug}
+            dept={dept}
+            animalSlug={animal.slug}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function ShopMegaMenu() {
@@ -40,8 +156,9 @@ export function ShopMegaMenu() {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (TAXONOMY_ENABLED) return // New taxonomy is static — no fetch needed
     let alive = true
-    loadShopDepartments().then((d) => {
+    loadShopDepartments().then(d => {
       if (alive) setDepartments(d)
     })
     return () => {
@@ -49,7 +166,6 @@ export function ShopMegaMenu() {
     }
   }, [])
 
-  // Outside click + Escape close (the design repo's dropdown pattern).
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
@@ -72,17 +188,17 @@ export function ShopMegaMenu() {
     <div ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-haspopup="true"
-        aria-label="Browse all departments"
-        className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
+        aria-label="Browse all departments — All About Pawz shop"
+        className="flex shrink-0 cursor-pointer items-center gap-2 text-sm font-bold tracking-[0.15em] text-ink-soft transition-colors hover:text-gold-deep"
       >
-        <SquaresFour size={13} weight="bold" className="text-gold-deep" aria-hidden="true" />
+        <SquaresFour size={16} weight="bold" className="text-gold-deep" aria-hidden="true" />
         <span className="hidden sm:inline">ALL DEPARTMENTS</span>
-        <span className="sm:hidden">DEPARTMENTS</span>
+        <span className="sm:hidden">SHOP</span>
         <CaretDown
-          size={11}
+          size={14}
           weight="bold"
           className={`text-gold-deep transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           aria-hidden="true"
@@ -91,78 +207,48 @@ export function ShopMegaMenu() {
 
       {open && (
         <div
-          className="absolute inset-x-0 top-full z-40 animate-in fade-in slide-in-from-top-2 duration-150 border-b border-gold/40 bg-cream shadow-[0_18px_36px_-18px_rgba(31,27,24,0.35)]"
+          className="absolute inset-x-0 top-full z-40 animate-in fade-in slide-in-from-top-2 duration-150 border-b border-gold/40 bg-white shadow-[0_18px_36px_-18px_rgba(31,27,24,0.35)]"
           data-purpose="departments-mega-menu"
         >
-          <div className="px-6 py-5 lg:px-10">
-            <div className="mb-4 flex items-center justify-between border-b border-gold/25 pb-3">
-              <span className="text-[9.5px] font-bold tracking-[0.2em] text-gold-deep">
-                ALL DEPARTMENTS{departments ? ` · ${departments.length}` : ""}
+          <div className="mx-auto max-w-7xl px-6 py-8 lg:px-12">
+            {/* Header row */}
+            <div className="mb-6 flex items-center justify-between border-b border-gold/25 pb-3">
+              <span className="text-sm font-bold tracking-[0.18em] text-gold-deep">
+                SHOP ALL DEPARTMENTS
               </span>
               <Link
                 href="/shop"
                 onClick={close}
-                className="text-[9.5px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-gold-deep"
+                className="text-sm font-bold tracking-[0.12em] text-ink-soft transition-colors hover:text-gold-deep"
               >
-                VIEW FULL COLLECTION
+                VIEW FULL SHOP →
               </Link>
             </div>
 
-            {departments === null ? (
+            {TAXONOMY_ENABLED ? (
+              // New taxonomy — Cat Supplies + Dog Supplies sections
+              <div className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-2">
+                {SHOP_NAV_TAXONOMY.map(animal => (
+                  <TaxonomySection key={animal.slug} animal={animal} onNavigate={close} />
+                ))}
+              </div>
+            ) : departments === null ? (
+              // Old taxonomy loading state
               <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 xl:grid-cols-5">
                 {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="h-3 w-28 animate-pulse bg-ink/10" />
-                    <div className="h-2.5 w-24 animate-pulse bg-ink/5" />
-                    <div className="h-2.5 w-32 animate-pulse bg-ink/5" />
+                  <div key={i} className="space-y-3">
+                    <div className="h-4 w-32 animate-pulse bg-ink/10" />
+                    <div className="h-3.5 w-28 animate-pulse bg-ink/5" />
+                    <div className="h-3.5 w-36 animate-pulse bg-ink/5" />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 xl:grid-cols-5">
-                {departments.map((dept) => {
-                  const leaves = leavesOf(dept)
-                  const shown = leaves.slice(0, MAX_SUBS_PER_DEPT)
-                  const more = leaves.length - shown.length
-                  return (
-                    <div key={dept.id}>
-                      <Link
-                        href={`/shop/category/${dept.slug}`}
-                        onClick={close}
-                        className="flex items-baseline justify-between gap-2 text-[11px] font-bold text-ink transition-colors hover:text-gold-deep hover:underline"
-                      >
-                        <span className="min-w-0 truncate">{dept.name}</span>
-                        <span className="shrink-0 text-[10px] font-normal text-ink-soft/70">
-                          {dept.productCount}
-                        </span>
-                      </Link>
-                      <ul className="mt-1.5 space-y-1">
-                        {shown.map((s) => (
-                          <li key={s.id} className="min-w-0">
-                            <Link
-                              href={`/shop/category/${s.slug}`}
-                              onClick={close}
-                              className="block truncate text-[10.5px] leading-[1.55] text-ink-soft transition-colors hover:text-gold-deep hover:underline"
-                            >
-                              {s.name}
-                            </Link>
-                          </li>
-                        ))}
-                        {more > 0 && (
-                          <li>
-                            <Link
-                              href={`/shop/category/${dept.slug}`}
-                              onClick={close}
-                              className="text-[10.5px] font-semibold text-gold-deep transition-colors hover:underline"
-                            >
-                              + {more} more
-                            </Link>
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-                  )
-                })}
+              // Old taxonomy — loaded departments
+              <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3 xl:grid-cols-5">
+                {departments.map(dept => (
+                  <OldDepartmentColumn key={dept.id} dept={dept} onNavigate={close} />
+                ))}
               </div>
             )}
           </div>
