@@ -552,7 +552,7 @@ export function TopUtilityBar() {
 export function LocalBar() {
   return (
     <div className="border-b border-gold/30 bg-ink">
-      <div className="mx-auto max-w-7xl px-4 py-1.5 text-center text-[10px] font-semibold tracking-[0.14em] text-cream sm:px-6 lg:ml-[232px] lg:px-10">
+      <div className="mx-auto max-w-7xl px-4 py-2 text-center text-xs font-semibold tracking-[0.12em] text-cream sm:px-6 lg:ml-[232px] lg:px-10">
         {LOCAL_BAR.text}
       </div>
     </div>
