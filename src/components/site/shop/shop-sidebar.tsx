@@ -159,9 +159,9 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
   }
 
   return (
-    <div className="flex h-full flex-col bg-cream-deep/50">
+    <div className="flex h-full flex-col bg-neutral-50">
       {/* ---- Header ---- */}
-      <div className="flex items-center justify-between border-b border-ink/10 px-5 py-4">
+      <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
         <p className="text-[13px] font-bold tracking-[0.14em] text-ink">SHOP</p>
         {onClose ? (
           <button
@@ -238,7 +238,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
                             <CountTag n={c.count} />
                           </Link>
                           {cActive && c.children.length > 0 && (
-                            <ul className="mb-1 ml-[26px] space-y-0.5 border-l border-ink/10 pl-3">
+                            <ul className="mb-1 ml-[26px] space-y-0.5 border-l border-neutral-200 pl-3">
                               {c.children.map((gc) => (
                                 <li key={gc.key}>
                                   <Link
@@ -262,7 +262,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
 
             {/* Merchandising destinations */}
             {data.merch.length > 0 && (
-              <li aria-hidden="true" className="my-3 border-t border-ink/10" />
+              <li aria-hidden="true" className="my-3 border-t border-neutral-200" />
             )}
             {data.merch.map((m) => {
               const Icon = ICONS[m.key] || PawPrint
@@ -432,7 +432,7 @@ function FilterGroup({
   const [open, setOpen] = useState(true)
   const label = section.label
   return (
-    <div className="border-b border-ink/10 pb-1.5 last:border-b-0">
+    <div className="border-b border-neutral-200 pb-1.5 last:border-b-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -481,7 +481,7 @@ function PriceInput({
         }}
         placeholder={placeholder}
         aria-label={`${label} price in dollars`}
-        className="w-full border border-ink/15 bg-cream py-1.5 pl-5 pr-2 text-[11px] text-ink placeholder:font-semibold placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
+        className="w-full border border-neutral-300 bg-white py-1.5 pl-5 pr-2 text-[11px] text-ink placeholder:font-semibold placeholder:text-neutral-400 focus:border-gold-deep focus:outline-none"
       />
     </label>
   )
@@ -508,7 +508,7 @@ function CheckRow({
           checked={checked}
           onChange={() => onToggle()}
           name={name}
-          className="peer h-[15px] w-[15px] cursor-pointer appearance-none border border-ink/30 bg-white checked:border-gold-deep checked:bg-gold-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep/40"
+          className="peer h-[15px] w-[15px] cursor-pointer appearance-none border border-neutral-400 bg-white checked:border-gold-deep checked:bg-gold-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep/40"
         />
         <svg
           viewBox="0 0 12 12"
@@ -520,7 +520,9 @@ function CheckRow({
         </svg>
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="text-[9.5px] text-ink-soft/70">({count})</span>
+      {count > 0 && (
+        <span className="text-[9.5px] text-ink-soft/70">({count})</span>
+      )}
     </label>
   )
 }
@@ -599,7 +601,7 @@ function FacetCheckList({
             }
             placeholder={`Search ${section.label.toLowerCase()}…`}
             aria-label={`Search ${section.label}`}
-            className="w-full border border-ink/15 bg-cream py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
+            className="w-full border border-neutral-300 bg-white py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-neutral-400 focus:border-gold-deep focus:outline-none"
           />
         </div>
       )}

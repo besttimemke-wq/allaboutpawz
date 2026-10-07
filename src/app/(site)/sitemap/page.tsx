@@ -116,11 +116,6 @@ export default function SitemapPage() {
     { label: "Seller Payments", href: "/seller/payments" }, { label: "Seller Performance", href: "/seller/performance" },
     { label: "Seller Messages", href: "/seller/messages" }, { label: "Seller Settings", href: "/seller/settings" },
   ]
-  const authLinks = [
-    { label: "Account", href: "/account" }, { label: "Customer Portal Login", href: "/access-customer" },
-    { label: "Seller Login", href: "/access-seller" }, { label: "Groomer Portal Login", href: "/access-groomer" },
-    { label: "Admin Login", href: "/admin-login" }, { label: "Set Password", href: "/auth/set-password" },
-  ]
   const collectionLinks = [
     { label: "$10 & Under My Human Favorites", href: "/shop/collections/my-human-favorites" },
     { label: "Back to School", href: "/shop/collections/back-to-school" },
@@ -220,9 +215,6 @@ export default function SitemapPage() {
 
           {/* Seller */}
           <CollectionSection heading="Seller Program" links={sellerLinks} />
-
-          {/* Auth & Access */}
-          <LinkSection heading="Account & Access" links={authLinks} />
         </div>
       </section>
     </>

@@ -1,11 +1,12 @@
 "use client"
 
 // ---------------------------------------------------------------------------
-// Header search bar — true e-commerce search experience.
+// Header search bar — true e-commerce search experience (Petco-scale).
 //
-// Desktop (lg+): a persistent input in the header middle (flex-1 max-w-md)
-// with a magnifying glass icon on the left and a clear (X) button on the
-// right when text is entered.
+// Desktop (lg+): a persistent input CENTERED in the header middle, sized at
+// 60% of the viewport width (max-w-[60vw]) — the same scale Petco/Chewy use
+// for their primary search. Pill-shaped white input with a magnifying glass
+// icon on the left and a clear (X) button on the right when text is entered.
 //
 // Mobile (< lg): a search-icon trigger button that expands a full-width
 // overlay covering the header. The overlay carries the same input +
@@ -319,7 +320,7 @@ function SearchField({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <div className="flex items-center gap-2 rounded-md border border-gold/35 bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-gold-deep/40">
+      <div className="flex items-center gap-2.5 rounded-full border border-ink/15 bg-white px-4 py-2.5 shadow-sm focus-within:border-gold-deep focus-within:ring-2 focus-within:ring-gold-deep/30 transition-colors">
         <Search className="h-4 w-4 shrink-0 text-ink-soft" strokeWidth={1.7} aria-hidden="true" />
         <input
           ref={inputRef}
@@ -341,14 +342,14 @@ function SearchField({
             blurTimer.current = setTimeout(() => setOpen(false), 150)
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search shop, breeds, guides…"
+          placeholder="Search for dog food, cat litter, flea & tick, beds…"
           aria-label="Search shop, breeds, and guides"
           role="combobox"
           aria-expanded={showDropdown}
           aria-controls={`${inputId}-listbox`}
           aria-autocomplete="list"
           aria-activedescendant={activeRowId}
-          className="min-w-0 flex-1 bg-transparent text-[12px] leading-tight text-ink placeholder:text-ink-soft/60 focus:outline-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+          className="min-w-0 flex-1 bg-transparent text-[13px] leading-tight text-ink placeholder:text-ink-soft/60 focus:outline-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
         />
         {query && (
           <button
@@ -540,8 +541,8 @@ export function HeaderSearch() {
 
   return (
     <>
-      {/* Desktop: persistent input */}
-      <div className="hidden flex-1 max-w-md lg:block">
+      {/* Desktop: persistent input — Petco-scale, 60% of viewport width, centered */}
+      <div className="hidden flex-1 max-w-[60vw] mx-auto lg:block">
         <SearchField inputId="header-search-desktop" />
       </div>
 

@@ -48,7 +48,7 @@ export async function AnimalLandingPage({ animal, searchParams }: { animal: Shop
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
 
       {/* Hero — H1 + intro */}
-      <section className="border-b border-gold/15 px-6 py-12 lg:px-12 lg:py-16">
+      <section className="border-b border-neutral-200 px-6 py-12 lg:px-12 lg:py-16">
         <div className="mx-auto max-w-7xl">
           <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
@@ -77,7 +77,7 @@ export async function AnimalLandingPage({ animal, searchParams }: { animal: Shop
               <Link
                 key={dept.slug}
                 href={departmentPath(animal.slug, dept.slug)}
-                className="group rounded-lg border border-gold/20 p-5 transition-colors hover:border-gold-deep hover:bg-cream/30"
+                className="group rounded-lg border border-neutral-200 p-5 transition-colors hover:border-gold-deep hover:bg-neutral-50"
               >
                 <h3 className="text-base font-bold text-ink group-hover:text-black">{dept.name}</h3>
                 <p className="mt-1 text-sm text-ink-soft">
@@ -93,7 +93,7 @@ export async function AnimalLandingPage({ animal, searchParams }: { animal: Shop
       </section>
 
       {/* Real PLP — sidebar (categories + filters) + product grid */}
-      <section className="border-t border-gold/15 px-6 pb-14 pt-8 lg:px-12">
+      <section className="border-t border-neutral-200 px-6 pb-14 pt-8 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
         </div>
@@ -101,7 +101,7 @@ export async function AnimalLandingPage({ animal, searchParams }: { animal: Shop
 
       {/* Related searches + Related guides (per spec §7) */}
       {seo && (seo.relatedSearches.length > 0 || seo.relatedGuides.length > 0) && (
-        <section className="border-t border-gold/15 bg-cream/30 px-6 py-10 lg:px-12">
+        <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
           <div className="mx-auto max-w-7xl grid gap-8 md:grid-cols-2">
             {seo.relatedSearches.length > 0 && (
               <div>
@@ -145,7 +145,7 @@ export async function AnimalLandingPage({ animal, searchParams }: { animal: Shop
       )}
 
       {/* Grooming cross-sell band */}
-      <section className="border-t border-gold/15 bg-cream/20 px-6 py-10 lg:px-12">
+      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-left">
           <div>
             <h2 className="text-lg font-bold text-ink">Full-Service Grooming in Memphis</h2>
@@ -203,7 +203,7 @@ export async function DepartmentPage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
 
       {/* Breadcrumb + H1 + intro */}
-      <section className="border-b border-gold/15 px-6 py-10 lg:px-12 lg:py-14">
+      <section className="border-b border-neutral-200 px-6 py-10 lg:px-12 lg:py-14">
         <div className="mx-auto max-w-7xl">
           <nav className="flex flex-wrap items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
@@ -237,7 +237,7 @@ export async function DepartmentPage({
                 <Link
                   key={sub.slug}
                   href={subcategoryPath(animal.slug, dept.slug, sub.slug)}
-                  className="group rounded-lg border border-gold/20 p-4 transition-colors hover:border-gold-deep hover:bg-cream/30"
+                  className="group rounded-lg border border-neutral-200 p-4 transition-colors hover:border-gold-deep hover:bg-neutral-50"
                 >
                   <h3 className="text-base font-semibold text-ink group-hover:text-black">{sub.name}</h3>
                   <ArrowRight className="mt-2 h-4 w-4 text-black opacity-0 transition-opacity group-hover:opacity-100" />
@@ -249,7 +249,7 @@ export async function DepartmentPage({
       )}
 
       {/* Real PLP — sidebar + product grid */}
-      <section className="border-t border-gold/15 px-6 pb-14 pt-8 lg:px-12">
+      <section className="border-t border-neutral-200 px-6 pb-14 pt-8 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
         </div>
@@ -257,7 +257,7 @@ export async function DepartmentPage({
 
       {/* Related searches + Related guides (per spec §7) */}
       {seo && (seo.relatedSearches.length > 0 || seo.relatedGuides.length > 0) && (
-        <section className="border-t border-gold/15 bg-cream/30 px-6 py-10 lg:px-12">
+        <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
           <div className="mx-auto max-w-7xl grid gap-8 md:grid-cols-2">
             {seo.relatedSearches.length > 0 && (
               <div>
@@ -301,7 +301,7 @@ export async function DepartmentPage({
       )}
 
       {/* Grooming cross-sell band */}
-      <section className="border-t border-gold/15 bg-cream/20 px-6 py-10 lg:px-12">
+      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-left">
           <div>
             <h2 className="text-lg font-bold text-ink">Or Let Our Memphis Groomers Handle It</h2>
@@ -351,7 +351,7 @@ export async function SubcategoryPage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
 
       {/* Breadcrumb + H1 + intro */}
-      <section className="border-b border-gold/15 px-6 py-10 lg:px-12 lg:py-14">
+      <section className="border-b border-neutral-200 px-6 py-10 lg:px-12 lg:py-14">
         <div className="mx-auto max-w-7xl">
           <nav className="flex flex-wrap items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
@@ -386,7 +386,7 @@ export async function SubcategoryPage({
 
       {/* Related searches + Related guides (per spec §7) */}
       {seo && (seo.relatedSearches.length > 0 || seo.relatedGuides.length > 0) && (
-        <section className="border-t border-gold/15 bg-cream/30 px-6 py-10 lg:px-12">
+        <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
           <div className="mx-auto max-w-7xl grid gap-8 md:grid-cols-2">
             {seo.relatedSearches.length > 0 && (
               <div>
@@ -430,7 +430,7 @@ export async function SubcategoryPage({
       )}
 
       {/* Grooming cross-sell band */}
-      <section className="border-t border-gold/15 bg-cream/20 px-6 py-10 lg:px-12">
+      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-left">
           <div>
             <h2 className="text-lg font-bold text-ink">Full-Service Grooming in Memphis</h2>

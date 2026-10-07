@@ -52,7 +52,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
       />
 
       {/* Hero — H1 + intro */}
-      <section className="border-b border-gold/15 px-6 py-12 lg:px-12 lg:py-16">
+      <section className="border-b border-neutral-200 px-6 py-12 lg:px-12 lg:py-16">
         <div className="mx-auto max-w-7xl">
           <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">
@@ -78,26 +78,26 @@ export default async function ShopPage({ searchParams }: PageProps) {
               <Link
                 key={animal.slug}
                 href={`/shop/${animal.slug}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gold/35 bg-cream px-4 py-2 text-xs font-bold tracking-[0.12em] text-ink transition-colors hover:border-gold-deep hover:bg-cream-deep"
+                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-bold tracking-[0.12em] text-ink transition-colors hover:border-gold-deep hover:bg-neutral-50"
               >
                 {animal.name}
               </Link>
             ))}
             <Link
               href="/shop/sale"
-              className="inline-flex items-center gap-1.5 rounded-full border border-gold/35 bg-cream px-4 py-2 text-xs font-bold tracking-[0.12em] text-ink transition-colors hover:border-gold-deep hover:bg-cream-deep"
+              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-bold tracking-[0.12em] text-ink transition-colors hover:border-gold-deep hover:bg-neutral-50"
             >
               Sale
             </Link>
             <Link
               href="/gift-cards"
-              className="inline-flex items-center gap-1.5 rounded-full border border-gold/35 bg-cream px-4 py-2 text-xs font-bold tracking-[0.12em] text-ink transition-colors hover:border-gold-deep hover:bg-cream-deep"
+              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-bold tracking-[0.12em] text-ink transition-colors hover:border-gold-deep hover:bg-neutral-50"
             >
               Gift Cards
             </Link>
             <Link
               href="/shop/brands"
-              className="inline-flex items-center gap-1.5 rounded-full border border-gold/35 bg-cream px-4 py-2 text-xs font-bold tracking-[0.12em] text-ink transition-colors hover:border-gold-deep hover:bg-cream-deep"
+              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-bold tracking-[0.12em] text-ink transition-colors hover:border-gold-deep hover:bg-neutral-50"
             >
               Brands
             </Link>
@@ -113,7 +113,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
       </section>
 
       {/* Department quick-links — small tiles, NOT full-page cards */}
-      <section className="border-t border-gold/15 bg-cream/30 px-6 py-10 lg:px-12">
+      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <p className="mb-4 text-xs font-bold tracking-[0.14em] text-ink-soft uppercase">
             Browse by Department
@@ -128,7 +128,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded border border-gold/30 bg-white px-3 py-1.5 text-xs text-ink hover:border-gold-deep hover:bg-cream"
+                className="rounded border border-neutral-300 bg-white px-3 py-1.5 text-xs text-ink hover:border-gold-deep hover:bg-neutral-50"
               >
                 {link.label}
               </Link>
@@ -139,7 +139,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
 
       {/* Related searches + Related guides (per spec §7) */}
       {seo && (seo.relatedSearches.length > 0 || seo.relatedGuides.length > 0) && (
-        <section className="border-t border-gold/15 px-6 py-10 lg:px-12">
+        <section className="border-t border-neutral-200 px-6 py-10 lg:px-12">
           <div className="mx-auto max-w-7xl grid gap-8 md:grid-cols-2">
             {seo.relatedSearches.length > 0 && (
               <div>
@@ -189,7 +189,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
       )}
 
       {/* Grooming cross-sell band */}
-      <section className="border-t border-gold/15 bg-cream/20 px-6 py-10 lg:px-12">
+      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-left">
           <div>
             <h2 className="text-lg font-bold text-ink">Shop Supplies, Then Book the Groom</h2>
