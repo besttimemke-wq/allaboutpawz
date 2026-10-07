@@ -173,15 +173,14 @@ export function SiteFooter() {
         </div>
 
         {/* ===== TIER 2: SECONDARY NAV BAR =====
-            20-30px gap above (mt-8). Groups separated by TALL VERTICAL
-            LINES (border-l, not short pipe characters). Within the text
-            links group, short | pipes separate individual links.
-            Expandable sections push DOWN within their column — the tall
-            vertical line grows with the expansion. No box/border around
-            expanded content — flat on black canvas. */}
-        <div className="mt-8 flex items-start gap-0 border-t border-gold/15 pt-6">
+            Distributed edge-to-edge (justify-between). Groups separated by
+            TALL VERTICAL LINES (border-l border-gold/30 — visible). Within
+            the text links group, short | pipes separate individual links.
+            Expandable sections push DOWN within their column. No box/border
+            around expanded content — flat on black canvas. */}
+        <div className="mt-8 flex items-start justify-between border-t border-gold/15 pt-6">
           {/* Group 1: Text links (short pipes between items, no tall line) */}
-          <div className="flex items-center gap-2 pr-4">
+          <div className="flex items-center gap-2">
             <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Pricing</Link>
             <Pipe />
             <Link href="/services" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Services</Link>
@@ -193,14 +192,14 @@ export function SiteFooter() {
             <Link href="/shop" className="text-sm font-semibold text-on-dark-muted hover:text-gold">/shop</Link>
           </div>
           {/* Group 2: Pet type nav — tall vertical line on left */}
-          <div className="flex items-center gap-3 border-l border-gold/10 px-4">
+          <div className="flex items-center gap-3 border-l border-gold/30 pl-6">
             <Link href="/shop/dog" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Dog size={14} className="text-gold" /> Dog</Link>
             <Link href="/shop/cat" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Cat size={14} className="text-gold" /> Cat</Link>
             <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Package size={14} className="text-gold" /> Product</Link>
             <Link href="/shop/collections" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><LayoutGrid size={14} className="text-gold" /> Collections</Link>
           </div>
           {/* Group 3: Booking — tall vertical line on left, expands DOWN */}
-          <div className="border-l border-gold/10 px-4">
+          <div className="border-l border-gold/30 pl-6">
             <DropdownBar icon={CalendarDays} label="Booking" items={[
               { label: "Booking Overview", href: "/book" },
               { label: "Book Appointment", href: "/book/appointment" },
@@ -208,7 +207,7 @@ export function SiteFooter() {
             ]} />
           </div>
           {/* Group 4: Serving — tall vertical line on left, expands DOWN */}
-          <div className="border-l border-gold/10 px-4">
+          <div className="border-l border-gold/30 pl-6">
             <DropdownBar icon={MapPin} label="Serving" items={[
               { label: "Dog Grooming in Arlington, TN", href: "/grooming/arlington-tn" },
               { label: "Dog Grooming in Bartlett, TN", href: "/grooming/bartlett-tn" },
@@ -219,7 +218,7 @@ export function SiteFooter() {
             ]} />
           </div>
           {/* Group 5: Policies — tall vertical line on left, expands DOWN */}
-          <div className="border-l border-gold/10 px-4">
+          <div className="border-l border-gold/30 pl-6">
             <DropdownBar icon={ShieldCheck} label="Policies" items={[
               { label: "Cancellations", href: "/policies/cancellations" },
               { label: "Late Arrivals", href: "/policies/late-arrivals" },

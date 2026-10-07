@@ -382,14 +382,9 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           signal lives ONLY in the footer NAP block. Do NOT render a
           local-pride strip here. */}
       {/* Hamburger sidebar — slides in from left on ALL screen sizes.
-          Backdrop overlay closes on click. No permanent desktop sidebar. */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+          No backdrop overlay (Petco pattern — page stays interactive
+          when sidebar is open). Sidebar sits on top with a shadow. */}
+
       <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => setOpen(false)} />
       {/* Header bar — logo left, bag + account + hamburger right.
           Visible on ALL screen sizes (was lg:hidden — now always visible
