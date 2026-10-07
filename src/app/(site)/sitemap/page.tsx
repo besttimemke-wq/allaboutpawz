@@ -90,7 +90,7 @@ export default async function SitemapPage() {
           <div className="mt-12 grid grid-cols-1 gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-5">
             <LinkColumn heading="THE SALON" links={salonLinks} />
             <LinkColumn heading="BOOKING" links={bookingLinks} />
-            <LinkColumn heading="BOUTIQUE" links={boutiqueLinks.slice(0, 14)} />
+            <LinkColumn heading="BOUTIQUE" links={boutiqueLinks} />
             <LinkColumn heading="SERVING" links={servingLinks} />
             <LinkColumn heading="POLICIES" links={policyLinks} />
           </div>

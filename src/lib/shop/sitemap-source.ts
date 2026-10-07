@@ -32,6 +32,7 @@ import { BUSINESS, CITY_LANDINGS, SHELBY_HUB } from "@/lib/business"
 import { getNavTree, flattenNav, getProducts, getMerchCollections } from "@/lib/shop/catalog"
 import { getResource } from "@/lib/site-data"
 import { pgQuery } from "@/lib/pg"
+import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
 
 // GATE: Tier 1 (v_sitemap) is disabled until Wave 1 pages have real content.
 // Flip to true per-wave when pages pass §11a (products + unique copy).
@@ -86,6 +87,44 @@ const LOCATION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
     priority: 0.9,
   },
 ]
+
+// ---------------------------------------------------------------------------
+// Taxonomy routes — generated from SHOP_NAV_TAXONOMY in shop-nav.ts.
+// All routes now return 200 (wired in /shop/[...slug]/page.tsx via
+// resolveTaxonomyPage). These are the animal landings, departments,
+// and subcategories from the full cat/dog taxonomy tree.
+// ---------------------------------------------------------------------------
+const TAXONOMY_ROUTES: Omit<SitemapEntry, "lastModified">[] = []
+for (const animal of SHOP_NAV_TAXONOMY) {
+  // Animal landing: /shop/dog, /shop/cat
+  TAXONOMY_ROUTES.push({
+    path: `/shop/${animal.slug}`,
+    label: animal.name,
+    pageType: "animal",
+    changeFrequency: "weekly",
+    priority: 0.8,
+  })
+  for (const dept of animal.departments) {
+    // Department: /shop/dog/food, /shop/cat/beds-bedding
+    TAXONOMY_ROUTES.push({
+      path: departmentPath(animal.slug, dept.slug),
+      label: dept.name,
+      pageType: "department",
+      changeFrequency: "weekly",
+      priority: 0.7,
+    })
+    for (const sub of dept.subcategories) {
+      // Subcategory: /shop/cat/beds-bedding/bolster-cat-beds
+      TAXONOMY_ROUTES.push({
+        path: subcategoryPath(animal.slug, dept.slug, sub.slug),
+        label: sub.name,
+        pageType: "subcategory",
+        changeFrequency: "weekly",
+        priority: 0.6,
+      })
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Tier 1 — v_sitemap view query. Returns empty if the view doesn't exist
@@ -299,10 +338,18 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
     loc: `${BASE}${r.path}`,
     lastModified: now,
   }))
+  // Taxonomy entries — all animal landings, departments, and subcategories
+  // from SHOP_NAV_TAXONOMY. All routes now return 200 (wired in the
+  // /shop/[...slug] catch-all via resolveTaxonomyPage).
+  const taxonomyEntries: SitemapEntry[] = TAXONOMY_ROUTES.map((r) => ({
+    ...r,
+    loc: `${BASE}${r.path}`,
+    lastModified: now,
+  }))
   const policyEntriesResolved = await policyEntries()
 
   // Merge + dedupe by path + exclude known redirects.
-  const all = [...staticEntries, ...locationEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
+  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
   const seen = new Set<string>()
   const deduped = all
     .filter((e) => {
@@ -332,7 +379,7 @@ export async function buildSitemapSections() {
     ),
     booking: entries.filter((e) => e.path.startsWith("/book")),
     boutique: entries.filter((e) =>
-      e.path.startsWith("/shop") || ["shop-landing", "animal", "department", "category", "brand", "related-search"].includes(e.pageType)
+      e.path.startsWith("/shop") || ["shop-landing", "animal", "department", "category", "subcategory", "brand", "related-search"].includes(e.pageType)
     ),
     products: entries.filter((e) => e.pageType === "product"),
     serving: entries.filter((e) => e.pageType === "location"),
