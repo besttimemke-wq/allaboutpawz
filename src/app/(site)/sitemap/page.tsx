@@ -95,7 +95,7 @@ export default function SitemapPage() {
   return (
     <>
       <PageHeader n="12" label="SITEMAP" />
-      <section className="bg-white px-8 py-16 lg:px-12 lg:py-20">
+      <section className="bg-white px-6 py-16 sm:px-12 lg:px-16 lg:py-20">
         <div className="mx-auto max-w-7xl">
           <h1 className="font-display text-[42px] leading-[1.08] text-ink lg:text-[54px]">
             Every Page, One Place.

@@ -157,6 +157,83 @@ const GROOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/groomer/schedule",             label: "Groomer Schedule",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
 ]
 
+// Seller routes (per seller platform spec — /frontdesk → /seller)
+const SELLER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+  { path: "/seller",                     label: "Seller Dashboard",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/seller/onboarding",          label: "Seller Onboarding",      pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/seller/products",            label: "Seller Products",         pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/seller/products/new",        label: "Add Product",            pageType: "portal", changeFrequency: "monthly", priority: 0.2 },
+  { path: "/seller/inventory",           label: "Seller Inventory",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/seller/orders",              label: "Seller Orders",           pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/seller/pricing",             label: "Seller Pricing",          pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/seller/promotions",          label: "Seller Promotions",      pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/seller/advertising",         label: "Seller Advertising",     pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/seller/reports",             label: "Seller Reports",          pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/seller/payments",            label: "Seller Payments",        pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/seller/performance",         label: "Seller Performance",     pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
+  { path: "/seller/messages",            label: "Seller Messages",        pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/seller/settings",            label: "Seller Settings",        pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+]
+
+// Special Occasions collections (/shop/collections/*)
+const COLLECTION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+  { path: "/shop/collections/my-human-favorites",            label: "$10 & Under My Human Favorites",  pageType: "collection", changeFrequency: "weekly", priority: 0.5 },
+  { path: "/shop/collections/back-to-school",                 label: "Back to School",                   pageType: "collection", changeFrequency: "weekly", priority: 0.5 },
+  { path: "/shop/collections/better-for-your-dog",            label: "Better for Your Dog",             pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/birthday",                       label: "Birthday",                        pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/birthday/pet-birthday-cakes-treats",       label: "Pet Birthday Cakes & Treats",     pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/birthday/pet-birthday-hats-outfits",       label: "Pet Birthday Hats & Outfits",     pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/birthday/pet-birthday-party-supplies-gifts", label: "Pet Birthday Party Supplies & Gifts", pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/birthday/pet-birthday-toys",     label: "Pet Birthday Toys",                pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/easter",                         label: "Easter",                          pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/easter/cat-easter",              label: "Cat Easter",                      pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/easter/dog-easter",              label: "Dog Easter",                      pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/exclusively-by-all-about-pawz",  label: "Exclusively by All About Pawz",  pageType: "collection", changeFrequency: "monthly", priority: 0.5 },
+  { path: "/shop/collections/fall",                           label: "Fall",                            pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/fall/cozy-beds-furniture-more",  label: "Cozy Beds, Furniture & More",     pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/fall/fall-flavors",              label: "Fall Flavors",                    pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/fall/fall-pet-apparel",          label: "Fall Pet Apparel",                pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/fall/travel-essentials",        label: "Travel Essentials",               pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/family-game-night",              label: "Family Game Night",               pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/fathers-day",                   label: "Father's Day",                    pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/fourth-of-july",                 label: "Fourth of July",                  pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/fourth-of-july/calming-supplements",  label: "Calming Supplements",       pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/fourth-of-july/clothes-accessories",  label: "Clothes & Accessories",     pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/fourth-of-july/collars-leashes-harnesses", label: "Collars, Leashes & Harnesses", pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/fourth-of-july/food-treats",     label: "Food & Treats",                   pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/fourth-of-july/toys",            label: "Toys",                            pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/fresh-finds-under-20",          label: "Fresh Finds Under $20",          pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/get-outside",                    label: "Get Outside",                     pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/low-prices-everyday-essentials", label: "Low Prices Everyday Essentials", pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/mothers-day",                    label: "Mother's Day",                    pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/new-pet-essentials",             label: "New Pet Essentials",              pageType: "collection", changeFrequency: "monthly", priority: 0.5 },
+  { path: "/shop/collections/new",                            label: "New",                             pageType: "collection", changeFrequency: "weekly",  priority: 0.6 },
+  { path: "/shop/collections/new/new-for-cats",               label: "New for Cats",                   pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/new/new-for-dogs",               label: "New for Dogs",                    pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/new/new-for-pet-parents",        label: "New for Pet Parents",              pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/all-about-pawz-picks",          label: "All About Pawz Picks",           pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/pride-for-pets",                 label: "Pride for Pets",                  pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/pride-for-pets/dog-pride",       label: "Dog Pride",                      pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/spring",                          label: "Spring",                          pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/spring/spring-cleaning",         label: "Spring Cleaning",                pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/spring/spring-fashion",          label: "Spring Fashion",                  pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/spring/spring-travel",           label: "Spring Travel",                   pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/st-patricks-day",                label: "St. Patrick's Day",              pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/st-patricks-day/st-patricks-day-cat",     label: "St. Patrick's Day Cat",  pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/st-patricks-day/st-patricks-day-my-human", label: "St. Patrick's Day My Human", pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/summer-adventures",              label: "Summer Adventures",              pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/summer-adventures/hydrating-food-treats",      label: "Hydrating Food & Treats", pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/summer-adventures/summer-clothing-accessories", label: "Summer Clothing & Accessories", pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/summer-adventures/summer-toys",  label: "Summer Toys",                    pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/summer-bbq",                     label: "Summer BBQ",                     pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/trending-now",                   label: "Trending Now",                   pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/valentines-day",                 label: "Valentine's Day",                pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/valentines-day/my-human-valentines-day", label: "My Human Valentine's Day", pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/winter",                         label: "Winter",                         pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/shop/collections/winter/winter-toys-treats",      label: "Winter Toys & Treats",           pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/shop/collections/winter/winter-weather-essentials", label: "Winter Weather Essentials",     pageType: "collection", changeFrequency: "monthly", priority: 0.3 },
+]
+
 // Location pages — the 5 city landings + Shelby County hub. These are money
 // pages for "dog grooming in [city]" — always included, never excluded.
 const LOCATION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
@@ -456,7 +533,11 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
     }
   })
 
-  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...customerEntries, ...frontdeskEntries, ...groomerEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
+  // Convert seller + collection routes
+  const sellerEntries: SitemapEntry[] = SELLER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+
+  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...customerEntries, ...frontdeskEntries, ...groomerEntries, ...sellerEntries, ...collectionEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
   const seen = new Set<string>()
   const deduped = all
     .filter((e) => {
