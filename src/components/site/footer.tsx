@@ -237,7 +237,11 @@ export function SiteFooter() {
         {/* ===== TIER 3: COPYRIGHT + REAL PAYMENT LOGOS + SCROLL TOP =====
               Horizontal dividing line ABOVE this row. */}
         <div className="flex flex-col items-center justify-between gap-6 border-t border-gold/15 py-10 sm:flex-row">
-          <p className="text-sm text-on-dark-muted">© {new Date().getFullYear()} {BUSINESS.legalName}. All rights reserved.</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-on-dark-muted">© {new Date().getFullYear()} {BUSINESS.legalName}. All rights reserved.</p>
+            <span className="text-gold/20">|</span>
+            <Link href="/sitemap" className="text-sm text-on-dark-muted hover:text-gold">Sitemap</Link>
+          </div>
           <div className="flex items-center gap-3">
             <VisaLogo />
             <MastercardLogo />
