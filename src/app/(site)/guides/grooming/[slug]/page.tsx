@@ -142,10 +142,10 @@ export default async function GroomingGuidePage({ params }: Params) {
         <div className="mx-auto max-w-4xl px-6 py-16 lg:px-12 lg:py-20">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
-            <Link href="/" className="hover:text-gold-deep">Home</Link>
-            <span className="text-gold/40">/</span>
-            <Link href="/guides/grooming" className="hover:text-gold-deep">Grooming Guides</Link>
-            <span className="text-gold/40">/</span>
+            <Link href="/" className="hover:text-black">Home</Link>
+            <span className="text-black/40">/</span>
+            <Link href="/guides/grooming" className="hover:text-black">Grooming Guides</Link>
+            <span className="text-black/40">/</span>
             <span className="text-ink">{guide.title}</span>
           </nav>
 
@@ -174,7 +174,7 @@ export default async function GroomingGuidePage({ params }: Params) {
               <p className="text-sm text-ink-soft">
                 This guide is being written. Our Memphis groomers are preparing breed-specific
                 content for {guide.title.toLowerCase()}. Check back soon or{" "}
-                <Link href="/book/appointment" className="font-bold text-gold-deep underline">book a groom</Link>
+                <Link href="/book/appointment" className="font-bold text-black underline">book a groom</Link>
                 {" "}to speak with our groomers directly.
               </p>
             </div>
@@ -198,7 +198,7 @@ export default async function GroomingGuidePage({ params }: Params) {
           {/* Related Products cross-sell — "Shop These Grooming Supplies" */}
           <div className="mt-12 border-t border-gold/15 pt-8">
             <h2 className="flex items-center gap-2 text-xl font-bold text-ink">
-              <ShoppingBag className="h-5 w-5 text-gold-deep" />
+              <ShoppingBag className="h-5 w-5 text-black" />
               Shop These Grooming Supplies
             </h2>
             <p className="mt-2 text-base text-ink-soft">
@@ -218,7 +218,7 @@ export default async function GroomingGuidePage({ params }: Params) {
           {/* Related Articles cross-sell */}
           <div className="mt-12 border-t border-gold/15 pt-8">
             <h2 className="flex items-center gap-2 text-xl font-bold text-ink">
-              <BookOpen className="h-5 w-5 text-gold-deep" />
+              <BookOpen className="h-5 w-5 text-black" />
               Related Grooming Guides
             </h2>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -228,8 +228,8 @@ export default async function GroomingGuidePage({ params }: Params) {
                   href={`/guides/grooming/${rg.slug}`}
                   className="group flex items-center justify-between rounded border border-gold/20 p-4 transition-colors hover:border-gold-deep hover:bg-cream/30"
                 >
-                  <span className="text-sm font-semibold text-ink group-hover:text-gold-deep">{rg.title}</span>
-                  <ArrowRight className="h-4 w-4 text-gold-deep opacity-0 transition-opacity group-hover:opacity-100" />
+                  <span className="text-sm font-semibold text-ink group-hover:text-black">{rg.title}</span>
+                  <ArrowRight className="h-4 w-4 text-black opacity-0 transition-opacity group-hover:opacity-100" />
                 </Link>
               ))}
             </div>
@@ -240,7 +240,7 @@ export default async function GroomingGuidePage({ params }: Params) {
             <h2 className="text-xl font-bold text-ink">Book a Groom at All About Pawz</h2>
             <p className="mt-2 text-base text-ink-soft">
               Our Memphis groomers are breed-specific experts. {BUSINESS.address.street}, {BUSINESS.address.city}, TN.
-              Call <a href={`tel:${BUSINESS.phone}`} className="font-bold text-gold-deep underline">{BUSINESS.phoneDisplay}</a> or book online.
+              Call <a href={`tel:${BUSINESS.phone}`} className="font-bold text-black underline">{BUSINESS.phoneDisplay}</a> or book online.
             </p>
             <Link
               href="/book/appointment"

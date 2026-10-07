@@ -100,7 +100,7 @@ export default function HomePage() {
             {STEPS.map(({ Icon, title, body }, i) => (
               <div key={title} className="flex items-start gap-4">
                 <div className="flex gap-3">
-                  <Icon className="mt-0.5 h-6 w-6 shrink-0 text-gold-deep" strokeWidth={1.2} />
+                  <Icon className="mt-0.5 h-6 w-6 shrink-0 text-black" strokeWidth={1.2} />
                   <div>
                     <h3 className="text-[10px] font-bold tracking-[0.14em] text-ink">{title}</h3>
                     <p className="mt-1 text-[11.5px] leading-[1.6] text-ink-soft">
@@ -108,7 +108,7 @@ export default function HomePage() {
                     </p>
                   </div>
                 </div>
-                {i < STEPS.length - 1 && <span className="mt-2 hidden text-gold-deep xl:block">→</span>}
+                {i < STEPS.length - 1 && <span className="mt-2 hidden text-black xl:block">→</span>}
               </div>
             ))}
           </div>
@@ -122,7 +122,7 @@ export default function HomePage() {
         </div>
         <div className="lg:border-l lg:border-gold/25 lg:pl-8">
           <div className="flex gap-3">
-            <Mail className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" strokeWidth={1.2} />
+            <Mail className="mt-0.5 h-5 w-5 shrink-0 text-black" strokeWidth={1.2} />
             <div>
               <h3 className="text-[10px] font-bold tracking-[0.14em] text-ink">STAY IN THE LOOP</h3>
               <p className="mt-1 text-[11.5px] leading-[1.6] text-ink-soft">Exclusive tips, special offers,<br />and paw-some updates.</p>

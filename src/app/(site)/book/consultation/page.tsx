@@ -22,7 +22,7 @@ export default function ConsultationWizardPage() {
       <section className="marble bg-cream px-8 py-14 lg:px-12">
         <Link
           href="/book"
-          className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[0.14em] text-ink-soft transition-colors hover:text-gold-deep"
+          className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-[0.14em] text-ink-soft transition-colors hover:text-black"
         >
           ← BACK TO BOOKING OPTIONS
         </Link>

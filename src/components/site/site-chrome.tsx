@@ -15,6 +15,7 @@ import { useNavPromoGate, type PromoPlacement } from "./islands/promo-popup"
 import { useCart } from "@/lib/wizard/cart-store"
 import { BUSINESS } from "@/lib/business"
 import { SiteFooter } from "@/components/site/footer"
+import { ShopFlyout } from "@/components/site/shop-flyout"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet"
@@ -60,9 +61,9 @@ function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
       <Link
         href="/shop/bag"
         aria-label={count != null ? `View bag (${count} ${count === 1 ? "item" : "items"})` : "View bag"}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-gold-deep"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-black"
       >
-        <ShoppingBag className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+        <ShoppingBag className="h-4 w-4 text-black" strokeWidth={1.7} aria-hidden="true" />
         {count != null && count > 0 && (
           <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-gold-deep px-1 text-[9px] font-bold leading-none text-cream">
             {count}
@@ -76,10 +77,10 @@ function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
     <Link
       href="/shop/bag"
       aria-label={count != null ? `View bag (${count} ${count === 1 ? "item" : "items"})` : "View bag"}
-      className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-gold-deep"
+      className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-black"
     >
       <span className="relative flex h-7 w-7 items-center justify-center">
-        <ShoppingBag className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+        <ShoppingBag className="h-4 w-4 text-black" strokeWidth={1.7} aria-hidden="true" />
         {count != null && count > 0 && (
           <span className="absolute -right-1 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-gold-deep px-1 text-[8px] font-bold leading-none text-cream">
             {count}
@@ -211,7 +212,7 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
 
   const icon = (
     <span className="relative flex h-7 w-7 items-center justify-center">
-      <User className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+      <User className="h-4 w-4 text-black" strokeWidth={1.7} aria-hidden="true" />
     </span>
   )
 
@@ -221,7 +222,7 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
       <Link
         href="/access-customer"
         aria-label="Sign in to your account"
-        className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-gold-deep"
+        className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-black"
       >
         {icon}
         {variant === "label" ? "SIGN IN" : null}
@@ -235,9 +236,9 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Hi ${firstName} — open your account menu`}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-gold-deep"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-black"
       >
-        <User className="h-4 w-4 text-gold-deep" strokeWidth={1.7} aria-hidden="true" />
+        <User className="h-4 w-4 text-black" strokeWidth={1.7} aria-hidden="true" />
       </button>
     ) : (
       <button
@@ -245,7 +246,7 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
         onClick={() => setOpen(true)}
         aria-label={`Hi ${firstName} — open your account menu`}
         aria-haspopup="dialog"
-        className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-gold-deep"
+        className="flex items-center gap-2 text-[10px] font-bold tracking-[0.16em] text-ink-soft transition-colors hover:text-black"
       >
         {icon}
         {loaded && user ? `HI, ${firstName.toUpperCase()}` : "ACCOUNT"}
@@ -299,9 +300,9 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
                       <Link
                         href={item.href}
                         onClick={() => setOpen(false)}
-                        className="group flex min-h-[40px] items-center gap-3 rounded-md px-2 text-[11.5px] font-semibold text-ink-soft transition-colors hover:bg-white hover:text-gold-deep"
+                        className="group flex min-h-[40px] items-center gap-3 rounded-md px-2 text-[11.5px] font-semibold text-ink-soft transition-colors hover:bg-white hover:text-black"
                       >
-                        <item.icon className="h-4 w-4 shrink-0 text-gold-deep" strokeWidth={1.8} aria-hidden="true" />
+                        <item.icon className="h-4 w-4 shrink-0 text-black" strokeWidth={1.8} aria-hidden="true" />
                         {item.label}
                       </Link>
                     </li>
@@ -324,7 +325,7 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
                 >
                   <BriefcaseBusiness className="h-4 w-4 shrink-0 text-ink-soft" strokeWidth={1.8} aria-hidden="true" />
                   <span className="flex-1">Open staff console</span>
-                  <ChevronRight className="h-4 w-4 text-gold-deep" aria-hidden="true" />
+                  <ChevronRight className="h-4 w-4 text-black" aria-hidden="true" />
                 </Link>
                 <p className="mt-1.5 px-1 text-[10px] leading-snug text-neutral-400">
                   Your salon tools — separate from your pets and appointments.
@@ -338,7 +339,7 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
               type="button"
               onClick={signOut}
               disabled={signingOut}
-              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md border border-ink/15 text-[10.5px] font-bold tracking-[0.14em] text-ink-soft transition-colors hover:border-gold-deep/50 hover:text-gold-deep disabled:opacity-60"
+              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md border border-ink/15 text-[10.5px] font-bold tracking-[0.14em] text-ink-soft transition-colors hover:border-gold-deep/50 hover:text-black disabled:opacity-60"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               {signingOut ? "SIGNING OUT…" : "SIGN OUT"}
@@ -405,25 +406,26 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
 }
 
 function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record<string, string>; pathname: string; gate: ReturnType<typeof useNavPromoGate>["gate"]; open: boolean; onClose: () => void }) {
+  const [shopHovered, setShopHovered] = useState(false)
   const s = settings
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
   return (
     <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       {/* Close button — top right of the sidebar */}
-      <button onClick={onClose} aria-label="Close menu" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-ink-soft hover:text-gold-deep">
+      <button onClick={onClose} aria-label="Close menu" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-ink-soft hover:text-black">
         <X className="h-5 w-5" />
       </button>
       <div className="px-7 pt-8">
         <Link href="/" onClick={onClose} className="block w-full cursor-pointer text-center">
-          <PawGlyph className="mx-auto h-9 w-9 text-gold-deep" />
+          <PawGlyph className="mx-auto h-9 w-9 text-black" />
           <div className="mt-3 font-display text-[15px] tracking-[0.16em] text-ink">ALL ABOUT PAWZ</div>
         </Link>
       </div>
       <div className="mt-6 h-px bg-gold/20" />
       <div className="px-7 pt-5">
         <Link href="/book/appointment" onClick={onClose} className="flex w-full cursor-pointer items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
-          <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
+          <CalendarDays className="h-3.5 w-3.5 text-black" />
           BOOK APPOINTMENT
         </Link>
       </div>
@@ -435,8 +437,14 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
         <ul className="space-y-[9px]">
           {NAV.map((item) => {
             const active = pathname === item.to
+            const isShop = item.label === "SHOP"
             return (
-              <li key={item.to}>
+              <li
+                key={item.to}
+                className={isShop ? "relative" : ""}
+                onMouseEnter={isShop ? () => setShopHovered(true) : undefined}
+                onMouseLeave={isShop ? () => setShopHovered(false) : undefined}
+              >
                 <Link
                   href={item.to}
                   aria-current={active ? "page" : undefined}
@@ -447,13 +455,17 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
                   }}
                   className="group relative flex cursor-pointer items-center gap-3"
                 >
-                  <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-gold-deep"}`}>
+                  <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-black"}`}>
                     {item.n}
                   </span>
-                  <span className={`text-[10.5px] font-bold tracking-[0.13em] transition-colors ${active ? "text-gold-deep" : "text-ink-soft group-hover:text-gold-deep"}`}>
+                  <span className={`text-[10.5px] font-bold tracking-[0.13em] transition-colors ${active ? "text-black" : "text-ink-soft group-hover:text-black"}`}>
                     {item.label}
                   </span>
+                  {isShop && <ChevronRight size={10} className="text-gray-400" />}
                 </Link>
+                {isShop && shopHovered && (
+                  <ShopFlyout onClose={onClose} />
+                )}
               </li>
             )
           })}
@@ -461,15 +473,15 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
       </nav>
       <div className="mt-7 space-y-3.5 px-7 text-[10.5px] leading-[1.55] text-ink-soft">
         <div className="flex gap-2.5">
-          <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-deep" />
+          <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-black" />
           <span>{phone}</span>
         </div>
         <div className="flex gap-2.5">
-          <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-deep" />
+          <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-black" />
           <span>{email}</span>
         </div>
         <div className="flex gap-2.5">
-          <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-deep" />
+          <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-black" />
           <span>
             Tue – Sat {s.hoursTueSat || "9am – 6pm"}<br />
             Sun {s.hoursSun || "10am – 4pm"}<br />
@@ -491,7 +503,7 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
 export function PageHeader({ n, label }: { n: string; label: string }) {
   return (
     <div className="flex items-center gap-3 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
-      <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">{n}</span>
+      <span className="text-[10.5px] font-bold tracking-[0.2em] text-black">{n}</span>
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
       {/* Account + bag — always visible at the top-right of every page */}
       <span className="ml-auto flex items-center gap-5">

@@ -54,7 +54,7 @@ export function Divider() {
   return (
     <div className="flex items-center gap-3">
       <span className="h-px w-24 bg-gold/50" />
-      <PawGlyph className="h-3.5 w-3.5 text-gold-deep" />
+      <PawGlyph className="h-3.5 w-3.5 text-black" />
       <span className="h-px w-24 bg-gold/50" />
     </div>
   );

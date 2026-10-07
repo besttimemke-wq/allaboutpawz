@@ -67,7 +67,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
             height={486}
             className="max-h-[440px] w-auto max-w-full self-end object-contain"
           />
-          <span className="absolute left-0 top-0 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-gold">
+          <span className="absolute left-0 top-0 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-black">
             GROOMER FAVORITE
           </span>
         </div>

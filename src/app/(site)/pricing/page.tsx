@@ -55,7 +55,7 @@ export default function PricingPage() {
             <AddonsGrid />
             {/* Groomer's tip — walk-in nail trims (owner schedule, verbatim). */}
             <div className="mt-10 border-t border-gold/15 pt-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">Groomer&apos;s Tip</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-black">Groomer&apos;s Tip</p>
               <p className="mt-1.5 text-[12px] italic leading-[1.75] text-on-dark-muted">
                 Nails clicking on the floor? Walk into any salon for nail trim services without an appointment!
                 <span className="mt-1 block">*Subject to salon availability*</span>

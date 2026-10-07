@@ -17,11 +17,11 @@ export const metadata = {
 function DepartmentBlock({ dept, animalSlug }: { dept: { slug: string; name: string; subcategories: { slug: string; name: string }[] }; animalSlug: string }) {
   return (
     <div className="mb-8">
-      <Link href={departmentPath(animalSlug, dept.slug)} className="text-base font-bold text-ink hover:text-gold-deep">{dept.name}</Link>
+      <Link href={departmentPath(animalSlug, dept.slug)} className="text-base font-bold text-ink hover:text-black">{dept.name}</Link>
       {dept.subcategories.length > 0 && (
         <ul className="mt-2 space-y-1.5">
           {dept.subcategories.map(sub => (
-            <li key={sub.slug}><Link href={subcategoryPath(animalSlug, dept.slug, sub.slug)} className="text-sm leading-relaxed text-ink-soft hover:text-gold-deep">{sub.name}</Link></li>
+            <li key={sub.slug}><Link href={subcategoryPath(animalSlug, dept.slug, sub.slug)} className="text-sm leading-relaxed text-ink-soft hover:text-black">{sub.name}</Link></li>
           ))}
         </ul>
       )}
@@ -36,7 +36,7 @@ function LinkSection({ heading, links }: { heading: string; links: { label: stri
       <h2 className="text-lg font-bold text-ink">{heading}</h2>
       <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
         {links.map(l => (
-          <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-gold-deep">{l.label}</Link></li>
+          <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>
         ))}
       </ul>
     </section>
@@ -50,7 +50,7 @@ function CollectionSection({ heading, links }: { heading: string; links: { label
       <h2 className="text-lg font-bold text-ink">{heading}</h2>
       <div className="mt-4 grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
         {links.map(l => (
-          <Link key={l.href} href={l.href} className="block py-1 text-sm text-ink-soft hover:text-gold-deep">{l.label}</Link>
+          <Link key={l.href} href={l.href} className="block py-1 text-sm text-ink-soft hover:text-black">{l.label}</Link>
         ))}
       </div>
     </section>
@@ -176,33 +176,33 @@ export default function SitemapPage() {
           <div className="mt-4"><Divider /></div>
           <p className="mt-6 max-w-[460px] text-base leading-[1.85] text-ink-soft">
             The complete map of All About Pawz — the full shop catalog, grooming services, booking, locations, guides, learning academy, collections, seller program, and every policy.
-            Search engines read the machine version at <Link href="/sitemap.xml" className="font-bold text-gold-deep underline hover:text-gold">/sitemap.xml</Link>.
+            Search engines read the machine version at <Link href="/sitemap.xml" className="font-bold text-black underline hover:text-black">/sitemap.xml</Link>.
           </p>
 
           {/* Core site links */}
           <div className="mt-12 grid grid-cols-2 gap-x-10 gap-y-8 sm:grid-cols-4">
             <div>
-              <h2 className="text-sm font-bold tracking-[0.18em] text-gold-deep">SALON</h2>
-              <ul className="mt-3 space-y-2">{salonLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-gold-deep">{l.label}</Link></li>)}</ul>
+              <h2 className="text-sm font-bold tracking-[0.18em] text-black">SALON</h2>
+              <ul className="mt-3 space-y-2">{salonLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>)}</ul>
             </div>
             <div>
-              <h2 className="text-sm font-bold tracking-[0.18em] text-gold-deep">BOOKING</h2>
-              <ul className="mt-3 space-y-2">{bookingLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-gold-deep">{l.label}</Link></li>)}</ul>
+              <h2 className="text-sm font-bold tracking-[0.18em] text-black">BOOKING</h2>
+              <ul className="mt-3 space-y-2">{bookingLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>)}</ul>
             </div>
             <div>
-              <h2 className="text-sm font-bold tracking-[0.18em] text-gold-deep">SERVING</h2>
-              <ul className="mt-3 space-y-2">{locationLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-gold-deep">{l.label}</Link></li>)}</ul>
+              <h2 className="text-sm font-bold tracking-[0.18em] text-black">SERVING</h2>
+              <ul className="mt-3 space-y-2">{locationLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>)}</ul>
             </div>
             <div>
-              <h2 className="text-sm font-bold tracking-[0.18em] text-gold-deep">POLICIES & LEGAL</h2>
-              <ul className="mt-3 space-y-2">{policyLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-gold-deep">{l.label}</Link></li>)}</ul>
+              <h2 className="text-sm font-bold tracking-[0.18em] text-black">POLICIES & LEGAL</h2>
+              <ul className="mt-3 space-y-2">{policyLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>)}</ul>
             </div>
           </div>
 
           {/* Shop taxonomy — Cat Supplies + Dog Supplies (3-column grid) */}
           {SHOP_NAV_TAXONOMY.map(animal => (
             <section key={animal.slug} className="mt-12">
-              <Link href={`/shop/${animal.slug}`} className="font-display text-2xl font-bold text-ink hover:text-gold-deep">{animal.name}</Link>
+              <Link href={`/shop/${animal.slug}`} className="font-display text-2xl font-bold text-ink hover:text-black">{animal.name}</Link>
               <div className="mt-6 grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
                 {animal.departments.map(dept => <DepartmentBlock key={dept.slug} dept={dept} animalSlug={animal.slug} />)}
               </div>

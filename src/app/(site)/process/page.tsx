@@ -54,8 +54,8 @@ export default function ProcessPage() {
           <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
             {PILLARS.map(({ title, body }, i) => (
               <div key={title} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-gold/40 text-[12px] font-bold tracking-[0.08em] text-gold">{String(i + 1).padStart(2, "0")}</span>
-                <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-gold">{title}</h3>
+                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-gold/40 text-[12px] font-bold tracking-[0.08em] text-black">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-black">{title}</h3>
                 <p className="mt-3 whitespace-pre-line text-[12px] leading-[1.7] text-on-dark-muted">{body}</p>
               </div>
             ))}

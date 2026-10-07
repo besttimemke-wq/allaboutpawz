@@ -141,11 +141,11 @@ export default async function GroomingLocationPage({ params }: Params) {
           {/* NAP + booking CTA */}
           <div className="mt-8 flex flex-wrap items-center gap-6 border-y border-gold/20 py-6">
             <div className="flex items-center gap-2 text-[12px] text-ink-soft">
-              <MapPin className="h-4 w-4 text-gold-deep" />
+              <MapPin className="h-4 w-4 text-black" />
               {BUSINESS.address.street}, {BUSINESS.address.city}, {BUSINESS.address.region} {BUSINESS.address.postalCode}
             </div>
-            <a href={`tel:${BUSINESS.phone}`} className="flex items-center gap-2 text-[12px] font-bold text-ink-soft hover:text-gold-deep">
-              <Phone className="h-4 w-4 text-gold-deep" />
+            <a href={`tel:${BUSINESS.phone}`} className="flex items-center gap-2 text-[12px] font-bold text-ink-soft hover:text-black">
+              <Phone className="h-4 w-4 text-black" />
               {BUSINESS.phoneDisplay}
             </a>
             <Link
@@ -161,7 +161,7 @@ export default async function GroomingLocationPage({ params }: Params) {
               Renders as expandable accordion for FAQ rich results. */}
           {faqs.length > 0 && (
             <div className="mt-12">
-              <h2 className="text-[10px] font-bold tracking-[0.22em] text-gold-deep">FAQ — DOG GROOMING IN {cityName.toUpperCase()}</h2>
+              <h2 className="text-[10px] font-bold tracking-[0.22em] text-black">FAQ — DOG GROOMING IN {cityName.toUpperCase()}</h2>
               <div className="mt-6 divide-y divide-gold/15">
                 {faqs.map((faq, i) => (
                   <div key={i} className="py-5">
@@ -175,13 +175,13 @@ export default async function GroomingLocationPage({ params }: Params) {
 
           {/* Services overview — cross-links to /services + /pricing */}
           <div className="mt-12 border-t border-gold/15 pt-8">
-            <h2 className="text-[10px] font-bold tracking-[0.22em] text-gold-deep">OUR GROOMING SERVICES</h2>
+            <h2 className="text-[10px] font-bold tracking-[0.22em] text-black">OUR GROOMING SERVICES</h2>
             <p className="mt-3 text-[13px] leading-[1.7] text-ink-soft">
               We offer breed-specific haircuts, spa baths, nail services, de-shedding treatments,
               and full cat grooming at our Memphis salon. See our{" "}
-              <Link href="/services" className="font-bold text-gold-deep underline hover:text-gold">full service menu</Link>
+              <Link href="/services" className="font-bold text-black underline hover:text-black">full service menu</Link>
               {" "}and{" "}
-              <Link href="/pricing" className="font-bold text-gold-deep underline hover:text-gold">pricing</Link>.
+              <Link href="/pricing" className="font-bold text-black underline hover:text-black">pricing</Link>.
             </p>
           </div>
 
@@ -189,13 +189,13 @@ export default async function GroomingLocationPage({ params }: Params) {
               orphaned. Per spec §8: "A page with no inbound internal link
               is a rendering defect." */}
           <div className="mt-12 border-t border-gold/15 pt-8">
-            <h2 className="text-[10px] font-bold tracking-[0.22em] text-gold-deep">LOCATIONS SERVED</h2>
+            <h2 className="text-[10px] font-bold tracking-[0.22em] text-black">LOCATIONS SERVED</h2>
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
               {siblingCities.map(c => (
                 <Link
                   key={c.slug}
                   href={`/grooming/${c.slug}`}
-                  className="text-[11px] font-semibold tracking-[0.08em] text-ink-soft hover:text-gold-deep"
+                  className="text-[11px] font-semibold tracking-[0.08em] text-ink-soft hover:text-black"
                 >
                   {c.titleShort}
                 </Link>

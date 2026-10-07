@@ -66,8 +66,8 @@ export default function BookPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {BOOKING_STEPS.map((s) => (
               <div key={s.n} className="border border-gold/25 px-5 py-5">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-gold/40 text-[10.5px] font-bold tracking-[0.08em] text-gold">{s.n}</span>
-                <h3 className="mt-3 text-[11px] font-bold tracking-[0.15em] text-gold">{s.title}</h3>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-gold/40 text-[10.5px] font-bold tracking-[0.08em] text-black">{s.n}</span>
+                <h3 className="mt-3 text-[11px] font-bold tracking-[0.15em] text-black">{s.title}</h3>
                 <p className="mt-2 text-[11.5px] leading-[1.65] text-on-dark-muted">{s.body}</p>
               </div>
             ))}
@@ -108,8 +108,8 @@ export default function BookPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {CONSULT_STEPS.map((s) => (
               <div key={s.n} className="border border-gold/25 px-5 py-5">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-gold/40 text-[10.5px] font-bold tracking-[0.08em] text-gold">{s.n}</span>
-                <h3 className="mt-3 text-[11px] font-bold tracking-[0.15em] text-gold">{s.title}</h3>
+                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-gold/40 text-[10.5px] font-bold tracking-[0.08em] text-black">{s.n}</span>
+                <h3 className="mt-3 text-[11px] font-bold tracking-[0.15em] text-black">{s.title}</h3>
                 <p className="mt-2 text-[11.5px] leading-[1.65] text-on-dark-muted">{s.body}</p>
               </div>
             ))}

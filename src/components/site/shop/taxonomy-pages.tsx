@@ -55,10 +55,10 @@ export function AnimalLandingPage({ animal }: { animal: ShopNavAnimal }) {
       <section className="border-b border-gold/15 px-6 py-12 lg:px-12 lg:py-16">
         <div className="mx-auto max-w-7xl">
           <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
-            <Link href="/" className="hover:text-gold-deep">Home</Link>
-            <span className="text-gold/40">/</span>
-            <Link href="/shop" className="hover:text-gold-deep">Shop</Link>
-            <span className="text-gold/40">/</span>
+            <Link href="/" className="hover:text-black">Home</Link>
+            <span className="text-black/40">/</span>
+            <Link href="/shop" className="hover:text-black">Shop</Link>
+            <span className="text-black/40">/</span>
             <span className="text-ink">{animal.name}</span>
           </nav>
           <h1 className="mt-4 font-display text-[36px] leading-[1.15] text-ink lg:text-[48px]">
@@ -83,13 +83,13 @@ export function AnimalLandingPage({ animal }: { animal: ShopNavAnimal }) {
                 href={departmentPath(animal.slug, dept.slug)}
                 className="group rounded-lg border border-gold/20 p-5 transition-colors hover:border-gold-deep hover:bg-cream/30"
               >
-                <h3 className="text-base font-bold text-ink group-hover:text-gold-deep">{dept.name}</h3>
+                <h3 className="text-base font-bold text-ink group-hover:text-black">{dept.name}</h3>
                 <p className="mt-1 text-sm text-ink-soft">
                   {dept.subcategories.length > 0
                     ? `${dept.subcategories.length} categories`
                     : "Browse all"}
                 </p>
-                <ArrowRight className="mt-3 h-4 w-4 text-gold-deep opacity-0 transition-opacity group-hover:opacity-100" />
+                <ArrowRight className="mt-3 h-4 w-4 text-black opacity-0 transition-opacity group-hover:opacity-100" />
               </Link>
             ))}
           </div>
@@ -153,12 +153,12 @@ export function DepartmentPage({
       <section className="border-b border-gold/15 px-6 py-10 lg:px-12 lg:py-14">
         <div className="mx-auto max-w-7xl">
           <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
-            <Link href="/" className="hover:text-gold-deep">Home</Link>
-            <span className="text-gold/40">/</span>
-            <Link href="/shop" className="hover:text-gold-deep">Shop</Link>
-            <span className="text-gold/40">/</span>
-            <Link href={`/shop/${animal.slug}`} className="hover:text-gold-deep">{animal.name}</Link>
-            <span className="text-gold/40">/</span>
+            <Link href="/" className="hover:text-black">Home</Link>
+            <span className="text-black/40">/</span>
+            <Link href="/shop" className="hover:text-black">Shop</Link>
+            <span className="text-black/40">/</span>
+            <Link href={`/shop/${animal.slug}`} className="hover:text-black">{animal.name}</Link>
+            <span className="text-black/40">/</span>
             <span className="text-ink">{dept.name}</span>
           </nav>
           <h1 className="mt-4 font-display text-[32px] leading-[1.15] text-ink lg:text-[42px]">
@@ -183,8 +183,8 @@ export function DepartmentPage({
                   href={subcategoryPath(animal.slug, dept.slug, sub.slug)}
                   className="group rounded-lg border border-gold/20 p-4 transition-colors hover:border-gold-deep hover:bg-cream/30"
                 >
-                  <h3 className="text-base font-semibold text-ink group-hover:text-gold-deep">{sub.name}</h3>
-                  <ArrowRight className="mt-2 h-4 w-4 text-gold-deep opacity-0 transition-opacity group-hover:opacity-100" />
+                  <h3 className="text-base font-semibold text-ink group-hover:text-black">{sub.name}</h3>
+                  <ArrowRight className="mt-2 h-4 w-4 text-black opacity-0 transition-opacity group-hover:opacity-100" />
                 </Link>
               ))}
             </div>
@@ -196,7 +196,7 @@ export function DepartmentPage({
       <section className="border-t border-gold/15 px-6 py-10 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <h2 className="flex items-center gap-2 text-lg font-bold text-ink">
-            <ShoppingBag className="h-5 w-5 text-gold-deep" />
+            <ShoppingBag className="h-5 w-5 text-black" />
             Products
           </h2>
           <p className="mt-2 text-sm text-ink-soft">

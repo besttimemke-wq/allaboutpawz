@@ -152,14 +152,14 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
           <section className="bg-white px-8 py-10 lg:px-12">
             <div className="mx-auto max-w-7xl">
               <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
-                <a href="/" className="hover:text-gold-deep">Home</a>
-                <span className="text-gold/40">/</span>
-                <a href="/shop" className="hover:text-gold-deep">Shop</a>
-                <span className="text-gold/40">/</span>
-                <a href={`/shop/${taxonomy.animal.slug}`} className="hover:text-gold-deep">{taxonomy.animal.name}</a>
-                <span className="text-gold/40">/</span>
-                <a href={departmentPath(taxonomy.animal.slug, taxonomy.dept.slug)} className="hover:text-gold-deep">{taxonomy.dept.name}</a>
-                <span className="text-gold/40">/</span>
+                <a href="/" className="hover:text-black">Home</a>
+                <span className="text-black/40">/</span>
+                <a href="/shop" className="hover:text-black">Shop</a>
+                <span className="text-black/40">/</span>
+                <a href={`/shop/${taxonomy.animal.slug}`} className="hover:text-black">{taxonomy.animal.name}</a>
+                <span className="text-black/40">/</span>
+                <a href={departmentPath(taxonomy.animal.slug, taxonomy.dept.slug)} className="hover:text-black">{taxonomy.dept.name}</a>
+                <span className="text-black/40">/</span>
                 <span className="text-ink">{subName}</span>
               </nav>
               <h1 className="mt-4 font-display text-[32px] leading-[1.15] text-ink lg:text-[42px]">{subName} in Memphis, TN</h1>

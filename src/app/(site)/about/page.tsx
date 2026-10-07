@@ -51,8 +51,8 @@ export default function AboutPage() {
           <div className="grid grid-cols-2 gap-y-10 lg:grid-cols-4">
             {VALUES.map(({ title, body }, i) => (
               <div key={title} className={`px-6 text-center ${i > 0 ? "lg:border-l lg:border-gold/25" : ""}`}>
-                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-gold/40 text-[12px] font-bold tracking-[0.08em] text-gold">{String(i + 1).padStart(2, "0")}</span>
-                <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-gold">{title}</h3>
+                <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-gold/40 text-[12px] font-bold tracking-[0.08em] text-black">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-4 text-[11.5px] font-bold tracking-[0.15em] text-black">{title}</h3>
                 <p className="mt-3 whitespace-pre-line text-[12px] leading-[1.7] text-on-dark-muted">{body}</p>
               </div>
             ))}
@@ -67,7 +67,7 @@ export default function AboutPage() {
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/80 via-ink/45 to-transparent px-8 pb-7 pt-16 lg:px-10">
             {/* Real h2 — the .script utility carries the font/color, so the
                 rendering is identical. */}
-            <h2 className="script text-[24px] text-gold-light">A message from our founder</h2>
+            <h2 className="script text-[24px] text-black-light">A message from our founder</h2>
             <p className="mt-2 max-w-[440px] text-[12.5px] leading-[1.8] text-on-dark">
               At All About Pawz, we provide exceptional grooming in a safe, loving environment. Every pup is treated like our own, and every pet parent is welcomed like family.
             </p>
@@ -75,7 +75,7 @@ export default function AboutPage() {
           </div>
         </div>
         <div className="flex flex-col justify-center px-8 py-12 lg:px-12">
-          <PawGlyph className="h-6 w-6 text-gold-deep" />
+          <PawGlyph className="h-6 w-6 text-black" />
           <h2 className="mt-4 font-display text-[22px] text-ink">Our Mission</h2>
           <p className="mt-3 max-w-[320px] text-[12.5px] leading-[1.85] text-ink-soft">To elevate the grooming experience through thoughtful care, exceptional service, and a calm, luxurious environment.</p>
           <h2 className="mt-9 font-display text-[22px] text-ink">Our Promise</h2>
