@@ -12,6 +12,7 @@ import {
   ProductRail,
   TrustStrip,
 } from "@/components/site/shop/shared"
+import { AnimalLandingPage, DepartmentPage, resolveTaxonomyPage } from "@/components/site/shop/taxonomy-pages"
 import {
   getProducts,
   resolveCategory,
@@ -19,6 +20,7 @@ import {
   MERCH_META,
   type MerchKey,
 } from "@/lib/shop/catalog"
+import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { SITE_URL } from "@/lib/site-url"
 
 // ---------------------------------------------------------------------------
@@ -44,6 +46,36 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
+
+  // ---- New taxonomy resolution (animal landing + department pages) ----
+  const taxonomy = resolveTaxonomyPage(slug || [])
+  if (taxonomy) {
+    if (taxonomy.type === "animal" && taxonomy.animal) {
+      const a = taxonomy.animal
+      return {
+        title: `${a.name} in Memphis, TN | All About Pawz`,
+        description: `Shop ${a.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon. ${a.tagline}.`,
+        alternates: { canonical: `${SITE_URL}/shop/${a.slug}` },
+      }
+    }
+    if (taxonomy.type === "department" && taxonomy.animal && taxonomy.dept) {
+      const animalName = taxonomy.animal.name.replace(" Supplies", "")
+      return {
+        title: `${taxonomy.dept.name} for ${animalName}s in Memphis, TN | All About Pawz`,
+        description: `Shop ${taxonomy.dept.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop. Browse categories and visit us at 699 Waring Rd.`,
+        alternates: { canonical: `${SITE_URL}${departmentPath(taxonomy.animal.slug, taxonomy.dept.slug)}` },
+      }
+    }
+    if (taxonomy.type === "subcategory" && taxonomy.animal && taxonomy.dept && taxonomy.subSlug) {
+      return {
+        title: `${taxonomy.subSlug} for ${taxonomy.animal.name.replace(" Supplies", "")}s | All About Pawz Memphis`,
+        description: `Shop ${taxonomy.subSlug.replace(/-/g, " ")} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.`,
+        alternates: { canonical: `${SITE_URL}${subcategoryPath(taxonomy.animal.slug, taxonomy.dept.slug, taxonomy.subSlug)}` },
+      }
+    }
+  }
+
+  // ---- Merchandising collections (legacy) ----
   const merch = merchKey(slug[0])
   if (merch) {
     return {
@@ -95,6 +127,71 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const sp = await searchParams
 
   if (segments.length === 0) notFound()
+
+  // ---- New taxonomy resolution (animal landing + department pages) ----
+  // Resolves against SHOP_NAV_TAXONOMY from shop-nav.ts. If the URL
+  // segments match the new cat/dog taxonomy tree, render the new template.
+  // This fixes the 404s for /shop/cat, /shop/dog/food, /shop/cat/beds-bedding, etc.
+  const taxonomy = resolveTaxonomyPage(segments)
+  if (taxonomy) {
+    if (taxonomy.type === "animal" && taxonomy.animal) {
+      return <AnimalLandingPage animal={taxonomy.animal} />
+    }
+    if (taxonomy.type === "department" && taxonomy.animal && taxonomy.dept) {
+      return <DepartmentPage animal={taxonomy.animal} dept={taxonomy.dept} />
+    }
+    // Subcategory pages: render a basic template with subcategory info.
+    // Wave 2 will add product grids + filters for these.
+    if (taxonomy.type === "subcategory" && taxonomy.animal && taxonomy.dept && taxonomy.subSlug) {
+      const sub = taxonomy.dept.subcategories.find(s => s.slug === taxonomy.subSlug)
+      const subName = sub?.name || taxonomy.subSlug.replace(/-/g, " ")
+      return (
+        <>
+          <PageHeader n="06" label="SHOP" />
+          <ShopNavBar />
+          <section className="bg-white px-8 py-10 lg:px-12">
+            <div className="mx-auto max-w-7xl">
+              <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
+                <a href="/" className="hover:text-gold-deep">Home</a>
+                <span className="text-gold/40">/</span>
+                <a href="/shop" className="hover:text-gold-deep">Shop</a>
+                <span className="text-gold/40">/</span>
+                <a href={`/shop/${taxonomy.animal.slug}`} className="hover:text-gold-deep">{taxonomy.animal.name}</a>
+                <span className="text-gold/40">/</span>
+                <a href={departmentPath(taxonomy.animal.slug, taxonomy.dept.slug)} className="hover:text-gold-deep">{taxonomy.dept.name}</a>
+                <span className="text-gold/40">/</span>
+                <span className="text-ink">{subName}</span>
+              </nav>
+              <h1 className="mt-4 font-display text-[32px] leading-[1.15] text-ink lg:text-[42px]">{subName} in Memphis, TN</h1>
+              <p className="mt-3 text-base leading-[1.7] text-ink-soft">
+                Shop {subName.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.
+                Visit us at 699 Waring Rd, Memphis, TN 38122 or call (901) 722-1114.
+              </p>
+            </div>
+          </section>
+          {/* Product grid placeholder — products linked to this subcategory will appear here */}
+          <section className="border-t border-gold/15 bg-white px-8 py-10 lg:px-12">
+            <div className="mx-auto max-w-7xl">
+              <h2 className="text-lg font-bold text-ink">Products</h2>
+              <p className="mt-2 text-sm text-ink-soft">
+                Products for {subName.toLowerCase()} are being added. Visit our Memphis salon or check back soon.
+              </p>
+            </div>
+          </section>
+          {/* Grooming cross-sell */}
+          <section className="border-t border-gold/15 bg-cream/20 px-8 py-10 lg:px-12">
+            <div className="mx-auto max-w-7xl text-center">
+              <h2 className="text-lg font-bold text-ink">Full-Service Grooming in Memphis</h2>
+              <p className="mt-1 text-sm text-ink-soft">All About Pawz does both — shop supplies or book a professional groom.</p>
+              <a href="/book/appointment" className="mt-4 inline-flex items-center gap-2 rounded bg-gold-deep px-5 py-3 text-sm font-bold text-cream hover:bg-gold">Book a Groom →</a>
+            </div>
+          </section>
+        </>
+      )
+    }
+  }
+
+  // ---- Merchandising collections (legacy) ----
 
   // ---- Merchandising collections ----
   const merch = merchKey(segments[0])
