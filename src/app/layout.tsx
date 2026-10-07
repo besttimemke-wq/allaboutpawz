@@ -8,6 +8,7 @@ import { GoogleAnalytics } from "@/components/consent/GoogleAnalytics";
 import { PostHogProvider } from "./providers";
 import { Clarity } from "@/components/analytics/Clarity";
 import { SITE_URL } from "@/lib/site-url";
+import { localBusinessSchema, BUSINESS } from "@/lib/business";
 
 // ---------------------------------------------------------------------------
 // Google tags — installed exactly where Google's install snippets demand:
@@ -25,24 +26,33 @@ import { SITE_URL } from "@/lib/site-url";
 const GA4_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID || "G-7EVNS33CKD";
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || "GTM-WT35373V";
 
-// Organization + WebSite structured data (server-rendered JSON-LD).
+// Organization + WebSite + LocalBusiness structured data (server-rendered
+// JSON-LD on every page). The LocalBusiness blob carries the full NAP
+// (name/address/phone), areaServed across Shelby County, opening hours,
+// and sameAs links to social profiles — the foundation for local SEO
+// entity recognition. Generated in /lib/business.ts so the footer, the
+// top local bar, and external citations all use IDENTICAL wording.
 const SITE_JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
     {
       "@type": "Organization",
       "@id": `${SITE_URL}/#organization`,
-      name: "All About Pawz",
+      name: BUSINESS.name,
+      legalName: BUSINESS.legalName,
       url: SITE_URL,
       logo: `${SITE_URL}/assets/paw.png`,
+      slogan: BUSINESS.tagline,
+      sameAs: BUSINESS.sameAs,
     },
     {
       "@type": "WebSite",
       "@id": `${SITE_URL}/#website`,
-      name: "All About Pawz",
+      name: BUSINESS.name,
       url: SITE_URL,
       publisher: { "@id": `${SITE_URL}/#organization` },
     },
+    localBusinessSchema(),
   ],
 };
 

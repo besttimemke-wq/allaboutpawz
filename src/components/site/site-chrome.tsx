@@ -13,6 +13,7 @@ import { PawGlyph } from "./brand"
 import { NAV } from "./nav"
 import { useNavPromoGate, type PromoPlacement } from "./islands/promo-popup"
 import { useCart } from "@/lib/wizard/cart-store"
+import { BUSINESS, LOCAL_BAR } from "@/lib/business"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet"
@@ -374,6 +375,10 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   const s = { ...(fetched || initialSettings || {}) }
   return (
     <div className="min-h-screen bg-cream">
+      {/* Buy Local MidSouth top bar — first thing on every page, above the
+          sidebar. Local SEO citation anchor + local-ranking signal. Never
+          rotates away (per owner spec). */}
+      <LocalBar />
       <Sidebar settings={s} pathname={pathname} gate={gate} />
       {/* Mobile bar — logo left, bag + menu right (sticky, top of every page) */}
       <div className="sticky top-0 z-50 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3 lg:hidden">
@@ -534,19 +539,53 @@ export function TopUtilityBar() {
   )
 }
 
+// ---------------------------------------------------------------------------
+// LocalBar — the "Buy Local MidSouth" top strip on every page. Per owner
+// spec: left side reads "Proudly Local — Memphis, TN," right side lists
+// "Serving Shelby County: Memphis • Bartlett • Arlington • Collierville •
+// Millington." Never rotates away. Sits ABOVE the sidebar visually so it's
+// the first thing on every page (and the first thing crawlers see). The
+// local badge is a local-ranking signal + citation-consistency anchor.
+// ---------------------------------------------------------------------------
+export function LocalBar() {
+  return (
+    <div className="border-b border-gold/30 bg-ink text-cream">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-1 px-4 py-1.5 text-[10px] font-semibold tracking-[0.14em] sm:flex-row sm:gap-4 sm:px-6 lg:ml-[232px] lg:px-10">
+        <span className="flex items-center gap-2 text-gold">
+          <PawGlyph className="h-3 w-3" />
+          {LOCAL_BAR.left}
+        </span>
+        <span className="text-center text-on-dark-muted">
+          {LOCAL_BAR.right}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function SiteFooter({ settings }: { settings: Record<string, string> }) {
   const links: [string, string][] = [
     ["HOME", "/"], ["ABOUT US", "/about"], ["SERVICES", "/services"],
     ["PRICING", "/pricing"], ["SHOP", "/shop"], ["GALLERY", "/gallery"],
     ["BOOK", "/book"], ["CONTACT", "/contact"],
   ]
+  // Full NAP — Name / Address / Phone — identical wording on every page
+  // (local SEO citation consistency starts at home). Links to the city
+  // landing pages so internal linking flows down to the location pages
+  // that have to rank for "dog grooming in [city]".
+  const cityLinks: [string, string][] = [
+    ["Memphis", "/grooming/memphis-tn"],
+    ["Bartlett", "/grooming/bartlett-tn"],
+    ["Arlington", "/grooming/arlington-tn"],
+    ["Collierville", "/grooming/collierville-tn"],
+    ["Millington", "/grooming/millington-tn"],
+    ["Shelby County", "/grooming/shelby-county-tn"],
+  ]
   return (
     // lg:ml-[232px] — the footer band starts right of the fixed left rail,
     // so the rail never paints over the footer (it used to run overboard
     // into the footer's left edge on every long page).
     <footer className="bg-ink px-8 py-8 lg:ml-[232px] lg:px-12">
-      {/* Logo sits to the LEFT of the nav row — the footer stays one thin
-          band; the legal row runs below it under a hairline. */}
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-col items-center gap-7 lg:flex-row lg:items-center lg:justify-between">
           <img src="/brand/footer-logo.png" alt="All About Pawz" width={1021} height={729} className="h-12 w-auto lg:h-14" />
@@ -558,8 +597,42 @@ function SiteFooter({ settings }: { settings: Record<string, string> }) {
             ))}
           </nav>
         </div>
+        {/* NAP block — identical on every page. Local SEO citation
+            consistency + a map pack signal. */}
+        <div className="mt-7 border-t border-gold/15 pt-5">
+          <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="text-center text-[11px] leading-relaxed text-on-dark-muted lg:text-left">
+              <p className="font-bold tracking-[0.14em] text-cream">{BUSINESS.name}</p>
+              <p className="mt-1">{BUSINESS.tagline}</p>
+              <p className="mt-2">
+                {BUSINESS.address.street}<br />
+                {BUSINESS.address.city}, {BUSINESS.address.region} {BUSINESS.address.postalCode}
+              </p>
+              <p className="mt-2">
+                <a href={`tel:${BUSINESS.phone}`} className="text-gold hover:underline">{BUSINESS.phoneDisplay}</a>
+                {" • "}
+                <a href={`mailto:${BUSINESS.email}`} className="text-gold hover:underline">{BUSINESS.email}</a>
+              </p>
+            </div>
+            {/* City landing links — internal linking down to the location
+                pages. Drives the "every page we can get" doctrine + keeps
+                the location pages from being orphaned. */}
+            <nav aria-label="Locations served" className="text-center lg:text-right">
+              <p className="mb-2 text-[9px] font-bold tracking-[0.18em] text-gold/80">LOCATIONS SERVED</p>
+              <ul className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 lg:justify-end">
+                {cityLinks.map(([label, to]) => (
+                  <li key={to}>
+                    <Link href={to} className="text-[10px] font-semibold tracking-[0.12em] text-on-dark-muted hover:text-gold">
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+        </div>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 border-t border-gold/15 pt-5 text-[10.5px] text-on-dark-muted">
-          <p>{settings.footerNote || "© 2024 All About Pawz LLC. All rights reserved."}</p>
+          <p>{settings.footerNote || `© ${new Date().getFullYear()} ${BUSINESS.legalName}. All rights reserved.`}</p>
           <Link href="/policies/privacy-policy" className="text-gold hover:underline">Privacy Policy</Link>
           {/* Re-opens the Consent Management Center anytime (GDPR/CCPA: the
               visitor must be able to change their cookie choice as easily as
