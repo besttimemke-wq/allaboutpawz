@@ -405,7 +405,7 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
   return (
-    <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-visible border-r border-gold/25 bg-cream transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+    <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       {/* Close button — top right of the sidebar */}
       <button onClick={onClose} aria-label="Close menu" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-ink-soft hover:text-black">
         <X className="h-5 w-5" />
@@ -433,29 +433,39 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
                 onMouseEnter={isShop ? () => setShopHovered(true) : undefined}
                 onMouseLeave={isShop ? () => setShopHovered(false) : undefined}
               >
-                <Link
-                  href={item.to}
-                  aria-current={active ? "page" : undefined}
-                  onClick={(e) => {
-                    if (isShop) {
-                      e.preventDefault()
-                      setShopHovered(h => !h)
-                      return
-                    }
-                    onClose()
-                    const placement = NAV_PROMO_PLACEMENTS[item.label]
-                    if (placement) gate(placement, e, item.to)
-                  }}
-                  className="group relative flex cursor-pointer items-center gap-3"
-                >
-                  <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-black"}`}>
-                    {item.n}
-                  </span>
-                  <span className={`text-[10.5px] font-bold tracking-[0.13em] transition-colors ${active ? "text-black" : "text-ink-soft group-hover:text-black"}`}>
-                    {item.label}
-                  </span>
-                  {isShop && <ChevronRight size={10} className="text-ink-soft" />}
-                </Link>
+                {isShop ? (
+                  <button
+                    type="button"
+                    onClick={() => setShopHovered(h => !h)}
+                    className="group relative flex w-full cursor-pointer items-center gap-3"
+                  >
+                    <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-black"}`}>
+                      {item.n}
+                    </span>
+                    <span className={`text-[10.5px] font-bold tracking-[0.13em] transition-colors ${active ? "text-black" : "text-ink-soft group-hover:text-black"}`}>
+                      {item.label}
+                    </span>
+                    <ChevronRight size={10} className="text-ink-soft" />
+                  </button>
+                ) : (
+                  <Link
+                    href={item.to}
+                    aria-current={active ? "page" : undefined}
+                    onClick={(e) => {
+                      onClose()
+                      const placement = NAV_PROMO_PLACEMENTS[item.label]
+                      if (placement) gate(placement, e, item.to)
+                    }}
+                    className="group relative flex cursor-pointer items-center gap-3"
+                  >
+                    <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-black"}`}>
+                      {item.n}
+                    </span>
+                    <span className={`text-[10.5px] font-bold tracking-[0.13em] transition-colors ${active ? "text-black" : "text-ink-soft group-hover:text-black"}`}>
+                      {item.label}
+                    </span>
+                  </Link>
+                )}
                 {isShop && shopHovered && (
                   <ShopFlyout onClose={onClose} />
                 )}
