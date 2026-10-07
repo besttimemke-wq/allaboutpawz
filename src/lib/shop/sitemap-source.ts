@@ -139,13 +139,6 @@ const CUSTOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
 // Seller routes (to be renamed to /seller)
 
 // Groomer portal routes
-const GROOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
-  { path: "/groomer/dashboard",           label: "Groomer Dashboard",      pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/groomer/appointments",        label: "Groomer Appointments",  pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/groomer/grooming-records",    label: "Grooming Records",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/groomer/pets",                label: "Groomer Pets",           pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/groomer/schedule",             label: "Groomer Schedule",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-]
 
 // Seller routes (per seller platform spec — /seller → /seller)
 const SELLER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
@@ -506,4 +499,66 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
   // Merge + dedupe by path + exclude known redirects.
   // Convert all route arrays to full SitemapEntry with loc + lastModified
   const learnEntries: SitemapEntry[] = LEARN_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  const customerEntries: SitemapEntry[] = CUSTOMER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  // Convert seller + collection routes
+  const sellerEntries: SitemapEntry[] = SELLER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  // Guide routes — 58 grooming guides from guides-data.ts
+  const guideEntries: SitemapEntry[] = getAllGroomingSlugs().map(({ slug }) => {
+    const guide = findGroomingGuide(slug)
+    return {
+      loc: `${BASE}/guides/grooming/${slug}`,
+      path: `/guides/grooming/${slug}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+      pageType: "guide",
+      label: guide?.title || slug.replace(/-/g, " "),
+    }
+  })
+
+  // Merge + dedupe by path + exclude known redirects.
+  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...sellerEntries, ...collectionEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
+  const seen = new Set<string>()
+  const deduped = all
+    .filter((e) => {
+      if (KNOWN_REDIRECT_PATHS.has(e.path)) return false
+      if (seen.has(e.path)) return false
+      seen.add(e.path)
+      return true
+    })
+    .sort((a, b) => {
+      if (b.priority !== a.priority) return b.priority - a.priority
+      return a.path.localeCompare(b.path)
+    })
+
+  return deduped
+}
+
+// Convenience — for the HTML sitemap page, group entries by section.
+export async function buildSitemapSections() {
+  const entries = await buildSitemap()
+  return {
+    salon: entries.filter((e) =>
+      ["home", "about", "services", "static"].includes(e.pageType) &&
+      !e.path.startsWith("/book") &&
+      !e.path.startsWith("/shop") &&
+      !e.path.startsWith("/grooming") &&
+      !e.path.startsWith("/policies") &&
+      !e.path.startsWith("/guides") &&
+      !e.path.startsWith("/learn") &&
+      !e.path.startsWith("/seller")
+    ),
+    booking: entries.filter((e) => e.path.startsWith("/book")),
+    boutique: entries.filter((e) =>
+      e.path.startsWith("/shop") || ["shop-landing", "animal", "department", "category", "subcategory", "brand", "related-search", "collection"].includes(e.pageType)
+    ),
+    products: entries.filter((e) => e.pageType === "product"),
+    serving: entries.filter((e) => e.pageType === "location"),
+    policies: entries.filter((e) => e.pageType === "policy"),
+    guides: entries.filter((e) => e.pageType === "guide"),
+    learn: entries.filter((e) => e.pageType === "learn" || e.pageType === "course"),
+    seller: entries.filter((e) => e.path.startsWith("/seller")),
+    auth: entries.filter((e) => e.pageType === "auth" || e.pageType === "utility"),
+    total: entries.length,
+  }
+}

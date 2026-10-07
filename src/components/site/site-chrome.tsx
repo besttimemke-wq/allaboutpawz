@@ -375,28 +375,21 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   }, [])
   const s = { ...(fetched || initialSettings || {}) }
   return (
-    <div className="min-h-screen bg-cream">
-      {/* Top strip slot — RESERVED for a future CMS-driven promo strip
-          (promo headline + code + CTA, fed by the promo engine). The
-          local-pride bar was removed per owner directive — the Buy Local
-          signal lives ONLY in the footer NAP block. Do NOT render a
-          local-pride strip here. */}
-      {/* Hamburger sidebar — slides in from left on ALL screen sizes.
-          No backdrop overlay (Petco pattern — page stays interactive
-          when sidebar is open). Sidebar sits on top with a shadow. */}
+    <div className="min-h-screen bg-white">
+      {/* Hamburger sidebar — slides in from left on ALL screen sizes. */}
 
       <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => setOpen(false)} />
-      {/* Header bar — logo left, bag + account + hamburger right.
-          Visible on ALL screen sizes (was lg:hidden — now always visible
-          since the sidebar is no longer permanently fixed on desktop). */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3">
+      {/* ONE tan header bar — All About Pawz + login + cart. Per spec D:
+          one bar only, no second bar, no local-pride strip. Everything else
+          on every page is white. */}
+      <div className="sticky top-0 z-30 flex items-center justify-between bg-[#E8D5B7] px-4 py-3 lg:px-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded border border-gold/25 text-ink hover:border-gold-deep hover:text-gold-deep">
+          <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-black hover:bg-black/10">
             <Menu className="h-5 w-5" />
           </button>
           <Link href="/" className="flex items-center gap-2">
-            <PawGlyph className="h-5 w-5 text-gold-deep" />
-            <span className="font-display text-[13px] tracking-[0.14em] text-ink">ALL ABOUT PAWZ</span>
+            <PawGlyph className="h-5 w-5 text-black" />
+            <span className="font-display text-sm font-bold tracking-[0.14em] text-black">ALL ABOUT PAWZ</span>
           </Link>
         </div>
         <div className="flex items-center gap-3">
@@ -404,40 +397,8 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           <HeaderBagLink variant="icon" />
         </div>
       </div>
-      {open && (
-        <nav className="border-b border-gold/25 bg-cream px-6 py-4 lg:hidden">
-          <ul className="space-y-2">
-            {NAV.map((i) => (
-              <li key={i.to}>
-                <Link
-                  href={i.to}
-                  onClick={(e) => {
-                    setOpen(false)
-                    const placement = NAV_PROMO_PLACEMENTS[i.label]
-                    if (placement) gate(placement, e, i.to)
-                  }}
-                  className="flex items-center gap-3 text-[11px] font-bold tracking-[0.13em] text-ink-soft"
-                >
-                  <span className="text-gold-deep">{i.n}</span>
-                  {i.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <Link
-            href="/book/appointment"
-            onClick={() => setOpen(false)}
-            className="mt-4 flex w-full items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink"
-          >
-            <CalendarDays className="h-3.5 w-3.5 text-gold-deep" />
-            BOOK APPOINTMENT
-          </Link>
-        </nav>
-      )}
       <main>{children}</main>
       {dialog}
-      {/* Enterprise footer — 7 columns + NAP block. Data-driven from
-          src/lib/footer-nav.ts. Renders on every page via SiteChrome. */}
       <SiteFooter />
     </div>
   )
