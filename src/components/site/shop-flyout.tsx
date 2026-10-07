@@ -27,7 +27,7 @@ export function ShopFlyout({ onClose }: { onClose: () => void }) {
   return (
     <div
       ref={ref}
-      className="fixed left-[232px] top-0 z-[60] flex h-screen w-[calc(100vw-232px)] bg-cream shadow-2xl"
+      className="absolute left-full top-0 z-[60] flex h-screen w-[calc(100vw-232px)] bg-cream shadow-2xl"
     >
       {/* Close button */}
       <button onClick={onClose} aria-label="Close flyout" className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center text-ink-soft hover:text-ink">

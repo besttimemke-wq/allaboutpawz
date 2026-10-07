@@ -405,7 +405,7 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
   return (
-    <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+    <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-visible border-r border-gold/25 bg-cream ${open ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300`}>
       {/* Close button — top right of the sidebar */}
       <button onClick={onClose} aria-label="Close menu" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-ink-soft hover:text-black">
         <X className="h-5 w-5" />
