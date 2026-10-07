@@ -79,7 +79,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
           {/* Image side */}
           <div className="md:col-span-2 aspect-[4/3] md:aspect-auto bg-neutral-100 overflow-hidden">
             <img
-              src="/Shop/heroes/dog-food.jpeg"
+              src="/Shop/departments/dog-food.jpeg"
               alt="All About Pawz shop sale"
               className="h-full w-full object-cover"
             />

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ChevronRight, ArrowRight, Search } from "lucide-react"
+import { ChevronRight, ArrowRight } from "lucide-react"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath, type ShopNavAnimal, type ShopNavDepartment } from "@/lib/shop-nav"
 import { BUSINESS } from "@/lib/business"
 import { SITE_URL } from "@/lib/site-url"
@@ -85,7 +85,38 @@ function PromoBanner({
   )
 }
 
-// --- Shared category-card carousel (image + title + 1-sentence description) ---
+// --- Shared category-card horizontal carousel (scrollable sideways with
+// chevron arrows on the edges — Petco-style, NOT a vertical grid that
+// looks like the sitemap). Each card: image (full-bleed) + title + ONE
+// sentence. ---
+//
+// Per-department image lookup — the 16 images I generated with z-ai image
+// CLI live at /public/Shop/departments/{animal}-{department-slug}.jpeg.
+// Keyed by the full dept path segment "{animal}/{dept}" so it works for
+// both the animal landing pages (which list departments) and the
+// department pages (which list subcategories — the subcategory cards
+// inherit their parent department's image as a sensible fallback).
+const DEPARTMENT_IMAGE: Record<string, string> = {
+  // cat departments
+  "cat/beds-bedding": "/Shop/departments/cat-beds-bedding.jpeg",
+  "cat/bowls-feeders": "/Shop/departments/cat-bowls-feeders.jpeg",
+  "cat/food": "/Shop/departments/cat-food.jpeg",
+  "cat/furniture-scratchers": "/Shop/departments/cat-furniture-scratchers.jpeg",
+  "cat/grooming-bathing": "/Shop/departments/cat-grooming-bathing.jpeg",
+  "cat/litter-litter-boxes-accessories": "/Shop/departments/cat-litter.jpeg",
+  "cat/toys": "/Shop/departments/cat-toys.jpeg",
+  "cat/treats": "/Shop/departments/cat-treats.jpeg",
+  // dog departments
+  "dog/beds-bedding": "/Shop/departments/dog-beds-bedding.jpeg",
+  "dog/bowls-feeding": "/Shop/departments/dog-bowls-feeding.jpeg",
+  "dog/food": "/Shop/departments/dog-food.jpeg",
+  "dog/grooming-bathing": "/Shop/departments/dog-grooming-bathing.jpeg",
+  "dog/toys": "/Shop/departments/dog-toys.jpeg",
+  "dog/treats-chews": "/Shop/departments/dog-treats-chews.jpeg",
+  "dog/collars-harnesses-leashes": "/Shop/departments/dog-collars-harnesses-leashes.jpeg",
+  "dog/health-wellness": "/Shop/departments/dog-health-wellness.jpeg",
+}
+
 function CategoryCarousel({
   title,
   cards,
@@ -94,38 +125,70 @@ function CategoryCarousel({
   cards: { name: string; description: string; href: string; image?: string; imageAlt?: string }[]
 }) {
   if (cards.length === 0) return null
+
+  // Fallback breed portraits for departments without a generated image
+  // (cat carriers, cat cleaners, cat clothing, cat health, cat steps, cat
+  // training, flea & tick — and the dog equivalents).
+  const FALLBACK_IMAGES = [
+    "/Shop/heroes/beagle.jpeg",
+    "/Shop/heroes/cocker-spaniel.jpeg",
+    "/Shop/heroes/pomeranian.jpeg",
+    "/Shop/heroes/husky.jpeg",
+    "/Shop/heroes/french-bulldog.jpeg",
+    "/Shop/heroes/german-shepherd.jpeg",
+    "/Shop/heroes/shih-tzu.jpeg",
+    "/Shop/heroes/poodle.jpeg",
+    "/Shop/heroes/border-collie.jpeg",
+  ]
+  const imageFor = (i: number) => FALLBACK_IMAGES[i % FALLBACK_IMAGES.length]
+
   return (
     <section className="px-6 py-8 lg:px-12 lg:py-10">
       <div className="mx-auto max-w-7xl">
-        <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">{title}</h2>
-        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {cards.map((c) => (
-            <Link
-              key={c.href}
-              href={c.href}
-              className="group overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-[#002B5C] hover:shadow-md"
-            >
-              <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
-                {c.image ? (
+        <div className="flex items-end justify-between">
+          <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">{title}</h2>
+          <span className="text-[11px] text-ink-soft">{cards.length} categories</span>
+        </div>
+
+        {/* Horizontal scrollable carousel — Petco-style. The grid-cols-none
+            + flex-row + overflow-x-auto makes it scroll sideways. The
+            chevron buttons sit on the outside edges. */}
+        <div className="relative mt-5 -mx-1">
+          <div
+            className="no-scrollbar flex gap-4 overflow-x-auto scroll-smooth px-1 pb-2"
+            role="list"
+            aria-label={title}
+          >
+            {cards.map((c, i) => (
+              <Link
+                key={c.href}
+                href={c.href}
+                role="listitem"
+                className="group w-[240px] shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-[#002B5C] hover:shadow-md sm:w-[260px] lg:w-[280px]"
+              >
+                {/* Image (full-bleed, 4:3 aspect). Falls back to breed
+                    portraits when no per-department image exists. */}
+                <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
                   <img
-                    src={c.image}
-                    alt={c.imageAlt || c.name}
+                    src={c.image || imageFor(i)}
+                    alt={c.imageAlt || `${c.name} — All About Pawz Memphis`}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
-                ) : (
-                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200">
-                    <Search className="h-8 w-8 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
-                  </div>
-                )}
-              </div>
-              <div className="p-4">
-                <h3 className="text-[14px] font-bold text-ink group-hover:text-[#002B5C]">{c.name}</h3>
-                {c.description && (
-                  <p className="mt-1 text-[12px] leading-snug text-ink-soft line-clamp-2">{c.description}</p>
-                )}
-              </div>
-            </Link>
-          ))}
+                </div>
+                <div className="p-4">
+                  <h3 className="text-[14px] font-bold text-ink group-hover:text-[#002B5C]">{c.name}</h3>
+                  {c.description && (
+                    <p className="mt-1 text-[12px] leading-snug text-ink-soft line-clamp-2">{c.description}</p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Edge fade — subtle gradient on left/right so the user can
+              tell there's more to scroll. */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent" aria-hidden="true" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent" aria-hidden="true" />
         </div>
       </div>
     </section>
@@ -168,7 +231,7 @@ export async function AnimalLandingPage({
       ? `${d.subcategories.length} categories`
       : "Browse all",
     href: departmentPath(animal.slug, d.slug),
-    image: undefined,
+    image: DEPARTMENT_IMAGE[`${animal.slug}/${d.slug}`],
     imageAlt: `${d.name} — All About Pawz Memphis`,
   }))
 
@@ -195,7 +258,7 @@ export async function AnimalLandingPage({
 
       {/* Promo banner — split-color, "what's on sale" */}
       <PromoBanner
-        image="/Shop/heroes/dog-food.jpeg"
+        image="/Shop/departments/dog-food.jpeg"
         imageAlt={`${animal.name} sale at All About Pawz Memphis`}
         headline="20% OFF SITEWIDE"
         subhead="with code: PAWZ20"
@@ -276,11 +339,16 @@ export async function DepartmentPage({
     })),
   }
 
+  // Subcategory cards inherit their parent department's image as a sensible
+  // fallback — there's no per-subcategory image yet, but at least the card
+  // shows a relevant picture (e.g. "Bolster Cat Beds" shows the cat-beds
+  // image, "Dry Dog Food" shows the dog-food image).
+  const parentImage = DEPARTMENT_IMAGE[`${animal.slug}/${dept.slug}`]
   const subcategoryCards = dept.subcategories.map((s) => ({
     name: s.name,
     description: "Shop the collection",
     href: subcategoryPath(animal.slug, dept.slug, s.slug),
-    image: undefined,
+    image: parentImage,
     imageAlt: `${s.name} — All About Pawz Memphis`,
   }))
 
@@ -309,7 +377,7 @@ export async function DepartmentPage({
 
       {/* Promo banner — "what's on sale" */}
       <PromoBanner
-        image="/Shop/heroes/dog-food.jpeg"
+        image="/Shop/departments/dog-food.jpeg"
         imageAlt={`${dept.name} sale at All About Pawz Memphis`}
         headline="20% OFF SITEWIDE"
         subhead="with code: PAWZ20"

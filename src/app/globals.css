@@ -168,6 +168,17 @@
   text-transform: uppercase;
   color: color-mix(in oklab, var(--ink) 55%, transparent);
 }
+
+/* Hide the horizontal scrollbar on the Petco-style department carousels —
+   the carousel still scrolls (mouse drag, trackpad, keyboard), the visible
+   scrollbar would just look ugly next to the edge fade gradient. */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 @utility navRow {
   display: flex;
   align-items: center;
