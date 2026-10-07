@@ -1,24 +1,22 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ChevronRight } from "lucide-react"
-import { Plp } from "@/components/site/shop/plp"
+import { ChevronRight, ArrowRight, Search } from "lucide-react"
 import { SITE_URL } from "@/lib/site-url"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 import { BUSINESS } from "@/lib/business"
+import { SHOP_NAV_TAXONOMY, departmentPath } from "@/lib/shop-nav"
 
 export const metadata: Metadata = {
-  title: "Dog & Cat Supplies, Grooming & Shopping in Memphis, TN | All About Pawz",
+  title: "Dog & Cat Supplies, grooming & shopping in Memphis, TN | All About Pawz",
   description:
     "Shop dog and cat supplies, book grooming, and find Memphis deals at All About Pawz — Memphis' full-service grooming and shopping destination.",
   alternates: { canonical: `${SITE_URL}/shop` },
 }
 
 // ---------------------------------------------------------------------------
-// /shop — the shop landing page. Petco-style: a single breadcrumb + H1 +
-// one-sentence intro, then IMMEDIATELY the PLP (sidebar + product grid).
-// No big narrative block. No "Browse by Department" pills (the sidebar
-// already has them). No placeholder boxes. The SEO copy stays in the
-// metadata + a small footer block for crawlers, NOT as a hero wall of text.
+// /shop — the shop landing. Petco-style: H1 + promo banner + horizontal
+// animal cards (Cat, Dog). NO sidebar (it appears on the leaf subcategory
+// pages). NO narrative. The customer picks an animal to drill in.
 // ---------------------------------------------------------------------------
 
 type PageProps = {
@@ -26,8 +24,19 @@ type PageProps = {
 }
 
 export default async function ShopPage({ searchParams }: PageProps) {
-  const sp = await searchParams
+  await searchParams // searchParams read for stability; not used in landing
   const seo = findSeoCopy("/shop")
+
+  // Build the two animal cards (Cat, Dog) — the only navigation on /shop.
+  const animalCards = SHOP_NAV_TAXONOMY.map((animal) => ({
+    name: animal.name,
+    description: animal.tagline,
+    href: `/shop/${animal.slug}`,
+    deptCount: animal.departments.length,
+    firstDeptHref: animal.departments[0]
+      ? departmentPath(animal.slug, animal.departments[0].slug)
+      : `/shop/${animal.slug}`,
+  }))
 
   return (
     <article className="bg-white">
@@ -45,7 +54,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
         }}
       />
 
-      {/* Single breadcrumb + H1 + one-sentence intro. NO narrative wall. */}
+      {/* Breadcrumb + H1 + 1-sentence intro. NO narrative wall. */}
       <section className="border-b border-neutral-200 px-6 py-6 lg:px-12 lg:py-8">
         <div className="mx-auto max-w-7xl">
           <nav className="flex items-center gap-2 text-[12px] text-ink-soft" aria-label="Breadcrumb">
@@ -53,24 +62,81 @@ export default async function ShopPage({ searchParams }: PageProps) {
             <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <span className="text-ink">Shop</span>
           </nav>
-          <h1 className="mt-3 font-display text-[28px] leading-[1.15] text-ink lg:text-[32px]">
+          <h1 className="mt-3 font-display text-[28px] leading-[1.15] text-ink lg:text-[36px]">
             {seo?.h1 || "Shop Dog & Cat Supplies in Memphis, TN"}
           </h1>
           <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-ink-soft">
             Locally owned pet supply shop and grooming salon at {BUSINESS.address.street}.
-            Food, treats, beds, toys, litter, collars, grooming, and wellness — hand-picked by our groomers.
+            Pick an animal to start.
           </p>
         </div>
       </section>
 
-      {/* The PLP — sidebar (categories + filters) + sort toolbar + product grid */}
-      <section className="px-6 pb-14 pt-6 lg:px-12">
-        <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={sp} path="/shop" />
+      {/* Promo banner — split-color, "what's on sale". Image LEFT, navy bg
+          RIGHT with the deal headline + code + Shop Now CTA. */}
+      <section className="px-6 py-6 lg:px-12 lg:py-8">
+        <div className="mx-auto max-w-7xl overflow-hidden rounded-lg border border-neutral-200 grid grid-cols-1 md:grid-cols-5">
+          {/* Image side */}
+          <div className="md:col-span-2 aspect-[4/3] md:aspect-auto bg-neutral-100 overflow-hidden">
+            <img
+              src="/Shop/heroes/dog-food.jpeg"
+              alt="All About Pawz shop sale"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          {/* Navy side */}
+          <div className="md:col-span-3 flex flex-col justify-center gap-3 bg-[#002B5C] px-6 py-8 text-white md:px-10 md:py-12">
+            <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/70">Limited time</p>
+            <h2 className="font-display text-[28px] leading-[1.05] md:text-[40px]">20% OFF SITEWIDE</h2>
+            <p className="text-[14px] text-white/85">with code: PAWZ20</p>
+            <div className="mt-2 flex flex-wrap items-center gap-4">
+              <Link
+                href="/shop/dog"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] uppercase text-[#002B5C] transition-colors hover:bg-neutral-100"
+              >
+                Shop Now
+                <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+              </Link>
+              <p className="text-[11px] text-white/70">
+                Ends Sunday.{" "}
+                <Link href="/policies/refunds-returns" className="underline hover:text-white">Details</Link>
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Grooming cross-sell — one line, no box */}
+      {/* Animal cards — Cat, Dog. The only navigation on /shop. */}
+      <section className="px-6 py-8 lg:px-12 lg:py-10">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">Shop by Animal</h2>
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
+            {animalCards.map((c) => (
+              <Link
+                key={c.href}
+                href={c.href}
+                className="group overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-[#002B5C] hover:shadow-md"
+              >
+                <div className="aspect-[16/9] overflow-hidden bg-neutral-100">
+                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200">
+                    <Search className="h-10 w-10 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-5">
+                  <div>
+                    <h3 className="text-[18px] font-bold text-ink group-hover:text-[#002B5C]">{c.name}</h3>
+                    <p className="mt-1 text-[13px] text-ink-soft">{c.description}</p>
+                    <p className="mt-1 text-[11px] text-ink-soft/70">{c.deptCount} departments</p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 shrink-0 text-ink-soft transition-colors group-hover:text-[#002B5C]" aria-hidden="true" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Grooming cross-sell — single line, no box */}
       <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-8 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
           <p className="text-[13px] text-ink-soft">
@@ -86,31 +152,19 @@ export default async function ShopPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      {/* SEO block — hidden visually, machine-readable for crawlers.
-          The SEO copy + related searches/guides live here as semantic HTML
-          so search engines see them, but customers don't get a wall of text. */}
-      {seo && (seo.copyParagraphs.length > 1 || seo.relatedSearches.length > 0 || seo.relatedGuides.length > 0) && (
+      {/* SEO block — hidden for crawlers */}
+      {seo && seo.copyParagraphs.length > 0 && (
         <details className="hidden">
           <summary>SEO copy + related searches</summary>
-          {seo.copyParagraphs.map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
+          {seo.copyParagraphs.map((p, i) => <p key={i}>{p}</p>)}
           {seo.relatedSearches.length > 0 && (
-            <ul>
-              {seo.relatedSearches.map((s, i) => (
-                <li key={i}><Link href={`/shop?q=${encodeURIComponent(s)}`}>{s}</Link></li>
-              ))}
-            </ul>
+            <ul>{seo.relatedSearches.map((s, i) => <li key={i}><Link href={`/shop?q=${encodeURIComponent(s)}`}>{s}</Link></li>)}</ul>
           )}
           {seo.relatedGuides.length > 0 && (
-            <ul>
-              {seo.relatedGuides.map((g, i) => {
-                const slug = g.split("/").pop() || g
-                return (
-                  <li key={i}><Link href={`/guides/grooming/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
-                )
-              })}
-            </ul>
+            <ul>{seo.relatedGuides.map((g, i) => {
+              const slug = g.split("/").pop() || g
+              return <li key={i}><Link href={`/guides/grooming/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+            })}</ul>
           )}
         </details>
       )}

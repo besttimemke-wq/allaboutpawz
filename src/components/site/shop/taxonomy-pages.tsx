@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ShoppingBag, ArrowRight, ChevronRight, Star } from "lucide-react"
+import { ChevronRight, ArrowRight, Search } from "lucide-react"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath, type ShopNavAnimal, type ShopNavDepartment } from "@/lib/shop-nav"
 import { BUSINESS } from "@/lib/business"
 import { SITE_URL } from "@/lib/site-url"
@@ -8,19 +8,140 @@ import { Plp } from "./plp"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 
 // ---------------------------------------------------------------------------
-// Taxonomy page templates — the NEW shop page types per the Shop SEO Page
-// Architecture spec. Each page is a TRUE product-listing page (PLP) with:
-//   • Breadcrumb + H1 + intro copy (real SEO copy from /lib/shop/seo-copy.ts)
-//   • Plp component (sidebar rail with categories + filters + product grid)
-//   • Related searches block (per spec §7)
-//   • Related guides block (per spec §7)
-//   • Grooming cross-sell band (per spec §9)
-//   • BreadcrumbList + ItemList JSON-LD schemas
-//   • Self-canonical (www + path)
+// Taxonomy page templates — Petco-style. NO narrative. NO sidebar on
+// landing/department pages. The customer lands and immediately sees:
+//   1. A single breadcrumb (Home / Shop / {animal} / {department})
+//   2. The H1 (just the department name)
+//   3. A promo banner — split-color (image LEFT, colored bg RIGHT with the
+//      deal headline + code + Shop Now CTA). This is "what's on sale".
+//   4. A horizontal carousel of category cards (image + title + ONE
+//      sentence). This is "how to get there" — the user picks a leaf
+//      category to drill into.
+//
+// ONLY the SubcategoryPage (the leaf — /shop/cat/food/dry-food) renders the
+// Plp with the filter sidebar + product grid. That's where filtering makes
+// sense: the customer is actually browsing products.
+//
+// The SEO copy (h1, metaDescription, relatedSearches, relatedGuides) lives
+// in metadata + a hidden <details> block at the bottom for crawlers. It
+// NEVER renders as a visible wall of text.
 // ---------------------------------------------------------------------------
 
+// --- Shared promo banner (split-color, image LEFT / colored bg RIGHT) ---
+function PromoBanner({
+  image,
+  imageAlt,
+  headline,
+  subhead,
+  ctaLabel,
+  ctaHref,
+  finePrint,
+}: {
+  image: string
+  imageAlt: string
+  headline: string
+  subhead?: string
+  ctaLabel: string
+  ctaHref: string
+  finePrint?: string
+}) {
+  return (
+    <section className="px-6 py-6 lg:px-12 lg:py-8">
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-lg border border-neutral-200 grid grid-cols-1 md:grid-cols-5">
+        {/* Image side — ~40% on desktop, full-width on mobile */}
+        <div className="md:col-span-2 aspect-[4/3] md:aspect-auto bg-neutral-100 overflow-hidden">
+          {/* Using <img> because Next/Image would need remote config for local
+              public assets we haven't whitelisted yet; this is the same pattern
+              the existing shop components use. */}
+          <img
+            src={image}
+            alt={imageAlt}
+            className="h-full w-full object-cover"
+          />
+        </div>
+        {/* Colored side — ~60% on desktop */}
+        <div className="md:col-span-3 flex flex-col justify-center gap-3 bg-[#002B5C] px-6 py-8 md:px-10 md:py-12 text-white">
+          <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/70">Limited time</p>
+          <h2 className="font-display text-[28px] leading-[1.05] md:text-[40px]">{headline}</h2>
+          {subhead && <p className="text-[14px] text-white/85">{subhead}</p>}
+          <div className="mt-2 flex flex-wrap items-center gap-4">
+            <Link
+              href={ctaHref}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] uppercase text-[#002B5C] transition-colors hover:bg-neutral-100"
+            >
+              {ctaLabel}
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+            </Link>
+            {finePrint && (
+              <p className="text-[11px] text-white/70">
+                {finePrint}{" "}
+                <Link href="/policies/refunds-returns" className="underline hover:text-white">Details</Link>
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// --- Shared category-card carousel (image + title + 1-sentence description) ---
+function CategoryCarousel({
+  title,
+  cards,
+}: {
+  title: string
+  cards: { name: string; description: string; href: string; image?: string; imageAlt?: string }[]
+}) {
+  if (cards.length === 0) return null
+  return (
+    <section className="px-6 py-8 lg:px-12 lg:py-10">
+      <div className="mx-auto max-w-7xl">
+        <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">{title}</h2>
+        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {cards.map((c) => (
+            <Link
+              key={c.href}
+              href={c.href}
+              className="group overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-[#002B5C] hover:shadow-md"
+            >
+              <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
+                {c.image ? (
+                  <img
+                    src={c.image}
+                    alt={c.imageAlt || c.name}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200">
+                    <Search className="h-8 w-8 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
+                  </div>
+                )}
+              </div>
+              <div className="p-4">
+                <h3 className="text-[14px] font-bold text-ink group-hover:text-[#002B5C]">{c.name}</h3>
+                {c.description && (
+                  <p className="mt-1 text-[12px] leading-snug text-ink-soft line-clamp-2">{c.description}</p>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // --- Animal Landing Page (/shop/dog, /shop/cat) ---
-export async function AnimalLandingPage({ animal, searchParams }: { animal: ShopNavAnimal; searchParams?: Record<string, string | string[] | undefined> }) {
+// H1 + promo banner + horizontal department card carousel. NO sidebar.
+// NO narrative. The customer picks a department to drill in.
+export async function AnimalLandingPage({
+  animal,
+  searchParams,
+}: {
+  animal: ShopNavAnimal
+  searchParams?: Record<string, string | string[] | undefined>
+}) {
   const path = `/shop/${animal.slug}`
   const seo = findSeoCopy(path)
   const breadcrumb = breadcrumbSchema([
@@ -29,7 +150,6 @@ export async function AnimalLandingPage({ animal, searchParams }: { animal: Shop
     { name: animal.name, url: path },
   ])
 
-  // ItemList schema — department tiles
   const itemList = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -42,130 +162,90 @@ export async function AnimalLandingPage({ animal, searchParams }: { animal: Shop
     })),
   }
 
+  const departmentCards = animal.departments.map((d) => ({
+    name: d.name,
+    description: d.subcategories.length > 0
+      ? `${d.subcategories.length} categories`
+      : "Browse all",
+    href: departmentPath(animal.slug, d.slug),
+    image: undefined,
+    imageAlt: `${d.name} — All About Pawz Memphis`,
+  }))
+
   return (
     <article className="bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
 
-      {/* Hero — H1 + intro */}
-      <section className="border-b border-neutral-200 px-6 py-12 lg:px-12 lg:py-16">
+      {/* Breadcrumb + H1 — single line, no narrative */}
+      <section className="border-b border-neutral-200 px-6 py-6 lg:px-12 lg:py-8">
         <div className="mx-auto max-w-7xl">
-          <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
+          <nav className="flex items-center gap-2 text-[12px] text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <Link href="/shop" className="hover:text-black">Shop</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <span className="text-ink">{animal.name}</span>
           </nav>
-          <h1 className="mt-4 font-display text-[36px] leading-[1.15] text-ink lg:text-[48px]">
+          <h1 className="mt-3 font-display text-[28px] leading-[1.15] text-ink lg:text-[36px]">
             {seo?.h1 || `${animal.name} in Memphis, TN`}
           </h1>
-          <div className="mt-4 max-w-3xl text-base leading-[1.85] text-ink-soft space-y-3">
-            {(seo?.copyParagraphs || [animal.tagline]).map((p, i) => (
-              <p key={i}>{p}</p>
-            ))}
-          </div>
         </div>
       </section>
 
-      {/* Department tiles grid */}
-      <section className="px-6 py-12 lg:px-12 lg:py-16">
-        <div className="mx-auto max-w-7xl">
-          <h2 className="text-xl font-bold text-ink">Browse by Department</h2>
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {animal.departments.map(dept => (
-              <Link
-                key={dept.slug}
-                href={departmentPath(animal.slug, dept.slug)}
-                className="group rounded-lg border border-neutral-200 p-5 transition-colors hover:border-gold-deep hover:bg-neutral-50"
-              >
-                <h3 className="text-base font-bold text-ink group-hover:text-black">{dept.name}</h3>
-                <p className="mt-1 text-sm text-ink-soft">
-                  {dept.subcategories.length > 0
-                    ? `${dept.subcategories.length} categories`
-                    : "Browse all"}
-                </p>
-                <ArrowRight className="mt-3 h-4 w-4 text-black opacity-0 transition-opacity group-hover:opacity-100" />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Promo banner — split-color, "what's on sale" */}
+      <PromoBanner
+        image="/Shop/heroes/dog-food.jpeg"
+        imageAlt={`${animal.name} sale at All About Pawz Memphis`}
+        headline="20% OFF SITEWIDE"
+        subhead="with code: PAWZ20"
+        ctaLabel="Shop Now"
+        ctaHref={departmentPath(animal.slug, animal.departments[0]?.slug || "")}
+        finePrint="Ends Sunday. Some exclusions apply."
+      />
 
-      {/* Real PLP — sidebar (categories + filters) + product grid */}
-      <section className="border-t border-neutral-200 px-6 pb-14 pt-8 lg:px-12">
-        <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
-        </div>
-      </section>
+      {/* Department carousel — "how to get there" */}
+      <CategoryCarousel title={`Shop ${animal.name.replace(" Supplies", "")} by Department`} cards={departmentCards} />
 
-      {/* Related searches + Related guides (per spec §7) */}
-      {seo && (seo.relatedSearches.length > 0 || seo.relatedGuides.length > 0) && (
-        <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
-          <div className="mx-auto max-w-7xl grid gap-8 md:grid-cols-2">
-            {seo.relatedSearches.length > 0 && (
-              <div>
-                <h2 className="text-xs font-bold tracking-[0.14em] uppercase text-ink-soft">Related Searches</h2>
-                <ul className="mt-3 space-y-1.5">
-                  {seo.relatedSearches.map((s, i) => (
-                    <li key={i}>
-                      <Link
-                        href={`/shop?q=${encodeURIComponent(s)}`}
-                        className="text-sm text-ink hover:text-gold-deep hover:underline"
-                      >
-                        {s}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {seo.relatedGuides.length > 0 && (
-              <div>
-                <h2 className="text-xs font-bold tracking-[0.14em] uppercase text-ink-soft">Related Guides</h2>
-                <ul className="mt-3 space-y-1.5">
-                  {seo.relatedGuides.map((g, i) => {
-                    const slug = g.split("/").pop() || g
-                    return (
-                      <li key={i}>
-                        <Link
-                          href={`/guides/grooming/${slug}`}
-                          className="text-sm text-ink hover:text-gold-deep hover:underline"
-                        >
-                          {slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Grooming cross-sell band */}
-      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-left">
-          <div>
-            <h2 className="text-lg font-bold text-ink">Full-Service Grooming in Memphis</h2>
-            <p className="mt-1 text-sm text-ink-soft">
-              All About Pawz offers breed-specific grooming at our Memphis salon. Book online or call {BUSINESS.phoneDisplay}.
-            </p>
-          </div>
+      {/* Grooming cross-sell — single line, no box */}
+      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-8 lg:px-12">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
+          <p className="text-[13px] text-ink-soft">
+            <span className="font-bold text-ink">Full-service grooming in Memphis.</span>{" "}
+            Bath Only from $45 · Bath &amp; Haircut from $75.
+          </p>
           <Link
             href="/book/appointment"
-            className="inline-flex items-center gap-2 rounded bg-gold-deep px-5 py-3 text-sm font-bold text-cream transition-colors hover:bg-gold"
+            className="inline-flex items-center gap-2 rounded-md bg-gold-deep px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-cream uppercase transition-colors hover:bg-gold"
           >
             Book a Groom →
           </Link>
         </div>
       </section>
+
+      {/* SEO block — hidden, machine-readable for crawlers only */}
+      {seo && seo.copyParagraphs.length > 0 && (
+        <details className="hidden">
+          <summary>SEO copy + related searches</summary>
+          {seo.copyParagraphs.map((p, i) => <p key={i}>{p}</p>)}
+          {seo.relatedSearches.length > 0 && (
+            <ul>{seo.relatedSearches.map((s, i) => <li key={i}><Link href={`/shop?q=${encodeURIComponent(s)}`}>{s}</Link></li>)}</ul>
+          )}
+          {seo.relatedGuides.length > 0 && (
+            <ul>{seo.relatedGuides.map((g, i) => {
+              const slug = g.split("/").pop() || g
+              return <li key={i}><Link href={`/guides/grooming/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+            })}</ul>
+          )}
+        </details>
+      )}
     </article>
   )
 }
 
 // --- Department Page (/shop/dog/food, /shop/cat/beds-bedding) ---
+// H1 + promo banner + horizontal subcategory card carousel. NO sidebar.
+// The customer picks a subcategory to drill into the leaf where filters appear.
 export async function DepartmentPage({
   animal,
   dept,
@@ -177,7 +257,6 @@ export async function DepartmentPage({
 }) {
   const path = departmentPath(animal.slug, dept.slug)
   const seo = findSeoCopy(path)
-  const animalName = animal.name.replace(" Supplies", "")
   const breadcrumb = breadcrumbSchema([
     { name: "Home", url: "/" },
     { name: "Shop", url: "/shop" },
@@ -197,131 +276,97 @@ export async function DepartmentPage({
     })),
   }
 
+  const subcategoryCards = dept.subcategories.map((s) => ({
+    name: s.name,
+    description: "Shop the collection",
+    href: subcategoryPath(animal.slug, dept.slug, s.slug),
+    image: undefined,
+    imageAlt: `${s.name} — All About Pawz Memphis`,
+  }))
+
   return (
     <article className="bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
 
-      {/* Breadcrumb + H1 + intro */}
-      <section className="border-b border-neutral-200 px-6 py-10 lg:px-12 lg:py-14">
+      {/* Breadcrumb + H1 — single line, no narrative */}
+      <section className="border-b border-neutral-200 px-6 py-6 lg:px-12 lg:py-8">
         <div className="mx-auto max-w-7xl">
-          <nav className="flex flex-wrap items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
+          <nav className="flex flex-wrap items-center gap-2 text-[12px] text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <Link href="/shop" className="hover:text-black">Shop</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <Link href={`/shop/${animal.slug}`} className="hover:text-black">{animal.name}</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <span className="text-ink">{dept.name}</span>
           </nav>
-          <h1 className="mt-4 font-display text-[32px] leading-[1.15] text-ink lg:text-[42px]">
-            {seo?.h1 || `${dept.name} for ${animalName}s in Memphis, TN`}
+          <h1 className="mt-3 font-display text-[28px] leading-[1.15] text-ink lg:text-[36px]">
+            {seo?.h1 || dept.name}
           </h1>
-          <div className="mt-3 max-w-3xl text-base leading-[1.7] text-ink-soft space-y-3">
-            {(seo?.copyParagraphs || [
-              `Shop ${dept.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon. Browse categories below or visit us at ${BUSINESS.address.street}.`,
-            ]).map((p, i) => (
-              <p key={i}>{p}</p>
-            ))}
-          </div>
         </div>
       </section>
 
-      {/* Subcategory tiles */}
-      {dept.subcategories.length > 0 && (
-        <section className="px-6 py-10 lg:px-12 lg:py-14">
-          <div className="mx-auto max-w-7xl">
-            <h2 className="text-lg font-bold text-ink">Categories</h2>
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {dept.subcategories.map(sub => (
-                <Link
-                  key={sub.slug}
-                  href={subcategoryPath(animal.slug, dept.slug, sub.slug)}
-                  className="group rounded-lg border border-neutral-200 p-4 transition-colors hover:border-gold-deep hover:bg-neutral-50"
-                >
-                  <h3 className="text-base font-semibold text-ink group-hover:text-black">{sub.name}</h3>
-                  <ArrowRight className="mt-2 h-4 w-4 text-black opacity-0 transition-opacity group-hover:opacity-100" />
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
+      {/* Promo banner — "what's on sale" */}
+      <PromoBanner
+        image="/Shop/heroes/dog-food.jpeg"
+        imageAlt={`${dept.name} sale at All About Pawz Memphis`}
+        headline="20% OFF SITEWIDE"
+        subhead="with code: PAWZ20"
+        ctaLabel="Shop Now"
+        ctaHref={dept.subcategories[0]
+          ? subcategoryPath(animal.slug, dept.slug, dept.subcategories[0].slug)
+          : path}
+        finePrint="Ends Sunday. Some exclusions apply."
+      />
+
+      {/* Subcategory carousel — "how to get there" */}
+      {subcategoryCards.length > 0 && (
+        <CategoryCarousel
+          title="Shop by Category"
+          cards={subcategoryCards}
+        />
       )}
 
-      {/* Real PLP — sidebar + product grid */}
-      <section className="border-t border-neutral-200 px-6 pb-14 pt-8 lg:px-12">
-        <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
-        </div>
-      </section>
-
-      {/* Related searches + Related guides (per spec §7) */}
-      {seo && (seo.relatedSearches.length > 0 || seo.relatedGuides.length > 0) && (
-        <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
-          <div className="mx-auto max-w-7xl grid gap-8 md:grid-cols-2">
-            {seo.relatedSearches.length > 0 && (
-              <div>
-                <h2 className="text-xs font-bold tracking-[0.14em] uppercase text-ink-soft">Related Searches</h2>
-                <ul className="mt-3 space-y-1.5">
-                  {seo.relatedSearches.map((s, i) => (
-                    <li key={i}>
-                      <Link
-                        href={`/shop?q=${encodeURIComponent(s)}`}
-                        className="text-sm text-ink hover:text-gold-deep hover:underline"
-                      >
-                        {s}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {seo.relatedGuides.length > 0 && (
-              <div>
-                <h2 className="text-xs font-bold tracking-[0.14em] uppercase text-ink-soft">Related Guides</h2>
-                <ul className="mt-3 space-y-1.5">
-                  {seo.relatedGuides.map((g, i) => {
-                    const slug = g.split("/").pop() || g
-                    return (
-                      <li key={i}>
-                        <Link
-                          href={`/guides/grooming/${slug}`}
-                          className="text-sm text-ink hover:text-gold-deep hover:underline"
-                        >
-                          {slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Grooming cross-sell band */}
-      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-left">
-          <div>
-            <h2 className="text-lg font-bold text-ink">Or Let Our Memphis Groomers Handle It</h2>
-            <p className="mt-1 text-sm text-ink-soft">
-              Shop supplies or book a professional groom — All About Pawz does both.
-            </p>
-          </div>
+      {/* Grooming cross-sell — single line, no box */}
+      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-8 lg:px-12">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
+          <p className="text-[13px] text-ink-soft">
+            <span className="font-bold text-ink">Or let our Memphis groomers handle it.</span>{" "}
+            Bath Only from $45 · Bath &amp; Haircut from $75.
+          </p>
           <Link
             href="/book/appointment"
-            className="inline-flex items-center gap-2 rounded bg-gold-deep px-5 py-3 text-sm font-bold text-cream transition-colors hover:bg-gold"
+            className="inline-flex items-center gap-2 rounded-md bg-gold-deep px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-cream uppercase transition-colors hover:bg-gold"
           >
             Book a Groom →
           </Link>
         </div>
       </section>
+
+      {/* SEO block — hidden for crawlers */}
+      {seo && seo.copyParagraphs.length > 0 && (
+        <details className="hidden">
+          <summary>SEO copy + related searches</summary>
+          {seo.copyParagraphs.map((p, i) => <p key={i}>{p}</p>)}
+          {seo.relatedSearches.length > 0 && (
+            <ul>{seo.relatedSearches.map((s, i) => <li key={i}><Link href={`/shop?q=${encodeURIComponent(s)}`}>{s}</Link></li>)}</ul>
+          )}
+          {seo.relatedGuides.length > 0 && (
+            <ul>{seo.relatedGuides.map((g, i) => {
+              const slug = g.split("/").pop() || g
+              return <li key={i}><Link href={`/guides/grooming/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+            })}</ul>
+          )}
+        </details>
+      )}
     </article>
   )
 }
 
 // --- Subcategory Page (/shop/dog/food/dry-food, /shop/cat/beds-bedding/bolster-cat-beds) ---
+// THIS is the leaf — the customer is browsing actual products. H1 + 1-line
+// intro + Plp (sidebar filters + product grid + sort toolbar).
 export async function SubcategoryPage({
   animal,
   dept,
@@ -337,7 +382,6 @@ export async function SubcategoryPage({
 }) {
   const path = subcategoryPath(animal.slug, dept.slug, subSlug)
   const seo = findSeoCopy(path)
-  const animalName = animal.name.replace(" Supplies", "")
   const breadcrumb = breadcrumbSchema([
     { name: "Home", url: "/" },
     { name: "Shop", url: "/shop" },
@@ -350,102 +394,68 @@ export async function SubcategoryPage({
     <article className="bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
 
-      {/* Breadcrumb + H1 + intro */}
-      <section className="border-b border-neutral-200 px-6 py-10 lg:px-12 lg:py-14">
+      {/* Breadcrumb + H1 + ONE-sentence intro */}
+      <section className="border-b border-neutral-200 px-6 py-6 lg:px-12 lg:py-8">
         <div className="mx-auto max-w-7xl">
-          <nav className="flex flex-wrap items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
+          <nav className="flex flex-wrap items-center gap-2 text-[12px] text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <Link href="/shop" className="hover:text-black">Shop</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <Link href={`/shop/${animal.slug}`} className="hover:text-black">{animal.name}</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <Link href={departmentPath(animal.slug, dept.slug)} className="hover:text-black">{dept.name}</Link>
-            <ChevronRight className="h-3.5 w-3.5 text-black/40" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <span className="text-ink">{subName}</span>
           </nav>
-          <h1 className="mt-4 font-display text-[28px] leading-[1.15] text-ink lg:text-[36px]">
-            {seo?.h1 || `${subName} in Memphis, TN`}
+          <h1 className="mt-3 font-display text-[24px] leading-[1.15] text-ink lg:text-[28px]">
+            {seo?.h1 || subName}
           </h1>
-          <div className="mt-3 max-w-3xl text-base leading-[1.7] text-ink-soft space-y-3">
-            {(seo?.copyParagraphs || [
-              `Shop ${subName.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon. Visit us at ${BUSINESS.address.street} or call ${BUSINESS.phoneDisplay}.`,
-            ]).map((p, i) => (
-              <p key={i}>{p}</p>
-            ))}
-          </div>
+          <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-ink-soft">
+            Shop {subName.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.
+          </p>
         </div>
       </section>
 
-      {/* Real PLP — sidebar + product grid */}
-      <section className="px-6 pb-14 pt-8 lg:px-12">
+      {/* Plp — sidebar filters + sort toolbar + product grid (the leaf) */}
+      <section className="px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
         </div>
       </section>
 
-      {/* Related searches + Related guides (per spec §7) */}
-      {seo && (seo.relatedSearches.length > 0 || seo.relatedGuides.length > 0) && (
-        <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
-          <div className="mx-auto max-w-7xl grid gap-8 md:grid-cols-2">
-            {seo.relatedSearches.length > 0 && (
-              <div>
-                <h2 className="text-xs font-bold tracking-[0.14em] uppercase text-ink-soft">Related Searches</h2>
-                <ul className="mt-3 space-y-1.5">
-                  {seo.relatedSearches.map((s, i) => (
-                    <li key={i}>
-                      <Link
-                        href={`/shop?q=${encodeURIComponent(s)}`}
-                        className="text-sm text-ink hover:text-gold-deep hover:underline"
-                      >
-                        {s}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {seo.relatedGuides.length > 0 && (
-              <div>
-                <h2 className="text-xs font-bold tracking-[0.14em] uppercase text-ink-soft">Related Guides</h2>
-                <ul className="mt-3 space-y-1.5">
-                  {seo.relatedGuides.map((g, i) => {
-                    const slug = g.split("/").pop() || g
-                    return (
-                      <li key={i}>
-                        <Link
-                          href={`/guides/grooming/${slug}`}
-                          className="text-sm text-ink hover:text-gold-deep hover:underline"
-                        >
-                          {slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Grooming cross-sell band */}
-      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-10 lg:px-12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-left">
-          <div>
-            <h2 className="text-lg font-bold text-ink">Full-Service Grooming in Memphis</h2>
-            <p className="mt-1 text-sm text-ink-soft">
-              All About Pawz does both — shop supplies or book a professional groom. Bath Only from $45, Bath &amp; Haircut from $75.
-            </p>
-          </div>
+      {/* Grooming cross-sell — single line, no box */}
+      <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-8 lg:px-12">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
+          <p className="text-[13px] text-ink-soft">
+            <span className="font-bold text-ink">Shop supplies, then book the groom.</span>{" "}
+            Bath Only from $45 · Bath &amp; Haircut from $75.
+          </p>
           <Link
             href="/book/appointment"
-            className="inline-flex items-center gap-2 rounded bg-gold-deep px-5 py-3 text-sm font-bold text-cream transition-colors hover:bg-gold"
+            className="inline-flex items-center gap-2 rounded-md bg-gold-deep px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-cream uppercase transition-colors hover:bg-gold"
           >
             Book a Groom →
           </Link>
         </div>
       </section>
+
+      {/* SEO block — hidden for crawlers */}
+      {seo && seo.copyParagraphs.length > 0 && (
+        <details className="hidden">
+          <summary>SEO copy + related searches</summary>
+          {seo.copyParagraphs.map((p, i) => <p key={i}>{p}</p>)}
+          {seo.relatedSearches.length > 0 && (
+            <ul>{seo.relatedSearches.map((s, i) => <li key={i}><Link href={`/shop?q=${encodeURIComponent(s)}`}>{s}</Link></li>)}</ul>
+          )}
+          {seo.relatedGuides.length > 0 && (
+            <ul>{seo.relatedGuides.map((g, i) => {
+              const slug = g.split("/").pop() || g
+              return <li key={i}><Link href={`/guides/grooming/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+            })}</ul>
+          )}
+        </details>
+      )}
     </article>
   )
 }
