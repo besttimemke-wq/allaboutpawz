@@ -375,11 +375,11 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   const s = { ...(fetched || initialSettings || {}) }
   return (
     <div className="min-h-screen bg-cream">
-      {/* Buy Local MidSouth — single slim header strip on every page.
-          Short text only (no keyword stuffing), no paw icon (the sidebar
-          logo carries the brand). Sits above the sidebar so it's the first
-          thing on every SEO page type + the first thing crawlers read. */}
-      <LocalBar />
+      {/* Top strip slot — RESERVED for a future CMS-driven promo strip
+          (promo headline + code + CTA, fed by the promo engine). The
+          local-pride bar was removed per owner directive — the Buy Local
+          signal lives ONLY in the footer NAP block. Do NOT render a
+          local-pride strip here. */}
       <Sidebar settings={s} pathname={pathname} gate={gate} />
       {/* Mobile bar — logo left, bag + menu right (sticky, top of every page) */}
       <div className="sticky top-0 z-50 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3 lg:hidden">
