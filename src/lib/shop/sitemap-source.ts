@@ -33,6 +33,7 @@ import { getNavTree, flattenNav, getProducts, getMerchCollections } from "@/lib/
 import { getResource } from "@/lib/site-data"
 import { pgQuery } from "@/lib/pg"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
+import { getAllGroomingSlugs, findGroomingGuide } from "@/lib/guides-data"
 
 // GATE: Tier 1 (v_sitemap) is disabled until Wave 1 pages have real content.
 // Flip to true per-wave when pages pass §11a (products + unique copy).
@@ -55,6 +56,7 @@ const BASE = SITE_URL
 // Static routes — always present. These are the core site pages that don't
 // depend on the taxonomy or catalog data layer.
 const STATIC_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+  // Core site pages
   { path: "",            label: "Home",              pageType: "home",          changeFrequency: "weekly",  priority: 1.0 },
   { path: "/about",      label: "About Us",          pageType: "about",         changeFrequency: "monthly", priority: 0.8 },
   { path: "/services",   label: "Services",          pageType: "services",      changeFrequency: "monthly", priority: 0.9 },
@@ -67,6 +69,92 @@ const STATIC_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/book",       label: "Booking Overview",   pageType: "static",        changeFrequency: "monthly", priority: 0.9 },
   { path: "/book/appointment",  label: "Book Appointment",    pageType: "static", changeFrequency: "monthly", priority: 0.9 },
   { path: "/book/consultation", label: "Free Consultation",   pageType: "static", changeFrequency: "monthly", priority: 0.8 },
+  // Auth + access doors
+  { path: "/account",            label: "Account",               pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
+  { path: "/access-customer",    label: "Customer Portal Login",  pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
+  { path: "/access-frontdesk",   label: "Front Desk Login",       pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
+  { path: "/access-groomer",     label: "Groomer Portal Login",   pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
+  { path: "/admin-login",        label: "Admin Login",             pageType: "auth",   changeFrequency: "yearly", priority: 0.2 },
+  { path: "/auth/set-password",  label: "Set Password",            pageType: "auth",   changeFrequency: "yearly", priority: 0.2 },
+  // Shop bag
+  { path: "/shop/bag",           label: "Shopping Bag",           pageType: "utility", changeFrequency: "weekly", priority: 0.3 },
+]
+
+// Learning Academy routes
+const LEARN_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+  { path: "/learn",                          label: "Learning Academy",              pageType: "learn",     changeFrequency: "monthly", priority: 0.7 },
+  { path: "/learn/courses",                  label: "Course Catalog",                pageType: "learn",     changeFrequency: "weekly",  priority: 0.7 },
+  { path: "/learn/classroom",                label: "Classroom",                     pageType: "learn",     changeFrequency: "weekly",  priority: 0.6 },
+  { path: "/learn/enroll",                   label: "Enroll",                        pageType: "learn",     changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/sign-in",                  label: "Sign In",                       pageType: "learn",     changeFrequency: "yearly",  priority: 0.3 },
+  { path: "/learn/instructor/sessions",      label: "Instructor Sessions",           pageType: "learn",     changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/learn/instructor/review",        label: "Instructor Review",             pageType: "learn",     changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/learn/admin/architect",          label: "Course Architect",              pageType: "learn",     changeFrequency: "monthly", priority: 0.4 },
+  { path: "/learn/admin/knowledge",          label: "Knowledge Management",          pageType: "learn",     changeFrequency: "monthly", priority: 0.4 },
+  // Individual courses (15 from footer)
+  { path: "/learn/courses/animal-behavior-technician",         label: "Animal Behavior Technician",         pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/animal-care-assistant",              label: "Animal Care Assistant",             pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/equine-nursing-technicians",         label: "Equine Nursing Technicians",        pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/felines-and-health",                 label: "Felines & Health",                   pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/pet-grooming",                       label: "Pet Grooming",                      pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/grooming-salon-practice-management", label: "Grooming Salon Practice Management", pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/professional-trainer",              label: "Professional Trainer",              pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/pre-veterinary-medicine",            label: "Pre-Veterinary Medicine",            pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/veterinary-assistant",               label: "Veterinary Assistant",              pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/veterinary-practice-management",     label: "Veterinary Practice Management",     pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/veterinary-pathology-technician",    label: "Veterinary Pathology Technician",    pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/veterinary-surgical-technician",    label: "Veterinary Surgical Technician",    pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/veterinary-technician",             label: "Veterinary Technician",             pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/veterinary-technology",             label: "Veterinary Technology",              pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/zookeeper-assistant",               label: "Zookeeper Assistant",               pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/positive-dog-training",             label: "Positive Dog Training",              pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+]
+
+// Customer portal routes
+const CUSTOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+  { path: "/customer/dashboard",                    label: "Customer Dashboard",          pageType: "portal", changeFrequency: "daily",   priority: 0.4 },
+  { path: "/customer/appointments",                  label: "My Appointments",              pageType: "portal", changeFrequency: "daily",   priority: 0.4 },
+  { path: "/customer/appointments/vet",              label: "Vet Appointments",             pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/pets",                          label: "My Pets",                     pageType: "portal", changeFrequency: "weekly",  priority: 0.4 },
+  { path: "/customer/orders",                        label: "My Orders",                    pageType: "portal", changeFrequency: "weekly",  priority: 0.4 },
+  { path: "/customer/orders/autoship",               label: "Autoship Orders",              pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
+  { path: "/customer/orders/buy-again",              label: "Buy Again",                   pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
+  { path: "/customer/orders/perks",                  label: "Perks",                        pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/orders/subscriptions",         label: "Subscriptions",                pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/orders/wish-list",              label: "Wish List",                    pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/invoices",                     label: "My Invoices",                  pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/messages",                     label: "Messages",                     pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/customer/notifications",                label: "Notifications",                pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/customer/help",                          label: "Help",                         pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/learn",                         label: "Customer Learning",           pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/health/records",               label: "Health Records",               pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
+  { path: "/customer/health/my-vet",                 label: "My Vet",                       pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/health/insurance",              label: "Pet Insurance",                pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/health/prescriptions",          label: "Prescriptions",                pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/customer/profile/address-book",          label: "Address Book",                 pageType: "portal", changeFrequency: "monthly", priority: 0.2 },
+  { path: "/customer/profile/communication-preferences", label: "Communication Preferences", pageType: "portal", changeFrequency: "yearly", priority: 0.2 },
+  { path: "/customer/profile/payment-methods",      label: "Payment Methods",              pageType: "portal", changeFrequency: "monthly", priority: 0.2 },
+]
+
+// Front desk routes (to be renamed to /seller)
+const FRONTDESK_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+  { path: "/frontdesk/dashboard",       label: "Front Desk Dashboard",  pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/frontdesk/appointments",    label: "Front Desk Appointments", pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/frontdesk/check-in",        label: "Check-In",               pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/frontdesk/customers",       label: "Front Desk Customers",  pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/frontdesk/orders",          label: "Front Desk Orders",      pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/frontdesk/pets",            label: "Front Desk Pets",        pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/frontdesk/phone-messages",  label: "Phone Messages",         pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/frontdesk/schedule",        label: "Front Desk Schedule",    pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+]
+
+// Groomer portal routes
+const GROOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+  { path: "/groomer/dashboard",           label: "Groomer Dashboard",      pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/groomer/appointments",        label: "Groomer Appointments",  pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/groomer/grooming-records",    label: "Grooming Records",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/groomer/pets",                label: "Groomer Pets",           pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
+  { path: "/groomer/schedule",             label: "Groomer Schedule",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
 ]
 
 // Location pages — the 5 city landings + Shelby County hub. These are money
@@ -349,7 +437,26 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
   const policyEntriesResolved = await policyEntries()
 
   // Merge + dedupe by path + exclude known redirects.
-  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
+  // Convert all route arrays to full SitemapEntry with loc + lastModified
+  const learnEntries: SitemapEntry[] = LEARN_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  const customerEntries: SitemapEntry[] = CUSTOMER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  const frontdeskEntries: SitemapEntry[] = FRONTDESK_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  const groomerEntries: SitemapEntry[] = GROOMER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  // Guide routes — 58 grooming guides from guides-data.ts
+  const guideEntries: SitemapEntry[] = getAllGroomingSlugs().map(({ slug }) => {
+    const guide = findGroomingGuide(slug)
+    return {
+      loc: `${BASE}/guides/grooming/${slug}`,
+      path: `/guides/grooming/${slug}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+      pageType: "guide",
+      label: guide?.title || slug.replace(/-/g, " "),
+    }
+  })
+
+  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...customerEntries, ...frontdeskEntries, ...groomerEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
   const seen = new Set<string>()
   const deduped = all
     .filter((e) => {
