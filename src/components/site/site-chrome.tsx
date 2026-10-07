@@ -375,6 +375,11 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   const s = { ...(fetched || initialSettings || {}) }
   return (
     <div className="min-h-screen bg-cream">
+      {/* Buy Local MidSouth — single slim header strip on every page.
+          Short text only (no keyword stuffing), no paw icon (the sidebar
+          logo carries the brand). Sits above the sidebar so it's the first
+          thing on every SEO page type + the first thing crawlers read. */}
+      <LocalBar />
       <Sidebar settings={s} pathname={pathname} gate={gate} />
       {/* Mobile bar — logo left, bag + menu right (sticky, top of every page) */}
       <div className="sticky top-0 z-50 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3 lg:hidden">
@@ -537,23 +542,18 @@ export function TopUtilityBar() {
 
 // ---------------------------------------------------------------------------
 // LocalBar — the "Buy Local MidSouth" top strip on every page. Per owner
-// spec: left side reads "Proudly Local — Memphis, TN," right side lists
-// "Serving Shelby County: Memphis • Bartlett • Arlington • Collierville •
-// Millington." Never rotates away. Sits ABOVE the sidebar visually so it's
-// the first thing on every page (and the first thing crawlers see). The
-// local badge is a local-ranking signal + citation-consistency anchor.
+// spec: SINGLE slim header (no double-header), SHORT text to avoid keyword
+// stuffing ("Proudly Local — Memphis, TN · Serving Shelby County"). The
+// full city list lives in the footer NAP block + the /grooming/[city]
+// location pages. No paw icon — the sidebar logo carries the brand; this
+// strip carries only the local citation signal. Renders as the first
+// element inside SiteChrome so it lands on every SEO page type.
 // ---------------------------------------------------------------------------
 export function LocalBar() {
   return (
-    <div className="border-b border-gold/30 bg-ink text-cream">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-1 px-4 py-1.5 text-[10px] font-semibold tracking-[0.14em] sm:flex-row sm:gap-4 sm:px-6 lg:ml-[232px] lg:px-10">
-        <span className="flex items-center gap-2 text-gold">
-          <PawGlyph className="h-3 w-3" />
-          {LOCAL_BAR.left}
-        </span>
-        <span className="text-center text-on-dark-muted">
-          {LOCAL_BAR.right}
-        </span>
+    <div className="border-b border-gold/30 bg-ink">
+      <div className="mx-auto max-w-7xl px-4 py-1.5 text-center text-[10px] font-semibold tracking-[0.14em] text-cream sm:px-6 lg:ml-[232px] lg:px-10">
+        {LOCAL_BAR.text}
       </div>
     </div>
   )

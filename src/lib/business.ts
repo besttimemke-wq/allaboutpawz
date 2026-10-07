@@ -96,7 +96,7 @@ export const CITY_LANDINGS: CityLanding[] = [
     city: "Memphis",
     county: "Shelby County",
     state: "TN",
-    postalCodes: ["38122", "38128", "38134", "38135", "38119", "38117", "38120", "38111"],
+    postalCodes: ["38122", "38134", "38135", "38119", "38117", "38120", "38111"],
     titleShort: "Dog Grooming in Memphis, TN",
     titleLong: "Dog Grooming in Memphis, TN | All About Pawz",
     metaDescription:
@@ -380,9 +380,14 @@ export function breadcrumbSchema(trail: { name: string; url: string }[]) {
 
 // ---------------------------------------------------------------------------
 // Helper — the Buy Local MidSouth top bar copy. Never rotates away.
+// Per owner spec: header strip is SHORT to avoid keyword stuffing
+// ("Proudly Local — Memphis, TN · Serving Shelby County"). The full city
+// list lives in the footer NAP block + the dedicated /grooming/[city]
+// location pages, which is the proper place for it.
 // ---------------------------------------------------------------------------
 
 export const LOCAL_BAR = {
-  left: "Proudly Local — Memphis, TN",
-  right: "Serving Shelby County: Memphis • Bartlett • Arlington • Collierville • Millington",
+  // Single short string — rendered as one slim strip, no city list, no paw
+  // icon (avoids competing with the sidebar logo → no double-header).
+  text: "Proudly Local — Memphis, TN · Serving Shelby County",
 } as const
