@@ -375,10 +375,6 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   const s = { ...(fetched || initialSettings || {}) }
   return (
     <div className="min-h-screen bg-cream">
-      {/* Buy Local MidSouth top bar — first thing on every page, above the
-          sidebar. Local SEO citation anchor + local-ranking signal. Never
-          rotates away (per owner spec). */}
-      <LocalBar />
       <Sidebar settings={s} pathname={pathname} gate={gate} />
       {/* Mobile bar — logo left, bag + menu right (sticky, top of every page) */}
       <div className="sticky top-0 z-50 flex items-center justify-between border-b border-gold/25 bg-cream px-4 py-3 lg:hidden">

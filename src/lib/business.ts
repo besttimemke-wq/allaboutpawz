@@ -22,10 +22,10 @@ export const BUSINESS = {
     "services, and premium pet products. Locally owned in Memphis since 2018.",
   // Physical location (where customers come for grooming).
   address: {
-    street: "4746 Barkshire Drive",
+    street: "699 Waring Rd",
     city: "Memphis",
     region: "TN",
-    postalCode: "38128",
+    postalCode: "38122",
     country: "US",
   },
   // NAP phone (uses the salon's published 901-722-1114 line).
@@ -57,11 +57,11 @@ export const BUSINESS = {
     "https://www.pinterest.com/allaboutpawz",
     "https://www.tiktok.com/@allaboutpawz",
   ],
-  // Geo coordinates for the salon (Memphis, TN 38128 — Barkshire Dr area).
+  // Geo coordinates for the salon (699 Waring Rd, Memphis, TN 38122).
   // Google uses these for distance calculations in local pack.
   geo: {
-    latitude: 35.1035,
-    longitude: -89.8975,
+    latitude: 35.1495,
+    longitude: -89.8618,
   },
   // Price range — local SEO signal. $$$ = premium positioning.
   priceRange: "$$$",
@@ -96,18 +96,18 @@ export const CITY_LANDINGS: CityLanding[] = [
     city: "Memphis",
     county: "Shelby County",
     state: "TN",
-    postalCodes: ["38128", "38134", "38135", "38122", "38119", "38117", "38120", "38111"],
+    postalCodes: ["38122", "38128", "38134", "38135", "38119", "38117", "38120", "38111"],
     titleShort: "Dog Grooming in Memphis, TN",
     titleLong: "Dog Grooming in Memphis, TN | All About Pawz",
     metaDescription:
-      "Locally owned dog & cat grooming salon in Memphis, TN. Breed-specific haircuts, spa baths, nail services, and premium pet supplies on Barkshire Drive. Book online today.",
+      "Locally owned dog & cat grooming salon in Memphis, TN. Breed-specific haircuts, spa baths, nail services, and premium pet supplies on Waring Rd in 38122. Book online today.",
     intro:
-      "All About Pawz is Memphis's locally owned pet grooming salon and supply shop, on Barkshire Drive in the 38128 zip. We've been grooming Memphis dogs and cats since 2018 — from Midtown's terriers to East Memphis's doodles, our groomers know the breeds, the coats, and the local pet families who trust us with their companions.",
+      "All About Pawz is Memphis's locally owned pet grooming salon and supply shop, on Waring Road in the 38122 zip. We've been grooming Memphis dogs and cats since 2018 — from Midtown's terriers to East Memphis's doodles, our groomers know the breeds, the coats, and the local pet families who trust us with their companions.",
     neighborhoods: ["Midtown Memphis", "East Memphis", "Bartlett-area Memphis", "Hickory Hill", "Berclair", "Frayser"],
     localFaqs: [
       {
         q: "Where is All About Pawz located in Memphis?",
-        a: "Our salon is at 4746 Barkshire Drive, Memphis, TN 38128 — just off Whitten Road in the Shelby County portion of Memphis. We're a short drive from Midtown, East Memphis, and Bartlett.",
+        a: "Our salon is at 699 Waring Rd, Memphis, TN 38122 — in the Berclair/East Memphis area. We're a short drive from Midtown, East Memphis, and Bartlett.",
       },
       {
         q: "Do you groom cats in Memphis too?",
@@ -144,7 +144,7 @@ export const CITY_LANDINGS: CityLanding[] = [
     localFaqs: [
       {
         q: "How far is All About Pawz from Bartlett?",
-        a: "We're about a 10-minute drive from Bartlett City Center — take Whitten Road south to Barkshire Drive. Most Bartlett customers find us closer than groomers inside Bartlett itself.",
+        a: "We're about a 10-minute drive from Bartlett City Center — take Walnut Grove to Waring Rd. Most Bartlett customers find us closer than groomers inside Bartlett itself.",
       },
       {
         q: "Do you groom the doodle breeds common in Bartlett?",
@@ -218,7 +218,7 @@ export const CITY_LANDINGS: CityLanding[] = [
     localFaqs: [
       {
         q: "How do I get to All About Pawz from Collierville?",
-        a: "Take Poplar Avenue west to Whitten Road, then south to Barkshire Drive. About a 25-minute drive from Collierville Town Square. Schedule around Collierville's school pickup traffic for the easiest trip.",
+        a: "Take Poplar Avenue west to Walnut Grove, then to Waring Rd. About a 25-minute drive from Collierville Town Square. Schedule around Collierville's school pickup traffic for the easiest trip.",
       },
       {
         q: "Do you groom the doodle breeds common in Collierville's newer subdivisions?",
@@ -255,7 +255,7 @@ export const CITY_LANDINGS: CityLanding[] = [
     localFaqs: [
       {
         q: "How far is All About Pawz from Millington?",
-        a: "About a 30-minute drive from Millington City Center via Highway 51 south to Watkins Street, then to Barkshire Drive. Schedule around morning traffic for the easiest trip.",
+        a: "About a 30-minute drive from Millington City Center via Highway 51 south to Walnut Grove, then to Waring Rd. Schedule around morning traffic for the easiest trip.",
       },
       {
         q: "Do you offer military discounts for NSA Mid-South families?",
