@@ -178,7 +178,7 @@ export function SiteFooter() {
             the text links group, short | pipes separate individual links.
             Expandable sections push DOWN within their column. No box/border
             around expanded content — flat on black canvas. */}
-        <div className="mt-8 flex items-start justify-between border-t border-gold/15 pt-6">
+        <div className="mt-8 flex items-start justify-evenly border-t border-gold/15 pt-6">
           {/* Group 1: Text links (short pipes between items, no tall line) */}
           <div className="flex items-center gap-2">
             <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Pricing</Link>
