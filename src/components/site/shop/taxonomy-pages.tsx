@@ -5,6 +5,7 @@ import { BUSINESS } from "@/lib/business"
 import { SITE_URL } from "@/lib/site-url"
 import { breadcrumbSchema } from "@/lib/business"
 import { Plp } from "./plp"
+import { CategoryCarousel } from "./category-carousel"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 
 // ---------------------------------------------------------------------------
@@ -117,82 +118,25 @@ const DEPARTMENT_IMAGE: Record<string, string> = {
   "dog/health-wellness": "/Shop/departments/dog-health-wellness.jpeg",
 }
 
-function CategoryCarousel({
-  title,
-  cards,
-}: {
-  title: string
-  cards: { name: string; description: string; href: string; image?: string; imageAlt?: string }[]
-}) {
-  if (cards.length === 0) return null
+// Fallback breed portraits for departments WITHOUT a generated image
+// (cat carriers, cat cleaners, cat clothing, cat health, cat steps, cat
+// training, flea & tick — and the dog equivalents). Applied per-card index
+// when DEPARTMENT_IMAGE has no entry for the card's dept path.
+const FALLBACK_IMAGES = [
+  "/Shop/heroes/beagle.jpeg",
+  "/Shop/heroes/cocker-spaniel.jpeg",
+  "/Shop/heroes/pomeranian.jpeg",
+  "/Shop/heroes/husky.jpeg",
+  "/Shop/heroes/french-bulldog.jpeg",
+  "/Shop/heroes/german-shepherd.jpeg",
+  "/Shop/heroes/shih-tzu.jpeg",
+  "/Shop/heroes/poodle.jpeg",
+  "/Shop/heroes/border-collie.jpeg",
+]
 
-  // Fallback breed portraits for departments without a generated image
-  // (cat carriers, cat cleaners, cat clothing, cat health, cat steps, cat
-  // training, flea & tick — and the dog equivalents).
-  const FALLBACK_IMAGES = [
-    "/Shop/heroes/beagle.jpeg",
-    "/Shop/heroes/cocker-spaniel.jpeg",
-    "/Shop/heroes/pomeranian.jpeg",
-    "/Shop/heroes/husky.jpeg",
-    "/Shop/heroes/french-bulldog.jpeg",
-    "/Shop/heroes/german-shepherd.jpeg",
-    "/Shop/heroes/shih-tzu.jpeg",
-    "/Shop/heroes/poodle.jpeg",
-    "/Shop/heroes/border-collie.jpeg",
-  ]
-  const imageFor = (i: number) => FALLBACK_IMAGES[i % FALLBACK_IMAGES.length]
-
-  return (
-    <section className="px-6 py-8 lg:px-12 lg:py-10">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex items-end justify-between">
-          <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">{title}</h2>
-          <span className="text-[11px] text-ink-soft">{cards.length} categories</span>
-        </div>
-
-        {/* Horizontal scrollable carousel — Petco-style. The grid-cols-none
-            + flex-row + overflow-x-auto makes it scroll sideways. The
-            chevron buttons sit on the outside edges. */}
-        <div className="relative mt-5 -mx-1">
-          <div
-            className="no-scrollbar flex gap-4 overflow-x-auto scroll-smooth px-1 pb-2"
-            role="list"
-            aria-label={title}
-          >
-            {cards.map((c, i) => (
-              <Link
-                key={c.href}
-                href={c.href}
-                role="listitem"
-                className="group w-[240px] shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-[#002B5C] hover:shadow-md sm:w-[260px] lg:w-[280px]"
-              >
-                {/* Image (full-bleed, 4:3 aspect). Falls back to breed
-                    portraits when no per-department image exists. */}
-                <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
-                  <img
-                    src={c.image || imageFor(i)}
-                    alt={c.imageAlt || `${c.name} — All About Pawz Memphis`}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="text-[14px] font-bold text-ink group-hover:text-[#002B5C]">{c.name}</h3>
-                  {c.description && (
-                    <p className="mt-1 text-[12px] leading-snug text-ink-soft line-clamp-2">{c.description}</p>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {/* Edge fade — subtle gradient on left/right so the user can
-              tell there's more to scroll. */}
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent" aria-hidden="true" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent" aria-hidden="true" />
-        </div>
-      </div>
-    </section>
-  )
+function imageForCard(deptPath: string | undefined, fallbackIndex: number): string {
+  if (deptPath && DEPARTMENT_IMAGE[deptPath]) return DEPARTMENT_IMAGE[deptPath]
+  return FALLBACK_IMAGES[fallbackIndex % FALLBACK_IMAGES.length]
 }
 
 // --- Animal Landing Page (/shop/dog, /shop/cat) ---
@@ -225,13 +169,13 @@ export async function AnimalLandingPage({
     })),
   }
 
-  const departmentCards = animal.departments.map((d) => ({
+  const departmentCards = animal.departments.map((d, i) => ({
     name: d.name,
     description: d.subcategories.length > 0
       ? `${d.subcategories.length} categories`
       : "Browse all",
     href: departmentPath(animal.slug, d.slug),
-    image: DEPARTMENT_IMAGE[`${animal.slug}/${d.slug}`],
+    image: imageForCard(`${animal.slug}/${d.slug}`, i),
     imageAlt: `${d.name} — All About Pawz Memphis`,
   }))
 
@@ -343,12 +287,13 @@ export async function DepartmentPage({
   // fallback — there's no per-subcategory image yet, but at least the card
   // shows a relevant picture (e.g. "Bolster Cat Beds" shows the cat-beds
   // image, "Dry Dog Food" shows the dog-food image).
-  const parentImage = DEPARTMENT_IMAGE[`${animal.slug}/${dept.slug}`]
-  const subcategoryCards = dept.subcategories.map((s) => ({
+  const parentDeptPath = `${animal.slug}/${dept.slug}`
+  const parentImage = imageForCard(parentDeptPath, 0)
+  const subcategoryCards = dept.subcategories.map((s, i) => ({
     name: s.name,
     description: "Shop the collection",
     href: subcategoryPath(animal.slug, dept.slug, s.slug),
-    image: parentImage,
+    image: i === 0 ? parentImage : imageForCard(parentDeptPath, i),
     imageAlt: `${s.name} — All About Pawz Memphis`,
   }))
 
