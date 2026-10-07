@@ -173,58 +173,66 @@ export function SiteFooter() {
         </div>
 
         {/* ===== TIER 2: SECONDARY NAV BAR =====
-            Groups separated by VERTICAL PIPE dividers.
-            Expandable sections are INLINE ACCORDION (push down, no box).
-            Horizontal dividing line ABOVE this row separates it from Tier 1.
-            Horizontal dividing line BELOW separates from Tier 3. */}
-        <div className="flex flex-wrap items-start gap-x-3 gap-y-4 border-t border-gold/15 py-6">
-          {/* Group 1: Text links */}
-          <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Pricing</Link>
-          <Pipe />
-          <Link href="/services" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Services</Link>
-          <Pipe />
-          <Link href="/contact" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Contact</Link>
-          <Pipe />
-          <Link href="/process" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Our Process</Link>
-          <Pipe />
-          <Link href="/shop" className="text-sm font-semibold text-on-dark-muted hover:text-gold">/shop</Link>
-          <Pipe />
-          {/* Group 2: Pet type nav */}
-          <Link href="/shop/dog" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Dog size={14} className="text-gold" /> Dog</Link>
-          <Link href="/shop/cat" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Cat size={14} className="text-gold" /> Cat</Link>
-          <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Package size={14} className="text-gold" /> Product</Link>
-          <Link href="/shop/collections" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><LayoutGrid size={14} className="text-gold" /> Collections</Link>
-          <Pipe />
-          {/* Group 3: Booking dropdown (inline accordion, push down) */}
-          <DropdownBar icon={CalendarDays} label="Booking" items={[
-            { label: "Booking Overview", href: "/book" },
-            { label: "Book Appointment", href: "/book/appointment" },
-            { label: "Free Consultation", href: "/book/consultation" },
-          ]} />
-          <Pipe />
-          {/* Group 4: Serving dropdown */}
-          <DropdownBar icon={MapPin} label="Serving" items={[
-            { label: "Dog Grooming in Arlington, TN", href: "/grooming/arlington-tn" },
-            { label: "Dog Grooming in Bartlett, TN", href: "/grooming/bartlett-tn" },
-            { label: "Dog Grooming in Collierville, TN", href: "/grooming/collierville-tn" },
-            { label: "Dog Grooming in Memphis, TN", href: "/grooming/memphis-tn" },
-            { label: "Dog Grooming in Millington, TN", href: "/grooming/millington-tn" },
-            { label: "Dog Grooming in Shelby County, TN", href: "/grooming/shelby-county-tn" },
-          ]} />
-          <Pipe />
-          {/* Group 5: Policies dropdown */}
-          <DropdownBar icon={ShieldCheck} label="Policies" items={[
-            { label: "Cancellations", href: "/policies/cancellations" },
-            { label: "Late Arrivals", href: "/policies/late-arrivals" },
-            { label: "Matted Coats", href: "/policies/matted-coats" },
-            { label: "Privacy Policy", href: "/policies/privacy-policy" },
-            { label: "Refunds & Returns", href: "/policies/refunds-returns" },
-            { label: "Shipping & Delivery", href: "/policies/shipping-delivery" },
-            { label: "Terms of Service", href: "/policies/terms-of-service" },
-            { label: "Terms of Use", href: "/policies/terms-of-use" },
-            { label: "Your Privacy Choices", href: "/policies/privacy-policy#choices" },
-            { label: "Vaccinations", href: "/policies/vaccinations" },
-          ]} />
+            20-30px gap above (mt-8). Groups separated by TALL VERTICAL
+            LINES (border-l, not short pipe characters). Within the text
+            links group, short | pipes separate individual links.
+            Expandable sections push DOWN within their column — the tall
+            vertical line grows with the expansion. No box/border around
+            expanded content — flat on black canvas. */}
+        <div className="mt-8 flex items-start gap-0 border-t border-gold/15 pt-6">
+          {/* Group 1: Text links (short pipes between items, no tall line) */}
+          <div className="flex items-center gap-2 pr-4">
+            <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Pricing</Link>
+            <Pipe />
+            <Link href="/services" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Services</Link>
+            <Pipe />
+            <Link href="/contact" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Contact</Link>
+            <Pipe />
+            <Link href="/process" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Our Process</Link>
+            <Pipe />
+            <Link href="/shop" className="text-sm font-semibold text-on-dark-muted hover:text-gold">/shop</Link>
+          </div>
+          {/* Group 2: Pet type nav — tall vertical line on left */}
+          <div className="flex items-center gap-3 border-l border-gold/10 px-4">
+            <Link href="/shop/dog" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Dog size={14} className="text-gold" /> Dog</Link>
+            <Link href="/shop/cat" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Cat size={14} className="text-gold" /> Cat</Link>
+            <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Package size={14} className="text-gold" /> Product</Link>
+            <Link href="/shop/collections" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><LayoutGrid size={14} className="text-gold" /> Collections</Link>
+          </div>
+          {/* Group 3: Booking — tall vertical line on left, expands DOWN */}
+          <div className="border-l border-gold/10 px-4">
+            <DropdownBar icon={CalendarDays} label="Booking" items={[
+              { label: "Booking Overview", href: "/book" },
+              { label: "Book Appointment", href: "/book/appointment" },
+              { label: "Free Consultation", href: "/book/consultation" },
+            ]} />
+          </div>
+          {/* Group 4: Serving — tall vertical line on left, expands DOWN */}
+          <div className="border-l border-gold/10 px-4">
+            <DropdownBar icon={MapPin} label="Serving" items={[
+              { label: "Dog Grooming in Arlington, TN", href: "/grooming/arlington-tn" },
+              { label: "Dog Grooming in Bartlett, TN", href: "/grooming/bartlett-tn" },
+              { label: "Dog Grooming in Collierville, TN", href: "/grooming/collierville-tn" },
+              { label: "Dog Grooming in Memphis, TN", href: "/grooming/memphis-tn" },
+              { label: "Dog Grooming in Millington, TN", href: "/grooming/millington-tn" },
+              { label: "Dog Grooming in Shelby County, TN", href: "/grooming/shelby-county-tn" },
+            ]} />
+          </div>
+          {/* Group 5: Policies — tall vertical line on left, expands DOWN */}
+          <div className="border-l border-gold/10 px-4">
+            <DropdownBar icon={ShieldCheck} label="Policies" items={[
+              { label: "Cancellations", href: "/policies/cancellations" },
+              { label: "Late Arrivals", href: "/policies/late-arrivals" },
+              { label: "Matted Coats", href: "/policies/matted-coats" },
+              { label: "Privacy Policy", href: "/policies/privacy-policy" },
+              { label: "Refunds & Returns", href: "/policies/refunds-returns" },
+              { label: "Shipping & Delivery", href: "/policies/shipping-delivery" },
+              { label: "Terms of Service", href: "/policies/terms-of-service" },
+              { label: "Terms of Use", href: "/policies/terms-of-use" },
+              { label: "Your Privacy Choices", href: "/policies/privacy-policy#choices" },
+              { label: "Vaccinations", href: "/policies/vaccinations" },
+            ]} />
+          </div>
         </div>
 
         {/* ===== TIER 3: COPYRIGHT + REAL PAYMENT LOGOS + SCROLL TOP =====
