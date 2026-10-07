@@ -4,27 +4,27 @@
 // renderings — they never drift.
 //
 // Tier 1 — v_sitemap view: when the Pet Supply Taxonomy SQL has been
-//   applied, the database publishes a v_sitemap view that generates URLs
-//   from every published taxonomy node, brand page, product, and related-
-//   search page, split by animal. We query it directly via pgQuery.
+//   applied AND the taxonomy pages have real content (products + copy),
+//   the v_sitemap view generates URLs from every published taxonomy node,
+//   brand page, product, and related-search page. GATED by
+//   TAXONOMY_SITEMAP_ENABLED — stays false until Wave 1 pages pass §11a
+//   (real products + unique copy). This keeps the sitemap honest — no
+//   empty taxonomy URLs until the pages render real content.
 //
-// Tier 2 — catalog resolvers (fallback): before the taxonomy SQL is
-//   applied, we build entries from the existing catalog resolvers
+// Tier 2 — catalog resolvers (fallback): the existing catalog resolvers
 //   (getNavTree + flattenNav + getProducts + getMerchCollections). This
-//   gives shallower coverage (species landings + departments + products)
-//   but keeps the sitemap functional.
+//   is what runs today — the old pet_product_categories + commerce_products
+//   tables. Gives ~46 honest URLs.
 //
-// Tier 3 — static routes: always present regardless of DB state. Core
-//   site pages + location pages + policies.
+// Tier 3 — static routes: always present. Core site pages + location
+//   pages + policies.
 //
 // Hygiene rules (per owner spec):
 //   • Only 200-status indexable URLs go in — no redirecting URLs, no
-//     filter-param URLs (filter state is encoded in query strings, never
-//     routes — per the Shop SEO Page Architecture spec).
+//     filter-param URLs, no test products, no duplicates.
 //   • Location pages (/grooming/[slug]) are money pages — always included.
-//   • Regenerates on every publish event (revalidate = 0 in the route
-//     handlers; cache breaks on every request so a new taxonomy publish
-//     is reflected within the next crawl).
+//   • TAXONOMY_SITEMAP_ENABLED gates Tier 1 — flip to true per-wave when
+//     pages are ready. Default false = honest ~46-URL sitemap.
 // ---------------------------------------------------------------------------
 
 import { SITE_URL } from "@/lib/site-url"
@@ -32,6 +32,12 @@ import { BUSINESS, CITY_LANDINGS, SHELBY_HUB } from "@/lib/business"
 import { getNavTree, flattenNav, getProducts, getMerchCollections } from "@/lib/shop/catalog"
 import { getResource } from "@/lib/site-data"
 import { pgQuery } from "@/lib/pg"
+
+// GATE: Tier 1 (v_sitemap) is disabled until Wave 1 pages have real content.
+// Flip to true per-wave when pages pass §11a (products + unique copy).
+// Default false = sitemap stays at ~46 honest URLs (old catalog + static +
+// location + policies), no empty taxonomy URLs.
+const TAXONOMY_SITEMAP_ENABLED = false
 
 export type SitemapEntry = {
   loc: string           // full URL including https://
@@ -86,6 +92,10 @@ const LOCATION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
 // (taxonomy SQL not yet applied). Never throws — the caller falls back.
 // ---------------------------------------------------------------------------
 async function tryVSitemap(): Promise<SitemapEntry[]> {
+  // GATE: Tier 1 is disabled until Wave 1 pages have real content.
+  // When false, returns empty → buildSitemap() falls back to Tier 2
+  // (old catalog resolvers) → sitemap stays honest at ~46 URLs.
+  if (!TAXONOMY_SITEMAP_ENABLED) return []
   try {
     const rows = await pgQuery<{ loc: string; lastmod: string | null; page_type: string }>(
       `SELECT loc, lastmod, page_type FROM public.v_sitemap WHERE tenant_id = $1::uuid`,
