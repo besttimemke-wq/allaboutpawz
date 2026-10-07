@@ -238,12 +238,23 @@ export interface BookingRequestData {
   date: string
   time?: string
   bookingRef?: string
+  /** Full intake — dog details so the email reflects everything captured. */
+  breed?: string
+  weight?: string
+  age?: string
+  size?: string
   /** payment lines carried on the request (items + total) */
   itemLines?: string[]
   total?: string
 }
 
 export function bookingRequestHtml(d: BookingRequestData): string {
+  const dogLine = [
+    d.dogName,
+    d.breed,
+    d.weight ? `${d.weight} lbs` : "",
+    d.size ? d.size[0] + d.size.slice(1).toLowerCase() : "",
+  ].filter(Boolean).join(" · ")
   return frame({
     preheader: `We got ${d.dogName ? d.dogName + "'s" : "your"} booking request — the $25 deposit finishes it.`,
     body: [
@@ -254,7 +265,8 @@ export function bookingRequestHtml(d: BookingRequestData): string {
         `This confirms we received your booking request${d.dogName ? ` for <strong style="color:#1a1a1a">${esc(d.dogName)}</strong>` : ""}. Once your $25 deposit clears, we'll send a full confirmation with everything you need.`,
       ),
       detailsCard("Your request", [
-        ...(d.dogName ? [{ label: "Dog", value: esc(d.dogName) }] : []),
+        ...(dogLine ? [{ label: "Dog", value: esc(dogLine) }] : []),
+        ...(d.age ? [{ label: "Age", value: esc(d.age) }] : []),
         { label: "Service", value: esc(d.service) },
         { label: "Requested date", value: esc(d.date) },
         ...(d.time ? [{ label: "Requested time", value: esc(d.time) }] : []),
@@ -269,6 +281,40 @@ export function bookingRequestHtml(d: BookingRequestData): string {
       ),
     ].join(""),
     reason: `You're receiving this because you just submitted a booking request at aapawz.com.`,
+  })
+}
+
+// ---- Pre check-in received (customer confirmation) ----------------------------------
+
+export interface PreCheckInReceivedData {
+  firstName: string
+  dogName?: string
+  service: string
+  date: string
+  time?: string
+  bookingRef?: string
+}
+
+export function preCheckInReceivedHtml(d: PreCheckInReceivedData): string {
+  return frame({
+    preheader: `Pre check-in complete — ${esc(d.dogName || "your pup")}'s ${esc(d.service)} on ${esc(d.date)}.`,
+    body: [
+      eyebrow("Pre check-in complete", "sage"),
+      h1(`You're checked in, ${esc(d.firstName)}!`),
+      taglineFlourish(),
+      p(
+        `Thank you — the pre check-in for ${d.dogName ? `<strong style="color:#1a1a1a">${esc(d.dogName)}</strong>'s` : "your"} <strong style="color:#1a1a1a">${esc(d.service)}</strong> is complete. Your stylist will have every answer before the visit — nothing left to do but show up.`,
+      ),
+      detailsCard("Your visit", [
+        ...(d.dogName ? [{ label: "Dog", value: esc(d.dogName) }] : []),
+        { label: "Service", value: esc(d.service) },
+        { label: "When", value: esc([d.date, d.time].filter(Boolean).join(" at ")) },
+        ...(d.bookingRef ? [{ label: "Booking ref", value: esc(d.bookingRef) }] : []),
+      ]),
+      button(BRAND.portalUrl, "Manage in my portal"),
+      p(`Anything change before the visit — new mats, a rough night, a schedule wrinkle? Update it from your portal or call us at ${BRAND.phone}.`, { muted: true, small: true }),
+    ].join(""),
+    reason: `You're receiving this because you completed the pre check-in for an upcoming appointment.`,
   })
 }
 
@@ -291,4 +337,10 @@ export const SAMPLE_BOOKING_REQUEST: BookingRequestData = {
   date: "2026-10-16",
   time: "1:00 PM",
   bookingRef: "BK-7C31D4",
+  breed: "Maltipoo",
+  weight: "14",
+  age: "2 years old",
+  size: "SMALL",
+  itemLines: ["Bath & Brush — $45.00", "Deshedding Treatment — $20.00"],
+  total: "$69.83",
 }

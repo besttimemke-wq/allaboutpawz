@@ -900,7 +900,7 @@ export default function CustomerAppointmentsPage() {
             </AlertDialogTitle>
             <AlertDialogDescription className="text-left text-[13px] leading-relaxed">
               Your slot opens up to other pups immediately. Deposit refunds are
-              handled by the salon — call us at (901) 800-7182 with any questions.
+              handled by the salon — call us at (901) 722-1114 with any questions.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {cError && (
@@ -1073,7 +1073,7 @@ function QuestionnaireModal({
           {form.sedation === 'yes' && (
             <div className="rounded-md border border-gold/40 bg-gold-light/20 p-3.5 text-[12px] leading-relaxed text-ink">
               Please call us to reschedule — medicated pets can&apos;t be groomed
-              the same day. (901) 800-7182.
+              the same day. (901) 722-1114.
             </div>
           )}
 

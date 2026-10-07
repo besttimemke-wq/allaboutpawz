@@ -25,6 +25,7 @@ export type CmsResource =
   | "dog_grooming_profiles" | "appointment_grooming_requests"
   | "blocked_times" | "availability" | "service_pricing"
   | "invoices" | "invoice_items" | "email_messages" | "communications"
+  | "customer_notifications"
   | "product_reviews"
   | "pet_product_categories" | "pet_product_filters" | "pet_product_filter_values" | "pet_category_filters"
   | "serviceItems"
@@ -70,6 +71,7 @@ const TABLE: Record<CmsResource, string> = {
   invoices: "invoices",
   invoice_items: "invoice_items",
   email_messages: "email_messages",
+  customer_notifications: "customer_notifications",
   communications: "communications",
   product_reviews: "product_reviews",
   pet_product_categories: "pet_product_categories",

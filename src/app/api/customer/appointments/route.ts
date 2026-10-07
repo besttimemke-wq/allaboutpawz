@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
-import { sendEmail, sendAppointmentRescheduled, sendAppointmentCanceled } from "@/lib/email"
+import { sendEmail, sendAppointmentRescheduled, sendAppointmentCanceled, sendPreCheckIn } from "@/lib/email"
 import { sessionForPortal } from "@/lib/portal-session-scope"
 import {
   bookingSignal,
@@ -342,6 +342,35 @@ export async function POST(req: NextRequest) {
           answers.groomingGoals ? `Grooming goals: ${answers.groomingGoals}` : "",
         ].filter(Boolean).join(" · "),
       })
+
+      // Owner direction: everything captured goes to the salon inbox. The
+      // stylist gets the full answer sheet; the customer gets a confirmation
+      // that identifies the service and the date.
+      sendPreCheckIn({
+        customerId: booking.customerId || undefined,
+        email,
+        ownerName: booking.ownerName || user.name,
+        dogName: booking.dogName,
+        service: booking.service || "Grooming",
+        date: booking.date,
+        time: booking.time,
+        bookingId: booking.id,
+        answers: {
+          vaccinationsCurrent: answers.vaccinationsCurrent,
+          sameDayShots: answers.sameDayShots,
+          muzzle: answers.muzzle,
+          sedation: answers.sedation,
+          healthNotes: answers.healthNotes,
+          groomingGoals: answers.groomingGoals,
+          behaviorNotes: answers.behaviorNotes,
+          emergencyName: answers.emergencyName,
+          emergencyPhone: answers.emergencyPhone,
+          vetName: answers.vetName,
+          vetPhone: answers.vetPhone,
+          authorize: answers.authorize === true || answers.authorize === "true",
+        },
+      }).catch(() => {})
+
       return NextResponse.json({ ok: true, booking: publicBooking(updated, null) })
     }
 

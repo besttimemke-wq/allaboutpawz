@@ -37,6 +37,7 @@ type Plan = {
 
 type Membership = {
   id: string;
+  planId: string;
   planName: string;
   sizeTier: string;
   dogName: string | null;
@@ -86,6 +87,11 @@ function SubscriptionsInner() {
   const [dogId, setDogId] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // ---- change-plan state (manage card) ----
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [changePlanId, setChangePlanId] = useState('');
+  const [changeInterval, setChangeInterval] = useState<'monthly' | 'annual'>('monthly');
 
   const load = useCallback(async () => {
     try {
@@ -138,27 +144,59 @@ function SubscriptionsInner() {
   const pending = memberships?.find((m) => m.status === 'PENDING') || null;
   const paused = memberships?.find((m) => m.status === 'PAUSED') || null;
   const selectedPlan = plans?.find((p) => p.id === planId) || null;
+  const membership = active || paused || pending;
+  const changeTarget = plans?.find((p) => p.id === changePlanId) || null;
+  const changeSamePlan =
+    !!membership && changePlanId === membership.planId && changeInterval === membership.billingInterval;
+  const canChangePlan = !!membership && (membership.status === 'ACTIVE' || membership.status === 'PAUSED');
 
-  const manage = async (membershipId: string, action: string) => {
+  const manage = async (
+    membershipId: string,
+    action: string,
+    extra?: Record<string, unknown>,
+    onSuccess?: () => void,
+  ) => {
     setBusy(true);
     setError('');
     try {
       const res = await fetch('/api/subscriptions/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ membershipId, action }),
+        body: JSON.stringify({ membershipId, action, ...(extra ?? {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data?.error || 'That didn’t work — try again.');
         return;
       }
+      onSuccess?.();
       await load();
     } catch {
       setError('Network problem — try again.');
     } finally {
       setBusy(false);
     }
+  };
+
+  const openChangePlan = () => {
+    if (!membership) return;
+    setChangePlanId(membership.planId || plans?.find((p) => p.monthlyPriceCents != null)?.id || '');
+    setChangeInterval(membership.billingInterval);
+    setError('');
+    setChangeOpen(true);
+  };
+
+  const confirmChangePlan = async () => {
+    if (!membership || !changePlanId) return;
+    await manage(
+      membership.id,
+      'change_plan',
+      { planId: changePlanId, billingInterval: changeInterval },
+      () => {
+        setChangeOpen(false);
+        setNotice('Plan updated — new price starts next billing cycle.');
+      },
+    );
   };
 
   const startMembership = async () => {
@@ -207,8 +245,6 @@ function SubscriptionsInner() {
       </div>
     );
   }
-
-  const membership = active || paused || pending;
 
   return (
     <div className="space-y-8">
@@ -284,6 +320,16 @@ function SubscriptionsInner() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2.5 border-t border-border px-5 py-4">
+            {canChangePlan && !changeOpen && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={openChangePlan}
+                className="h-10 rounded-md border border-border bg-white px-4 text-[11px] font-bold uppercase tracking-[0.1em] text-foreground transition-colors hover:border-gold-deep hover:text-gold-deep disabled:opacity-50"
+              >
+                Change plan
+              </button>
+            )}
             {membership.status === 'ACTIVE' && !membership.cancelAtPeriodEnd && (
               <>
                 <button
@@ -328,6 +374,127 @@ function SubscriptionsInner() {
               Cancellation takes effect at the end of the billing cycle — no partial-month refunds.
             </p>
           </div>
+
+          {/* ---------- CHANGE PLAN (inline tier picker) ---------- */}
+          {changeOpen && plans && plans.length > 0 && (
+            <div className="border-t border-border px-5 py-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Pick a new plan
+              </p>
+              <div role="radiogroup" aria-label="New membership tier" className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {plans.map((p) => {
+                  const selected = changePlanId === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={p.monthlyPriceCents == null}
+                      onClick={() => setChangePlanId(p.id)}
+                      className={cn(
+                        'rounded-lg border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+                        selected ? 'border-gold-deep bg-amber-50/40' : 'border-border bg-white hover:border-neutral-300',
+                      )}
+                    >
+                      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-gold-deep">{p.sizeLabel}</p>
+                      <p className="mt-0.5 text-[11.5px] text-muted-foreground">{p.weightRange}</p>
+                      <p className="mt-2.5 text-[19px] font-bold tabular-nums text-foreground">
+                        {p.monthlyPriceCents != null ? (
+                          <>
+                            {money(p.monthlyPriceCents)}
+                            <span className="text-[11px] font-normal text-muted-foreground">/mo</span>
+                          </>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-[14px]">
+                            <Phone className="h-3.5 w-3.5 text-gold-deep" aria-hidden="true" />
+                            Custom quote
+                          </span>
+                        )}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Billing interval — defaults to the membership's current one */}
+              <div className="mt-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Billing</p>
+                <div role="radiogroup" aria-label="New billing interval" className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {(['monthly', 'annual'] as const).map((iv) => (
+                    <button
+                      key={iv}
+                      type="button"
+                      role="radio"
+                      aria-checked={changeInterval === iv}
+                      onClick={() => setChangeInterval(iv)}
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg border p-4 text-left transition-colors',
+                        changeInterval === iv ? 'border-gold-deep bg-amber-50/40' : 'border-border bg-white hover:border-neutral-300',
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                          changeInterval === iv ? 'border-gold-deep' : 'border-neutral-300',
+                        )}
+                      >
+                        {changeInterval === iv && <span className="h-2.5 w-2.5 rounded-full bg-gold-deep" />}
+                      </span>
+                      <span>
+                        <span className="block text-[14px] font-bold text-foreground">
+                          {iv === 'monthly' ? 'Monthly' : `Prepay ${changeTarget?.annualPrepayMonths ?? 12} months`}
+                        </span>
+                        <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                          {iv === 'monthly'
+                            ? 'Cancel or pause anytime.'
+                            : `For the price of ${changeTarget?.annualPrepayChargeMonths ?? 10} — two months free.`}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* The computed new price — preview only; the server recomputes it */}
+              {changeTarget && changeTarget.monthlyPriceCents != null ? (
+                <p className="mt-4 text-[13px] font-semibold text-foreground">
+                  New price:{' '}
+                  {changeInterval === 'annual'
+                    ? `${money(changeTarget.monthlyPriceCents * changeTarget.annualPrepayChargeMonths)}/yr`
+                    : `${money(changeTarget.monthlyPriceCents)}/mo`}
+                  <span className="font-normal text-muted-foreground"> — starts next billing cycle</span>
+                </p>
+              ) : (
+                <p className="mt-4 text-[13px] font-semibold text-muted-foreground">
+                  XL memberships are custom quote — call the salon at (901) 722-1114.
+                </p>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-2.5">
+                <button
+                  type="button"
+                  disabled={busy || !changeTarget || changeTarget.monthlyPriceCents == null || changeSamePlan}
+                  onClick={confirmChangePlan}
+                  className="flex h-11 items-center justify-center gap-2 rounded-md bg-foreground px-6 text-[11px] font-bold uppercase tracking-[0.1em] text-background transition-colors hover:bg-gold-deep hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                  Confirm change
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setChangeOpen(false)}
+                  className="h-11 rounded-md border border-border bg-white px-6 text-[11px] font-bold uppercase tracking-[0.1em] text-foreground transition-colors hover:border-foreground disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+              <p className="mt-2.5 text-[11px] leading-relaxed text-muted-foreground">
+                No surprise charges — the new price applies from your next billing cycle.
+              </p>
+            </div>
+          )}
         </div>
       ) : plans && plans.length > 0 ? (
         /* ---------- SIGNUP ---------- */
@@ -468,7 +635,7 @@ function SubscriptionsInner() {
               {selectedPlan?.monthlyPriceCents == null
                 ? 'Call the salon for XL'
                 : interval === 'annual'
-                  ? `Start — ${money(Math.round(((selectedPlan?.monthlyPriceCents ?? 0) * (selectedPlan?.annualPrepayChargeMonths ?? 10)) / (selectedPlan?.annualPrepayMonths ?? 12)))} for the year`
+                  ? `Start — ${money((selectedPlan?.monthlyPriceCents ?? 0) * (selectedPlan?.annualPrepayChargeMonths ?? 10))} for the year`
                   : `Start — ${money(selectedPlan?.monthlyPriceCents ?? 0)}/mo`}
             </button>
             <p className="mt-2.5 text-[11px] leading-relaxed text-muted-foreground">

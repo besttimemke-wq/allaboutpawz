@@ -106,11 +106,10 @@ export async function GET() {
 
     const salon = {
       name: settings.brandName || "All About Pawz",
-      // BRAND facts per the email design system — 901-800-7182 (the 722-1114
-      // fallback was stale).
+      // Owner-confirmed current line — matches design.ts BRAND.phone.
       address: settings.addressLine1 || "Memphis",
       cityState: settings.addressLine2 || "Memphis, TN",
-      phone: settings.phone || "901-800-7182",
+      phone: settings.phone || "901-722-1114",
     }
 
     // Size tiers — the pounds menu the pet step uses.

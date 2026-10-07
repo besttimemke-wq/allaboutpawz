@@ -14,7 +14,12 @@ import {
   Calendar,
   Lock,
   RefreshCw,
-  Activity
+  Activity,
+  Bell,
+  CalendarCheck,
+  Repeat,
+  ShoppingBag,
+  Send
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -194,6 +199,340 @@ function LiveEventStream() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Email alerts — the Notifications box. The owner's standing ruling: every
+// captured business event lands in the salon's inbox as an email alert —
+// booking requests (with the exact services), subscription events, and shop
+// orders. This panel shows WHERE they land (editable destination), the
+// master toggle, live per-type activity from the email_messages audit
+// trail, and fires a real test alert end-to-end.
+// ---------------------------------------------------------------------------
+type NotificationsData = {
+  destination: string
+  alertsEnabled: boolean
+  types: { key: string; label: string; description: string; sent7d: number; sentTotal: number; lastSentAt: string | null }[]
+  recent: { id: string; template: string; subject: string; toEmail: string; status: string; createdAt: string }[]
+}
+
+const ALERT_TYPE_ICONS: Record<string, typeof CalendarCheck> = {
+  booking: CalendarCheck,
+  subscription: Repeat,
+  order: ShoppingBag,
+}
+
+function relTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function AlertStatusChip({ status }: { status: string }) {
+  const s = String(status || '').toUpperCase()
+  if (s === 'SENT') {
+    return <span className="shrink-0 bg-success text-success-foreground px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider">Sent</span>
+  }
+  if (s === 'FAILED') {
+    return <span className="shrink-0 bg-destructive text-destructive-foreground px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider">Failed</span>
+  }
+  return <span className="shrink-0 border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{s || '—'}</span>
+}
+
+function NotificationsPanel() {
+  const [data, setData] = useState<NotificationsData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [emailDraft, setEmailDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveFeedback, setSaveFeedback] = useState<{ ok: boolean; text: string } | null>(null)
+  const [toggling, setToggling] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [railFeedback, setRailFeedback] = useState<{ ok: boolean; text: string } | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const apply = (d: NotificationsData) => {
+    setData(d)
+    setEmailDraft(d.destination)
+  }
+
+  // Initial load — same callback-only pattern as LiveEventStream above;
+  // `data === null && !error` is the loading state.
+  useEffect(() => {
+    let alive = true
+    fetch('/api/admin/notifications')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d: NotificationsData) => { if (alive) apply(d) })
+      .catch((e: Error) => { if (alive) setError(e.message) })
+    return () => { alive = false }
+  }, [])
+
+  const refresh = () => {
+    setRefreshing(true)
+    setError(null)
+    fetch('/api/admin/notifications')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d: NotificationsData) => apply(d))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setRefreshing(false))
+  }
+
+  const patch = (body: Record<string, unknown>): Promise<{ ok: boolean; data: NotificationsData | null; error?: string }> =>
+    fetch('/api/admin/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, data: d as NotificationsData, error: d?.error })))
+      .catch((e: Error) => ({ ok: false, data: null, error: e.message }))
+
+  const saveDestination = () => {
+    const email = emailDraft.trim()
+    if (!email) {
+      setSaveFeedback({ ok: false, text: 'Enter an email address first.' })
+      return
+    }
+    setSaving(true)
+    setSaveFeedback(null)
+    patch({ alertEmail: email }).then(({ ok, data: d, error }) => {
+      if (ok && d?.destination) {
+        apply(d)
+        setSaveFeedback({ ok: true, text: `Saved — every salon alert now routes to ${d.destination}.` })
+      } else {
+        setSaveFeedback({ ok: false, text: error || 'Save failed.' })
+      }
+    }).finally(() => setSaving(false))
+  }
+
+  const toggleAlerts = () => {
+    if (!data) return
+    setToggling(true)
+    setRailFeedback(null)
+    patch({ alertsEnabled: !data.alertsEnabled }).then(({ ok, data: d, error }) => {
+      if (ok && d) apply(d)
+      else setRailFeedback({ ok: false, text: error || 'Toggle failed.' })
+    }).finally(() => setToggling(false))
+  }
+
+  const sendTest = () => {
+    setSending(true)
+    setRailFeedback(null)
+    fetch('/api/admin/notifications/test', { method: 'POST' })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (ok && d?.ok) {
+          setRailFeedback({ ok: true, text: `Test alert sent to ${d.destination} — check the inbox.` })
+          refresh()
+        } else {
+          setRailFeedback({ ok: false, text: d?.error || 'Test send failed.' })
+        }
+      })
+      .catch((e: Error) => setRailFeedback({ ok: false, text: e.message }))
+      .finally(() => setSending(false))
+  }
+
+  const total7d = data ? data.types.reduce((n, t) => n + t.sent7d, 0) : 0
+  const totalAll = data ? data.types.reduce((n, t) => n + t.sentTotal, 0) : 0
+
+  return (
+    <div className="border border-border bg-card">
+      {/* Panel header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4 text-primary" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground">
+            Email Alerts — Notifications
+          </span>
+          <span className="border border-border bg-card px-1.5 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">
+            email_messages · live
+          </span>
+        </div>
+        <button
+          onClick={refresh}
+          disabled={refreshing || !data}
+          className="flex h-7 items-center gap-1.5 border border-border bg-card px-2.5 text-[9px] font-semibold uppercase tracking-wider text-foreground hover:bg-muted/40 disabled:opacity-50 cursor-pointer"
+        >
+          <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      {error ? (
+        <div className="px-4 py-6 text-center text-[11px] text-muted-foreground">
+          Notifications data unavailable ({error}). The alert senders are still live — only this panel's read of the
+          email_messages audit trail failed.
+        </div>
+      ) : !data ? (
+        /* Loading skeletons */
+        <div className="p-4 space-y-3">
+          <div className="h-8 w-2/3 animate-pulse bg-muted/40" />
+          <div className="h-16 animate-pulse bg-muted/30" />
+          <div className="h-16 animate-pulse bg-muted/30" />
+          <div className="h-16 animate-pulse bg-muted/30" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px]">
+            {/* Destination + alert type rows */}
+            <div className="space-y-4 border-b border-border p-4 lg:border-b-0 lg:border-r">
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Alerts land in</div>
+                <div className="mt-1.5 flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    value={emailDraft}
+                    onChange={(e) => { setEmailDraft(e.target.value); setSaveFeedback(null) }}
+                    placeholder="booking@aapawz.com"
+                    aria-label="Alert destination email"
+                    className="h-8 min-w-0 flex-1 border border-border bg-card px-2.5 text-[12px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button
+                    onClick={saveDestination}
+                    disabled={saving || emailDraft.trim() === data.destination}
+                    className="h-8 shrink-0 border border-border bg-primary px-3 text-[9px] font-semibold uppercase tracking-wider text-primary-foreground transition-none hover:bg-muted disabled:opacity-50 cursor-pointer"
+                  >
+                    {saving ? 'Saving…' : 'Save destination'}
+                  </button>
+                </div>
+                {saveFeedback && (
+                  <div className={`mt-1.5 text-[10px] ${saveFeedback.ok ? 'text-success' : 'text-destructive'}`}>
+                    {saveFeedback.text}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {data.types.map((t) => {
+                  const Icon = ALERT_TYPE_ICONS[t.key] || Bell
+                  return (
+                    <div key={t.key} className="flex items-start gap-3 border border-border bg-muted/30 p-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center border border-border bg-card">
+                        <Icon className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-semibold text-foreground">{t.label}</div>
+                        <div className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{t.description}</div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] tabular-nums text-muted-foreground">
+                          <span>7d: <span className="font-semibold text-foreground">{t.sent7d}</span></span>
+                          <span>all-time: <span className="font-semibold text-foreground">{t.sentTotal}</span></span>
+                          <span>last sent: {t.lastSentAt ? relTime(t.lastSentAt) : '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Rail: master toggle + totals + test send */}
+            <div className="space-y-3 p-4">
+              <div className="border border-border bg-muted/30 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Alerts enabled</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={data.alertsEnabled}
+                    aria-label="Toggle salon email alerts"
+                    onClick={toggleAlerts}
+                    disabled={toggling}
+                    className={`relative h-5 w-9 shrink-0 cursor-pointer border transition-colors disabled:opacity-50 ${
+                      data.alertsEnabled ? 'border-primary bg-primary' : 'border-border bg-muted'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-[1px] h-[16px] w-[16px] border border-border bg-card transition-all ${
+                        data.alertsEnabled ? 'left-[19px]' : 'left-[1px]'
+                      }`}
+                    />
+                  </button>
+                </div>
+                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                  Every booking, subscription, and order event emails the salon. Turning this off silences the salon
+                  copies only — customer emails are never affected.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="border border-border bg-muted/30 p-3">
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Alerts · 7d</div>
+                  <div className="mt-1 text-[20px] font-semibold tabular-nums">{total7d}</div>
+                </div>
+                <div className="border border-border bg-muted/30 p-3">
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">All-time</div>
+                  <div className="mt-1 text-[20px] font-semibold tabular-nums">{totalAll}</div>
+                </div>
+              </div>
+
+              <button
+                onClick={sendTest}
+                disabled={sending}
+                className="flex h-8 w-full items-center justify-center gap-1.5 border border-border bg-primary px-3 text-[9px] font-semibold uppercase tracking-wider text-primary-foreground transition-none hover:bg-muted disabled:opacity-50 cursor-pointer"
+              >
+                <Send className="h-3 w-3" />
+                {sending ? 'Sending…' : 'Send test alert'}
+              </button>
+              {railFeedback && (
+                <div className={`text-[10px] leading-relaxed ${railFeedback.ok ? 'text-success' : 'text-destructive'}`}>
+                  {railFeedback.text}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent alerts — last 10 salon-alert emails from the audit trail */}
+          <div className="border-t border-border">
+            <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-2">
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Recent alerts — last 10
+              </span>
+              <span className="text-[9px] tabular-nums text-muted-foreground">to {data.destination}</span>
+            </div>
+            {data.recent.length === 0 ? (
+              <div className="px-4 py-6 text-center text-[11px] text-muted-foreground">
+                No salon alerts recorded yet — they appear here the moment a booking request, subscription event, or
+                shop order is captured.
+              </div>
+            ) : (
+              <div className="max-h-64 overflow-y-auto overflow-x-auto custom-scrollbar">
+                <table className="w-full text-[10px] tabular-nums">
+                  <thead className="sticky top-0 bg-muted/60 text-[9px] uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold">Template</th>
+                      <th className="px-3 py-2 text-left font-semibold">Subject</th>
+                      <th className="px-3 py-2 text-left font-semibold">To</th>
+                      <th className="px-3 py-2 text-left font-semibold">Status</th>
+                      <th className="px-3 py-2 text-right font-semibold">When</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.recent.map((a) => (
+                      <tr key={a.id} className="border-t border-border/50">
+                        <td className="px-3 py-1.5">
+                          <span className="border border-border bg-muted/40 px-1.5 py-0.5 font-semibold">
+                            {a.template.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="max-w-[260px] truncate px-3 py-1.5 text-foreground">{a.subject}</td>
+                        <td className="max-w-[150px] truncate px-3 py-1.5 text-muted-foreground">{a.toEmail}</td>
+                        <td className="px-3 py-1.5"><AlertStatusChip status={a.status} /></td>
+                        <td className="px-3 py-1.5 text-right text-muted-foreground">{relTime(a.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   )
@@ -817,6 +1156,11 @@ export const AnalyticsReportingScreen: React.FC<ScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {/* EMAIL ALERTS — NOTIFICATIONS: where every captured business event
+          lands (booking requests, subscription events, shop orders), the
+          master toggle, live alert activity, and the end-to-end test send */}
+      <NotificationsPanel />
 
       {/* LIVE EVENT STREAM — the salon's own custom analytics (real data) */}
       <LiveEventStream />

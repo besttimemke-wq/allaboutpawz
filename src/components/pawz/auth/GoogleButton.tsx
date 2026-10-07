@@ -32,12 +32,27 @@ const GOOGLE_SVG = (
   </svg>
 );
 
-export function GoogleButton({ portal, label = 'Continue with Google' }: { portal: PortalId; label?: string }) {
+export function GoogleButton({
+  portal,
+  label = 'Continue with Google',
+  next,
+}: {
+  portal: PortalId;
+  label?: string;
+  /** Same-site return path (e.g. a gated public flow's ?redirect=) — rides
+   *  the OAuth state as ?next= so the callback returns the user STRAIGHT
+   *  back to where they started instead of their portal dashboard. */
+  next?: string;
+}) {
   const [leaving, setLeaving] = useState(false);
 
   const go = () => {
     setLeaving(true);
-    window.location.href = `/api/auth/google?portal=${encodeURIComponent(portal)}`;
+    const base = `/api/auth/google?portal=${encodeURIComponent(portal)}`;
+    window.location.href =
+      next && next.startsWith('/') && !next.startsWith('//')
+        ? `${base}&next=${encodeURIComponent(next)}`
+        : base;
   };
 
   return (

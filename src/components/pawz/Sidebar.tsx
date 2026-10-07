@@ -48,6 +48,7 @@ import {
   ShieldCheck,
   House,
   Bell,
+  BellRing,
   LifeBuoy,
   LogOut,
   CalendarPlus,
@@ -278,6 +279,9 @@ const CUSTOMER_NAV: CustomerNavBlock[] = [
     ],
   },
   {
+    items: [{ label: 'Notifications', icon: BellRing, href: '/customer/notifications' }],
+  },
+  {
     category: 'My Orders',
     items: [
       { label: 'Order History', icon: Receipt, href: '/customer/orders' },
@@ -301,6 +305,7 @@ const CUSTOMER_NAV: CustomerNavBlock[] = [
   {
     category: 'My Pet Health',
     items: [
+      { label: 'Records', icon: FileText, href: '/customer/health/records' },
       { label: 'My Prescriptions', icon: Pill, href: '/customer/health/prescriptions' },
       { label: 'My Vet', icon: Building2, href: '/customer/health/my-vet' },
       { label: 'Insurance', icon: ShieldCheck, href: '/customer/health/insurance' },

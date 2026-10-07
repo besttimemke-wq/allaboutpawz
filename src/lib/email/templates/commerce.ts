@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { BRAND, button, detailsCard, eyebrow, h1, lineItems, noteBox, p, taglineFlourish, frame, esc } from "../design"
+import { SITE_URL } from "../../site-url"
 
 // ---- Payment confirmation ------------------------------------------------------
 
@@ -145,7 +146,7 @@ export function membershipActiveHtml(d: MembershipData): string {
           <td width="44" align="center" valign="top" style="padding:16px 0 4px 16px;"><img src="${BRAND.pawImg}" width="13" height="13" alt="" style="display:block;"/></td>
           <td valign="top" style="padding:14px 20px 14px 8px;">
             <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#1a1a1a;">${esc(perk.title)}</div>
-            ${perk.body ? `<div style="font-family:Helvetica,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#4a443c;">${esc(perk.body)}</div>` : ""}
+            ${perk.body ? `<div style="font-family:Helvetica,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#1a1a1a;">${esc(perk.body)}</div>` : ""}
           </td>
         </tr>`
           )
@@ -156,6 +157,87 @@ export function membershipActiveHtml(d: MembershipData): string {
       p(`Your member pricing applies automatically every time you book — nothing to remember, nothing to mention.`, { muted: true, small: true }),
     ].join(""),
     reason: `You're receiving this because you joined an All About Pawz membership.`,
+  })
+}
+
+// ---- Membership plan changed ---------------------------------------------------------
+
+export interface PlanChangedData {
+  firstName: string
+  oldPlanName: string
+  newPlanName: string
+  newPrice: string
+  billingInterval: string
+  effective: string
+  renews?: string
+  manageUrl?: string
+}
+
+export function subscriptionPlanChangedHtml(d: PlanChangedData): string {
+  return frame({
+    preheader: `Your Bath Club plan is now ${esc(d.newPlanName)} — ${esc(d.newPrice)}.`,
+    body: [
+      eyebrow("Membership updated"),
+      h1(`Your new plan is set, ${esc(d.firstName)}`),
+      taglineFlourish(),
+      p(
+        `You changed your PAWfection Bath Club plan. Everything else — your billing day, your pup's spot, your Perks points — stays exactly the same.`,
+      ),
+      detailsCard("Your membership", [
+        { label: "Previous plan", value: esc(d.oldPlanName) },
+        { label: "New plan", value: esc(d.newPlanName) },
+        { label: "New price", value: `${esc(d.newPrice)} / ${esc(d.billingInterval)}`, big: true },
+        { label: "Takes effect", value: esc(d.effective) },
+        ...(d.renews ? [{ label: "Next charge", value: esc(d.renews) }] : []),
+      ]),
+      button(d.manageUrl || BRAND.portalUrl, "Open my membership"),
+      noteBox(`Changed your mind? You can switch again or pause any time from your portal — no calls, no emails, no guilt trips.`),
+    ].join(""),
+    reason: `You're receiving this because you changed your All About Pawz membership plan.`,
+  })
+}
+
+// ---- Subscription renewal reminder (Bath Club) -------------------------------------
+//
+// Sent by the daily cron (src/app/api/cron/subscription-reminders) a few days
+// before each Bath Club charge — the owner's "月扣款前发提醒邮件".
+
+export interface SubscriptionRenewalReminderData {
+  firstName: string
+  /** e.g. "PAWfection Bath Club — Small" */
+  planName: string
+  dogName?: string
+  /** e.g. "$129.00" */
+  amount: string
+  interval: "monthly" | "annual"
+  /** Pretty renewal date, e.g. "March 5, 2026" */
+  renewsOn: string
+  bathsUsed: number
+  bathsIncluded: number
+  manageUrl?: string
+}
+
+export function subscriptionRenewalReminderHtml(d: SubscriptionRenewalReminderData): string {
+  const perPeriod = d.interval === "annual" ? "per year" : "per month"
+  return frame({
+    preheader: `Your membership renews on ${esc(d.renewsOn)} — ${esc(d.amount)} ${perPeriod}.`,
+    body: [
+      eyebrow("PAWFECTION BATH CLUB"),
+      h1(`Your membership renews soon`),
+      taglineFlourish(),
+      p(
+        `A quick heads-up, ${esc(d.firstName)} — your <strong style="color:#1a1a1a">${esc(d.planName)}</strong>${d.dogName ? ` for ${esc(d.dogName)}` : ""} renews soon and your card will be charged. Nothing to do if you're all set.`,
+      ),
+      detailsCard("Your renewal", [
+        { label: "Membership", value: `${esc(d.planName)}${d.dogName ? ` · ${esc(d.dogName)}` : ""}` },
+        { label: "Renews on", value: esc(d.renewsOn) },
+        { label: "Amount", value: `${esc(d.amount)} ${perPeriod}`, big: true },
+        { label: "Baths used", value: `${d.bathsUsed} / ${d.bathsIncluded} this period` },
+      ]),
+      button(d.manageUrl || `${SITE_URL}/customer/orders/subscriptions`, "Manage my membership"),
+      noteBox(`Pause or cancel anytime in the portal — cancellation takes effect at the end of the billing cycle.`),
+    ].join(""),
+    reason: `You're receiving this because you have an active All About Pawz membership.`,
   })
 }
 
@@ -183,4 +265,15 @@ export const SAMPLE_ORDER: OrderData = {
   tax: "$5.94",
   total: "$78.44",
   shipTo: "Memphis, TN",
+}
+
+export const SAMPLE_RENEWAL_REMINDER: SubscriptionRenewalReminderData = {
+  firstName: "Brea",
+  planName: "PAWfection Bath Club — Small",
+  dogName: "Bella",
+  amount: "$129.00",
+  interval: "monthly",
+  renewsOn: "March 5, 2026",
+  bathsUsed: 2,
+  bathsIncluded: 4,
 }

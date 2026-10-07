@@ -3,10 +3,16 @@ import Stripe from "stripe"
 import { repo } from "@/lib/repo"
 import { callbackBase } from "@/lib/site-url"
 import { listCatalogProducts, type CatalogProduct } from "@/lib/enterprise/catalog"
+import { sendOrderPlacedAlert } from "@/lib/email"
+import { sessionForSiteFlow } from "@/lib/portal-session-scope"
 
 // POST /api/shop/checkout
-// Body: { customerId, items: [{productId, quantity}], deliveryMethod: "ship"|"pickup",
+// Body: { items: [{productId, quantity}], deliveryMethod: "ship"|"pickup",
 //         email, phone, address, addressLine2, city, state, postalCode, notes }
+//
+// (A client-sent customerId is accepted by the body shape for older callers
+// but NEVER trusted — the order is attributed to the SESSION-resolved customer
+// record below.)
 //
 // Booking-style shop checkout:
 //   1. Re-verifies every product + price SERVER-SIDE (client prices are never
@@ -47,8 +53,21 @@ function activePriceCents(p: CatalogProduct): number | null {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
+
+  // ------------------------------------------------------------------
+  // 0. AUTH GATE (owner ruling: clicking Shop must automatically know who
+  //    the visitor is — no anonymous checkout). The session cookie is the
+  //    only authority on who is placing the order; the client-side gate on
+  //    /shop/bag routes signed-out visitors to /access-customer first, and
+  //    this 401 is the server-side backstop behind it.
+  // ------------------------------------------------------------------
+  const { user } = await sessionForSiteFlow()
+  if (!user) {
+    return NextResponse.json({ error: "Sign in required" }, { status: 401 })
+  }
+
   const {
-    customerId, items, deliveryMethod = "ship",
+    items, deliveryMethod = "ship",
     email, phone, notes,
   } = body
 
@@ -123,14 +142,21 @@ export async function POST(req: NextRequest) {
     }
 
     // ------------------------------------------------------------------
-    // 2. Resolve the customer (link the order to the customer record)
+    // 2. Resolve the customer (link the order to the customer record).
+    //    Server-side attribution: the session user is matched against the
+    //    salon records by email/userId — the same resolution pattern the
+    //    customer pets route uses — so the order lands on the account of
+    //    whoever is actually signed in. A client-sent customerId is never
+    //    trusted.
     // ------------------------------------------------------------------
-    let customer: any = null
-    if (customerId) customer = await repo.get("customers", customerId)
-    if (!customer) {
-      const all = (await repo.list("customers")) as any[]
-      customer = all.find((c: any) => c.email === email) || null
-    }
+    const sessionEmail = String(user.email || "").toLowerCase()
+    const all = (await repo.list("customers").catch(() => [])) as any[]
+    const customer =
+      all.find(
+        (c: any) =>
+          String(c.email || "").toLowerCase() === sessionEmail ||
+          c.userId === user.authUserId,
+      ) || null
 
     // ------------------------------------------------------------------
     // 3a. commerce_orders + commerce_order_items (snake_case — the new
@@ -218,6 +244,7 @@ export async function POST(req: NextRequest) {
         flow_type: "shop",
         deliveryMethod: isPickup ? "pickup" : "ship",
         cart_items: JSON.stringify(orderItems),
+        customer_name: [customer?.firstName, customer?.lastName].filter(Boolean).join(" ").trim(),
       },
       success_url: `${origin}/shop?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/shop?checkout=cancel`,
@@ -239,6 +266,32 @@ export async function POST(req: NextRequest) {
         summary: `Order placed — ${orderItems.length} item(s), ${fmt(subtotalCents)} (${isPickup ? "pickup" : "shipping"})`,
       })
     } catch { /* ignore */ }
+
+    // ------------------------------------------------------------------
+    // 5. SALON ALERT (owner direction: every captured business event —
+    //    bookings, subscription events, shop orders — lands in the salon
+    //    inbox as an email). Fire-and-forget: a mail failure must never
+    //    break checkout. The alert identifies the customer, every item,
+    //    the totals, and the delivery method / ship-to.
+    // ------------------------------------------------------------------
+    const orderNumber = `ORD-${String(commerceOrder?.id || commerceOrderId).replace(/-/g, "").slice(0, 8).toUpperCase()}`
+    const customerName =
+      [customer?.firstName, customer?.lastName].filter(Boolean).join(" ").trim() ||
+      String(email).split("@")[0]
+    sendOrderPlacedAlert({
+      customerId: customer?.id,
+      customerName,
+      email: String(email),
+      phone: phone ? String(phone) : "",
+      orderNumber,
+      items: orderItems.map((oi) => ({ name: oi.name, qty: oi.quantity, price: oi.unitPrice })),
+      subtotal: fmt(subtotalCents),
+      shipping: isPickup ? "Pickup at the salon" : "Complimentary standard shipping",
+      tax: "Calculated at checkout",
+      total: fmt(subtotalCents),
+      ...(shippingAddress ? { shipTo: shippingAddress } : {}),
+      orderId: commerceOrder?.id || commerceOrderId,
+    }).catch((e: any) => console.error("[shop/checkout] order alert failed:", e?.message))
 
     return NextResponse.json({
       url: session.url,

@@ -2,6 +2,7 @@ import Link from "next/link"
 import { CalendarDays, Heart, CheckCircle2, Mail } from "lucide-react"
 import { PawGlyph, Divider } from "@/components/site/brand"
 import { TopUtilityBar } from "@/components/site/site-chrome"
+import { LandingAppointmentModal } from "@/components/site/islands/landing-appointment-modal"
 import { HomeHeroCopy, HomeHeroSubtitle, HomeTestimonial } from "@/components/site/islands/home-islands"
 import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
@@ -26,6 +27,12 @@ export default function HomePage() {
 
   return (
     <>
+      {/* Landing appointment modal — the owner's ruling: a signed-in customer
+          with an upcoming visit gets the large confirm / pre check / cancel /
+          reschedule modal at the very top. Renders nothing for anonymous
+          visitors (the island 401-checks itself). */}
+      <LandingAppointmentModal />
+
       {/* Top utility strip — keeps the bag visible at the top on desktop
           (mobile uses the sticky mobile bar). Home renders its own hero, so
           it has no PageHeader. */}

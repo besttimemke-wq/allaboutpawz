@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Check, ArrowLeft, ArrowRight, ShoppingBag, Plus, Minus, X, Trash,
   Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle,
@@ -140,15 +140,71 @@ export function CheckoutIsland() {
   ) : null
 }
 
+// Who is checking out, straight from /api/auth/portal-session (the cookie
+// is the authority — the client never decides who it is).
+type SessionUser = { name: string; email: string } | null
+
+// The customer door URL for the shop checkout gate. The door round-trips
+// ?redirect= (validated server-side in /api/auth/login), and the bag lives in
+// localStorage — so the customer lands back on their bag, exactly as they
+// left it, now signed in.
+const CHECKOUT_LOGIN_URL = "/access-customer?redirect=/shop/bag"
+
 // ===========================================================================
 // Checkout wizard — 4 steps, same chrome as the booking wizard
 // ===========================================================================
 
 function CheckoutWizard({ onExit }: { onExit: () => void }) {
   const s = useCart()
+  const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [sessionUser, setSessionUser] = useState<SessionUser>(null)
+
+  // -----------------------------------------------------------------------
+  // AUTH GATE (owner ruling: "clicking Shop should automatically know who
+  // they are and log them in or present them with their login page").
+  // Fired once when the checkout wizard is entered — from the bag page's
+  // PROCEED TO CHECKOUT or a direct /shop?checkout=1 URL:
+  //   • signed IN  → the contact step prefills the EMPTY name/email fields
+  //                  (still editable) and shows a "Signed in as …" chip.
+  //   • signed OUT → no anonymous checkout: present the login page. The bag
+  //                  persists in localStorage, so nothing is lost — the
+  //                  customer returns through /shop/bag and picks up where
+  //                  they left off, signed in. The server route answers
+  //                  401 regardless, so this gate is UX, not security.
+  // -----------------------------------------------------------------------
+  useEffect(() => {
+    let alive = true
+    fetch("/api/auth/portal-session", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive) return
+        const u = d?.user || null
+        setSessionUser(u ? { name: String(u.name || ""), email: String(u.email || "") } : null)
+        if (!u) {
+          router.replace(CHECKOUT_LOGIN_URL)
+          return
+        }
+        // Prefill EMPTY contact fields only — never overwrite what the
+        // customer already typed (the bag store persists across visits).
+        const cur = useCart.getState()
+        const parts = String(u.name || "").split(/\s+/).filter(Boolean)
+        const prefill: { firstName?: string; lastName?: string; email?: string } = {}
+        if (!cur.email.trim() && u.email) prefill.email = String(u.email)
+        if (!cur.firstName.trim() && parts[0]) prefill.firstName = parts[0]
+        if (!cur.lastName.trim() && parts.length > 1) prefill.lastName = parts.slice(1).join(" ")
+        if (Object.keys(prefill).length > 0) useCart.getState().patch(prefill)
+      })
+      .catch(() => {
+        /* network hiccup: let them continue — the POST's 401 answer below
+           still guards the order, and the submit handler routes it here */
+      })
+    return () => {
+      alive = false
+    }
+  }, [router])
 
   const subtotalCents = useMemo(
     () => s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0),
@@ -231,6 +287,12 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
         }),
       })
       const data = await res.json()
+      if (res.status === 401) {
+        // Session vanished mid-checkout — hand them the login page (the bag
+        // is waiting in localStorage when they come back).
+        router.replace(CHECKOUT_LOGIN_URL)
+        return
+      }
       if (!res.ok) {
         setApiError(data.error || "Checkout failed")
         setSubmitting(false)
@@ -268,7 +330,7 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
 
       <div className="min-h-[340px]">
         {s.step === 1 && <StepBag />}
-        {s.step === 2 && <StepContact />}
+        {s.step === 2 && <StepContact sessionUser={sessionUser} />}
         {s.step === 3 && <StepDelivery />}
         {s.step === 4 && (
           <StepReview subtotalCents={subtotalCents} submitting={submitting} redirecting={redirecting} onSubmit={submit} />
@@ -388,7 +450,7 @@ function QtyBtn({ children, onClick, label, disabled }: { children: React.ReactN
 // Step 2 — CONTACT
 // ===========================================================================
 
-function StepContact() {
+function StepContact({ sessionUser }: { sessionUser: SessionUser }) {
   const s = useCart()
   return (
     <div className={`${stepWrapCls} space-y-5`}>
@@ -397,6 +459,17 @@ function StepContact() {
         <h2 className="mt-2 font-display text-[24px] text-ink">What is your name and contact?</h2>
         <p className="mt-1 text-[12px] text-ink-soft">We&apos;ll use this for your order confirmation and receipt.</p>
       </div>
+      {sessionUser && (
+        <div className="flex items-center gap-2.5 border border-gold/30 bg-cream-deep px-4 py-3">
+          <Check size={14} weight="bold" className="shrink-0 text-gold-deep" />
+          <p className="min-w-0 truncate text-[12px] text-ink-soft">
+            Signed in as{" "}
+            <span className="font-bold text-ink">{sessionUser.name || sessionUser.email}</span>
+            {sessionUser.name ? <span className="ml-1">· {sessionUser.email}</span> : null}
+            <span className="ml-1">— your details carry through checkout.</span>
+          </p>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="FIRST NAME" required>
           <input value={s.firstName} onChange={(e) => s.patch({ firstName: e.target.value })} placeholder="Jane" className={inputCls} autoComplete="given-name" />

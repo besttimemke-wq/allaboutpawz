@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { DawgNavSection } from '@/lib/types';
 import { Sidebar } from '@/components/pawz/Sidebar';
 import { Header } from '@/components/pawz/Header';
+import { NotificationBell } from '@/components/pawz/customer/notification-bell';
 import { PortalShellSkeleton } from '@/components/pawz/_shared/PortalShellSkeleton';
 import { useSessionQuery } from '@/lib/hooks/useSessionQuery';
 import { cn } from '@/lib/utils';
@@ -129,6 +130,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
           onToggleSidebarCollapse={toggleSidebar}
           showPillars={false}
           showSiteNav
+          rightSlot={<NotificationBell />}
           onSignOut={signOut}
           currentUser={currentUser}
           selectedLocation={selectedLocation}

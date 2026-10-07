@@ -1,22 +1,23 @@
 import Link from "next/link"
 import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
-import { AddonsGrid, PackageCards } from "@/components/site/islands/pricing-islands"
+import { AddonsGrid } from "@/components/site/islands/pricing-islands"
+import { ServiceMenuSections } from "@/components/site/islands/service-menu"
 import { BathClubSection } from "@/components/site/islands/bath-club-section"
 import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
-  title: "Grooming Packages & Pricing | All About Pawz",
-  description: "Transparent pricing by dog size — Bath & Brush, Full Groom, and Deluxe Spa packages plus add-ons. Book your pup's experience today.",
+  title: "Grooming Services & Pricing | All About Pawz",
+  description: "Transparent pricing by dog size — Bath Only and Bath & Haircut services, premium treatments, add-ons, and the PAWfection Bath Club membership. Book your pup's experience today.",
   alternates: { canonical: `${SITE_URL}/pricing` },
 }
 
-// Note: SIZES and PACKAGE_META moved into the pricing-islands (client)
-// — they render the add-on band and package cards that fetch after paint.
+// CSR architecture: static shell (hero, band headers, brand copy); the Pawz
+// Service Menu (Select Service + Premium Treatments), the add-ons catalog,
+// and the Bath Club tiers all fetch after paint — every price renders from
+// the tenant catalog, never from this file.
 
 export default function PricingPage() {
-  // CSR architecture: static shell; add-ons and packages fetch after paint.
-
   return (
     <>
       <PageHeader n="05" label="PRICING" />
@@ -32,8 +33,14 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ADD-ONS — little extras on black, directly after the hero. Same
-          band structure as the homepage services band. */}
+      {/* SELECT SERVICE + PREMIUM TREATMENTS — the Pawz Service Menu island.
+          Service cards (standard + Bath Club member ladders), the all-services
+          inclusions band, and the size-tiered treatment surcharge table all
+          render from /api/booking/menu (the tenant catalog). */}
+      <ServiceMenuSections />
+
+      {/* ADD-ONS — little extras on black, directly after the treatments.
+          Same band structure as the homepage services band. */}
       <section className="bg-ink px-8 py-12 lg:px-12">
         <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_2.4fr]">
           <div className="lg:border-r lg:border-gold/25 lg:pr-10">
@@ -44,22 +51,18 @@ export default function PricingPage() {
             </p>
             <Link href="/book/appointment" className="btn-gold mt-6">BOOK A GROOM</Link>
           </div>
-          <AddonsGrid />
+          <div>
+            <AddonsGrid />
+            {/* Groomer's tip — walk-in nail trims (owner schedule, verbatim). */}
+            <div className="mt-10 border-t border-gold/15 pt-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">Groomer&apos;s Tip</p>
+              <p className="mt-1.5 text-[12px] italic leading-[1.75] text-on-dark-muted">
+                Nails clicking on the floor? Walk into any salon for nail trim services without an appointment!
+                <span className="mt-1 block">*Subject to salon availability*</span>
+              </p>
+            </div>
+          </div>
         </div>
-      </section>
-
-      {/* PACKAGES — each service is a clearly defined product card: image,
-          name, concise description, transparent size-based pricing, and a
-          clear call to action. Premium, spacious, easy to scan. */}
-      <section className="marble bg-cream px-8 py-14 lg:px-12 lg:py-20">
-        <div className="max-w-[280px]">
-          <p className="eyebrow">PACKAGES &amp; PRICING</p>
-          <h2 className="mt-3 font-display text-[38px] leading-[1.1] text-ink lg:text-[48px]">Choose Their<br />Experience.</h2>
-        </div>
-
-        <PackageCards />
-
-        <p className="mt-16 text-center text-[11px] italic leading-[1.7] text-ink-soft lg:mt-20">Prices are starting points. Final pricing may vary based on coat condition, temperament, and length of service.</p>
       </section>
 
       {/* PAWFECTION BATH CLUB — the subscription menu. Tiers, includes,

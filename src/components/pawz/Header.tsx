@@ -74,6 +74,10 @@ interface HeaderProps {
    *  My Account keeps full visibility of the main site: book again, shop,
    *  explore — without leaving the portal. */
   showSiteNav?: boolean;
+  /** Optional element rendered in the top-bar's right cluster (before the
+   *  user menu) — the customer portal mounts its notification bell here.
+   *  Nothing else changes for portals that pass nothing. */
+  rightSlot?: React.ReactNode;
 }
 
 type PillarType = 'CRM' | 'ORDERS' | 'ACCOUNTING' | 'LEARN' | 'POS';
@@ -101,6 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
   locationsList,
   showPillars = true,
   showSiteNav = false,
+  rightSlot,
 }) => {
   const [siteNavOpen, setSiteNavOpen] = useState(false);
   const getPillarFromSection = (section: DawgNavSection): PillarType => {
@@ -336,6 +341,10 @@ export const Header: React.FC<HeaderProps> = ({
           </Popover>
 
           <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+          {/* Portal slot (e.g. the customer portal's notification bell) —
+              rendered before the user menu so it sits with the utilities. */}
+          {rightSlot}
 
           {/* User menu */}
           {currentUser ? (

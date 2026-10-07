@@ -356,6 +356,13 @@ export async function POST(req: NextRequest) {
       bookingId: booking?.id,
       itemLines,
       total: centsToDollars(totalCentsFinal),
+      // The full intake — the salon's notification email carries everything
+      // captured (owner direction): dog facts, promo, points.
+      breed: String(breedName),
+      weightLbs: weight,
+      birthDate: birthDate ? String(birthDate) : null,
+      promoCode: appliedPromo?.valid ? appliedPromo.code : "",
+      pointsRedeemed: pointsRedeemed > 0 ? pointsRedeemed : null,
     }).catch(() => {})
 
     // 9. The customer's real signal — they started a booking.

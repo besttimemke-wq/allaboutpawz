@@ -20,7 +20,9 @@ export const BRAND = {
   legalName: "All About Pawz LLC",
   tagline: "From Pawz to PAWfection",
   city: "Memphis, TN",
-  phone: "901-800-7182",
+  // Owner-confirmed 2026-01: the salon's current line. Keep every surface
+  // (site, emails, ICS, fallbacks) on this one number.
+  phone: "901-722-1114",
   email: "help@aapawz.com",
   bookingEmail: "booking@aapawz.com",
   url: SITE_URL,
@@ -39,10 +41,12 @@ export const BRAND = {
 } as const
 
 // Exact brand palette (matches the site's cream/gold/ink tokens).
+// Owner direction 2026-01: body copy reads BLACK, not warm brown — the old
+// #4a443c read as "dark brown" on screen. Labels/fine print stay muted gray.
 const C = {
   ink: "#1a1a1a",
-  inkSoft: "#3f3a33",
-  body: "#4a443c",
+  inkSoft: "#1a1a1a",
+  body: "#000000",
   muted: "#8d857a",
   cream: "#faf7f2",
   creamDeep: "#f1ebe0",

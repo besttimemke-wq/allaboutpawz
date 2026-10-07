@@ -43,7 +43,11 @@ function getStripe(): Stripe | null {
 //   payment_intent.succeeded → POS sale paid → ledger + CRM + receipt
 //   charge.refunded → refund processed → reversal ledger entry + CRM note
 //   invoice.paid → subscription invoice paid → ledger + CRM + subscription status
+//   invoice.upcoming → subscription renewal reminder (backstop for the cron)
 //   customer.updated → Stripe customer profile sync → CRM profile update
+//
+// Owner direction: every customer-facing money event ALSO notifies the
+// salon inbox — shop orders, Bath Club signups, renewals, plan changes.
 // ============================================================================
 
 export async function POST(request: NextRequest) {
@@ -87,6 +91,9 @@ export async function POST(request: NextRequest) {
         break
       case "invoice.paid":
         await handleInvoicePaid(supabase, event)
+        break
+      case "invoice.upcoming":
+        await handleInvoiceUpcoming(supabase, event)
         break
       case "customer.updated":
         await handleCustomerUpdated(supabase, event)
@@ -132,7 +139,9 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
   // ---- BATH CLUB SIGNUPS (subscription mode) ----
   // metadata.type bath_club_signup: activate the PENDING membership and
   // post the subscription_purchased perk points (idempotent — the status
-  // verifier may race us; both paths are safe).
+  // verifier may race us; both paths are safe). The member gets the
+  // "Membership active" email; the salon gets its signup alert (owner
+  // direction: every subscription event lands in the inbox).
   if (stripeMetaType === "bath_club_signup") {
     try {
       const { membershipByStripeIds, activateMembership } = await import("@/lib/subscriptions")
@@ -152,6 +161,43 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
           })
         }
         console.log(`[stripe/webhook] bath club activated: ${membership.id}`)
+
+        // ---- Emails: member welcome + salon signup alert ----
+        try {
+          const { sendMembershipActive, sendSubscriptionAlert } = await import("@/lib/email")
+          const memberName = await customerNameFor(supabase, customerEmail)
+          const priceStr = session?.amount_total != null ? `$${(session.amount_total / 100).toFixed(2)}` : undefined
+          const periodEnd = membership.currentPeriodEnd
+            ? new Date(membership.currentPeriodEnd).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+            : undefined
+          if (customerEmail) {
+            await sendMembershipActive({
+              to: customerEmail,
+              customerId: (membership as any).customerId || undefined,
+              firstName: memberName || undefined,
+              planName: membership.planName,
+              perks: [
+                { title: "Member pricing on every groom", body: "Reduced Bath Club rates apply automatically at checkout — nothing to remember, nothing to mention." },
+                { title: `Up to ${membership.visitsIncluded} baths a month`, body: "Appointments required — book your slots from the portal any time." },
+                { title: "Perks points on every renewal", body: "Your membership earns Perks points automatically, redeemable toward future grooms." },
+              ],
+              renewal: periodEnd,
+            })
+          }
+          await sendSubscriptionAlert({
+            event: "signup",
+            memberName: memberName || customerEmail || "New member",
+            email: customerEmail || "",
+            dogName: membership.dogName || undefined,
+            planName: membership.planName,
+            billingInterval: membership.billingInterval,
+            price: priceStr,
+            periodEnd,
+            promoCode: session?.metadata?.promoCode || undefined,
+          })
+        } catch (e: any) {
+          console.error("[stripe/webhook] bath club emails failed:", e?.message)
+        }
       }
     } catch (e: any) {
       console.error("[stripe/webhook] bath club activation failed:", e?.message)
@@ -269,16 +315,34 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
     }
 
     // 6. Send receipt email (shop orders only — booking confirmations are
-    // sent by applyBookingPayment with the appointment's own details)
+    // sent by applyBookingPayment with the appointment's own details).
+    // Branded order receipt through the design system — item lines, totals,
+    // ship-to — never a plain-text box (owner direction).
     if (isShop) {
       try {
-        const { sendEmail } = await import("@/lib/email")
-        await sendEmail({
-          to: customerEmail,
-          template: "payment_receipt",
-          subject: `Your order receipt — All About Pawz`,
-          html: `<p>Thank you for your purchase!</p><p>Order: ${commerceOrderId?.slice(0, 8) || "N/A"}</p><p>Total: $${amountTotal.toFixed(2)}</p><p>We'll send a tracking number once your order ships.</p>`,
-          relatedOrderId: commerceOrderId,
+        const { sendOrderReceipt } = await import("@/lib/email")
+        const cartRawRcpt = session?.metadata?.cart_items
+        const cartItemsRcpt = typeof cartRawRcpt === "string" ? JSON.parse(cartRawRcpt) : (Array.isArray(cartRawRcpt) ? cartRawRcpt : [])
+        const items = (cartItemsRcpt as any[]).map((ci) => ({
+          name: String(ci?.name || "Item"),
+          qty: Number(ci?.quantity || 1),
+          price: String(ci?.unitPrice || "$0.00"),
+        }))
+        const subtotalCentsRcpt = (cartItemsRcpt as any[]).reduce(
+          (sum, ci) => sum + Math.round(parseFloat(String(ci?.unitPrice || "0").replace(/[^0-9.]/g, "")) * 100) * Number(ci?.quantity || 1),
+          0,
+        )
+        const fmtRcpt = (cents: number) => `$${(cents / 100).toFixed(2)}`
+        await sendOrderReceipt({
+          email: customerEmail,
+          firstName: String(session?.metadata?.customer_name || "").split(" ")[0] || undefined,
+          orderNumber: `ORD-${String(commerceOrderId).replace(/-/g, "").slice(0, 8).toUpperCase()}`,
+          items,
+          subtotal: fmtRcpt(subtotalCentsRcpt),
+          shipping: session?.metadata?.deliveryMethod === "pickup" ? "Pickup at the salon" : "Complimentary standard shipping",
+          tax: "Included",
+          total: `$${amountTotal.toFixed(2)}`,
+          orderId: commerceOrderId || undefined,
         })
       } catch (e: any) {
         console.error("[stripe/webhook] receipt email failed:", e?.message)
@@ -431,14 +495,15 @@ async function handleInvoicePaid(supabase: any, event: Stripe.Event) {
           note: `${membership.planName} renewal`,
         })
       }
-      // Keep the period window current on the membership row.
+      // Keep the period window current on the membership row. (No tenant_id
+      // filter — the subscriptions table has no such column; ownership is
+      // already pinned by the stripe_subscription_id lookup above.)
       const { pgExec } = await import("@/lib/pg")
-      const { TENANT_ID } = await import("@/lib/crm/enterprise")
       await pgExec(
         `update public.subscriptions
-         set current_period_start = $3, current_period_end = $4, visits_used = 0, updated_at = now()
-         where tenant_id = $1 and id = $2 and status = 'ACTIVE'`,
-        [TENANT_ID(), membership.id, new Date((invoice?.period_start ?? Date.now() / 1000) * 1000), new Date((invoice?.period_end ?? Date.now() / 1000 + 30 * 86400) * 1000)],
+         set current_period_start = $1, current_period_end = $2, visits_used = 0, updated_at = now()
+         where id = $3 and status = 'ACTIVE'`,
+        [new Date((invoice?.period_start ?? Date.now() / 1000) * 1000), new Date((invoice?.period_end ?? Date.now() / 1000 + 30 * 86400) * 1000), membership.id],
       )
     }
   } catch (e: any) {

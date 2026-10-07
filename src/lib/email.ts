@@ -11,6 +11,7 @@ import {
   appointmentRescheduledHtml,
   abandonedBookingHtml,
   consultationRequestHtml,
+  preCheckInReceivedHtml,
   type AppointmentData,
   type BookingRequestData,
   type CanceledData,
@@ -23,10 +24,14 @@ import {
   orderConfirmationHtml,
   subscriptionBillingHtml,
   membershipActiveHtml,
+  subscriptionPlanChangedHtml,
+  subscriptionRenewalReminderHtml,
   type PaymentData,
   type OrderData,
   type SubscriptionBillingData,
   type MembershipData,
+  type PlanChangedData,
+  type SubscriptionRenewalReminderData,
 } from "./email/templates/commerce"
 import {
   customerWelcomeHtml,
@@ -37,8 +42,17 @@ import {
   type NewDeviceData,
 } from "./email/templates/accounts"
 import { enrollmentWelcomeHtml, classReminderHtml, completionCongratulationsHtml } from "./email/templates/learning"
-import { bookingNotificationHtml, consultationNotificationHtml, enrollmentNotificationHtml } from "./email/templates/internal"
+import {
+  bookingNotificationHtml,
+  consultationNotificationHtml,
+  enrollmentNotificationHtml,
+  preCheckInNotificationHtml,
+  orderNotificationHtml,
+  subscriptionNotificationHtml,
+  ageLabel,
+} from "./email/templates/internal"
 import { getTemplateDef } from "./email/templates"
+import { isCustomerFacingTemplate, recordCustomerNotification } from "./customer-notifications"
 
 // ---------------------------------------------------------------------------
 // Email via Resend npm package, called from Next.js server routes.
@@ -51,7 +65,53 @@ import { getTemplateDef } from "./email/templates"
 const apiKey = process.env.RESEND_API_KEY || ""
 const resend = apiKey ? new Resend(apiKey) : null
 const FROM = "All About Pawz <notifications@confirmation.aapawz.com>"
-const salonNotifyTo = "booking@aapawz.com"
+
+// Where every salon alert lands (booking requests with the exact services,
+// subscription events, shop orders — the owner's inbox ruling). The
+// destination is a SETTING (cms_global_content `alert_email`, default
+// booking@aapawz.com) so the owner can re-route the inbox from the admin
+// Analytics screen without a deploy; the master toggle `alerts_enabled`
+// (default on) silences every salon alert at once. Customer-facing
+// recipients are NEVER routed through this helper — only the salon copies.
+const DEFAULT_SALON_ALERT_TO = "booking@aapawz.com"
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+type SalonAlertSettings = { email: string; enabled: boolean }
+let salonAlertSettingsCache: { at: number; value: SalonAlertSettings } | null = null
+const SALON_ALERT_SETTINGS_TTL_MS = 60_000
+
+async function readSalonAlertSettings(): Promise<SalonAlertSettings> {
+  if (salonAlertSettingsCache && Date.now() - salonAlertSettingsCache.at < SALON_ALERT_SETTINGS_TTL_MS) {
+    return salonAlertSettingsCache.value
+  }
+  let email = DEFAULT_SALON_ALERT_TO
+  let enabled = true
+  try {
+    const s = await repo.getSettings()
+    const candidate = String(s.alert_email || "").trim().toLowerCase()
+    if (EMAIL_RE.test(candidate)) email = candidate
+    enabled = String(s.alerts_enabled ?? "true").trim().toLowerCase() !== "false"
+  } catch {
+    // Settings read failed — fall back to the defaults above.
+  }
+  salonAlertSettingsCache = { at: Date.now(), value: { email, enabled } }
+  return salonAlertSettingsCache.value
+}
+
+/** The salon alert destination, read from settings at send time. Returns ""
+ *  when the master toggle is off — callers treat that as "no salon copy this
+ *  time" (the customer email is never affected by the toggle). */
+async function salonAlertTo(): Promise<string> {
+  const { email, enabled } = await readSalonAlertSettings()
+  return enabled ? email : ""
+}
+
+/** Called after the admin Notifications box writes `alert_email` /
+ *  `alerts_enabled` so the next send picks up the new routing immediately
+ *  (the 60s cache exists for read load, not for hiding owner changes). */
+export function clearSalonAlertSettingsCache() {
+  salonAlertSettingsCache = null
+}
 
 // The live single-tenant id — the same default every app write uses
 // (customers, bookings, memberships). email_messages/communications have
@@ -91,6 +151,22 @@ export async function sendEmail(opts: {
     })
   } catch (e: any) {
     console.error("[email] outbox failed:", e.message)
+  }
+
+  // 1b. In-app copy — the customer portal's notification bell. Every
+  // customer-facing email ALSO lands in customer_notifications (fire-and-
+  // forget, never blocks or breaks the send; written even when the email
+  // itself later fails — that is when the in-app copy matters most).
+  // Internal salon alerts carry no customerId, so they never appear here.
+  if (opts.customerId && isCustomerFacingTemplate(opts.template)) {
+    recordCustomerNotification({
+      customerId: opts.customerId,
+      template: opts.template,
+      subject: opts.subject,
+      relatedBookingId: opts.relatedBookingId,
+      relatedInvoiceId: opts.relatedInvoiceId,
+      relatedOrderId: opts.relatedOrderId,
+    }).catch(() => {})
   }
 
   // 2. Check if Resend is configured
@@ -190,15 +266,21 @@ export async function sendCustomerWelcome(customer: { id: string; firstName: str
 
 // ---- Booking request received — the "We got it" lane ----------------------------
 // Fires at checkout submission (before payment): the customer gets the
-// request-received design; the salon gets the internal notification.
+// request-received design; the salon gets the internal notification with
+// the FULL intake — dog details, priced service lines, promo, notes — so
+// the salon can run the day from the inbox (owner direction).
 
 export async function sendBookingRequest(b: {
   customerId?: string; ownerName: string; dogName?: string | null; service: string
   size?: string | null; date?: string | null; time?: string | null; email?: string | null
   phone?: string | null; notes?: string | null; bookingId?: string
   itemLines?: string[]; total?: string
+  /** Full intake — dog facts captured during booking. */
+  breed?: string | null; weightLbs?: string | number | null; birthDate?: string | null
+  promoCode?: string | null; pointsRedeemed?: number | null
 }) {
   const customerEmail = b.email
+  const age = ageLabel(b.birthDate || undefined)
   const data: BookingRequestData = {
     firstName: firstNameOf(b.ownerName) || "there",
     dogName: b.dogName || undefined,
@@ -206,6 +288,10 @@ export async function sendBookingRequest(b: {
     date: b.date || "Date to be confirmed",
     time: b.time || undefined,
     bookingRef: refOf(b.bookingId),
+    breed: b.breed || undefined,
+    weight: b.weightLbs != null ? String(b.weightLbs) : undefined,
+    age,
+    size: b.size || undefined,
     itemLines: b.itemLines,
     total: b.total,
   }
@@ -223,36 +309,49 @@ export async function sendBookingRequest(b: {
     })
   }
 
-  await sendEmail({
-    customerId: b.customerId,
-    to: salonNotifyTo,
-    template: "booking_notification",
-    subject: `New appointment request — ${b.ownerName}${b.dogName ? ` (${b.dogName})` : ""}${b.date ? ` · ${b.date}${b.time ? ` ${b.time}` : ""}` : ""}`,
-    html: bookingNotificationHtml({
-      ownerName: b.ownerName,
-      dogName: b.dogName || undefined,
-      service: b.service,
-      size: b.size || undefined,
-      date: b.date || undefined,
-      time: b.time || undefined,
-      email: customerEmail || "",
-      phone: b.phone || "",
-      notes: b.notes || undefined,
-      bookingRef: refOf(b.bookingId),
-    }),
-    relatedBookingId: b.bookingId,
-  })
+  const salonTo = await salonAlertTo()
+  if (salonTo) {
+    await sendEmail({
+      customerId: b.customerId,
+      to: salonTo,
+      template: "booking_notification",
+      subject: `New appointment request — ${b.ownerName}${b.dogName ? ` (${b.dogName})` : ""}${b.date ? ` · ${b.date}${b.time ? ` ${b.time}` : ""}` : ""}`,
+      html: bookingNotificationHtml({
+        ownerName: b.ownerName,
+        dogName: b.dogName || undefined,
+        service: b.service,
+        size: b.size || undefined,
+        date: b.date || undefined,
+        time: b.time || undefined,
+        email: customerEmail || "",
+        phone: b.phone || "",
+        notes: b.notes || undefined,
+        bookingRef: refOf(b.bookingId),
+        breed: b.breed || undefined,
+        weight: b.weightLbs != null ? String(b.weightLbs) : undefined,
+        age,
+        itemLines: b.itemLines,
+        promoCode: b.promoCode || undefined,
+        pointsRedeemed: b.pointsRedeemed || undefined,
+        total: b.total,
+      }),
+      relatedBookingId: b.bookingId,
+    })
+  }
 }
 
 export async function sendBookingConfirmation(b: {
   customerId?: string; ownerName: string; dogName?: string | null; service: string
   size?: string | null; date?: string | null; time?: string | null; email?: string | null
   phone?: string | null; notes?: string | null; bookingId?: string
+  breed?: string | null; weightLbs?: string | number | null; birthDate?: string | null
+  itemLines?: string[]; promoCode?: string | null; pointsRedeemed?: number | null; total?: string
   /** Payment facts when the confirmation follows a payment (deposit or
    *  paid-in-full) — rendered as a “Your payment” card. */
   payment?: { items: string[]; total: string; paid: string; balance: string }
 }) {
   const customerEmail = b.email
+  const age = ageLabel(b.birthDate || undefined)
   const data: AppointmentData = {
     firstName: firstNameOf(b.ownerName) || "there",
     dogName: b.dogName || undefined,
@@ -295,24 +394,198 @@ export async function sendBookingConfirmation(b: {
     })
   }
 
-  await sendEmail({
-    customerId: b.customerId,
-    to: salonNotifyTo,
-    template: "booking_notification",
-    subject: `New booking — ${b.ownerName}${b.dogName ? ` (${b.dogName})` : ""}${b.date ? ` · ${b.date}${b.time ? ` ${b.time}` : ""}` : ""}`,
-    html: bookingNotificationHtml({
-      ownerName: b.ownerName,
-      dogName: b.dogName || undefined,
-      service: b.service,
-      size: b.size || undefined,
-      date: b.date || undefined,
-      time: b.time || undefined,
-      email: customerEmail || "",
-      phone: b.phone || "",
-      notes: b.notes || undefined,
-      bookingRef: refOf(b.bookingId),
+  const salonTo = await salonAlertTo()
+  if (salonTo) {
+    await sendEmail({
+      customerId: b.customerId,
+      to: salonTo,
+      template: "booking_notification",
+      subject: `New booking — ${b.ownerName}${b.dogName ? ` (${b.dogName})` : ""}${b.date ? ` · ${b.date}${b.time ? ` ${b.time}` : ""}` : ""}`,
+      html: bookingNotificationHtml({
+        ownerName: b.ownerName,
+        dogName: b.dogName || undefined,
+        service: b.service,
+        size: b.size || undefined,
+        date: b.date || undefined,
+        time: b.time || undefined,
+        email: customerEmail || "",
+        phone: b.phone || "",
+        notes: b.notes || undefined,
+        bookingRef: refOf(b.bookingId),
+        breed: b.breed || undefined,
+        weight: b.weightLbs != null ? String(b.weightLbs) : undefined,
+        age,
+        itemLines: b.itemLines,
+        promoCode: b.promoCode || undefined,
+        pointsRedeemed: b.pointsRedeemed || undefined,
+        total: b.total,
+      }),
+      relatedBookingId: b.bookingId,
+    })
+  }
+}
+
+// ---- Pre check-in received (questionnaire completed) ------------------------------
+// Owner direction: EVERYTHING captured flows to the salon inbox. The salon
+// gets every answer (the stylist's pre-visit sheet); the customer gets a
+// short confirmation that identifies the service and date.
+
+export async function sendPreCheckIn(b: {
+  customerId?: string; email?: string | null; ownerName?: string | null
+  dogName?: string | null; service: string; date?: string | null; time?: string | null
+  bookingId?: string
+  answers: {
+    vaccinationsCurrent?: string; sameDayShots?: string; muzzle?: string; sedation?: string
+    healthNotes?: string; groomingGoals?: string; behaviorNotes?: string
+    emergencyName?: string; emergencyPhone?: string; vetName?: string; vetPhone?: string
+    authorize?: boolean
+  }
+}) {
+  // Matting rides inside healthNotes on the wizard flow — surface it as its
+  // own row when it's there.
+  const healthNotes = String(b.answers?.healthNotes || "")
+  const matting = /matted/i.test(healthNotes)
+    ? /will be matted/i.test(healthNotes) ? "yes" : /not matted/i.test(healthNotes) ? "no" : undefined
+    : undefined
+
+  const salonTo = await salonAlertTo()
+  if (salonTo) {
+    await sendEmail({
+      customerId: b.customerId,
+      to: salonTo,
+      template: "precheckin_notification",
+      subject: `Pre check-in complete — ${b.ownerName || "Customer"}${b.dogName ? ` (${b.dogName})` : ""}${b.date ? ` · ${b.date}` : ""}`,
+      html: preCheckInNotificationHtml({
+        ownerName: b.ownerName || "Customer",
+        email: b.email || "",
+        dogName: b.dogName || undefined,
+        service: b.service,
+        date: b.date || undefined,
+        time: b.time || undefined,
+        bookingRef: refOf(b.bookingId),
+        answers: { ...b.answers, matting },
+      }),
+      relatedBookingId: b.bookingId,
+    })
+  }
+
+  if (b.email) {
+    await sendEmail({
+      customerId: b.customerId,
+      to: b.email,
+      template: "precheckin_received",
+      subject: b.dogName
+        ? `Pre check-in complete — ${b.dogName}'s ${b.service} on ${b.date || "your day"}`
+        : `Pre check-in complete — your ${b.service}`,
+      html: preCheckInReceivedHtml({
+        firstName: firstNameOf(b.ownerName) || "there",
+        dogName: b.dogName || undefined,
+        service: b.service,
+        date: b.date || "your appointment",
+        time: b.time || undefined,
+        bookingRef: refOf(b.bookingId),
+      }),
+      relatedBookingId: b.bookingId,
+    })
+  }
+}
+
+// ---- Salon alerts: shop orders & subscription events (owner direction) ------------
+
+export async function sendOrderPlacedAlert(o: {
+  customerId?: string; customerName: string; email?: string | null; phone?: string | null
+  orderNumber: string
+  items: { name: string; qty: string | number; price: string }[]
+  subtotal?: string; shipping?: string; tax?: string; total?: string; shipTo?: string
+  orderId?: string
+}) {
+  const salonTo = await salonAlertTo()
+  if (!salonTo) return { ok: true, skipped: true }
+  return sendEmail({
+    customerId: o.customerId,
+    to: salonTo,
+    template: "order_notification",
+    subject: `New shop order — ${o.orderNumber}${o.total ? ` · ${o.total}` : ""}${o.customerName ? ` · ${o.customerName}` : ""}`,
+    html: orderNotificationHtml({
+      customerName: o.customerName,
+      email: o.email || "",
+      phone: o.phone || "",
+      orderNumber: o.orderNumber,
+      items: o.items,
+      subtotal: o.subtotal,
+      shipping: o.shipping,
+      tax: o.tax,
+      total: o.total,
+      shipTo: o.shipTo,
     }),
-    relatedBookingId: b.bookingId,
+    relatedOrderId: o.orderId,
+  })
+}
+
+export async function sendSubscriptionAlert(s: {
+  event: "signup" | "renewal" | "plan_change" | "cancelled" | "reminder"
+  memberName: string; email?: string | null; dogName?: string | null
+  planName: string; billingInterval?: string; price?: string
+  periodEnd?: string; oldPlanName?: string; promoCode?: string; chargedOn?: string
+}) {
+  const salonTo = await salonAlertTo()
+  if (!salonTo) return { ok: true, skipped: true }
+  return sendEmail({
+    to: salonTo,
+    template: `subscription_${s.event}`,
+    subject: `${s.event === "signup" ? "New Bath Club member" : s.event === "renewal" ? "Bath Club renewal" : s.event === "plan_change" ? "Bath Club plan change" : s.event === "cancelled" ? "Bath Club cancellation" : "Bath Club renewal reminder"} — ${s.memberName} · ${s.planName}`,
+    html: subscriptionNotificationHtml({
+      event: s.event,
+      memberName: s.memberName,
+      email: s.email || "",
+      dogName: s.dogName || undefined,
+      planName: s.planName,
+      billingInterval: s.billingInterval,
+      price: s.price,
+      periodEnd: s.periodEnd,
+      oldPlanName: s.oldPlanName,
+      promoCode: s.promoCode,
+      chargedOn: s.chargedOn,
+    }),
+  })
+}
+
+// ---- Subscription plan changed (customer) -------------------------------------------
+
+export async function sendSubscriptionPlanChanged(c: {
+  to: string; customerId?: string; firstName?: string | null
+  oldPlanName: string; newPlanName: string; newPrice: string
+  billingInterval: string; effective: string; renews?: string
+  /** salon-side alert facts */
+  email?: string | null; dogName?: string | null; periodEnd?: string
+}) {
+  const data: PlanChangedData = {
+    firstName: firstNameOf(c.firstName) || "there",
+    oldPlanName: c.oldPlanName,
+    newPlanName: c.newPlanName,
+    newPrice: c.newPrice,
+    billingInterval: c.billingInterval,
+    effective: c.effective,
+    renews: c.renews,
+  }
+  await sendEmail({
+    customerId: c.customerId,
+    to: c.to,
+    template: "subscription_plan_changed",
+    subject: `Your Bath Club plan is now ${c.newPlanName}`,
+    html: subscriptionPlanChangedHtml(data),
+  })
+  // The salon's copy — the owner wants every subscription event in the inbox.
+  await sendSubscriptionAlert({
+    event: "plan_change",
+    memberName: c.firstName || c.to,
+    email: c.email || c.to,
+    dogName: c.dogName,
+    planName: c.newPlanName,
+    oldPlanName: c.oldPlanName,
+    billingInterval: c.billingInterval,
+    price: c.newPrice,
+    periodEnd: c.periodEnd,
   })
 }
 
@@ -340,22 +613,25 @@ export async function sendConsultationRequest(c: {
       relatedBookingId: c.consultationId,
     })
   }
-  await sendEmail({
-    customerId: c.customerId,
-    to: salonNotifyTo,
-    template: "consultation_notification",
-    subject: `New consultation request — ${c.name}`,
-    html: consultationNotificationHtml({
-      name: c.name,
-      dogName: c.dogName || undefined,
-      breed: c.breed || undefined,
-      concerns: c.concerns || undefined,
-      preferredTime: c.preferredTime || undefined,
-      email: customerEmail || "",
-      phone: c.phone || "",
-    }),
-    relatedBookingId: c.consultationId,
-  })
+  const salonTo = await salonAlertTo()
+  if (salonTo) {
+    await sendEmail({
+      customerId: c.customerId,
+      to: salonTo,
+      template: "consultation_notification",
+      subject: `New consultation request — ${c.name}`,
+      html: consultationNotificationHtml({
+        name: c.name,
+        dogName: c.dogName || undefined,
+        breed: c.breed || undefined,
+        concerns: c.concerns || undefined,
+        preferredTime: c.preferredTime || undefined,
+        email: customerEmail || "",
+        phone: c.phone || "",
+      }),
+      relatedBookingId: c.consultationId,
+    })
+  }
 }
 
 export async function sendPaymentReceipt(p: {
@@ -668,13 +944,18 @@ export async function sendEnrollmentNotification(e: { name?: string; email: stri
 
 // ---- Commerce extras -------------------------------------------------------------------
 
-export async function sendSubscriptionBillingNotice(s: SubscriptionBillingData & { to: string; customerId?: string }) {
+export async function sendSubscriptionBillingNotice(s: SubscriptionBillingData & {
+  to: string; customerId?: string
+  /** Ledger key for idempotent reminder sweeps — e.g. "subrem-<id>@<periodEnd>". */
+  ledgerKey?: string
+}) {
   return sendEmail({
     customerId: s.customerId,
     to: s.to,
     template: "subscription_billing_notice",
     subject: `Heads up: ${s.amount} renews on ${s.billingDate}`,
     html: subscriptionBillingHtml(s),
+    ...(s.ledgerKey ? { relatedBookingId: s.ledgerKey } : {}),
   })
 }
 
@@ -685,6 +966,23 @@ export async function sendMembershipActive(m: MembershipData & { to: string; cus
     template: "membership_active",
     subject: `Your ${m.planName} membership is active`,
     html: membershipActiveHtml(m),
+  })
+}
+
+// ---- Bath Club renewal reminder (pre-charge, cron) -----------------------------------
+
+/** Sent by /api/cron/subscription-reminders a few days before each Bath Club
+ *  charge — the owner's "月扣款前发提醒邮件". Same shape as the billing
+ *  notice: customer email + audit trail through sendEmail. */
+export async function sendSubscriptionRenewalReminder(
+  s: SubscriptionRenewalReminderData & { to: string; customerId?: string },
+) {
+  return sendEmail({
+    customerId: s.customerId,
+    to: s.to,
+    template: "subscription_renewal_reminder",
+    subject: `Heads up: ${s.amount} renews on ${s.renewsOn}`,
+    html: subscriptionRenewalReminderHtml(s),
   })
 }
 

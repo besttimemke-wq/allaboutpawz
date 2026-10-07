@@ -33,7 +33,7 @@ export default async function AccessCustomerPage({
       title="Customer Portal"
       subtitle="Sign in to manage your pets, appointments, orders & billing."
     >
-      {initialError ? null : <GoogleButton portal="customer" />}
+      {initialError ? null : <GoogleButton portal="customer" next={redirect} />}
       <DoorHint>
         Sign in with Google — your portal is determined by your salon record.
         <br />

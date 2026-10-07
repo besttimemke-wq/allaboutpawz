@@ -190,8 +190,19 @@ export async function activateMembership(
   subscriptionId: string,
   patch: { stripeSubscriptionId?: string; currentPeriodStart?: Date; currentPeriodEnd?: Date },
 ): Promise<boolean> {
+  // The period length follows the membership's billing interval — an annual
+  // prepay membership renews in a YEAR, not 30 days.
+  let interval: "monthly" | "annual" = "monthly"
+  try {
+    const rows = await pgQuery<{ billing_interval: string }>(
+      `select billing_interval from public.subscriptions where id = $1 limit 1`,
+      [String(subscriptionId)],
+    )
+    if (rows[0]?.billing_interval === "annual") interval = "annual"
+  } catch { /* default monthly stands */ }
+  const periodMs = interval === "annual" ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000
   const start = patch.currentPeriodStart ?? new Date()
-  const end = patch.currentPeriodEnd ?? new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const end = patch.currentPeriodEnd ?? new Date(start.getTime() + periodMs)
   const n = await pgExec(
     `update public.subscriptions
      set status = 'ACTIVE', stripe_subscription_id = coalesce($3, stripe_subscription_id),

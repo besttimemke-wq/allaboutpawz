@@ -13,11 +13,10 @@
 
 const SALON = {
   name: "All About Pawz",
-  // BRAND facts per the email design system (src/lib/email/design.ts) —
-  // 901-800-7182 / Memphis, TN. The old 699 Waring Rd / 722-1114 values
-  // were stale and rode out on every calendar attachment.
+  // Owner-confirmed current line (matches design.ts BRAND.phone). Keep the
+  // calendar attachment on the same number every other surface shows.
   address: "Memphis, TN",
-  phone: "(901) 800-7182",
+  phone: "(901) 722-1114",
 }
 
 /** The America/Chicago UTC offset (ms) in effect at the given instant. */

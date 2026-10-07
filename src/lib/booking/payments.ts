@@ -99,6 +99,14 @@ export async function applyBookingPayment(opts: {
           phone: booking.phone || "",
           notes: booking.notes || "",
           bookingId: booking.id,
+          // Full intake on the salon's copy (owner direction).
+          breed: booking.breed || null,
+          weightLbs: booking.weightLbs ?? null,
+          birthDate: booking.birthDate || null,
+          itemLines,
+          promoCode: booking.promoCode || null,
+          pointsRedeemed: Number(booking.pointsRedeemed || 0) > 0 ? Number(booking.pointsRedeemed) : null,
+          total: totalCents > 0 ? centsToDollars(totalCents) : booking.servicePrice || "",
           payment: {
             items: itemLines,
             total: totalCents > 0 ? centsToDollars(totalCents) : booking.servicePrice || "",

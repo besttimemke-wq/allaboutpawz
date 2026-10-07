@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (plan.monthlyPriceCents == null) {
       return NextResponse.json(
         {
-          error: `${plan.sizeLabel} memberships are custom-quote — call us at (901) 800-7182 and we'll set you up.`,
+          error: `${plan.sizeLabel} memberships are custom-quote — call us at (901) 722-1114 and we'll set you up.`,
           code: "CUSTOM_QUOTE",
         },
         { status: 400 },
@@ -88,14 +88,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This pup already has a Bath Club membership." }, { status: 409 })
     }
 
-    // 3. The price — annual prepay = 12 months for the price of 10 (the
-    //    ratio lives in the plan row); each ADDITIONAL membership in the
-    //    household gets the plan's multi-pet percent off.
+    // 3. The price — annual prepay = 12 months for the price of 10: the
+    //    YEAR charges monthly × charge-months (e.g. $129 × 10 = $1,290/yr —
+    //    two months free), recurring yearly. Monthly is the tier price per
+    //    month. Each ADDITIONAL membership in the household gets the plan's
+    //    multi-pet percent off.
     let priceCents = plan.monthlyPriceCents
     if (interval === "annual") {
-      priceCents = Math.round(
-        (plan.monthlyPriceCents * plan.annualPrepayChargeMonths) / plan.annualPrepayMonths,
-      )
+      priceCents = plan.monthlyPriceCents * plan.annualPrepayChargeMonths
     } else if (active.length > 0) {
       priceCents = Math.round(priceCents * (1 - plan.multiPetDiscountPercent / 100))
     }

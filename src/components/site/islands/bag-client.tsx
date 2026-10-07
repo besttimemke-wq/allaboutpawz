@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, useSyncExternalStore, Fragment } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback, useSyncExternalStore, Fragment } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   ShoppingBag, Trash, Minus, Plus, PawPrint, ArrowRight, Check,
 } from "@phosphor-icons/react"
@@ -35,6 +36,16 @@ export type BagProduct = {
 
 export type BagRating = { avg: number; count: number }
 
+// Who is browsing, straight from /api/auth/portal-session (the cookie is
+// the authority — the client never decides who it is).
+type SessionUser = { name: string; email: string } | null
+
+// The customer door URL for the checkout gate. The door round-trips
+// ?redirect= (validated server-side in /api/auth/login), and the bag lives in
+// localStorage — so the customer lands back on their bag, exactly as they
+// left it, now signed in.
+const CHECKOUT_LOGIN_URL = "/access-customer?redirect=/shop/bag"
+
 const MAX_PER_ITEM = 10
 const stepWrapCls = "border border-gold/30 bg-card p-7 lg:p-10"
 const labelCls = "text-[9px] font-bold tracking-[0.16em] text-gold-deep"
@@ -59,8 +70,55 @@ export function BagClient({
   ratings: Record<string, BagRating>
 }) {
   const s = useCart()
+  const router = useRouter()
   const hydrated = useHydrated()
   const [removedNote, setRemovedNote] = useState<string | null>(null)
+  const [session, setSession] = useState<SessionUser>(null)
+
+  // Session detection (owner ruling: clicking Shop should automatically know
+  // who the visitor is). Fetched once on mount, cache: "no-store" — the
+  // promise is memoized so the PROCEED TO CHECKOUT click can await the same
+  // in-flight answer instead of re-asking. A FAILED fetch is never memoized
+  // (the next click retries) and is reported as "unknown", not signed-out.
+  type SessionAnswer = { user: SessionUser; failed: boolean }
+  const sessionPromise = useRef<Promise<SessionAnswer> | null>(null)
+  const loadSession = useCallback((): Promise<SessionAnswer> => {
+    if (!sessionPromise.current) {
+      sessionPromise.current = fetch("/api/auth/portal-session", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          const u = d?.user || null
+          const user: SessionUser = u ? { name: String(u.name || ""), email: String(u.email || "") } : null
+          setSession(user)
+          return { user, failed: false }
+        })
+        .catch(() => {
+          sessionPromise.current = null // unknown, not signed-out — retryable
+          return { user: null, failed: true }
+        })
+    }
+    return sessionPromise.current
+  }, [])
+
+  useEffect(() => {
+    loadSession()
+  }, [loadSession])
+
+  // CHECKOUT IS GATED (browsing /shop stays public): a signed-out visitor is
+  // presented with the login page instead of an anonymous checkout — the bag
+  // persists in localStorage and is exactly as they left it when they return
+  // through /shop/bag. Signed in → straight into the checkout wizard, which
+  // prefills the contact step from the session. An UNANSWERED check (network
+  // hiccup) is never treated as signed-out here: the wizard re-checks
+  // independently and the checkout route's 401 is the final backstop.
+  const proceedToCheckout = async () => {
+    const { user, failed } = await loadSession()
+    if (!user && !failed) {
+      router.push(CHECKOUT_LOGIN_URL)
+      return
+    }
+    router.push("/shop?checkout=1")
+  }
 
   const byId = useMemo(() => {
     const map: Record<string, BagProduct> = {}
@@ -213,6 +271,12 @@ export function BagClient({
 
         {/* Subtotal */}
         <div className="mt-6 space-y-1.5 border-t border-gold/20 pt-4 text-[12px]">
+          {session && (
+            <p className="flex items-center gap-1.5 pb-1 text-[10.5px] text-ink-soft">
+              <Check size={11} weight="bold" className="shrink-0 text-gold-deep" />
+              Signed in as <span className="font-bold text-ink">{session.name || session.email}</span> — your details carry through checkout.
+            </p>
+          )}
           <div className="flex justify-between text-ink-soft">
             <span>Subtotal</span>
             <span className="font-bold text-ink">{formatCents(subtotalCents)}</span>
@@ -332,9 +396,9 @@ export function BagClient({
       {/* Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
         <Link href="/shop" className="btn-ghost">CONTINUE SHOPPING</Link>
-        <Link href="/shop?checkout=1" className="btn-gold">
+        <button type="button" onClick={proceedToCheckout} className="btn-gold">
           PROCEED TO CHECKOUT <ArrowRight size={13} weight="bold" />
-        </Link>
+        </button>
       </div>
 
       <p className="flex items-center justify-center gap-1.5 pb-1 text-center text-[10.5px] text-ink-soft">

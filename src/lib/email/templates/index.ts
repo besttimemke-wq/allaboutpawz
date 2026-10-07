@@ -41,8 +41,10 @@ import {
   orderConfirmationHtml,
   subscriptionBillingHtml,
   membershipActiveHtml,
+  subscriptionRenewalReminderHtml,
   SAMPLE_PAYMENT,
   SAMPLE_ORDER,
+  SAMPLE_RENEWAL_REMINDER,
 } from "./commerce"
 import {
   customerWelcomeHtml,
@@ -371,6 +373,16 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
       cardLast4: "4242",
     }),
     wired: "Ready — send ahead of each renewal cycle.",
+  },
+  {
+    id: "subscription_renewal_reminder",
+    name: "Bath Club renewal reminder",
+    group: "commerce",
+    channel: "resend",
+    description: "Pre-charge reminder sent a few days before each Bath Club renewal.",
+    subject: "Heads up: $129.00 renews on March 5",
+    html: subscriptionRenewalReminderHtml(SAMPLE_RENEWAL_REMINDER),
+    wired: "Sent by the daily reminder cron (/api/cron/subscription-reminders) for memberships renewing within 3 days.",
   },
   {
     id: "membership_active",
