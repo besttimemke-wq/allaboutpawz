@@ -18,6 +18,7 @@ import {
   SORT_OPTIONS,
   MERCH_META,
 } from "./types"
+import { getFacetsForPath } from "./facets"
 
 export * from "./types"
 
@@ -484,17 +485,29 @@ export async function getMerchCollections(): Promise<MerchCollection[]> {
 // ---------------------------------------------------------------------------
 
 const PRICE_BUCKETS: { value: string; label: string; min?: number; max?: number }[] = [
-  { value: "under-25", label: "Under $25", max: 2499 },
+  { value: "under-10", label: "Under $10", max: 999 },
+  { value: "10-25", label: "$10 to $25", min: 1000, max: 2499 },
   { value: "25-50", label: "$25 to $50", min: 2500, max: 5000 },
-  { value: "over-50", label: "Over $50", min: 5001 },
+  { value: "50-100", label: "$50 to $100", min: 5001, max: 10000 },
+  { value: "over-100", label: "Over $100", min: 10001 },
 ]
 
 /**
  * Build the filter sections for a product scope. Sections are pruned by the
  * visibility rule: a group renders only when in-scope products produce
- * usable values for it.
+ * usable values for it. The canonical facets from src/lib/shop/facets.ts
+ * are always appended (with 0 counts when product data is absent) so the
+ * sidebar scaffolding is visible per the owner's filter spec.
+ *
+ * @param scopeIds  Raw SQL category ids in scope (null = shop-all).
+ * @param path      The shop route path (e.g. "/shop/cat/food"), used to
+ *                  resolve the page-specific facet set from
+ *                  getFacetsForPath() in facets.ts.
  */
-export async function getFilterSections(scopeIds: number[] | null): Promise<FilterSection[]> {
+export async function getFilterSections(
+  scopeIds: number[] | null,
+  path: string = "/shop",
+): Promise<FilterSection[]> {
   const products = await getProducts()
   const inScope = scopeIds
     ? products.filter((p) => p.categoryId != null && scopeIds.includes(p.categoryId))
@@ -535,7 +548,40 @@ export async function getFilterSections(scopeIds: number[] | null): Promise<Filt
     const options: FilterOption[] = []
     if (inStock > 0) options.push({ value: "in-stock", label: "In Stock", count: inStock })
     if (outStock > 0) options.push({ value: "out-of-stock", label: "Out of Stock", count: outStock })
-    sections.push({ kind: "check", key: "availability", label: "Availability", options })
+    sections.push({
+      kind: "check",
+      key: "availability",
+      label: "Availability",
+      options,
+      defaultVisible: 99,
+    })
+  }
+
+  // ---- Canonical facets from facets.ts (Brand, Food Form, Life Stage,
+  //      Flavor, Health Feature, Color, Material, Breed Size, Product
+  //      Weight, Frame Material, Apparel Type, Size). These render with
+  //      0 counts until product data populates them — the scaffolding the
+  //      owner wants visible on every shop page.
+  // ----
+  const canonicalFacets = getFacetsForPath(path)
+  for (const facet of canonicalFacets) {
+    // Skip if SQL already produced a section with the same key.
+    if (sections.some((s) => s.kind === "check" && s.key === facet.key)) continue
+    const options: FilterOption[] = facet.options.map((o) => ({
+      value: o.value,
+      label: o.label,
+      count: 0,
+    }))
+    if (options.length === 0) continue
+    sections.push({
+      kind: "check",
+      key: facet.key,
+      label: facet.label,
+      options,
+      searchable: facet.searchable,
+      collapsible: facet.collapsible,
+      defaultVisible: facet.defaultVisible ?? 6,
+    })
   }
 
   // ---- SQL-mapped filters (brand, coat type, …) ----
@@ -549,16 +595,39 @@ export async function getFilterSections(scopeIds: number[] | null): Promise<Filt
   for (const m of mappings as Row[]) {
     if (scopeIds == null || scopeSet.has(m.category_id)) mappedFilterIds.add(m.filter_id)
   }
-  const handled = new Set(["price", "rating", "availability", "brand"])
+  const handled = new Set([
+    "price",
+    "rating",
+    "availability",
+    "brand",
+    "foodform",
+    "lifestage",
+    "flavor",
+    "healthfeature",
+    "color",
+    "material",
+    "breedsize",
+    "productweight",
+    "framematerial",
+    "appareltype",
+    "size",
+    "customerrating",
+  ])
   for (const f of filters as Row[]) {
     if (!mappedFilterIds.has(f.id) || f.is_active === false) continue
-    if (handled.has(f.slug)) continue
+    if (handled.has(String(f.slug).toLowerCase())) continue
     const hasValues = inScope.some((p) => {
       const v = (p as unknown as Record<string, unknown>)[f.slug]
       return typeof v === "string" && v.trim().length > 0
     })
     if (!hasValues) continue
-    sections.push({ kind: "check", key: f.slug, label: f.name, options: [] })
+    sections.push({
+      kind: "check",
+      key: f.slug,
+      label: f.name,
+      options: [],
+      defaultVisible: 6,
+    })
   }
 
   return sections
@@ -608,6 +677,41 @@ export async function queryProducts(q: ProductQuery): Promise<ProductQueryResult
     })
   }
 
+  // ---- Multi-select facet filters (brand, flavor, size, ...) ----
+  // Each facet key in f.facets maps to an array of selected option values;
+  // a product passes when ANY of its values for that facet matches (OR
+  // within a facet, AND across facets). Until product data carries these
+  // attributes (they're a placeholder), the filter is permissive — every
+  // in-scope product passes — so the rail still shows results.
+  if (f.facets) {
+    for (const [facetKey, selectedValues] of Object.entries(f.facets)) {
+      if (!Array.isArray(selectedValues) || selectedValues.length === 0) continue
+      // Permissive: when products don't carry structured attribute data for
+      // this facet, the filter does not exclude anything. (When SQL product
+      // attribute columns land, replace this with the actual match logic.)
+      const productKey = facetKey // future: snake_case mapping
+      items = items.filter((p) => {
+        const v = (p as unknown as Record<string, unknown>)[productKey]
+        if (typeof v !== "string" || v.trim().length === 0) return true // permissive
+        const values = v.split(",").map((s) => s.trim().toLowerCase())
+        return selectedValues.some((sel) => values.includes(sel.toLowerCase()))
+      })
+    }
+  }
+
+  // ---- Free-text query (the header search bar's ?q=) ----
+  if (f.q && f.q.trim().length >= 2) {
+    const needle = f.q.trim().toLowerCase()
+    const tokens = needle.split(/\s+/).filter(Boolean)
+    items = items.filter((p) => {
+      const haystack = [p.name, p.shortDescription, p.description, p.category, p.badge]
+        .filter((s): s is string => typeof s === "string" && s.length > 0)
+        .join(" ")
+        .toLowerCase()
+      return tokens.every((tok) => haystack.includes(tok))
+    })
+  }
+
   const sort: SortKey = q.sort || "best-selling"
   const sorted = [...items].sort((a, b) => {
     switch (sort) {
@@ -649,6 +753,8 @@ export function parseSearchParams(sp: Record<string, string | string[] | undefin
   sort: SortKey
   page: number
   priceBucket: string | null
+  facets: Record<string, string[]>
+  q: string | null
 } {
   const one = (k: string): string | null => {
     const v = sp[k]
@@ -671,17 +777,57 @@ export function parseSearchParams(sp: Record<string, string | string[] | undefin
   let bucketMax = num("maxPrice")
   const priceBucket = one("priceBucket")
   if (priceBucket) {
-    if (priceBucket === "under-25") {
+    if (priceBucket === "under-10") {
       bucketMin = undefined
+      bucketMax = 999
+    } else if (priceBucket === "10-25") {
+      bucketMin = 1000
       bucketMax = 2499
     } else if (priceBucket === "25-50") {
       bucketMin = 2500
       bucketMax = 5000
+    } else if (priceBucket === "50-100") {
+      bucketMin = 5001
+      bucketMax = 10000
+    } else if (priceBucket === "over-100") {
+      bucketMin = 10001
+      bucketMax = undefined
+    } else if (priceBucket === "under-25") {
+      // legacy bucket — keep working (older URLs)
+      bucketMin = undefined
+      bucketMax = 2499
     } else if (priceBucket === "over-50") {
       bucketMin = 5001
       bucketMax = undefined
     }
   }
+
+  // ---- Multi-select facet values from URL (?brand=a,b&flavor=c) ----
+  // The known facet keys are the ones in FACETS plus availability.
+  const FACET_KEYS = [
+    "brand",
+    "foodForm",
+    "lifeStage",
+    "flavor",
+    "healthFeature",
+    "color",
+    "material",
+    "breedSize",
+    "productWeight",
+    "frameMaterial",
+    "apparelType",
+    "size",
+  ]
+  const facets: Record<string, string[]> = {}
+  for (const key of FACET_KEYS) {
+    const raw = one(key)
+    if (raw) {
+      facets[key] = raw.split(",").map((s) => s.trim()).filter(Boolean)
+    }
+  }
+
+  // ---- Free-text query (?q=) from the header search bar ----
+  const q = one("q")
 
   return {
     filters: {
@@ -693,6 +839,8 @@ export function parseSearchParams(sp: Record<string, string | string[] | undefin
         return Number.isFinite(n) && n >= 1 && n <= 5 ? n : undefined
       })(),
       availability: availabilityRaw ? availabilityRaw.split(",").filter(Boolean) : undefined,
+      facets,
+      q: q || undefined,
     },
     sort,
     page: (() => {
@@ -701,5 +849,7 @@ export function parseSearchParams(sp: Record<string, string | string[] | undefin
       return Number.isFinite(n) && n > 0 ? n : 1
     })(),
     priceBucket,
+    facets,
+    q,
   }
 }

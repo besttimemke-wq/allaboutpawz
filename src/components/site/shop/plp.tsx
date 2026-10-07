@@ -36,18 +36,24 @@ export async function Plp({
   scope,
   searchParams,
   perPage = 12,
+  path,
 }: {
   scope: PlpScope
   searchParams: Record<string, string | string[] | undefined>
   perPage?: number
+  /** The current shop route path (e.g. "/shop", "/shop/cat/food"), used to
+   *  resolve page-specific facets from src/lib/shop/facets.ts. */
+  path?: string
 }) {
   const scopeIds =
     scope.kind === "category" ? scope.node.rawIds : scope.kind === "merch" ? null : null
 
+  const currentPath = path || (scope.kind === "category" ? scope.node.path : scope.kind === "merch" ? `/shop/${scope.merch}` : "/shop")
+
   const [navTree, merch, filterSections, state] = await Promise.all([
     getNavTree(),
     getMerchCollections(),
-    getFilterSections(scopeIds),
+    getFilterSections(scopeIds, currentPath),
     Promise.resolve(parseSearchParams(searchParams)),
   ])
 
@@ -68,6 +74,8 @@ export async function Plp({
     priceBucket: one("priceBucket"),
     rating: one("rating"),
     availability: one("availability")?.split(",").filter(Boolean) || [],
+    facets: state.facets || {},
+    q: state.q || "",
   }
 
   const sidebar: SidebarData = {
@@ -109,9 +117,12 @@ export async function Plp({
         <PlpToolbar total={result.total} shown={result.items.length} sort={state.sort} sidebar={sidebar} />
 
         {/* Active filter chips — individually removable, server-rendered */}
-        {(applied.priceBucket || applied.minPrice || applied.maxPrice || applied.rating || applied.availability.length > 0) && (
+        {(applied.priceBucket || applied.minPrice || applied.maxPrice || applied.rating || applied.availability.length > 0 || applied.q || Object.values(applied.facets).some((vs) => vs.length > 0)) && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="text-[9px] font-bold tracking-[0.14em] text-ink-soft">ACTIVE:</span>
+            {applied.q && (
+              <FilterChip label={`"${applied.q}"`} params={["q"]} basePath={basePath} searchParams={searchParams} />
+            )}
             {applied.priceBucket && (
               <FilterChip label={bucketLabel(applied.priceBucket)} params={["priceBucket"]} basePath={basePath} searchParams={searchParams} />
             )}
@@ -135,6 +146,18 @@ export async function Plp({
                 searchParams={searchParams}
               />
             ))}
+            {Object.entries(applied.facets).flatMap(([key, values]) =>
+              values.map((v) => (
+                <FilterChip
+                  key={`${key}-${v}`}
+                  label={facetLabel(key, v)}
+                  params={[key]}
+                  basePath={basePath}
+                  searchParams={searchParams}
+                  multiValue={v}
+                />
+              )),
+            )}
             <Link
               href={basePath}
               className="ml-1 text-[9px] font-bold tracking-[0.1em] text-gold-deep uppercase underline-offset-2 hover:underline"
@@ -156,7 +179,7 @@ export async function Plp({
             basePath={basePath}
             hasFilters={
               result.total === 0 &&
-              !!(applied.priceBucket || applied.minPrice || applied.maxPrice || applied.rating || applied.availability.length > 0)
+              !!(applied.priceBucket || applied.minPrice || applied.maxPrice || applied.rating || applied.availability.length > 0 || applied.q || Object.values(applied.facets).some((vs) => vs.length > 0))
             }
           />
         )}
@@ -198,27 +221,69 @@ export async function Plp({
 // ---------------------------------------------------------------------------
 
 function bucketLabel(bucket: string): string {
-  if (bucket === "under-25") return "Under $25"
+  if (bucket === "under-10") return "Under $10"
+  if (bucket === "10-25") return "$10 to $25"
   if (bucket === "25-50") return "$25 to $50"
+  if (bucket === "50-100") return "$50 to $100"
+  if (bucket === "over-100") return "Over $100"
+  if (bucket === "under-25") return "Under $25"
   if (bucket === "over-50") return "Over $50"
   return bucket
 }
 
-/** A removable filter chip — link to the same path minus the given params. */
+/** Look up the customer-facing label for a single selected facet value. */
+function facetLabel(facetKey: string, value: string): string {
+  // Pull the canonical facet definition from src/lib/shop/facets.ts lazily —
+  // this is a server-rendered module so the import cost is at module load.
+  // We avoid a static import here to keep the chips rendering tree-shakeable.
+  const FACET_LABELS: Record<string, Record<string, string>> = {
+    brand: { "all-about-pawz": "All About Pawz", "pawz-signature": "Pawz Signature", "pawz-pro": "Pawz Pro" },
+    // For other facets, fall back to a humanized version of the value.
+  }
+  const map = FACET_LABELS[facetKey]
+  if (map && map[value]) return map[value]
+  // Humanize "dry-food" → "Dry Food", "extra-small-breed" → "Extra Small Breed"
+  return value
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+}
+
+/** A removable filter chip — link to the same path minus the given params.
+ *  When `multiValue` is set, only that specific value is removed from the
+ *  comma-separated list (preserving any other values for the same key). */
 function FilterChip({
   label,
   params,
   basePath,
   searchParams,
+  multiValue,
 }: {
   label: string
   params: string[]
   basePath: string
   searchParams: Record<string, string | string[] | undefined>
+  /** When set, the chip represents a single value within a multi-value
+   *  param (e.g. one brand from ?brand=a,b,c). The chip removes only this
+   *  value, not the whole key. */
+  multiValue?: string
 }) {
   const next = new URLSearchParams()
   for (const [k, v] of Object.entries(searchParams)) {
-    if (typeof v === "string" && v && !params.includes(k)) next.set(k, v)
+    if (typeof v !== "string" || !v) continue
+    if (params.includes(k)) {
+      if (multiValue) {
+        // Remove just this value from the comma-separated list.
+        const remaining = v
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s && s !== multiValue)
+        if (remaining.length > 0) next.set(k, remaining.join(","))
+      }
+      // Otherwise: drop the whole key.
+    } else {
+      next.set(k, v)
+    }
   }
   const qs = next.toString()
   return (

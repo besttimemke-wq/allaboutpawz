@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { X, ChevronDown, Search, Star, PawPrint } from "lucide-react"
+import { X, ChevronDown, Search, Star, PawPrint, ChevronUp } from "lucide-react"
 import { CATEGORY_ICONS as ICONS } from "./category-icons"
 import type { FilterSection, NavCategory, MerchCollection } from "@/lib/shop/types"
 
@@ -20,6 +20,13 @@ import type { FilterSection, NavCategory, MerchCollection } from "@/lib/shop/typ
 //                 results grid behind updates immediately. Price MIN/MAX
 //                 inputs commit on Enter/blur so typing isn't thrashed.
 //                 "Clear all" sits at the top of the section.
+//
+//   FACETS      → Multi-select checkbox facets (Brand, Flavor, Size, ...).
+//                 Each section can be:
+//                   • searchable — renders a search-within input above the list.
+//                   • collapsible — collapses options beyond defaultVisible
+//                     behind a "Show more" toggle.
+//                 Selected values commit to the URL as ?key=v1,v2,v3.
 // ---------------------------------------------------------------------------
 
 export type SidebarData = {
@@ -43,6 +50,10 @@ export type AppliedUrl = {
   priceBucket: string | null
   rating: string | null
   availability: string[]
+  /** Multi-select facet values keyed by facet key (brand, flavor, size, ...). */
+  facets: Record<string, string[]>
+  /** Free-text query (?q=) from the header search bar. */
+  q: string
 }
 
 const EMPTY_APPLIED: AppliedUrl = {
@@ -51,15 +62,20 @@ const EMPTY_APPLIED: AppliedUrl = {
   priceBucket: null,
   rating: null,
   availability: [],
+  facets: {},
+  q: "",
 }
 
 function countApplied(a: AppliedUrl): number {
+  const facetCount = Object.values(a.facets).reduce((s, vs) => s + vs.length, 0)
   return (
     (a.minPrice.trim() ? 1 : 0) +
     (a.maxPrice.trim() ? 1 : 0) +
     (a.priceBucket ? 1 : 0) +
     (a.rating ? 1 : 0) +
-    a.availability.length
+    a.availability.length +
+    facetCount +
+    (a.q.trim() ? 1 : 0)
   )
 }
 
@@ -71,7 +87,10 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
   // COMMITS immediately (instant-apply faceting); there is no draft/apply
   // step, so the rail can never drift out of sync with the results.
   const [draft, setDraft] = useState<AppliedUrl>(data.applied)
-  const [brandQuery, setBrandQuery] = useState("")
+  // Per-section search queries (keyed by section.key). Brand, Flavor, etc.
+  const [sectionQueries, setSectionQueries] = useState<Record<string, string>>({})
+  // Per-section "show more" toggles (keyed by section.key).
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
   const appliedCount = countApplied(data.applied)
 
@@ -83,19 +102,24 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
     if (next.priceBucket) params.set("priceBucket", next.priceBucket)
     if (next.rating) params.set("rating", next.rating)
     if (next.availability.length > 0) params.set("availability", next.availability.join(","))
+    if (next.q.trim()) params.set("q", next.q.trim())
+    for (const [key, values] of Object.entries(next.facets)) {
+      if (values.length > 0) params.set(key, values.join(","))
+    }
     const qs = params.toString()
     return qs ? `${path}?${qs}` : path
   }
 
   /** Commit a filter change to the URL — the results re-render server-side. */
   const commit = (next: AppliedUrl) => {
-    console.log("[sidebar] commit", JSON.stringify(next))
     setDraft(next)
     router.push(buildHref(next, pathname), { scroll: false })
   }
 
   const clearAll = () => {
     setDraft(EMPTY_APPLIED)
+    setSectionQueries({})
+    setExpandedSections({})
     router.push(pathname, { scroll: false })
   }
 
@@ -106,6 +130,15 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
       availability: draft.availability.includes(value)
         ? draft.availability.filter((v) => v !== value)
         : [...draft.availability, value],
+    })
+  }
+
+  const toggleFacet = (key: string, value: string) => {
+    const cur = draft.facets[key] || []
+    const next = cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]
+    commit({
+      ...draft,
+      facets: { ...draft.facets, [key]: next },
     })
   }
 
@@ -360,34 +393,15 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
                   )}
 
                   {section.kind === "check" && section.key !== "availability" && (
-                    <div className="space-y-2.5">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-ink-soft/60" strokeWidth={2} />
-                        <input
-                          type="search"
-                          value={brandQuery}
-                          onChange={(e) => setBrandQuery(e.target.value)}
-                          placeholder={`Search ${section.label.toLowerCase()}…`}
-                          aria-label={`Search ${section.label}`}
-                          className="w-full border border-ink/15 bg-cream py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
-                        />
-                      </div>
-                      <ul className="space-y-0.5">
-                        {section.options
-                          .filter((o) => o.label.toLowerCase().includes(brandQuery.toLowerCase()))
-                          .map((o) => (
-                            <li key={o.value}>
-                              <CheckRow
-                                checked={draft.availability.includes(o.value)}
-                                onToggle={() => toggleAvailability(o.value)}
-                                label={o.label}
-                                count={o.count}
-                                name={section.label}
-                              />
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
+                    <FacetCheckList
+                      section={section}
+                      draft={draft}
+                      onToggle={toggleFacet}
+                      sectionQueries={sectionQueries}
+                      setSectionQueries={setSectionQueries}
+                      expandedSections={expandedSections}
+                      setExpandedSections={setExpandedSections}
+                    />
                   )}
                 </FilterGroup>
               ))}
@@ -492,11 +506,7 @@ function CheckRow({
         <input
           type="checkbox"
           checked={checked}
-          onChange={(e) => {
-            console.log("[CheckRow] onChange fired:", name, e.target.checked)
-            onToggle()
-          }}
-          onClick={(e) => console.log("[CheckRow] onClick fired:", name)}
+          onChange={() => onToggle()}
           name={name}
           className="peer h-[15px] w-[15px] cursor-pointer appearance-none border border-ink/30 bg-white checked:border-gold-deep checked:bg-gold-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep/40"
         />
@@ -512,5 +522,134 @@ function CheckRow({
       <span className="min-w-0 flex-1 truncate">{label}</span>
       <span className="text-[9.5px] text-ink-soft/70">({count})</span>
     </label>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// FacetCheckList — renders a multi-select checkbox facet section
+// (Brand, Flavor, Size, ...). Supports:
+//   • search-within-this-facet input (when section.searchable === true)
+//   • "Show more / Show less" toggle (when section.collapsible === true
+//     and the option count exceeds section.defaultVisible)
+//   • Per-facet applied state (draft.facets[key])
+//   • Show count when > 0, hide when 0 (the owner wants facet scaffolding
+//     visible even before product data populates it — those rows show with
+//     no count suffix)
+// ---------------------------------------------------------------------------
+
+type FacetCheckListProps = {
+  section: Extract<FilterSection, { kind: "check" }>
+  draft: AppliedUrl
+  onToggle: (key: string, value: string) => void
+  sectionQueries: Record<string, string>
+  setSectionQueries: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  expandedSections: Record<string, boolean>
+  setExpandedSections: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
+}
+
+function FacetCheckList({
+  section,
+  draft,
+  onToggle,
+  sectionQueries,
+  setSectionQueries,
+  expandedSections,
+  setExpandedSections,
+}: FacetCheckListProps) {
+  const key = section.key
+  const query = sectionQueries[key] || ""
+  const expanded = expandedSections[key] === true
+  const defaultVisible = section.defaultVisible ?? 6
+  const isSearchable = section.searchable === true
+  const isCollapsible = section.collapsible === true
+
+  // Sort options: checked first (so the user sees their picks at the top),
+  // then alphabetical by label. Stable per render.
+  const sortedOptions = [...section.options].sort((a, b) => {
+    const aChecked = (draft.facets[key] || []).includes(a.value) ? 0 : 1
+    const bChecked = (draft.facets[key] || []).includes(b.value) ? 0 : 1
+    if (aChecked !== bChecked) return aChecked - bChecked
+    return a.label.localeCompare(b.label)
+  })
+
+  // Filter by the section's search query (when searchable).
+  const filtered = isSearchable
+    ? sortedOptions.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : sortedOptions
+
+  // Decide which options to actually render.
+  const showAll = expanded || !isCollapsible || filtered.length <= defaultVisible
+  const visibleOptions = showAll ? filtered : filtered.slice(0, defaultVisible)
+  const hiddenCount = filtered.length - visibleOptions.length
+
+  return (
+    <div className="space-y-2">
+      {isSearchable && (
+        <div className="relative">
+          <Search
+            className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-ink-soft/60"
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) =>
+              setSectionQueries((q) => ({ ...q, [key]: e.target.value }))
+            }
+            placeholder={`Search ${section.label.toLowerCase()}…`}
+            aria-label={`Search ${section.label}`}
+            className="w-full border border-ink/15 bg-cream py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-ink-soft/60 focus:border-gold-deep focus:outline-none"
+          />
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <p className="py-1.5 text-[10.5px] italic text-ink-soft/70">
+          {isSearchable && query ? "No matches in this facet." : "No options yet."}
+        </p>
+      ) : (
+        <>
+          <ul className="space-y-0.5">
+            {visibleOptions.map((o) => {
+              const checked = (draft.facets[key] || []).includes(o.value)
+              return (
+                <li key={o.value}>
+                  <CheckRow
+                    checked={checked}
+                    onToggle={() => onToggle(key, o.value)}
+                    label={o.label}
+                    count={o.count}
+                    name={section.label}
+                  />
+                </li>
+              )
+            })}
+          </ul>
+
+          {isCollapsible && filtered.length > defaultVisible && (
+            <button
+              type="button"
+              onClick={() =>
+                setExpandedSections((s) => ({ ...s, [key]: !expanded }))
+              }
+              className="flex w-full items-center justify-center gap-1 py-1 text-[10px] font-bold tracking-[0.1em] uppercase text-gold-deep hover:underline"
+              aria-expanded={expanded}
+              aria-label={`${expanded ? "Show less" : "Show more"} ${section.label}`}
+            >
+              {expanded ? (
+                <>
+                  SHOW LESS <ChevronUp className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
+                </>
+              ) : (
+                <>
+                  SHOW {hiddenCount} MORE <ChevronDown className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
+                </>
+              )}
+            </button>
+          )}
+        </>
+      )}
+    </div>
   )
 }

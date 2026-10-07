@@ -10,6 +10,7 @@ import {
   House, Bell, LifeBuoy, BriefcaseBusiness, LogOut, ChevronRight, X,
 } from "lucide-react"
 import { PawGlyph } from "./brand"
+import { HeaderSearch } from "./header-search"
 import { NAV } from "./nav"
 import { useNavPromoGate, type PromoPlacement } from "./islands/promo-popup"
 import { useCart } from "@/lib/wizard/cart-store"
@@ -396,12 +397,14 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
       {/* Hamburger sidebar — slides in from left on ALL screen sizes. */}
 
       <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => { setOpen(false); closeShopFlyout(); }} onShopHover={openShopFlyout} onShopLeave={scheduleCloseShopFlyout} />
-      {/* ONE tan header bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between bg-cream px-4 py-3 lg:px-6">
+      {/* ONE tan header bar. `relative` ensures the mobile search overlay
+          (absolute inset-0) covers the entire header bar, not the viewport. */}
+      <div className="sticky top-0 z-30 flex items-center gap-3 bg-cream px-4 py-3 lg:px-6 relative">
         <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-ink hover:bg-black/5">
           <Menu className="h-5 w-5" />
         </button>
-        <div className="flex items-center gap-3">
+        <HeaderSearch />
+        <div className="ml-auto flex items-center gap-3">
           <HeaderAccountLink variant="icon" />
           <HeaderBagLink variant="icon" />
         </div>

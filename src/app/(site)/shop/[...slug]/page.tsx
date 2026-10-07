@@ -12,7 +12,12 @@ import {
   ProductRail,
   TrustStrip,
 } from "@/components/site/shop/shared"
-import { AnimalLandingPage, DepartmentPage, resolveTaxonomyPage } from "@/components/site/shop/taxonomy-pages"
+import {
+  AnimalLandingPage,
+  DepartmentPage,
+  SubcategoryPage,
+  resolveTaxonomyPage,
+} from "@/components/site/shop/taxonomy-pages"
 import {
   getProducts,
   resolveCategory,
@@ -22,6 +27,7 @@ import {
 } from "@/lib/shop/catalog"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { SITE_URL } from "@/lib/site-url"
+import { findSeoCopy } from "@/lib/shop/seo-copy"
 
 // ---------------------------------------------------------------------------
 // /shop/[...slug] — the server-rendered category system (three templates):
@@ -52,25 +58,32 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (taxonomy) {
     if (taxonomy.type === "animal" && taxonomy.animal) {
       const a = taxonomy.animal
+      const path = `/shop/${a.slug}`
+      const seo = findSeoCopy(path)
       return {
-        title: `${a.name} in Memphis, TN | All About Pawz`,
-        description: `Shop ${a.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon. ${a.tagline}.`,
-        alternates: { canonical: `${SITE_URL}/shop/${a.slug}` },
+        title: seo?.title || `${a.name} in Memphis, TN | All About Pawz`,
+        description: seo?.metaDescription || `Shop ${a.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon. ${a.tagline}.`,
+        alternates: { canonical: `${SITE_URL}${path}` },
       }
     }
     if (taxonomy.type === "department" && taxonomy.animal && taxonomy.dept) {
       const animalName = taxonomy.animal.name.replace(" Supplies", "")
+      const path = departmentPath(taxonomy.animal.slug, taxonomy.dept.slug)
+      const seo = findSeoCopy(path)
       return {
-        title: `${taxonomy.dept.name} for ${animalName}s in Memphis, TN | All About Pawz`,
-        description: `Shop ${taxonomy.dept.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop. Browse categories and visit us at 699 Waring Rd.`,
-        alternates: { canonical: `${SITE_URL}${departmentPath(taxonomy.animal.slug, taxonomy.dept.slug)}` },
+        title: seo?.title || `${taxonomy.dept.name} for ${animalName}s in Memphis, TN | All About Pawz`,
+        description: seo?.metaDescription || `Shop ${taxonomy.dept.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop. Browse categories and visit us at 699 Waring Rd.`,
+        alternates: { canonical: `${SITE_URL}${path}` },
       }
     }
     if (taxonomy.type === "subcategory" && taxonomy.animal && taxonomy.dept && taxonomy.subSlug) {
+      const path = subcategoryPath(taxonomy.animal.slug, taxonomy.dept.slug, taxonomy.subSlug)
+      const seo = findSeoCopy(path)
+      const subName = (taxonomy.dept.subcategories.find((s) => s.slug === taxonomy.subSlug)?.name) || taxonomy.subSlug.replace(/-/g, " ")
       return {
-        title: `${taxonomy.subSlug} for ${taxonomy.animal.name.replace(" Supplies", "")}s | All About Pawz Memphis`,
-        description: `Shop ${taxonomy.subSlug.replace(/-/g, " ")} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.`,
-        alternates: { canonical: `${SITE_URL}${subcategoryPath(taxonomy.animal.slug, taxonomy.dept.slug, taxonomy.subSlug)}` },
+        title: seo?.title || `${subName} | All About Pawz – Memphis`,
+        description: seo?.metaDescription || `Shop ${subName.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.`,
+        alternates: { canonical: `${SITE_URL}${path}` },
       }
     }
   }
@@ -135,58 +148,23 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const taxonomy = resolveTaxonomyPage(segments)
   if (taxonomy) {
     if (taxonomy.type === "animal" && taxonomy.animal) {
-      return <AnimalLandingPage animal={taxonomy.animal} />
+      return <AnimalLandingPage animal={taxonomy.animal} searchParams={sp} />
     }
     if (taxonomy.type === "department" && taxonomy.animal && taxonomy.dept) {
-      return <DepartmentPage animal={taxonomy.animal} dept={taxonomy.dept} />
+      return <DepartmentPage animal={taxonomy.animal} dept={taxonomy.dept} searchParams={sp} />
     }
-    // Subcategory pages: render a basic template with subcategory info.
-    // Wave 2 will add product grids + filters for these.
+    // Subcategory pages: render a real PLP with sidebar + filters + SEO copy.
     if (taxonomy.type === "subcategory" && taxonomy.animal && taxonomy.dept && taxonomy.subSlug) {
       const sub = taxonomy.dept.subcategories.find(s => s.slug === taxonomy.subSlug)
       const subName = sub?.name || taxonomy.subSlug.replace(/-/g, " ")
       return (
-        <>
-          <PageHeader n="06" label="SHOP" />
-          
-          <section className="bg-white px-8 py-10 lg:px-12">
-            <div className="mx-auto max-w-7xl">
-              <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
-                <a href="/" className="hover:text-black">Home</a>
-                <span className="text-black/40">/</span>
-                <a href="/shop" className="hover:text-black">Shop</a>
-                <span className="text-black/40">/</span>
-                <a href={`/shop/${taxonomy.animal.slug}`} className="hover:text-black">{taxonomy.animal.name}</a>
-                <span className="text-black/40">/</span>
-                <a href={departmentPath(taxonomy.animal.slug, taxonomy.dept.slug)} className="hover:text-black">{taxonomy.dept.name}</a>
-                <span className="text-black/40">/</span>
-                <span className="text-ink">{subName}</span>
-              </nav>
-              <h1 className="mt-4 font-display text-[32px] leading-[1.15] text-ink lg:text-[42px]">{subName} in Memphis, TN</h1>
-              <p className="mt-3 text-base leading-[1.7] text-ink-soft">
-                Shop {subName.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.
-                Visit us at 699 Waring Rd, Memphis, TN 38122 or call (901) 722-1114.
-              </p>
-            </div>
-          </section>
-          {/* Product grid placeholder — products linked to this subcategory will appear here */}
-          <section className="border-t border-gold/15 bg-white px-8 py-10 lg:px-12">
-            <div className="mx-auto max-w-7xl">
-              <h2 className="text-lg font-bold text-ink">Products</h2>
-              <p className="mt-2 text-sm text-ink-soft">
-                Products for {subName.toLowerCase()} are being added. Visit our Memphis salon or check back soon.
-              </p>
-            </div>
-          </section>
-          {/* Grooming cross-sell */}
-          <section className="border-t border-gold/15 bg-cream/20 px-8 py-10 lg:px-12">
-            <div className="mx-auto max-w-7xl text-center">
-              <h2 className="text-lg font-bold text-ink">Full-Service Grooming in Memphis</h2>
-              <p className="mt-1 text-sm text-ink-soft">All About Pawz does both — shop supplies or book a professional groom.</p>
-              <a href="/book/appointment" className="mt-4 inline-flex items-center gap-2 rounded bg-gold-deep px-5 py-3 text-sm font-bold text-cream hover:bg-gold">Book a Groom →</a>
-            </div>
-          </section>
-        </>
+        <SubcategoryPage
+          animal={taxonomy.animal}
+          dept={taxonomy.dept}
+          subSlug={taxonomy.subSlug}
+          subName={subName}
+          searchParams={sp}
+        />
       )
     }
   }
@@ -202,7 +180,6 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       <>
         <PageHeader n="06" label={`SHOP / ${meta.displayName.toUpperCase()}`} />
         
-        <Breadcrumbs chain={[]} />
         <section className="marble bg-white px-8 py-10 lg:px-12">
           <p className="eyebrow">THE PAWZ COLLECTION</p>
           <h1 className="mt-2 font-display text-[34px] leading-[1.1] text-ink lg:text-[40px]">
@@ -257,7 +234,6 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       <>
         <PageHeader n="06" label={`SHOP / ${node.displayName.toUpperCase()}`} />
         
-        <Breadcrumbs chain={chain} />
         <ParentHero node={node} />
         <CategoryCards title="SHOP BY CATEGORY" nodes={node.children} />
         <ProductRail
@@ -278,7 +254,6 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       <>
         <PageHeader n="06" label={`SHOP / ${node.displayName.toUpperCase()}`} />
         
-        <Breadcrumbs chain={chain} />
         <PrimaryHero node={node} />
         {node.children.length > 0 && (
           <CategoryCards title="SHOP BY CATEGORY" nodes={node.children} variant="rail" />
@@ -300,7 +275,6 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
           deep in Shampoos & Conditioners keeps the whole taxonomy one hover
           away, and the bar carries the active department highlight. */}
       
-      <Breadcrumbs chain={chain} />
       <section className="marble bg-white px-8 py-8 lg:px-12">
         <p className="eyebrow">{chain.length > 1 ? chain[chain.length - 2].displayName.toUpperCase() : "SHOP"}</p>
         <h1 className="mt-2 font-display text-[28px] leading-[1.1] text-ink lg:text-[32px]">

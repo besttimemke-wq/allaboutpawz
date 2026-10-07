@@ -78,13 +78,29 @@ export type FilterOption = { value: string; label: string; count: number }
 export type FilterSection =
   | { kind: "price"; label: "Price Range"; buckets: FilterOption[] }
   | { kind: "rating"; label: "Rating"; rows: FilterOption[] }
-  | { kind: "check"; key: string; label: string; options: FilterOption[] }
+  | {
+      kind: "check"
+      key: string
+      label: string
+      options: FilterOption[]
+      /** Whether to render a search-within-this-facet input (e.g. Brand). */
+      searchable?: boolean
+      /** Whether to collapse options beyond defaultVisible behind a "Show more" toggle. */
+      collapsible?: boolean
+      /** Number of options shown before the "Show more" button. Default 6. */
+      defaultVisible?: number
+    }
 
 export type AppliedFilters = {
   minPrice?: number
   maxPrice?: number
+  priceBucket?: string
   rating?: number
   availability?: string[]
+  /** Multi-select checkbox facets keyed by facet key (brand, flavor, size, ...). */
+  facets?: Record<string, string[]>
+  /** Free-text query (?q=) when the visitor uses the search bar. */
+  q?: string
 }
 
 export type SortKey = "best-selling" | "newest" | "price-asc" | "price-desc" | "top-rated"

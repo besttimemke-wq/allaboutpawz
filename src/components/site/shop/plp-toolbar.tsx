@@ -34,7 +34,9 @@ export function PlpToolbar({
     (sidebar.applied.minPrice.trim() ? 1 : 0) +
     (sidebar.applied.maxPrice.trim() ? 1 : 0) +
     (sidebar.applied.priceBucket ? 1 : 0) +
-    (sidebar.applied.rating ? 1 : 0)
+    (sidebar.applied.rating ? 1 : 0) +
+    (sidebar.applied.q.trim() ? 1 : 0) +
+    Object.values(sidebar.applied.facets).reduce((s, vs) => s + vs.length, 0)
 
   // Lock body scroll while the drawer is open.
   useEffect(() => {
