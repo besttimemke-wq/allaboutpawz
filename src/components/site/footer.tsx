@@ -63,7 +63,7 @@ function DropdownBar({ icon: Icon, label, items }: { icon: React.ComponentType<{
 
 export function SiteFooter() {
   return (
-    <footer className="bg-ink">
+    <footer className="bg-ink lg:ml-[232px]">
       {/* Full width — no large margins */}
       <div className="w-full px-8 lg:px-12">
 
