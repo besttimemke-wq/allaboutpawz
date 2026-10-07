@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 import { PawGlyph } from "./brand"
 import { HeaderSearch } from "./header-search"
-import { MegaMenu } from "./mega-menu"
 import { NAV } from "./nav"
 import { useNavPromoGate, type PromoPlacement } from "./islands/promo-popup"
 import { useCart } from "@/lib/wizard/cart-store"
@@ -398,29 +397,17 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
       {/* Hamburger sidebar — slides in from left on ALL screen sizes. */}
 
       <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => { setOpen(false); closeShopFlyout(); }} onShopHover={openShopFlyout} onShopLeave={scheduleCloseShopFlyout} />
-      {/* Sticky header wrapper — the tan header bar + the Petco-style
-          horizontal mega-menu tab strip stay pinned to the top together
-          when the page scrolls. On mobile the MegaMenu strip is hidden
-          (the existing ShopFlyout handles mobile shop navigation). */}
-      <div className="sticky top-0 z-30">
-        {/* ONE tan header bar. `relative` ensures the mobile search overlay
-            (absolute inset-0) covers the entire header bar, not the viewport. */}
-        <div className="flex items-center gap-3 bg-cream px-4 py-3 lg:px-6 relative">
-          <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-ink hover:bg-black/5">
-            <Menu className="h-5 w-5" />
-          </button>
-          <HeaderSearch />
-          <div className="ml-auto flex items-center gap-3">
-            <HeaderAccountLink variant="icon" />
-            <HeaderBagLink variant="icon" />
-          </div>
+      {/* ONE tan header bar. `relative` ensures the mobile search overlay
+          (absolute inset-0) covers the entire header bar, not the viewport. */}
+      <div className="sticky top-0 z-30 flex items-center gap-3 bg-cream px-4 py-3 lg:px-6 relative">
+        <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-ink hover:bg-black/5">
+          <Menu className="h-5 w-5" />
+        </button>
+        <HeaderSearch />
+        <div className="ml-auto flex items-center gap-3">
+          <HeaderAccountLink variant="icon" />
+          <HeaderBagLink variant="icon" />
         </div>
-        {/* Petco-style horizontal mega menu tab strip (desktop only —
-            the wrapper has `hidden md:block` so on mobile this renders
-            nothing visible). Tab strip renders on the server (SSR-safe);
-            hover panels are conditional on `openTab` state which starts
-            null so SSR markup is just the strip. */}
-        <MegaMenu />
       </div>
       {/* Shop mega-menu flyout — rendered at SiteChrome level (outside
           sidebar's transform) so fixed positioning works correctly.
