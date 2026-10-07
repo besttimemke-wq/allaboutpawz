@@ -1,101 +1,135 @@
+"use client"
+
+import { useState, type ReactNode } from "react"
 import Link from "next/link"
-import { FOOTER_NAV, type FooterLink } from "@/lib/footer-nav"
+import { ChevronDown, ChevronUp, MapPin, Phone, Mail, ArrowUp, Dog, Cat, Package, LayoutGrid, CalendarDays, ShieldCheck } from "lucide-react"
 import { BUSINESS } from "@/lib/business"
 
 // ---------------------------------------------------------------------------
-// SiteFooter — matched to owner's reference design. Large readable fonts,
-// clean 4-column layout (not a run-on list), proper GDPR compliance.
+// SiteFooter — EXACT match to owner's reference design. 5-column grid
+// with expandable chevron sections, secondary nav bar with dropdowns,
+// payment icons + scroll-to-top.
 //
-// Font sizes (increased 10px per owner directive):
-//   • Column headers: 20px (text-xl) bold
-//   • Links: 16px (text-base)
-//   • Body / NAP: 16px (text-base)
-//   • Legal: 14px (text-sm)
+// Tier 1: 5-column grid (Brand, Customer Care, Services, Other Site Content, Corporate)
+// Tier 2: Horizontal nav bar (Pricing/Services/Contact/Process/Shop | Dog/Cat/Product/Collections | Booking ▾ | Serving ▾ | Policies ▾)
+// Tier 3: Copyright + payment icons + scroll-to-top
 //
-// GDPR compliance:
-//   • Cookie consent button (opens Consent Management Center)
-//   • "Your Privacy Choices" link
-//   • Privacy Policy link
-//   • Terms of Use link
-//   • Website Accessibility Policy link
-//   • Data subject rights info in the legal block
+// Expandable sections use chevrons (down=collapsed, up=expanded).
+// Client component for interactivity.
 // ---------------------------------------------------------------------------
 
-function FooterColumn({ heading, links }: { heading: string; links: FooterLink[] }) {
+function ExpandableLink({
+  label,
+  href,
+  children,
+}: {
+  label: string
+  href: string
+  children?: { label: string; href: string }[]
+}) {
+  const [expanded, setExpanded] = useState(false)
+  if (!children || children.length === 0) {
+    return (
+      <li>
+        <Link href={href} className="text-base text-on-dark-muted hover:text-gold">
+          {label}
+        </Link>
+      </li>
+    )
+  }
   return (
-    <div>
-      <h3 className="text-xl font-bold tracking-wide text-cream">{heading}</h3>
-      <ul className="mt-5 space-y-4">
-        {links.slice(0, 8).map(link => (
-          <li key={link.href + link.label}>
-            <Link
-              href={link.href}
-              className="text-base text-on-dark-muted transition-colors hover:text-gold"
-            >
-              {link.label}
-            </Link>
-            {link.children && link.children.length > 0 && (
-              <ul className="mt-3 space-y-2.5 pl-4 border-l-2 border-gold/10">
-                {link.children.slice(0, 6).map(child => (
-                  <li key={child.href}>
-                    <Link
-                      href={child.href}
-                      className="text-sm text-on-dark-muted/70 transition-colors hover:text-gold"
-                    >
-                      {child.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-        ))}
-      </ul>
+    <li>
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="flex items-center gap-1 text-base text-on-dark-muted hover:text-gold"
+      >
+        {label}
+        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+      {expanded && (
+        <ul className="mt-2 space-y-2 pl-4 border-l-2 border-gold/10">
+          {subItems.map(child => (
+            <li key={child.href}>
+              <Link href={child.href} className="text-sm text-on-dark-muted/70 hover:text-gold">
+                {child.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+function DropdownBar({
+  icon: Icon,
+  label,
+  items,
+}: {
+  icon: React.ComponentType<{ className?: string; size?: number }>
+  label: string
+  items: { label: string; href: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 text-sm font-semibold text-on-dark-muted hover:text-gold"
+      >
+        <Icon size={14} className="text-gold" />
+        {label}
+        {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 z-50 mb-2 rounded border border-gold/20 bg-ink px-4 py-3 shadow-xl">
+          <ul className="space-y-2">
+            {items.map(item => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="block whitespace-nowrap text-sm text-on-dark-muted hover:text-gold"
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
 
 export function SiteFooter() {
-  const customerCare = FOOTER_NAV.find(c => c.heading === "Customer Care")
-  const services = FOOTER_NAV.find(c => c.heading === "Services")
-  const corporate = FOOTER_NAV.find(c => c.heading === "Corporate")
-  const policies = FOOTER_NAV.find(c => c.heading === "Policies")
-  const serving = FOOTER_NAV.find(c => c.heading === "Serving")
-  const booking = FOOTER_NAV.find(c => c.heading === "Booking")
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" })
 
   return (
     <footer className="bg-ink">
-      {/* Full-bleed container */}
-      <div className="mx-auto max-w-7xl px-6 py-14 lg:px-12">
+      <div className="mx-auto max-w-7xl px-6 lg:px-12">
 
-        {/* Top: Brand + NAP (left) + Email signup (right) */}
-        <div className="flex flex-col gap-10 border-b border-gold/15 pb-10 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-md">
-            <img src="/brand/footer-logo.png" alt="All About Pawz — Pet Grooming & Supply, Memphis, TN" width={1021} height={729} className="h-14 w-auto lg:h-16" />
-            <div className="mt-5 text-base leading-relaxed text-on-dark-muted">
-              <p className="font-bold text-cream">{BUSINESS.name}</p>
-              <p>{BUSINESS.tagline}</p>
-              <p className="mt-3">{BUSINESS.address.street}</p>
-              <p>{BUSINESS.address.city}, {BUSINESS.address.region} {BUSINESS.address.postalCode}</p>
-              <p className="mt-3">
-                <a href={`tel:${BUSINESS.phone}`} className="text-gold hover:underline">{BUSINESS.phoneDisplay}</a>
-                {" · "}
-                <a href={`mailto:${BUSINESS.email}`} className="text-gold hover:underline">{BUSINESS.email}</a>
-              </p>
+        {/* ===== TIER 1: 5-COLUMN GRID ===== */}
+        <div className="grid grid-cols-2 gap-8 py-14 sm:grid-cols-3 lg:grid-cols-5">
+
+          {/* Column 1: Brand */}
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
+            <img src="/brand/footer-logo.png" alt="All About Pawz — Luxury Pet Grooming, Memphis, TN" width={1021} height={729} className="h-16 w-auto" />
+            <p className="mt-3 text-sm font-bold tracking-[0.15em] text-gold">LUXURY PET GROOMING</p>
+            <p className="mt-3 text-sm leading-relaxed text-on-dark-muted">
+              Premium grooming, wellness and care for your beloved pets. Because they deserve the very best.
+            </p>
+            <div className="mt-5 space-y-2 text-sm text-on-dark-muted">
+              <p className="flex items-center gap-2"><MapPin size={14} className="text-gold" /> {BUSINESS.address.street}, {BUSINESS.address.city}, {BUSINESS.address.region} {BUSINESS.address.postalCode}</p>
+              <p className="flex items-center gap-2"><Phone size={14} className="text-gold" /> <a href={`tel:${BUSINESS.phone}`} className="hover:text-gold">{BUSINESS.phoneDisplay}</a></p>
+              <p className="flex items-center gap-2"><Mail size={14} className="text-gold" /> <a href={`mailto:${BUSINESS.email}`} className="hover:text-gold">{BUSINESS.email}</a></p>
             </div>
-            {/* Social icons — 44px touch targets */}
-            <div className="mt-6 flex items-center gap-4">
+            <div className="mt-5 flex items-center gap-3">
               {BUSINESS.sameAs.map(url => {
-                const platform = url.match(/facebook|instagram|pinterest|tiktok/i)?.[0] || "social"
+                const platform = url.match(/facebook|instagram|pinterest|tiktok/i)?.[0] || "S"
                 return (
-                  <a
-                    key={url}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`All About Pawz on ${platform}`}
-                    className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/30 text-base font-bold text-cream transition-colors hover:border-gold hover:bg-gold hover:text-ink"
-                  >
+                  <a key={url} href={url} target="_blank" rel="noopener noreferrer" aria-label={`All About Pawz on ${platform}`}
+                     className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/30 text-sm font-bold text-cream transition-colors hover:border-gold hover:bg-gold hover:text-ink">
                     {platform[0].toUpperCase()}
                   </a>
                 )
@@ -103,86 +137,152 @@ export function SiteFooter() {
             </div>
           </div>
 
-          {/* Email signup */}
-          <div className="max-w-sm">
-            <h3 className="text-xl font-bold text-cream">Keep In Touch</h3>
-            <p className="mt-3 text-base text-on-dark-muted">Get grooming tips, exclusive offers, and Memphis pet news.</p>
-            <form className="mt-4 flex gap-2" action="/api/newsletter" method="POST">
-              <input
-                type="email"
-                name="email"
-                placeholder="Email Address"
-                required
-                className="flex-1 rounded border border-gold/30 bg-cream/5 px-4 py-3 text-base text-cream placeholder:text-on-dark-muted/50 focus:border-gold focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="rounded bg-gold px-6 py-3 text-base font-bold text-ink transition-colors hover:bg-gold-deep hover:text-cream"
-              >
-                Subscribe →
-              </button>
-            </form>
-            <div className="mt-5 flex gap-3">
-              <div className="flex items-center gap-2 rounded border border-gold/20 px-4 py-2.5 text-sm text-on-dark-muted">
-                <span>Download on the</span>
-                <span className="font-bold text-cream">App Store</span>
-              </div>
-              <div className="flex items-center gap-2 rounded border border-gold/20 px-4 py-2.5 text-sm text-on-dark-muted">
-                <span>GET IT ON</span>
-                <span className="font-bold text-cream">Google Play</span>
-              </div>
-            </div>
+          {/* Column 2: Customer Care */}
+          <div>
+            <h3 className="text-sm font-bold tracking-[0.18em] text-gold">CUSTOMER CARE</h3>
+            <ul className="mt-4 space-y-3">
+              <li><Link href="/policies/refunds-returns" className="text-base text-on-dark-muted hover:text-gold">Returns</Link></li>
+              <li><Link href="/policies/shipping-delivery" className="text-base text-on-dark-muted hover:text-gold">Shipping Info</Link></li>
+              <li><Link href="/account" className="text-base text-on-dark-muted hover:text-gold">Order Lookup</Link></li>
+              <li><Link href="/faq#recalls" className="text-base text-on-dark-muted hover:text-gold">Recalls</Link></li>
+              <li><Link href="/contact" className="text-base text-on-dark-muted hover:text-gold">Store Locator</Link></li>
+              <ExpandableLink label="Help" href="/contact" subItems={[{ label: "Contact Us", href: "/contact" }]} />
+              <li><Link href="/accessibility" className="text-base text-on-dark-muted hover:text-gold">Website Accessibility Policy</Link></li>
+            </ul>
+          </div>
+
+          {/* Column 3: Services */}
+          <div>
+            <h3 className="text-sm font-bold tracking-[0.18em] text-gold">SERVICES</h3>
+            <ul className="mt-4 space-y-3">
+              <li><Link href="/pricing" className="text-base text-on-dark-muted hover:text-gold">Subscription Perks</Link></li>
+              <li><Link href="/services" className="text-base text-on-dark-muted hover:text-gold">Dog Grooming</Link></li>
+              <ExpandableLink label="Learning Academy" href="/learn" subItems={[
+                { label: "Animal Behavior Technician", href: "/learn/courses/animal-behavior-technician" },
+                { label: "Animal Care Assistant", href: "/learn/courses/animal-care-assistant" },
+                { label: "Equine Nursing Technicians", href: "/learn/courses/equine-nursing-technicians" },
+                { label: "Felines & Health", href: "/learn/courses/felines-and-health" },
+                { label: "Pet Grooming", href: "/learn/courses/pet-grooming" },
+                { label: "Grooming Salon Practice Management", href: "/learn/courses/grooming-salon-practice-management" },
+                { label: "Professional Trainer", href: "/learn/courses/professional-trainer" },
+                { label: "Pre-Veterinary Medicine", href: "/learn/courses/pre-veterinary-medicine" },
+                { label: "Veterinary Assistant", href: "/learn/courses/veterinary-assistant" },
+                { label: "Veterinary Practice Management", href: "/learn/courses/veterinary-practice-management" },
+                { label: "Veterinary Pathology Technician", href: "/learn/courses/veterinary-pathology-technician" },
+                { label: "Veterinary Surgical Technician", href: "/learn/courses/veterinary-surgical-technician" },
+                { label: "Veterinary Technician", href: "/learn/courses/veterinary-technician" },
+                { label: "Veterinary Technology", href: "/learn/courses/veterinary-technology" },
+                { label: "Zookeeper Assistant", href: "/learn/courses/zookeeper-assistant" },
+                { label: "Positive Dog Training", href: "/learn/courses/positive-dog-training" },
+              ]} />
+            </ul>
+          </div>
+
+          {/* Column 4: Other Site Content */}
+          <div>
+            <h3 className="text-sm font-bold tracking-[0.18em] text-gold">OTHER SITE CONTENT</h3>
+            <ul className="mt-4 space-y-3">
+              <li><Link href="/veterinary-partners" className="text-base text-on-dark-muted hover:text-gold">Veterinary Partners</Link></li>
+              <li><Link href="/pet-insurance" className="text-base text-on-dark-muted hover:text-gold">Pet Insurance</Link></li>
+              <li><Link href="/pet-adoption" className="text-base text-on-dark-muted hover:text-gold">Pet Adoption</Link></li>
+              <ExpandableLink label="Pet Education Center" href="/pet-education" subItems={[
+                { label: "Articles By Pets", href: "/pet-education/articles" },
+                { label: "Pet Care Sheets", href: "/pet-education/care-sheets" },
+              ]} />
+              <ExpandableLink label="Product Collections" href="/shop/collections" subItems={[
+                { label: "Pets in the Classroom", href: "/shop/collections/pets-in-the-classroom" },
+              ]} />
+            </ul>
+          </div>
+
+          {/* Column 5: Corporate */}
+          <div>
+            <h3 className="text-sm font-bold tracking-[0.18em] text-gold">CORPORATE</h3>
+            <ul className="mt-4 space-y-3">
+              <li><Link href="/careers" className="text-base text-on-dark-muted hover:text-gold">Careers</Link></li>
+              <ExpandableLink label="About Us" href="/about" subItems={[
+                { label: "Code of Ethics", href: "/about#code-of-ethics" },
+              ]} />
+              <li><Link href="/events" className="text-base text-on-dark-muted hover:text-gold">Event Sponsorships</Link></li>
+              <ExpandableLink label="Sellers" href="/seller" subItems={[
+                { label: "Seller Program", href: "/seller" },
+              ]} />
+              <li><Link href="/shop/collections/gift-cards" className="text-base text-on-dark-muted hover:text-gold">Gift Cards</Link></li>
+              <li><Link href="/pricing" className="text-base text-on-dark-muted hover:text-gold">Coupons and Promos</Link></li>
+              <li><Link href="/contact" className="text-base text-on-dark-muted hover:text-gold">Investors</Link></li>
+              <li><Link href="/sustainability" className="text-base text-on-dark-muted hover:text-gold">Sustainability</Link></li>
+              <li><Link href="/contact" className="text-base text-on-dark-muted hover:text-gold">Advertise with Us</Link></li>
+            </ul>
           </div>
         </div>
 
-        {/* 4-column nav grid — short lists, not run-on */}
-        <div className="grid grid-cols-2 gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
-          {customerCare && <FooterColumn heading={customerCare.heading} links={customerCare.links} />}
-          {services && <FooterColumn heading={services.heading} links={services.links} />}
-          {corporate && <FooterColumn heading={corporate.heading} links={corporate.links} />}
-          {policies && <FooterColumn heading={policies.heading} links={policies.links} />}
+        {/* ===== TIER 2: SECONDARY NAV BAR ===== */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-gold/15 py-5">
+          {/* Text links */}
+          <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Pricing</Link>
+          <span className="text-gold/20">|</span>
+          <Link href="/services" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Services</Link>
+          <span className="text-gold/20">|</span>
+          <Link href="/contact" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Contact</Link>
+          <span className="text-gold/20">|</span>
+          <Link href="/process" className="text-sm font-semibold text-on-dark-muted hover:text-gold">Our Process</Link>
+          <span className="text-gold/20">|</span>
+          <Link href="/shop" className="text-sm font-semibold text-on-dark-muted hover:text-gold">/shop</Link>
+          <span className="text-gold/20">|</span>
+          {/* Pet type nav */}
+          <Link href="/shop/dog" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Dog size={14} className="text-gold" /> Dog</Link>
+          <Link href="/shop/cat" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Cat size={14} className="text-gold" /> Cat</Link>
+          <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><Package size={14} className="text-gold" /> Product</Link>
+          <Link href="/shop/collections" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-gold"><LayoutGrid size={14} className="text-gold" /> Collections</Link>
+          <span className="text-gold/20">|</span>
+          {/* Dropdowns */}
+          <DropdownBar icon={CalendarDays} label="Booking" items={[
+            { label: "Booking Overview", href: "/book" },
+            { label: "Book Appointment", href: "/book/appointment" },
+            { label: "Free Consultation", href: "/book/consultation" },
+          ]} />
+          <DropdownBar icon={MapPin} label="Serving" items={[
+            { label: "Dog Grooming in Arlington, TN", href: "/grooming/arlington-tn" },
+            { label: "Dog Grooming in Bartlett, TN", href: "/grooming/bartlett-tn" },
+            { label: "Dog Grooming in Collierville, TN", href: "/grooming/collierville-tn" },
+            { label: "Dog Grooming in Memphis, TN", href: "/grooming/memphis-tn" },
+            { label: "Dog Grooming in Millington, TN", href: "/grooming/millington-tn" },
+            { label: "Dog Grooming in Shelby County, TN", href: "/grooming/shelby-county-tn" },
+          ]} />
+          <DropdownBar icon={ShieldCheck} label="Policies" items={[
+            { label: "Cancellations", href: "/policies/cancellations" },
+            { label: "Late Arrivals", href: "/policies/late-arrivals" },
+            { label: "Matted Coats", href: "/policies/matted-coats" },
+            { label: "Privacy Policy", href: "/policies/privacy-policy" },
+            { label: "Refunds & Returns", href: "/policies/refunds-returns" },
+            { label: "Shipping & Delivery", href: "/policies/shipping-delivery" },
+            { label: "Terms of Service", href: "/policies/terms-of-service" },
+            { label: "Terms of Use", href: "/policies/terms-of-use" },
+            { label: "Your Privacy Choices", href: "/policies/privacy-policy#choices" },
+            { label: "Vaccinations", href: "/policies/vaccinations" },
+          ]} />
         </div>
 
-        {/* Serving locations — horizontal, not a long vertical list */}
-        {serving && (
-          <div className="border-t border-gold/15 py-6">
-            <h3 className="text-base font-bold text-gold/80">Serving Shelby County</h3>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
-              {serving.links.map(link => (
-                <Link key={link.href} href={link.href} className="text-sm text-on-dark-muted hover:text-gold">
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* GDPR legal row — privacy choices, cookie consent, accessibility */}
-        <div className="border-t border-gold/15 pt-6">
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-on-dark-muted">
-            <Link href="/policies/privacy-policy" className="hover:text-gold">Privacy Policy</Link>
-            <Link href="/policies/terms-of-service" className="hover:text-gold">Terms of Service</Link>
-            <Link href="/policies/terms-of-use" className="hover:text-gold">Terms of Use</Link>
-            <button
-              type="button"
-              onClick={() => typeof window !== "undefined" && window.dispatchEvent(new Event("pawz:open-cookie-preferences"))}
-              className="flex items-center gap-1.5 hover:text-gold"
-            >
-              <span className="text-base">🚫</span>
-              Your Privacy Choices
+        {/* ===== TIER 3: COPYRIGHT + PAYMENTS + SCROLL TOP ===== */}
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-gold/15 py-5 sm:flex-row">
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-on-dark-muted">© {new Date().getFullYear()} {BUSINESS.legalName}. All rights reserved.</p>
+            <button onClick={() => window.dispatchEvent(new Event("pawz:open-cookie-preferences"))} className="text-sm text-on-dark-muted hover:text-gold">
+              🚫 Your Privacy Choices
             </button>
-            <Link href="/sitemap" className="hover:text-gold">Site Map</Link>
-            <Link href="/accessibility" className="hover:text-gold">Website Accessibility Policy</Link>
           </div>
-          <div className="mt-5 text-center text-sm text-on-dark-muted">
-            <p className="font-bold">© {new Date().getFullYear()} {BUSINESS.legalName}. All rights reserved.</p>
-            <p className="mt-3 max-w-4xl mx-auto leading-relaxed">
-              All About Pawz is a locally owned pet grooming salon and supply shop in Memphis, TN.
-              Serving Memphis, Bartlett, Arlington, Collierville, and Millington — Shelby County, TN.
-              {BUSINESS.address.street}, {BUSINESS.address.city}, {BUSINESS.address.region} {BUSINESS.address.postalCode}. {BUSINESS.phoneDisplay}.
-              We respect your privacy — see our Privacy Policy for your rights under GDPR and CCPA,
-              including the right to access, delete, or restrict processing of your personal data.
-            </p>
+          <div className="flex items-center gap-3">
+            {/* Payment icons */}
+            <span className="rounded bg-cream/10 px-2 py-1 text-xs font-bold text-cream">VISA</span>
+            <span className="rounded bg-cream/10 px-2 py-1 text-xs font-bold text-cream">Mastercard</span>
+            <span className="rounded bg-cream/10 px-2 py-1 text-xs font-bold text-cream">AMEX</span>
+            <span className="rounded bg-cream/10 px-2 py-1 text-xs font-bold text-cream">Apple Pay</span>
+            <span className="rounded bg-cream/10 px-2 py-1 text-xs font-bold text-cream">G Pay</span>
+            {/* Scroll to top */}
+            <button onClick={scrollToTop} aria-label="Scroll to top"
+              className="flex h-9 w-9 items-center justify-center rounded border border-gold/30 text-gold hover:border-gold hover:bg-gold hover:text-ink">
+              <ArrowUp size={16} />
+            </button>
           </div>
         </div>
       </div>
