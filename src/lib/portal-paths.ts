@@ -22,11 +22,11 @@ const PORTAL_PREFIXES = [
   "/admin-login",
   "/groomer", // groomer station
   "/customer", // customer portal
-  "/frontdesk", // front desk portal
+  "/seller", // seller portal
   "/learn", // LMS / learning center portal (+ /learn/sign-in door)
   "/access-customer", // bifurcated portal entry screens
   "/access-groomer",
-  "/access-frontdesk",
+  "/access-seller",
   "/account",
   "/auth", // OAuth callback / set-password
   "/api", // never a rendered page — listed for safety

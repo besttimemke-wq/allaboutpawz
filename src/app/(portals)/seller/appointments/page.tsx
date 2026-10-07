@@ -13,7 +13,7 @@ import { Calendar as CalendarIcon, MapPin, Clock, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
-// Front Desk — Today's Appointments. The desk's operational view of the day:
+// Seller — Today's Appointments. The desk's operational view of the day:
 // every appointment, its station, its groomer, its status. Desk operators
 // mark arrivals and no-shows; the grooming record itself lives in the
 // groomer's station.
@@ -48,7 +48,7 @@ const STATUS: Record<Appt['status'], { label: string; className: string }> = {
   no_show: { label: 'No-Show', className: 'bg-rose-100 text-rose-800' },
 };
 
-export default function FrontDeskAppointmentsPage() {
+export default function SellerAppointmentsPage() {
   const [appts, setAppts] = useState<Appt[]>(INITIAL);
 
   const mark = (id: string, status: Appt['status']) =>

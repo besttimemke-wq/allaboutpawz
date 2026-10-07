@@ -295,7 +295,7 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
     admin: 'Salon Manager',
     manager: 'Salon Manager',
     groomer: 'Groomer / Stylist',
-    front_desk: 'Front Desk / Reception',
+    seller: 'Seller / Reception',
     staff: 'Staff',
     customer: 'Customer',
   };
@@ -384,7 +384,7 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                   <option value="owner">Super Admin / Owner</option>
                   <option value="admin">Salon Manager</option>
                   <option value="groomer">Groomer / Stylist</option>
-                  <option value="front_desk">Front Desk / Reception</option>
+                  <option value="seller">Seller / Reception</option>
                   <option value="staff">Staff</option>
                   <option value="customer">Customer Portal</option>
                 </select>
@@ -511,7 +511,7 @@ export const UsersStaffRolesScreen: React.FC<ScreenProps> = ({
                         <option value="owner">Super Admin</option>
                         <option value="admin">Salon Manager</option>
                         <option value="groomer">Groomer</option>
-                        <option value="front_desk">Front Desk</option>
+                        <option value="seller">Seller</option>
                         <option value="staff">Staff</option>
                         <option value="customer">Customer</option>
                       </select>

@@ -240,7 +240,7 @@ export const CustomerPortalScreen: React.FC<ScreenProps> = ({
               <div className="flex items-start justify-between gap-3 pb-2 border-b border-border">
                 <div>
                   <div className="text-[13px] font-semibold text-primary uppercase">Allow Client Self-Registration</div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Allows new pet owners to create account and register dogs without front-desk manual pre-creation.</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Allows new pet owners to create account and register dogs without seller manual pre-creation.</p>
                 </div>
                 <label className="relative flex items-center cursor-pointer select-none pt-0.5">
                   <input
@@ -343,7 +343,7 @@ export const CustomerPortalScreen: React.FC<ScreenProps> = ({
                   </div>
                 </div>
                 <span className="text-[10px] text-muted-foreground block mt-1">
-                  Cancellations submitted inside 24 hours require front-desk phone authorization.
+                  Cancellations submitted inside 24 hours require seller phone authorization.
                 </span>
               </div>
 

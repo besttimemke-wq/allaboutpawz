@@ -36,7 +36,7 @@ export function couponMailerHtml(d: CouponMailerData): string {
       button(d.ctaUrl || BRAND.bookUrl, d.ctaLabel || "Book with my code"),
       noteBox(
         d.finePrint ||
-          `One code per visit. Applies to new bookings made online during the offer window. Can't be combined with other offers or applied to past visits. Mention the code at checkout or enter it when booking — the salon crew can also apply it for you at the front desk.`,
+          `One code per visit. Applies to new bookings made online during the offer window. Can't be combined with other offers or applied to past visits. Mention the code at checkout or enter it when booking — the salon crew can also apply it for you at the seller.`,
         "gold"
       ),
       p(`Questions? Just reply to this email — it comes straight to the salon.`, { muted: true, small: true }),

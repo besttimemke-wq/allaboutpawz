@@ -72,7 +72,7 @@ const STATIC_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   // Auth + access doors
   { path: "/account",            label: "Account",               pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
   { path: "/access-customer",    label: "Customer Portal Login",  pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
-  { path: "/access-frontdesk",   label: "Front Desk Login",       pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
+  { path: "/access-seller",   label: "Seller Login",       pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
   { path: "/access-groomer",     label: "Groomer Portal Login",   pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
   { path: "/admin-login",        label: "Admin Login",             pageType: "auth",   changeFrequency: "yearly", priority: 0.2 },
   { path: "/auth/set-password",  label: "Set Password",            pageType: "auth",   changeFrequency: "yearly", priority: 0.2 },
@@ -136,17 +136,7 @@ const CUSTOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/customer/profile/payment-methods",      label: "Payment Methods",              pageType: "portal", changeFrequency: "monthly", priority: 0.2 },
 ]
 
-// Front desk routes (to be renamed to /seller)
-const FRONTDESK_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
-  { path: "/frontdesk/dashboard",       label: "Front Desk Dashboard",  pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/frontdesk/appointments",    label: "Front Desk Appointments", pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/frontdesk/check-in",        label: "Check-In",               pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/frontdesk/customers",       label: "Front Desk Customers",  pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/frontdesk/orders",          label: "Front Desk Orders",      pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/frontdesk/pets",            label: "Front Desk Pets",        pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/frontdesk/phone-messages",  label: "Phone Messages",         pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/frontdesk/schedule",        label: "Front Desk Schedule",    pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-]
+// Seller routes (to be renamed to /seller)
 
 // Groomer portal routes
 const GROOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
@@ -157,7 +147,7 @@ const GROOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/groomer/schedule",             label: "Groomer Schedule",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
 ]
 
-// Seller routes (per seller platform spec — /frontdesk → /seller)
+// Seller routes (per seller platform spec — /seller → /seller)
 const SELLER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/seller",                     label: "Seller Dashboard",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
   { path: "/seller/onboarding",          label: "Seller Onboarding",      pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
@@ -517,61 +507,3 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
   // Convert all route arrays to full SitemapEntry with loc + lastModified
   const learnEntries: SitemapEntry[] = LEARN_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
   const customerEntries: SitemapEntry[] = CUSTOMER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  const frontdeskEntries: SitemapEntry[] = FRONTDESK_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  const groomerEntries: SitemapEntry[] = GROOMER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  // Guide routes — 58 grooming guides from guides-data.ts
-  const guideEntries: SitemapEntry[] = getAllGroomingSlugs().map(({ slug }) => {
-    const guide = findGroomingGuide(slug)
-    return {
-      loc: `${BASE}/guides/grooming/${slug}`,
-      path: `/guides/grooming/${slug}`,
-      lastModified: now,
-      changeFrequency: "monthly" as const,
-      priority: 0.6,
-      pageType: "guide",
-      label: guide?.title || slug.replace(/-/g, " "),
-    }
-  })
-
-  // Convert seller + collection routes
-  const sellerEntries: SitemapEntry[] = SELLER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-
-  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...sellerEntries, ...collectionEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
-  const seen = new Set<string>()
-  const deduped = all
-    .filter((e) => {
-      if (KNOWN_REDIRECT_PATHS.has(e.path)) return false
-      if (seen.has(e.path)) return false
-      seen.add(e.path)
-      return true
-    })
-    .sort((a, b) => {
-      if (b.priority !== a.priority) return b.priority - a.priority
-      return a.path.localeCompare(b.path)
-    })
-
-  return deduped
-}
-
-// Convenience — for the HTML sitemap page, group entries by section.
-export async function buildSitemapSections() {
-  const entries = await buildSitemap()
-  return {
-    salon: entries.filter((e) =>
-      ["home", "about", "services", "static"].includes(e.pageType) &&
-      !e.path.startsWith("/book") &&
-      !e.path.startsWith("/shop") &&
-      !e.path.startsWith("/grooming") &&
-      !e.path.startsWith("/policies")
-    ),
-    booking: entries.filter((e) => e.path.startsWith("/book")),
-    boutique: entries.filter((e) =>
-      e.path.startsWith("/shop") || ["shop-landing", "animal", "department", "category", "subcategory", "brand", "related-search"].includes(e.pageType)
-    ),
-    products: entries.filter((e) => e.pageType === "product"),
-    serving: entries.filter((e) => e.pageType === "location"),
-    policies: entries.filter((e) => e.pageType === "policy"),
-    total: entries.length,
-  }
-}

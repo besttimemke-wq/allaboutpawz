@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
 
   if (!authUser) {
     if (autoFlow) {
-      // AUTO flow: resolve role from DB. For admin/groomer/frontdesk doors,
+      // AUTO flow: resolve role from DB. For admin/groomer/seller doors,
       // the salon gate rejects unknown emails (staff must be admin-provisioned).
       // For customer/lms doors, auto-provision the account (the user is
       // signing in for the first time — e.g. at checkout, booking, or
@@ -249,11 +249,11 @@ export async function GET(req: NextRequest) {
         }
         authUser = created.user
       } else {
-        // admin/groomer/frontdesk doors — salon gate rejects unknown emails.
+        // admin/groomer/seller doors — salon gate rejects unknown emails.
         console.warn(`[auth/google/callback] bounce: salon gate — email not in ADMIN_EMAILS and not in auth.users: ${profile.email} (portal=${portal})`);
         return gate(portal, profile.email);
       }
-    } else if (portal === "groomer" || portal === "frontdesk" || portal === "admin") {
+    } else if (portal === "groomer" || portal === "seller" || portal === "admin") {
       console.warn(`[auth/google/callback] bounce: staff door rejected unknown email ${profile.email} (portal=${portal})`);
       // Staff doors REJECT unknown emails (accounts must be
       // admin-provisioned first) — the same salon gate.

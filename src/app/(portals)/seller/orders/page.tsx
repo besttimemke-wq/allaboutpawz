@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Receipt, Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
 
 // ============================================================================
-// Front Desk — Quick POS. The desk's point-of-sale for walk-in retail:
+// Seller — Quick POS. The desk's point-of-sale for walk-in retail:
 // leashes, shampoos, treats. Full order management (shipping, returns,
 // purchase orders) lives in the admin OS — this is the counter register.
 // ============================================================================
@@ -40,7 +40,7 @@ interface LineItem {
   qty: number;
 }
 
-export default function FrontDeskOrdersPage() {
+export default function SellerOrdersPage() {
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState<LineItem[]>([]);
   const [tendered, setTendered] = useState<'card' | 'cash'>('card');

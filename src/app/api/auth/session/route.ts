@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 
     // Find linked staff record
     let staff = null
-    if (role === "groomer" || role === "admin" || role === "manager" || role === "front_desk") {
+    if (role === "groomer" || role === "admin" || role === "manager" || role === "seller") {
       const res = await fetch(`${supabaseUrl}/rest/v1/staff?userId=eq.${user.id}&select=*`, {
         headers: { apikey: supabaseServiceKey, Authorization: `Bearer ${supabaseServiceKey}` },
       })

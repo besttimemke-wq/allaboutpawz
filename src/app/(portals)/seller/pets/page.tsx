@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, PawPrint } from 'lucide-react';
 
 // ============================================================================
-// Front Desk — Pets & Patients. Quick reference for the desk: who is on the
+// Seller — Pets & Patients. Quick reference for the desk: who is on the
 // floor today, vaccination status (gating check-in), and handling notes.
 // Medical/grooming detail lives in the groomer station and the admin OS.
 // ============================================================================
@@ -32,7 +32,7 @@ const PETS: DeskPet[] = [
   { id: 'p5', name: 'Mochi', breed: 'Pomeranian', owner: 'Ava Park', vaccinationStatus: 'Up to date', notes: 'First visit — nervous, go slow.' },
 ];
 
-export default function FrontDeskPetsPage() {
+export default function SellerPetsPage() {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {

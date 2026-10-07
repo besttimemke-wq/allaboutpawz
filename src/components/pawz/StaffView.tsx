@@ -9,12 +9,12 @@ interface StaffViewProps {
   staffList: StaffScheduleItem[];
 }
 
-type RoleFilter = 'all' | 'Groomer' | 'Front Desk' | 'Manager';
+type RoleFilter = 'all' | 'Groomer' | 'Seller' | 'Manager';
 
 const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
   { value: 'all', label: 'All Roles' },
   { value: 'Groomer', label: 'Groomers' },
-  { value: 'Front Desk', label: 'Front Desk' },
+  { value: 'Seller', label: 'Seller' },
   { value: 'Manager', label: 'Managers' },
 ];
 

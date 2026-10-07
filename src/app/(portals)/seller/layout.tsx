@@ -10,20 +10,20 @@ import { useSessionQuery } from '@/lib/hooks/useSessionQuery';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
-// Front Desk portal layout — its OWN sidebar identity (FRONT DESK).
+// Seller portal layout — its OWN sidebar identity (SELLER).
 //
-// Front desk employees resolve with role='admin' + membershipRole in
-// FRONTDESK_ROLES (front_desk | frontdesk | reception). They are NOT real
-// admins — they get their own portal at /frontdesk/* so they never see the
+// Seller employees resolve with role='admin' + membershipRole in
+// SELLER_ROLES (seller | seller | reception). They are NOT real
+// admins — they get their own portal at /seller/* so they never see the
 // admin OS CRM/Orders/Accounting nav. Real admins (membershipRole='owner'
 // | 'admin' | 'platform_admin') are redirected to /admin/dashboard.
 //
-// Per the owner's spec, front desk is email/password only (no Google OAuth).
+// Per the owner's spec, seller is email/password only (no Google OAuth).
 // ============================================================================
 
-const FRONTDESK_ROLES = ['front_desk', 'frontdesk', 'reception'];
+const SELLER_ROLES = ['seller', 'seller', 'reception'];
 
-export default function FrontDeskLayout({ children }: { children: React.ReactNode }) {
+export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [hasHydrated, setHasHydrated] = useState(false);
   const {
@@ -56,12 +56,12 @@ export default function FrontDeskLayout({ children }: { children: React.ReactNod
       useAppStore.getState().setUser(serverUser);
     } else {
       useAppStore.getState().setUser(null);
-      router.replace('/access-frontdesk');
+      router.replace('/access-seller');
     }
   });
 
-  const isFrontDesk = (u: any) =>
-    !!u && FRONTDESK_ROLES.includes(String(u.membershipRole || '').toLowerCase());
+  const isSeller = (u: any) =>
+    !!u && SELLER_ROLES.includes(String(u.membershipRole || '').toLowerCase());
 
   // Scope enforcement — only after the server session has spoken.
   useEffect(() => {
@@ -69,10 +69,10 @@ export default function FrontDeskLayout({ children }: { children: React.ReactNod
     if (!session.isResolved) return;
     const user = session.user as any;
     if (!user) {
-      router.replace('/access-frontdesk');
+      router.replace('/access-seller');
       return;
     }
-    if (isFrontDesk(user)) return; // ✓ front desk employee
+    if (isSeller(user)) return; // ✓ seller employee
     if (user.role === 'admin') {
       router.replace('/admin/dashboard');
       return;
@@ -84,13 +84,13 @@ export default function FrontDeskLayout({ children }: { children: React.ReactNod
     router.replace('/access-customer');
   }, [session.isResolved, session.user, router]);
 
-  if (!hasHydrated || !currentUser || !isFrontDesk(currentUser)) {
+  if (!hasHydrated || !currentUser || !isSeller(currentUser)) {
     return <PortalShellSkeleton />;
   }
 
   const navigate = (section: any) => {
     setActiveSection(section);
-    router.push(`/frontdesk/${section === 'dashboard' ? 'dashboard' : section}`);
+    router.push(`/seller/${section === 'dashboard' ? 'dashboard' : section}`);
   };
 
   return (
@@ -105,7 +105,7 @@ export default function FrontDeskLayout({ children }: { children: React.ReactNod
         locationsList={locations}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={toggleSidebar}
-        variant="frontdesk"
+        variant="seller"
       />
 
       <main
@@ -127,7 +127,7 @@ export default function FrontDeskLayout({ children }: { children: React.ReactNod
           onSignOut={() => {
             fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
             setUser(null);
-            router.replace('/access-frontdesk');
+            router.replace('/access-seller');
           }}
           currentUser={currentUser}
           selectedLocation={selectedLocation}

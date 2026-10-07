@@ -22,7 +22,7 @@ export default function robots(): MetadataRoute.Robots {
           "/admin-login",
           "/access-customer",
           "/access-groomer",
-          "/access-frontdesk",
+          "/access-seller",
           "/learn",
           "/account",
           "/auth",

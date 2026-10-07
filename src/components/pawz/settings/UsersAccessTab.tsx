@@ -672,7 +672,7 @@ export const UsersAccessTab: React.FC = () => {
                     <>
                       <option value="staff">Employee / Groomer Staff</option>
                       <option value="groomer">Lead Groomer / Stylist</option>
-                      <option value="front_desk">Front Desk / Reception</option>
+                      <option value="seller">Seller / Reception</option>
                     </>
                   )}
                   {formScope === 'customer' && (

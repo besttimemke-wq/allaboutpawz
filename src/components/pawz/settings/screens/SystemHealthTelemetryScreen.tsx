@@ -274,7 +274,7 @@ export const SystemHealthTelemetryScreen: React.FC<ScreenProps> = ({
                 <div className="border border-border p-3 bg-muted/30 space-y-1.5">
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold">CDC CLIENT CONNECTION HEALTH</div>
                   <div className="flex justify-between text-[13px] tabular-nums">
-                    <span>Frisco iPad Front Desk:</span>
+                    <span>Frisco iPad Seller:</span>
                     <span className="font-semibold text-foreground">ACTIVE (11ms)</span>
                   </div>
                   <div className="flex justify-between text-[13px] tabular-nums">

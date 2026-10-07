@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
       const targetScope = ["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee";
 
       if (targetScope === "admin" || targetScope === "employee") {
-        const validRole = ["owner", "admin", "manager", "staff", "viewer", "groomer", "front_desk"].includes(role) ? role : "staff";
+        const validRole = ["owner", "admin", "manager", "staff", "viewer", "groomer", "seller"].includes(role) ? role : "staff";
         await pgClient.query(`INSERT INTO public.tenant_memberships (id, tenant_id, user_id, role, active, status, mfa_enabled, created_at, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, true, 'active', $4, NOW(), NOW()) ON CONFLICT (tenant_id, user_id) DO UPDATE SET role = EXCLUDED.role, status = 'active', mfa_enabled = EXCLUDED.mfa_enabled, updated_at = NOW();`, [targetTenant, authUserId, validRole, !!enforce2FA]);
         await pgClient.query(`INSERT INTO public.staff (id, name, email, phone, role, active, "userId", tenant_id) VALUES (gen_random_uuid(), $1, $2, $3, $4, true, $5, $6) ON CONFLICT DO NOTHING;`, [name || email.split("@")[0], email, phone || null, validRole, authUserId, targetTenant]);
       }
@@ -360,7 +360,7 @@ export async function POST(req: NextRequest) {
     const targetScope = ["owner", "admin", "manager"].includes(role) ? "admin" : role === "customer" ? "customer" : "employee";
 
     if (targetScope === "admin" || targetScope === "employee") {
-      const validRole = ["owner", "admin", "manager", "staff", "viewer", "groomer", "front_desk"].includes(role) ? role : "staff";
+      const validRole = ["owner", "admin", "manager", "staff", "viewer", "groomer", "seller"].includes(role) ? role : "staff";
       if (authUserId) {
         await supabaseAdmin.from("tenant_memberships").upsert({
           tenant_id: targetTenant,

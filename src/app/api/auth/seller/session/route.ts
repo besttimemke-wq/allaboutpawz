@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 import { sessionForPortal } from "@/lib/portal-session-scope";
 
 // ============================================================================
-// GET /api/auth/frontdesk/session — Front Desk-scoped session endpoint
+// GET /api/auth/seller/session — Seller-scoped session endpoint
 // (owner's spec §4 backend structure). Returns the signed-in user ONLY when
-// they belong to the frontdesk portal (validatePortalAccess, server-side);
+// they belong to the seller portal (validatePortalAccess, server-side);
 // otherwise { user: null }. Never cached — the answer is a function of the
 // request cookie.
 // ============================================================================
 
 export async function GET() {
-  const { user, error } = await sessionForPortal("frontdesk");
+  const { user, error } = await sessionForPortal("seller");
   const res = NextResponse.json({ user, error: user ? undefined : error || "not_signed_in" }, {
     status: user ? 200 : 401,
   });

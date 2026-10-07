@@ -118,7 +118,7 @@ export default function SitemapPage() {
   ]
   const authLinks = [
     { label: "Account", href: "/account" }, { label: "Customer Portal Login", href: "/access-customer" },
-    { label: "Front Desk Login", href: "/access-frontdesk" }, { label: "Groomer Portal Login", href: "/access-groomer" },
+    { label: "Seller Login", href: "/access-seller" }, { label: "Groomer Portal Login", href: "/access-groomer" },
     { label: "Admin Login", href: "/admin-login" }, { label: "Set Password", href: "/auth/set-password" },
   ]
   const collectionLinks = [

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Users, Mail, Phone } from 'lucide-react';
 
 // ============================================================================
-// Front Desk — Customers. The desk's client directory: search by name,
+// Seller — Customers. The desk's client directory: search by name,
 // email or phone, see status and pets. Full customer management (CRM
 // records, history, invoicing) belongs to the admin OS — this is the
 // phone-side quick lookup.
@@ -33,7 +33,7 @@ const FALLBACK: DeskCustomer[] = [
   { id: 'c5', name: 'Ava Park', email: 'ava.p@example.com', phone: '(469) 555-0122', pets: ['Mochi'], status: 'New' },
 ];
 
-export default function FrontDeskCustomersPage() {
+export default function SellerCustomersPage() {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {

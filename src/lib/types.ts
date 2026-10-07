@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// DawgNavSection — the union of every admin/customer/groomer/frontdesk sidebar
+// DawgNavSection — the union of every admin/customer/groomer/seller sidebar
 // section id. Kept here (the shared types module) so every portal page +
 // component imports the same union. Adding a new admin route? add its id here.
 // ---------------------------------------------------------------------------

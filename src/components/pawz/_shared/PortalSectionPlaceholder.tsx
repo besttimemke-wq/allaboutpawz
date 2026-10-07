@@ -20,7 +20,7 @@ export function PortalSectionPlaceholder({
   ctaLabel,
   onCta,
 }: {
-  portal: 'Front Desk' | 'Learning Center' | 'Customer' | 'Groomer';
+  portal: 'Seller' | 'Learning Center' | 'Customer' | 'Groomer';
   section: string;
   title: string;
   description: string;

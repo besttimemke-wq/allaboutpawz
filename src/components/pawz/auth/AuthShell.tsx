@@ -8,7 +8,7 @@ import { ShieldCheck } from 'lucide-react';
 // column on the right, the minimalist salon footer below.
 //
 // It carries ZERO role logic and zero branching: each of the five doors
-// (/access-customer, /access-groomer, /access-frontdesk, /admin-login,
+// (/access-customer, /access-groomer, /access-seller, /admin-login,
 // /learn/sign-in) is its OWN page that composes this shell with its own
 // badge, title, subtitle and forms — the route IS the identity.
 // ============================================================================
@@ -86,8 +86,8 @@ export function AuthShell({ badge, title, subtitle, children }: AuthShellProps) 
             <Link href="/access-groomer" className="hover:text-white transition cursor-pointer">
               Groomer
             </Link>
-            <Link href="/access-frontdesk" className="hover:text-white transition cursor-pointer">
-              Front Desk
+            <Link href="/access-seller" className="hover:text-white transition cursor-pointer">
+              Seller
             </Link>
             <Link href="/learn/sign-in" className="hover:text-white transition cursor-pointer">
               Learn

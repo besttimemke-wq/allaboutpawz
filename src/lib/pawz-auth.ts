@@ -14,7 +14,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "crypto";
 // ---------------------------------------------------------------------------
 // Portal (door) definitions
 // ---------------------------------------------------------------------------
-export type PortalId = "customer" | "groomer" | "frontdesk" | "admin" | "lms";
+export type PortalId = "customer" | "groomer" | "seller" | "admin" | "lms";
 
 export interface PortalDefinition {
   id: PortalId;
@@ -26,7 +26,7 @@ export interface PortalDefinition {
 export const PORTALS: Record<PortalId, PortalDefinition> = {
   customer: { id: "customer", door: "/access-customer", destination: "/customer/dashboard", google: true },
   groomer: { id: "groomer", door: "/access-groomer", destination: "/groomer/dashboard", google: true },
-  frontdesk: { id: "frontdesk", door: "/access-frontdesk", destination: "/frontdesk/dashboard", google: false },
+  seller: { id: "seller", door: "/access-seller", destination: "/seller/dashboard", google: false },
   admin: { id: "admin", door: "/admin-login", destination: "/admin/dashboard", google: true },
   lms: { id: "lms", door: "/learn/sign-in", destination: "/learn/dashboard", google: true },
 };
@@ -190,7 +190,7 @@ export interface ResolvedPortalUser {
   stationName?: string;
   avatarUrl?: string;
   scope: "admin" | "employee" | "customer";
-  /** raw membership role, e.g. owner | admin | manager | groomer | front_desk | staff */
+  /** raw membership role, e.g. owner | admin | manager | groomer | seller | staff */
   membershipRole?: string;
 }
 
@@ -224,7 +224,7 @@ export function supabaseConfigured(): boolean {
 // ---------------------------------------------------------------------------
 const ADMIN_ROLES = ["owner", "admin", "manager", "platform_admin"];
 const GROOMER_ROLES = ["groomer", "stylist", "staff", "bather"];
-const FRONTDESK_ROLES = ["front_desk", "frontdesk", "reception"];
+const SELLER_ROLES = ["seller", "seller", "reception"];
 
 function rest<T = any>(client: SupabaseClient): { from: SupabaseClient["from"] } {
   return { from: client.from.bind(client) };
@@ -289,10 +289,10 @@ export async function resolvePortalUser(authUserId: string): Promise<ResolvedPor
       if (ADMIN_ROLES.includes(membershipRole)) {
         return { authUserId, email, name: nameFromMeta, role: "admin", avatarUrl, scope: "admin", membershipRole };
       }
-      if (FRONTDESK_ROLES.includes(membershipRole)) {
+      if (SELLER_ROLES.includes(membershipRole)) {
         return {
           authUserId, email, name: nameFromMeta, role: "admin", avatarUrl, scope: "employee",
-          stationName: "Front Desk — Intake & Concierge", membershipRole,
+          stationName: "Seller — Intake & Concierge", membershipRole,
         };
       }
       if (GROOMER_ROLES.includes(membershipRole)) {
@@ -332,8 +332,8 @@ export async function resolvePortalUser(authUserId: string): Promise<ResolvedPor
     if (staffRow) {
       const staffRole = String(staffRow.role || "").toLowerCase();
       const name = staffRow.name || nameFromMeta;
-      if (FRONTDESK_ROLES.includes(staffRole)) {
-        return { authUserId, email, name, role: "admin", avatarUrl, scope: "employee", stationName: "Front Desk — Intake & Concierge", membershipRole: staffRole };
+      if (SELLER_ROLES.includes(staffRole)) {
+        return { authUserId, email, name, role: "admin", avatarUrl, scope: "employee", stationName: "Seller — Intake & Concierge", membershipRole: staffRole };
       }
       if (ADMIN_ROLES.includes(staffRole)) {
         return { authUserId, email, name, role: "admin", avatarUrl, scope: "admin", membershipRole: staffRole };
@@ -408,8 +408,8 @@ export interface PortalValidationResult {
  *  "DB is source of truth" — the destination comes from the resolved salon
  *  identity, never from the door, a URL param, or anything the user picked. */
 export function autoDestination(user: ResolvedPortalUser): string {
-  // Front desk employees get their OWN portal now (not the admin dashboard).
-  if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) return "/frontdesk/dashboard";
+  // Seller employees get their OWN portal now (not the admin dashboard).
+  if (SELLER_ROLES.includes(String(user.membershipRole || ""))) return "/seller/dashboard";
   if (user.scope === "admin") return "/admin/dashboard";
   if (user.scope === "employee") return "/groomer/dashboard";
   return "/customer/dashboard";
@@ -420,11 +420,11 @@ export function validatePortalAccess(portal: PortalId, user: ResolvedPortalUser)
 
   switch (portal) {
     case "admin": {
-      if (user.scope === "admin" && user.role === "admin" && user.membershipRole !== "front_desk") {
+      if (user.scope === "admin" && user.role === "admin" && user.membershipRole !== "seller") {
         return { ok: true, user, redirectTo: def.destination };
       }
-      if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) {
-        return { ok: false, error: "This account is registered for Front Desk access. Use the Front Desk sign-in page." };
+      if (SELLER_ROLES.includes(String(user.membershipRole || ""))) {
+        return { ok: false, error: "This account is registered for Seller access. Use the Seller sign-in page." };
       }
       if (user.scope === "employee") {
         return { ok: false, error: "No admin account found for this email. Contact your admin." };
@@ -435,16 +435,16 @@ export function validatePortalAccess(portal: PortalId, user: ResolvedPortalUser)
       if (user.scope === "employee" && user.role === "groomer") {
         return { ok: true, user, redirectTo: def.destination };
       }
-      if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) {
-        return { ok: false, error: "This account is registered for Front Desk access. Use the Front Desk sign-in page." };
+      if (SELLER_ROLES.includes(String(user.membershipRole || ""))) {
+        return { ok: false, error: "This account is registered for Seller access. Use the Seller sign-in page." };
       }
       if (user.scope === "admin") {
         return { ok: false, error: "This email is an admin account. Use the Admin sign-in page." };
       }
       return { ok: false, error: "No groomer account found for this email. Contact your admin." };
     }
-    case "frontdesk": {
-      if (user.scope === "employee" && FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) {
+    case "seller": {
+      if (user.scope === "employee" && SELLER_ROLES.includes(String(user.membershipRole || ""))) {
         return { ok: true, user, redirectTo: def.destination };
       }
       if (user.scope === "employee") {
@@ -453,7 +453,7 @@ export function validatePortalAccess(portal: PortalId, user: ResolvedPortalUser)
       if (user.scope === "admin") {
         return { ok: false, error: "This email is an admin account. Use the Admin sign-in page." };
       }
-      return { ok: false, error: "No front desk account found for this email. Contact your admin." };
+      return { ok: false, error: "No seller account found for this email. Contact your admin." };
     }
     case "customer": {
       // The customer portal is EVERY signed-in person's personal space.
@@ -471,7 +471,7 @@ export function validatePortalAccess(portal: PortalId, user: ResolvedPortalUser)
       // sidebar identity inside the /learn portal.
       if (user.role === "customer") return { ok: true, user, redirectTo: def.destination };
       if (user.scope === "employee" && user.role === "groomer") return { ok: true, user, redirectTo: def.destination };
-      if (FRONTDESK_ROLES.includes(String(user.membershipRole || ""))) return { ok: true, user, redirectTo: def.destination };
+      if (SELLER_ROLES.includes(String(user.membershipRole || ""))) return { ok: true, user, redirectTo: def.destination };
       if (user.scope === "admin") return { ok: true, user, redirectTo: def.destination };
       return { ok: false, error: "No account found for this email." };
     }
@@ -502,8 +502,8 @@ export interface SessionPayload {
   avatarUrl?: string;
   scope: string;
   /** raw membership role — owner | admin | platform_admin | manager |
-   *  groomer | front_desk | staff | customer. Carried so the front desk
-   *  portal can identify a front desk employee (vs a real admin). */
+   *  groomer | seller | staff | customer. Carried so the seller
+   *  portal can identify a seller employee (vs a real admin). */
   membershipRole?: string;
   exp: number; // epoch seconds
 }

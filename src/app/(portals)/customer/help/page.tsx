@@ -9,7 +9,7 @@ export default function NeedHelpPage() {
     <PortalEmptyState
       icon={LifeBuoy}
       title="Need Help?"
-      description="Our front desk answers questions about appointments, deposits, and your pet's visit."
+      description="Our seller answers questions about appointments, deposits, and your pet's visit."
     >
       <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
         <a

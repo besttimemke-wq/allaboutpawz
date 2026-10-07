@@ -162,7 +162,7 @@ export const RevenueStripeGatewayScreen: React.FC<ScreenProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="bg-primary text-primary-foreground text-[9px] px-1.5 py-0.2 font-semibold">BBPOS WISEPOS E</span>
-                    <span className="font-semibold text-[13px]">Frisco Front Desk Primary</span>
+                    <span className="font-semibold text-[13px]">Frisco Seller Primary</span>
                   </div>
                   <div className="text-[10px] text-muted-foreground mt-0.5">IP: 192.168.1.144 // SN: WSC514981023</div>
                 </div>

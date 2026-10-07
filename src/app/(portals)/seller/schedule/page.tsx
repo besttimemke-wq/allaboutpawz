@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarClock, Clock } from 'lucide-react';
 
 // ============================================================================
-// Front Desk — Schedule & Shifts. Who is on the floor today: groomer
+// Seller — Schedule & Shifts. Who is on the floor today: groomer
 // stations, desk coverage, breaks. Editing shift templates belongs to the
 // admin OS; the desk needs the day's answer at a glance.
 // ============================================================================
@@ -18,8 +18,8 @@ import { CalendarClock, Clock } from 'lucide-react';
 const SHIFTS = [
   { name: 'Sarah M.', role: 'Groomer', time: '8:00 AM – 4:30 PM', station: 'Tables 1–2', status: 'On shift' },
   { name: 'Dana R.', role: 'Groomer', time: '9:00 AM – 5:30 PM', station: 'Bath 1 + Table 1', status: 'On shift' },
-  { name: 'Ellie T.', role: 'Front Desk', time: '8:00 AM – 2:00 PM', station: 'Desk', status: 'On shift' },
-  { name: 'You', role: 'Front Desk', time: '12:00 PM – 6:30 PM', station: 'Desk', status: 'Current' },
+  { name: 'Ellie T.', role: 'Seller', time: '8:00 AM – 2:00 PM', station: 'Desk', status: 'On shift' },
+  { name: 'You', role: 'Seller', time: '12:00 PM – 6:30 PM', station: 'Desk', status: 'Current' },
   { name: 'Marcus V.', role: 'Bather', time: '10:00 AM – 4:00 PM', station: 'Bath 2', status: 'Break' },
 ];
 
@@ -29,7 +29,7 @@ const BREAKS = [
   { name: 'Dana R.', time: '1:30 – 2:00 PM' },
 ];
 
-export default function FrontDeskSchedulePage() {
+export default function SellerSchedulePage() {
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
       <div>

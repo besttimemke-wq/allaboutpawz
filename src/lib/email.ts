@@ -793,7 +793,7 @@ function signinDoorFor(role: string): string {
   if (["owner", "admin", "manager"].includes(role)) return `${SITE_URL}/admin-login`
   if (role === "customer") return `${SITE_URL}/access-customer`
   if (role === "groomer") return `${SITE_URL}/access-groomer`
-  return `${SITE_URL}/access-frontdesk`
+  return `${SITE_URL}/access-seller`
 }
 
 // Kept for backward compatibility with earlier call sites.

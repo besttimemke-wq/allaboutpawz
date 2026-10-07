@@ -110,7 +110,7 @@ type SessionUser = { name: string; email?: string; role: string; scope: string; 
 /** Their WORK console (deliberate, separate from their personal portal). */
 function workConsoleFor(u: SessionUser): string | null {
   const mr = String(u.membershipRole || "").toLowerCase()
-  if (["front_desk", "frontdesk", "reception"].includes(mr)) return "/frontdesk/dashboard"
+  if (["seller", "seller", "reception"].includes(mr)) return "/seller/dashboard"
   if (u.scope === "admin") return "/admin/dashboard"
   if (u.scope === "employee") return "/groomer/dashboard"
   return null

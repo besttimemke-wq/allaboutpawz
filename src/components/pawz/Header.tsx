@@ -66,7 +66,7 @@ interface HeaderProps {
   onSelectLocation?: (loc: string) => void;
   locationsList?: string[];
   /** Render the admin OS pillar pills (CRM / Orders / Accounting). Only the
-   *  admin OS shows these — customer, groomer, front desk and LMS portals
+   *  admin OS shows these — customer, groomer, seller and LMS portals
    *  pass false so business nav never leaks into their chrome. */
   showPillars?: boolean;
   /** Show the MAIN SITE navigation hamburger — the public site's nav

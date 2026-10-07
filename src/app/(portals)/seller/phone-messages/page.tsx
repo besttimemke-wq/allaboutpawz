@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Phone, PhoneCall, CheckCircle2 } from 'lucide-react';
 
 // ============================================================================
-// Front Desk — Phone Messages. The message pad: who called, what they need,
+// Seller — Phone Messages. The message pad: who called, what they need,
 // whether it's handled. Every message the desk takes lives here until it is
 // closed out — nothing falls through the cracks between shifts.
 // ============================================================================
@@ -33,7 +33,7 @@ const INITIAL: Msg[] = [
   { id: 'm3', from: 'Unknown', phone: '(972) 555-8890', note: 'Hung up — sounded like a wrong number.', time: '11:03 AM', done: true },
 ];
 
-export default function FrontDeskPhoneMessagesPage() {
+export default function SellerPhoneMessagesPage() {
   const [msgs, setMsgs] = useState<Msg[]>(INITIAL);
 
   const toggle = (id: string) =>

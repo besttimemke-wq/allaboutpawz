@@ -9,7 +9,7 @@ export default function VetAppointmentsPage() {
     <PortalEmptyState
       icon={Stethoscope}
       title="Vet Appointments"
-      description="Your veterinary appointments will appear here. Ask our front desk about our vet partners."
+      description="Your veterinary appointments will appear here. Ask our seller about our vet partners."
       cta={{ label: 'Call (901) 722-1114', href: 'tel:+19017221114' }}
     />
   );

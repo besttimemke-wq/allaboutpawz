@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { UserCheck, Search, Dog, Phone, CalendarPlus, CheckCircle2 } from 'lucide-react';
 
 // ============================================================================
-// Front Desk — Check-In / Walk-In. The intake surface: find an existing
+// Seller — Check-In / Walk-In. The intake surface: find an existing
 // client's appointment and check them in, or create a walk-in intake.
 // Walk-ins feed the same enrollCustomer() identity path as purchases and
 // bookings — one email, one login.
@@ -25,7 +25,7 @@ const ARRIVALS = [
   { id: 'r3', time: '10:30 AM', petName: 'Mochi', owner: 'Ava P.', service: 'Bath & Tidy', groomer: 'Sarah M.' },
 ];
 
-export default function FrontDeskCheckInPage() {
+export default function SellerCheckInPage() {
   const [checkedIn, setCheckedIn] = useState<string[]>([]);
   const [walkInSaved, setWalkInSaved] = useState(false);
 

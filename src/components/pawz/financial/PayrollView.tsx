@@ -115,7 +115,7 @@ export const PayrollView: React.FC<PayrollViewProps> = ({ onNavigateSection }) =
     {
       id: 'EMP-0105',
       name: 'Chloe Bennett',
-      role: 'Front Desk Ops',
+      role: 'Seller Ops',
       class: 'W-2 Admin',
       baseWage: 21.00,
       commissionRate: 0,

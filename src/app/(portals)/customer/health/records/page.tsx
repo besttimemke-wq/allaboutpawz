@@ -648,7 +648,7 @@ export default function HealthRecordsPage() {
               Vaccination record — {viewerDogName}
             </DialogTitle>
             <DialogDescription className="text-[12.5px] leading-relaxed">
-              The photo on file with the salon. The front desk verifies records at
+              The photo on file with the salon. The seller verifies records at
               check-in.
             </DialogDescription>
           </DialogHeader>

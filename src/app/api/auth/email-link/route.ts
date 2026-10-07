@@ -28,8 +28,8 @@ import { createServerSupabase } from "@/lib/auth/server";
 function doorFor(user: ResolvedPortalUser): { door: string; destination: string } {
   if (user.scope === "admin") return { door: PORTALS.admin.door, destination: PORTALS.admin.destination };
   if (user.scope === "employee") {
-    const frontDesk = ["front_desk", "frontdesk", "reception"].includes(String(user.membershipRole || ""));
-    if (frontDesk) return { door: PORTALS.frontdesk.door, destination: PORTALS.frontdesk.destination };
+    const sellerCheck = ["seller", "seller", "reception"].includes(String(user.membershipRole || ""));
+    if (sellerCheck) return { door: PORTALS.seller.door, destination: PORTALS.seller.destination };
     return { door: PORTALS.groomer.door, destination: PORTALS.groomer.destination };
   }
   return { door: PORTALS.customer.door, destination: PORTALS.customer.destination };

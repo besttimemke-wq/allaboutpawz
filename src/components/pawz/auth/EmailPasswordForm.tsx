@@ -197,7 +197,7 @@ function ForgotPasswordLink({ defaultEmail, portal }: { defaultEmail: string; po
   const portalPath: Record<PortalId, string> = {
     admin: '/admin/dashboard',
     customer: '/customer/dashboard',
-    frontdesk: '/frontdesk/dashboard',
+    seller: '/seller/dashboard',
     groomer: '/groomer/dashboard',
     lms: '/learn/classroom',
   };

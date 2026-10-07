@@ -73,7 +73,7 @@ function portalFromReferer(referer: string | null, fallback: PortalId): PortalId
     const p = new URL(referer).pathname.replace(/\/$/, "");
     if (p === "/admin-login") return "admin";
     if (p === "/access-groomer") return "groomer";
-    if (p === "/access-frontdesk") return "frontdesk";
+    if (p === "/access-seller") return "seller";
     if (p === "/learn/sign-in") return "lms";
     if (p === "/access-customer") return "customer";
   } catch {
@@ -104,11 +104,11 @@ export async function GET(req: NextRequest) {
     return redirectToPath(PORTALS[portal].door);
   }
 
-  // Front desk is EMAIL/PASSWORD ONLY (owner's spec §6): the door offers no
+  // Seller is EMAIL/PASSWORD ONLY (owner's spec §6): the door offers no
   // Google button and the initiator refuses Google flows claiming this
-  // portal — the browser simply lands back on the front desk door, clean.
-  if (portal === "frontdesk" && !PORTALS.frontdesk.google) {
-    return redirectToPath(PORTALS.frontdesk.door);
+  // portal — the browser simply lands back on the seller door, clean.
+  if (portal === "seller" && !PORTALS.seller.google) {
+    return redirectToPath(PORTALS.seller.door);
   }
 
   const origin = realOrigin(req);

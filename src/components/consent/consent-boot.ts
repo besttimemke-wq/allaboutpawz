@@ -35,7 +35,7 @@ gtag('consent','default',{
   security_storage:'granted',
   wait_for_update:500
 });
-var PORTALS=['/admin','/admin-login','/groomer','/customer','/access-customer','/access-groomer','/access-frontdesk','/account','/auth','/learn','/api'];
+var PORTALS=['/admin','/admin-login','/groomer','/customer','/access-customer','/access-groomer','/access-seller','/account','/auth','/learn','/api'];
 var p=location.pathname.toLowerCase(),onPortal=false;
 for(var i=0;i<PORTALS.length;i++){var pre=PORTALS[i];if(p===pre||p.indexOf(pre+'/')===0){onPortal=true;break;}}
 if(onPortal)return;

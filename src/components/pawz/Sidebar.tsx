@@ -77,17 +77,17 @@ import { cn } from '@/lib/utils';
 //                Need Help? / Sign Out). Route-driven: every item is a <Link>,
 //                active state comes from usePathname — NOT the section store —
 //                so direct visits, back/forward and in-page links all highlight
-//                correctly. Admin/groomer/frontdesk keep the section-id store
+//                correctly. Admin/groomer/seller keep the section-id store
 //                mechanism unchanged.
 //   groomer    — GROOMER STATION: station dashboard, assigned appointments,
 //                shifts, handling notes, style records
-//   frontdesk  — FRONT DESK: desk dashboard, check-in, today's appointments,
+//   seller  — SELLER: desk dashboard, check-in, today's appointments,
 //                customers, pets, quick POS, schedule, phone messages
 //   lms        — LEARNING CENTER: my learning, catalog, in progress,
 //                completed, certificates, resources
 // ============================================================================
 
-export type SidebarVariant = 'admin' | 'customer' | 'groomer' | 'frontdesk' | 'lms';
+export type SidebarVariant = 'admin' | 'customer' | 'groomer' | 'seller' | 'lms';
 
 interface SidebarProps {
   activeSection: DawgNavSection;
@@ -120,7 +120,7 @@ interface NavGroup {
 interface VariantConfig {
   /** Brand subtitle shown under "All About Pawz" in the sidebar header. */
   subtitle: string;
-  /** Section-id nav groups (admin/groomer/frontdesk/lms). The customer
+  /** Section-id nav groups (admin/groomer/seller/lms). The customer
    * variant navigates by route instead — see CUSTOMER_NAV below. */
   groups?: NavGroup[];
 }
@@ -207,11 +207,11 @@ const VARIANT_CONFIG: Record<SidebarVariant, VariantConfig> = {
     ],
   },
 
-  frontdesk: {
-    subtitle: 'Front Desk',
+  seller: {
+    subtitle: 'Seller',
     groups: [
       {
-        category: 'FRONT DESK',
+        category: 'SELLER',
         categoryDefaultSection: 'dashboard',
         items: [
           { id: 'dashboard', label: 'Desk Dashboard', icon: LayoutGrid },
@@ -445,7 +445,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               customer: the owner's exact My Account tree as ROUTE <Link>s
               (active state from usePathname; group headers are labels,
               children always visible and indented).
-              admin/groomer/frontdesk/lms: the section-id groups exactly as
+              admin/groomer/seller/lms: the section-id groups exactly as
               before — collapsible categories, store-driven active state. */}
           <nav className="custom-scrollbar flex-1 overflow-y-auto py-2 text-sidebar-foreground">
             {variant === 'customer'

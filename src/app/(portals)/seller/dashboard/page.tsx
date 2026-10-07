@@ -29,7 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 
 // ============================================================================
-// Front Desk Dashboard — the desk operator's at-a-glance surface.
+// Seller Dashboard — the desk operator's at-a-glance surface.
 // - KPI strip: who's checked in, who's waiting, who's done, who no-showed
 // - Live check-in queue (today's arrivals, by status)
 // - Today's appointment timeline
@@ -119,7 +119,7 @@ const MESSAGES = [
   { id: 'm3', from: 'Unknown', phone: '(972) 555-8890', note: 'Hung up — sounded like a wrong number.', time: '11:03 AM', done: true },
 ];
 
-export default function FrontDeskDashboardPage() {
+export default function SellerDashboardPage() {
   const router = useRouter();
   const [queue, setQueue] = useState<CheckInRow[]>(TODAY_QUEUE);
   const [messages, setMessages] = useState(MESSAGES);
@@ -141,13 +141,13 @@ export default function FrontDeskDashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => router.push('/frontdesk/check-in')}>
+          <Button variant="outline" size="sm" onClick={() => router.push('/seller/check-in')}>
             <Plus className="size-4 mr-1" /> Walk-In Check-In
           </Button>
-          <Button variant="outline" size="sm" onClick={() => router.push('/frontdesk/phone-messages')}>
+          <Button variant="outline" size="sm" onClick={() => router.push('/seller/phone-messages')}>
             <Phone className="size-4 mr-1" /> Take Message
           </Button>
-          <Button size="sm" onClick={() => router.push('/frontdesk/orders')}>
+          <Button size="sm" onClick={() => router.push('/seller/orders')}>
             <Receipt className="size-4 mr-1" /> Quick POS
           </Button>
         </div>
@@ -366,10 +366,10 @@ export default function FrontDeskDashboardPage() {
       {/* Quick links */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Find Customer', icon: Search, path: '/frontdesk/customers' },
-          { label: 'Add Pet', icon: PawPrint, path: '/frontdesk/pets' },
-          { label: 'Vet & Shot Records', icon: Stethoscope, path: '/frontdesk/pets' },
-          { label: 'Schedule View', icon: CalendarIcon, path: '/frontdesk/schedule' },
+          { label: 'Find Customer', icon: Search, path: '/seller/customers' },
+          { label: 'Add Pet', icon: PawPrint, path: '/seller/pets' },
+          { label: 'Vet & Shot Records', icon: Stethoscope, path: '/seller/pets' },
+          { label: 'Schedule View', icon: CalendarIcon, path: '/seller/schedule' },
         ].map((q) => {
           const Icon = q.icon;
           return (
