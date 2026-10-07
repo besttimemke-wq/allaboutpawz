@@ -1,0 +1,320 @@
+{
+  "timestamp": "2026-10-07T14:25:38.996Z",
+  "total": 101,
+  "succeeded": 13,
+  "skipped": 14,
+  "failed": 88,
+  "failures": [
+    {
+      "statement": "CREATE UNIQUE INDEX ux_taxonomy_sibling_slug",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE UNIQUE INDEX ux_taxonomy_root_slug",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_taxonomy_parent",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_taxonomy_path",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_taxonomy_animal",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE attribute_values",
+      "error": "relation \"attributes\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_node_filters_node",
+      "error": "relation \"node_filters\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE node_filter_values",
+      "error": "relation \"node_filters\" does not exist"
+    },
+    {
+      "statement": "CREATE UNIQUE INDEX ux_one_first_party_seller",
+      "error": "relation \"sellers\" does not exist"
+    },
+    {
+      "statement": "ALTER TABLE",
+      "error": "relation \"sellers\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE brands",
+      "error": "relation \"sellers\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE brand_placements",
+      "error": "relation \"brands\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_brand_placements_node",
+      "error": "relation \"brand_placements\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_products_brand",
+      "error": "relation \"products\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_product_nodes_node",
+      "error": "relation \"product_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE UNIQUE INDEX ux_product_primary_node",
+      "error": "relation \"product_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE product_variants",
+      "error": "relation \"products\" does not exist"
+    },
+    {
+      "statement": "CREATE UNIQUE INDEX ux_variant_gtin",
+      "error": "relation \"product_variants\" does not exist"
+    },
+    {
+      "statement": "CREATE UNIQUE INDEX ux_pav_enum",
+      "error": "relation \"product_attribute_values\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_pav_facet",
+      "error": "relation \"product_attribute_values\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE product_media",
+      "error": "relation \"products\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE offers",
+      "error": "relation \"sellers\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_offers_variant",
+      "error": "relation \"offers\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE inventory_levels",
+      "error": "relation \"product_variants\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_inventory_variant",
+      "error": "relation \"inventory_levels\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_po_brand_status",
+      "error": "column \"brand_id\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE purchase_order_lines",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_pol_node",
+      "error": "relation \"purchase_order_lines\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE goods_receipt_lines",
+      "error": "relation \"purchase_order_lines\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE vendor_invoices",
+      "error": "relation \"vendors\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE vendor_invoice_lines",
+      "error": "relation \"vendor_invoices\" does not exist"
+    },
+    {
+      "statement": "CREATE UNIQUE INDEX ux_related_legacy_path",
+      "error": "relation \"related_search_pages\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_related_target",
+      "error": "relation \"related_search_pages\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE related_search_page_products",
+      "error": "relation \"related_search_pages\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE cms_slots",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE cms_slot_items",
+      "error": "relation \"cms_slots\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE location_grooming_services",
+      "error": "relation \"grooming_services\" does not exist"
+    },
+    {
+      "statement": "CREATE TABLE customer_memberships",
+      "error": "foreign key constraint \"customer_memberships_customer_id_fkey\" cannot be implemented"
+    },
+    {
+      "statement": "CREATE TABLE reviews",
+      "error": "relation \"products\" does not exist"
+    },
+    {
+      "statement": "CREATE INDEX ix_reviews_product",
+      "error": "relation \"reviews\" does not exist"
+    },
+    {
+      "statement": "CREATE OR REPLACE FUNCTION first_party_seller",
+      "error": "relation \"sellers\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"product_variants\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"brand_placements\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"offers\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"taxonomy_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE OR REPLACE FUNCTION brand_supply_ok",
+      "error": "function brand_supply_source(uuid, uuid) does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"brands\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"brands\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"brand_placements\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"brand_placements\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"products\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"products\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"offers\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"seller_brand_authorizations\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"sellers\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"product_attribute_values\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"product_nodes\" does not exist"
+    },
+    {
+      "statement": "CREATE TRIGGER",
+      "error": "relation \"goods_receipt_lines\" does not exist"
+    },
+    {
+      "statement": "CREATE VIEW v_sitemap",
+      "error": "relation \"v_routes\" does not exist"
+    },
+    {
+      "statement": "CREATE VIEW v_product_rating",
+      "error": "relation \"reviews\" does not exist"
+    },
+    {
+      "statement": "CREATE VIEW v_new_filter_values_review",
+      "error": "relation \"node_filter_values\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "relation \"sellers\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "column \"seller_id\" of relation \"locations\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "insert or update on table \"location_hours\" violates foreign key constraint \"location_hours_location_id_fkey\""
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "relation \"attribute_values\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "relation \"node_filter_values\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "relation \"node_filter_values\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "relation \"cms_slots\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "relation \"page_components\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "insert or update on table \"merchandising_modules\" violates foreign key constraint \"merchandising_modules_tenant_id_fkey\""
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "relation \"location_grooming_services\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "relation \"supply_service_map\" does not exist"
+    },
+    {
+      "statement": "INSERT INTO",
+      "error": "insert or update on table \"membership_plans\" violates foreign key constraint \"membership_plans_tenant_id_fkey\""
+    }
+  ],
+  "succeededObjects": [
+    "CREATE OR REPLACE FUNCTION slugify",
+    "CREATE OR REPLACE FUNCTION touch_updated_at",
+    "CREATE OR REPLACE FUNCTION trg_taxonomy_node_after",
+    "CREATE OR REPLACE FUNCTION trg_brand_after",
+    "CREATE OR REPLACE FUNCTION trg_brand_placement_after",
+    "CREATE OR REPLACE FUNCTION trg_product_before",
+    "CREATE OR REPLACE FUNCTION trg_product_after",
+    "CREATE OR REPLACE FUNCTION trg_po_status",
+    "CREATE OR REPLACE FUNCTION trg_po_revoke",
+    "CREATE OR REPLACE FUNCTION trg_authorization_revoke",
+    "CREATE OR REPLACE FUNCTION trg_seller_status",
+    "CREATE OR REPLACE FUNCTION trg_register_attributes",
+    "OTHER"
+  ]
+}
