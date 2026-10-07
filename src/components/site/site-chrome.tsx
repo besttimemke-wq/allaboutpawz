@@ -384,15 +384,9 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           one bar only, no second bar, no local-pride strip. Everything else
           on every page is white. */}
       <div className="sticky top-0 z-30 flex items-center justify-between bg-cream px-4 py-3 lg:px-6">
-        <div className="flex items-center gap-4">
-          <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-black hover:bg-black/10">
-            <Menu className="h-5 w-5" />
-          </button>
-          <Link href="/" className="flex items-center gap-2">
-            <PawGlyph className="h-5 w-5 text-black" />
-            <span className="font-display text-sm font-bold tracking-[0.14em] text-black">ALL ABOUT PAWZ</span>
-          </Link>
-        </div>
+        <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-ink hover:bg-black/5">
+          <Menu className="h-5 w-5" />
+        </button>
         <div className="flex items-center gap-3">
           <HeaderAccountLink variant="icon" />
           <HeaderBagLink variant="icon" />

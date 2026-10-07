@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { PageHeader } from "@/components/site/site-chrome"
-import { ShopNavBar } from "@/components/site/islands/shop-nav-bar"
+
 import { Plp } from "@/components/site/shop/plp"
 import {
   Breadcrumbs,
@@ -148,7 +148,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       return (
         <>
           <PageHeader n="06" label="SHOP" />
-          <ShopNavBar />
+          
           <section className="bg-white px-8 py-10 lg:px-12">
             <div className="mx-auto max-w-7xl">
               <nav className="flex items-center gap-2 text-sm text-ink-soft" aria-label="Breadcrumb">
@@ -201,7 +201,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     return (
       <>
         <PageHeader n="06" label={`SHOP / ${meta.displayName.toUpperCase()}`} />
-        <ShopNavBar />
+        
         <Breadcrumbs chain={[]} />
         <section className="marble bg-white px-8 py-10 lg:px-12">
           <p className="eyebrow">THE PAWZ COLLECTION</p>
@@ -256,7 +256,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     return (
       <>
         <PageHeader n="06" label={`SHOP / ${node.displayName.toUpperCase()}`} />
-        <ShopNavBar />
+        
         <Breadcrumbs chain={chain} />
         <ParentHero node={node} />
         <CategoryCards title="SHOP BY CATEGORY" nodes={node.children} />
@@ -277,7 +277,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     return (
       <>
         <PageHeader n="06" label={`SHOP / ${node.displayName.toUpperCase()}`} />
-        <ShopNavBar />
+        
         <Breadcrumbs chain={chain} />
         <PrimaryHero node={node} />
         {node.children.length > 0 && (
@@ -299,7 +299,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       {/* The department bar on EVERY /shop route — leaf pages too: a shopper
           deep in Shampoos & Conditioners keeps the whole taxonomy one hover
           away, and the bar carries the active department highlight. */}
-      <ShopNavBar />
+      
       <Breadcrumbs chain={chain} />
       <section className="marble bg-white px-8 py-8 lg:px-12">
         <p className="eyebrow">{chain.length > 1 ? chain[chain.length - 2].displayName.toUpperCase() : "SHOP"}</p>
