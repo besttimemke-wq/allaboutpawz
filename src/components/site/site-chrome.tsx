@@ -383,7 +383,7 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
       {/* ONE tan header bar — All About Pawz + login + cart. Per spec D:
           one bar only, no second bar, no local-pride strip. Everything else
           on every page is white. */}
-      <div className="sticky top-0 z-30 flex items-center justify-between bg-[#E8D5B7] px-4 py-3 lg:px-6">
+      <div className="sticky top-0 z-30 flex items-center justify-between bg-cream px-4 py-3 lg:px-6">
         <div className="flex items-center gap-4">
           <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-black hover:bg-black/10">
             <Menu className="h-5 w-5" />
@@ -411,19 +411,13 @@ function Sidebar({ settings, pathname, gate, open, onClose }: { settings: Record
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
   return (
-    <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-y-auto border-r border-gold/25 bg-cream transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+    <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-visible border-r border-gold/25 bg-cream transition-transform duration-300 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       {/* Close button — top right of the sidebar */}
       <button onClick={onClose} aria-label="Close menu" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-ink-soft hover:text-black">
         <X className="h-5 w-5" />
       </button>
-      <div className="px-7 pt-8">
-        <Link href="/" onClick={onClose} className="block w-full cursor-pointer text-center">
-          <PawGlyph className="mx-auto h-9 w-9 text-black" />
-          <div className="mt-3 font-display text-[15px] tracking-[0.16em] text-ink">ALL ABOUT PAWZ</div>
-        </Link>
-      </div>
-      <div className="mt-6 h-px bg-gold/20" />
-      <div className="px-7 pt-5">
+      {/* No branding in sidebar — header carries "All About Pawz" per spec D */}
+      <div className="px-7 pt-12">
         <Link href="/book/appointment" onClick={onClose} className="flex w-full cursor-pointer items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
           <CalendarDays className="h-3.5 w-3.5 text-black" />
           BOOK APPOINTMENT
