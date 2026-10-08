@@ -644,6 +644,9 @@ export type ProductQuery = {
   sort?: SortKey
   page?: number
   perPage?: number
+  /** Category names to filter by (matches against product.category field).
+   *  When provided, only products whose category is in this array appear. */
+  categoryFilter?: string[]
 }
 
 export type ProductQueryResult = {
@@ -656,6 +659,13 @@ export type ProductQueryResult = {
 export async function queryProducts(q: ProductQuery): Promise<ProductQueryResult> {
   const products = await getProducts()
   let items = products
+
+  // Category filter — when provided, only show products matching these categories.
+  // This is what makes the bedding page show ONLY bedding products.
+  if (q.categoryFilter && q.categoryFilter.length > 0) {
+    const filterSet = new Set(q.categoryFilter.map(c => c.toLowerCase()))
+    items = items.filter((p) => p.category != null && filterSet.has(p.category.toLowerCase()))
+  }
 
   if (q.scopeIds) {
     const scope = new Set(q.scopeIds)

@@ -305,7 +305,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
 
             <div className="mt-2">
               {data.filterSections.map((section) => (
-                <FilterGroup key={section.kind === "check" ? section.key : section.kind} section={section}>
+                <FilterGroup key={section.kind === "check" ? `check-${section.key}` : section.kind} section={section}>
                   {section.kind === "price" && (
                     <div className="space-y-2.5">
                       <div className="flex items-center gap-2">

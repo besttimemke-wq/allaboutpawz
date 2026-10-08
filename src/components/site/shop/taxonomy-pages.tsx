@@ -195,7 +195,7 @@ export async function AnimalLandingPage({
           Plp filters by current path). */}
       <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
+          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} categoryFilter={animal.departments.flatMap(d => d.subcategories.map(s => s.name))} />
         </div>
       </section>
 
@@ -320,7 +320,7 @@ export async function DepartmentPage({
           AND the sidebar+grid here for actual shopping. */}
       <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
+          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} categoryFilter={dept.subcategories.map(s => s.name)} />
         </div>
       </section>
 
@@ -416,7 +416,7 @@ export async function SubcategoryPage({
       {/* Plp — sidebar filters + sort toolbar + product grid (the leaf) */}
       <section className="px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
+          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} categoryFilter={dept.subcategories.length > 0 ? dept.subcategories.map(s => s.name) : [dept.name]} />
         </div>
       </section>
 

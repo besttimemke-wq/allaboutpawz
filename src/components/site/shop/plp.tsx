@@ -37,6 +37,7 @@ export async function Plp({
   searchParams,
   perPage = 12,
   path,
+  categoryFilter,
 }: {
   scope: PlpScope
   searchParams: Record<string, string | string[] | undefined>
@@ -44,6 +45,10 @@ export async function Plp({
   /** The current shop route path (e.g. "/shop", "/shop/cat/food"), used to
    *  resolve page-specific facets from src/lib/shop/facets.ts. */
   path?: string
+  /** Category names to filter products by. When provided, only products whose
+   *  metadata category matches one of these names will appear in the grid.
+   *  This is what makes the bedding page show ONLY bedding products. */
+  categoryFilter?: string[]
 }) {
   const scopeIds =
     scope.kind === "category" ? scope.node.rawIds : scope.kind === "merch" ? null : null
@@ -121,6 +126,7 @@ export async function Plp({
     sort: state.sort,
     page: state.page,
     perPage,
+    categoryFilter,
   })
 
   // Applied URL state for the rail + chips (kept as display strings).
