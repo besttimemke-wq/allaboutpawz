@@ -81,7 +81,7 @@ const GROUPS = {
 }
 
 const LICENSE_OK = /^(cc0|public domain|pd|cc[ -]by(-sa)?[ -]?\d|cc[ -]by(-sa)?$)/i
-const NAME_BAD = /diagram|map|logo|drawing|illustration|stamp|coin|skeleton|dead|fossil|museum|painting|engraving|poster|cartoon|icon|screenshot|chart|schematic|\bsvg\b|crop|collage|montage|poster|ad\b|advert|catalog|label|package|lego|toy_|figurine|plush|medal/i
+const NAME_BAD = /book|\(1[6-9]\d\d\)|\bplate\b|journal|magazine|catalogue|archive|diagram|map|logo|drawing|illustration|stamp|coin|skeleton|dead|fossil|museum|painting|engraving|poster|cartoon|icon|screenshot|chart|schematic|\bsvg\b|crop|collage|montage|poster|ad\b|advert|catalog|label|package|lego|toy_|figurine|plush|medal/i
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const stripHtml = (s = "") => s.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim()
@@ -97,10 +97,12 @@ async function api(params) {
   throw new Error("API rate limited")
 }
 
-async function search(query) {
+const MODES = [' incategory:"Quality images"', ' incategory:"Featured pictures on Wikimedia Commons"', ""]
+
+async function search(query, mode = "") {
   const data = await api({
     action: "query", generator: "search", gsrnamespace: "6",
-    gsrsearch: `${query} filetype:bitmap`, gsrlimit: "25",
+    gsrsearch: `${query}${mode} filetype:bitmap`, gsrlimit: "25",
     prop: "imageinfo", iiprop: "url|size|mime|extmetadata", iiurlwidth: "1000",
     iiextmetadatafilter: "LicenseShortName|Artist|Credit|ObjectName",
   })
@@ -121,7 +123,7 @@ async function search(query) {
 
 function acceptable(c, used) {
   if (c.mime !== "image/jpeg") return false
-  if (c.width < 1100 || c.height < 750) return false
+  if (c.width < 1400 || c.height < 900) return false
   if (c.width / c.height > 2.2 || c.width / c.height < 0.8) return false
   if (!LICENSE_OK.test(c.license || "")) return false
   if (NAME_BAD.test(c.title)) return false
@@ -153,11 +155,13 @@ async function main() {
     for (const [key, queries] of Object.entries(GROUPS[group] || {})) {
       if (map[key] && process.env.FORCE !== "1") continue
       let picked = null
-      for (const q of queries) {
-        const results = await search(q)
-        await sleep(350)
-        picked = results.find((c) => acceptable(c, used))
-        if (picked) { picked.query = q; break }
+      outer: for (const mode of MODES) {
+        for (const q of queries) {
+          const results = await search(q, mode)
+          await sleep(300)
+          picked = results.find((c) => acceptable(c, used))
+          if (picked) { picked.query = q + mode; break outer }
+        }
       }
       if (!picked) { console.log(`MISS  ${key}`); continue }
       const buf = await download(picked.thumb)
