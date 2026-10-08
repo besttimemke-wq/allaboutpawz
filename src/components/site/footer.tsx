@@ -19,7 +19,7 @@ function ApplePayLogo() { return (<svg viewBox="0 0 80 26" className="h-6 w-auto
 function GooglePayLogo() { return (<svg viewBox="0 0 80 26" className="h-6 w-auto"><rect width="80" height="26" rx="4" fill="#16161D"/><text x="40" y="18" textAnchor="middle" fill="#fff" fontSize="10" fontWeight="600" fontFamily="Arial">G Pay</text></svg>) }
 
 // Pipe divider between groups in secondary nav
-function Pipe() { return <span className="text-white/20 mx-2">|</span> }
+function Pipe() { return <span className="text-black/20 mx-2">|</span> }
 
 // Expandable — FLAT on black canvas, no box/border/container. Pushes content DOWN inline.
 // Chevron icons + hover text are WHITE/gold (NOT black — black is invisible on the
@@ -79,30 +79,30 @@ export function SiteFooter() {
           {/* Column 1: Brand */}
           <div className="px-6 border-r border-gold/10">
             <img src="/brand/footer-logo.png" alt="All About Pawz — Luxury Pet Grooming, Memphis, TN" width={1021} height={729} className="h-16 w-auto" />
-            <p className="mt-3 text-sm font-bold tracking-[0.15em] text-white">LUXURY PET GROOMING</p>
+            <p className="mt-3 text-sm font-bold tracking-[0.15em] text-black">LUXURY PET GROOMING</p>
             <p className="mt-3 text-sm leading-relaxed text-on-dark-muted">Premium grooming, wellness and care for your beloved pets. Because they deserve the very best.</p>
             <div className="mt-5 space-y-2 text-sm text-on-dark-muted">
-              <p className="flex items-center gap-2"><MapPin size={14} className="text-white" /> {BUSINESS.address.street}, {BUSINESS.address.city}, {BUSINESS.address.region} {BUSINESS.address.postalCode}</p>
-              <p className="flex items-center gap-2"><Phone size={14} className="text-white" /> <a href={`tel:${BUSINESS.phone}`} className="hover:text-white">{BUSINESS.phoneDisplay}</a></p>
-              <p className="flex items-center gap-2"><Mail size={14} className="text-white" /> <a href={`mailto:${BUSINESS.email}`} className="hover:text-white">{BUSINESS.email}</a></p>
+              <p className="flex items-center gap-2"><MapPin size={14} className="text-black" /> {BUSINESS.address.street}, {BUSINESS.address.city}, {BUSINESS.address.region} {BUSINESS.address.postalCode}</p>
+              <p className="flex items-center gap-2"><Phone size={14} className="text-black" /> <a href={`tel:${BUSINESS.phone}`} className="hover:text-black">{BUSINESS.phoneDisplay}</a></p>
+              <p className="flex items-center gap-2"><Mail size={14} className="text-black" /> <a href={`mailto:${BUSINESS.email}`} className="hover:text-black">{BUSINESS.email}</a></p>
             </div>
             <div className="mt-5 flex items-center gap-4">
-              <a href="https://www.facebook.com/allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on Facebook" className="text-on-dark-muted hover:text-white"><FacebookIcon /></a>
-              <a href="https://www.instagram.com/allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on Instagram" className="text-on-dark-muted hover:text-white"><InstagramIcon /></a>
-              <a href="https://www.tiktok.com/@allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on TikTok" className="text-on-dark-muted hover:text-white"><TikTokIcon /></a>
-              <a href="https://www.pinterest.com/allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on Pinterest" className="text-on-dark-muted hover:text-white"><PinterestIcon /></a>
+              <a href="https://www.facebook.com/allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on Facebook" className="text-on-dark-muted hover:text-black"><FacebookIcon /></a>
+              <a href="https://www.instagram.com/allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on Instagram" className="text-on-dark-muted hover:text-black"><InstagramIcon /></a>
+              <a href="https://www.tiktok.com/@allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on TikTok" className="text-on-dark-muted hover:text-black"><TikTokIcon /></a>
+              <a href="https://www.pinterest.com/allaboutpawz" target="_blank" rel="noopener noreferrer" aria-label="All About Pawz on Pinterest" className="text-on-dark-muted hover:text-black"><PinterestIcon /></a>
             </div>
           </div>
 
           {/* Column 2: Customer Care */}
           <div className="px-6 border-r border-gold/10">
-            <h3 className="text-sm font-bold tracking-[0.18em] text-white">CUSTOMER CARE</h3>
+            <h3 className="text-sm font-bold tracking-[0.18em] text-black">CUSTOMER CARE</h3>
             <div className="mt-4 space-y-3">
-              <Link href="/policies/refunds-returns" className="block text-base text-on-dark-muted hover:text-white">Returns</Link>
-              <Link href="/policies/shipping-delivery" className="block text-base text-on-dark-muted hover:text-white">Shipping Info</Link>
-              <Link href="/account" className="block text-base text-on-dark-muted hover:text-white">Order Lookup</Link>
-              <Link href="/faq#recalls" className="block text-base text-on-dark-muted hover:text-white">Recalls</Link>
-              <Link href="/contact" className="block text-base text-on-dark-muted hover:text-white">Store Locator</Link>
+              <Link href="/policies/refunds-returns" className="block text-base text-on-dark-muted hover:text-black">Returns</Link>
+              <Link href="/policies/shipping-delivery" className="block text-base text-on-dark-muted hover:text-black">Shipping Info</Link>
+              <Link href="/account" className="block text-base text-on-dark-muted hover:text-black">Order Lookup</Link>
+              <Link href="/faq#recalls" className="block text-base text-on-dark-muted hover:text-black">Recalls</Link>
+              <Link href="/contact" className="block text-base text-on-dark-muted hover:text-black">Store Locator</Link>
               <Expandable label="Help" href="/contact" subItems={[
                 { label: "Contact Us", href: "/contact" },
                 { label: "Website Accessibility Policy", href: "/accessibility" },
@@ -112,10 +112,10 @@ export function SiteFooter() {
 
           {/* Column 3: Services */}
           <div className="px-6 border-r border-gold/10">
-            <h3 className="text-sm font-bold tracking-[0.18em] text-white">SERVICES</h3>
+            <h3 className="text-sm font-bold tracking-[0.18em] text-black">SERVICES</h3>
             <div className="mt-4 space-y-3">
-              <Link href="/pricing" className="block text-base text-on-dark-muted hover:text-white">Subscription Perks</Link>
-              <Link href="/services" className="block text-base text-on-dark-muted hover:text-white">Dog Grooming</Link>
+              <Link href="/pricing" className="block text-base text-on-dark-muted hover:text-black">Subscription Perks</Link>
+              <Link href="/services" className="block text-base text-on-dark-muted hover:text-black">Dog Grooming</Link>
               <Expandable label="Learning Academy" href="/learn" subItems={[
                 { label: "Animal Behavior Technician", href: "/learn/courses/animal-behavior-technician" },
                 { label: "Animal Care Assistant", href: "/learn/courses/animal-care-assistant" },
@@ -139,11 +139,11 @@ export function SiteFooter() {
 
           {/* Column 4: Other Site Content */}
           <div className="px-6 border-r border-gold/10">
-            <h3 className="text-sm font-bold tracking-[0.18em] text-white">OTHER SITE CONTENT</h3>
+            <h3 className="text-sm font-bold tracking-[0.18em] text-black">OTHER SITE CONTENT</h3>
             <div className="mt-4 space-y-3">
-              <Link href="/veterinary-partners" className="block text-base text-on-dark-muted hover:text-white">Veterinary Partners</Link>
-              <Link href="/pet-insurance" className="block text-base text-on-dark-muted hover:text-white">Pet Insurance</Link>
-              <Link href="/pet-adoption" className="block text-base text-on-dark-muted hover:text-white">Pet Adoption</Link>
+              <Link href="/veterinary-partners" className="block text-base text-on-dark-muted hover:text-black">Veterinary Partners</Link>
+              <Link href="/pet-insurance" className="block text-base text-on-dark-muted hover:text-black">Pet Insurance</Link>
+              <Link href="/pet-adoption" className="block text-base text-on-dark-muted hover:text-black">Pet Adoption</Link>
               <Expandable label="Pet Education Center" href="/pet-education" subItems={[
                 { label: "Articles By Pets", href: "/pet-education/articles" },
                 { label: "Pet Care Sheets", href: "/pet-education/care-sheets" },
@@ -156,21 +156,21 @@ export function SiteFooter() {
 
           {/* Column 5: Corporate — no right border */}
           <div className="px-6">
-            <h3 className="text-sm font-bold tracking-[0.18em] text-white">CORPORATE</h3>
+            <h3 className="text-sm font-bold tracking-[0.18em] text-black">CORPORATE</h3>
             <div className="mt-4 space-y-3">
-              <Link href="/careers" className="block text-base text-on-dark-muted hover:text-white">Careers</Link>
+              <Link href="/careers" className="block text-base text-on-dark-muted hover:text-black">Careers</Link>
               <Expandable label="About Us" href="/about" subItems={[
                 { label: "Code of Ethics", href: "/about#code-of-ethics" },
               ]} />
-              <Link href="/events" className="block text-base text-on-dark-muted hover:text-white">Event Sponsorships</Link>
+              <Link href="/events" className="block text-base text-on-dark-muted hover:text-black">Event Sponsorships</Link>
               <Expandable label="Sellers" href="/seller" subItems={[
                 { label: "Seller Program", href: "/seller" },
               ]} />
-              <Link href="/shop/collections/gift-cards" className="block text-base text-on-dark-muted hover:text-white">Gift Cards</Link>
-              <Link href="/pricing" className="block text-base text-on-dark-muted hover:text-white">Coupons and Promos</Link>
-              <Link href="/contact" className="block text-base text-on-dark-muted hover:text-white">Investors</Link>
-              <Link href="/sustainability" className="block text-base text-on-dark-muted hover:text-white">Sustainability</Link>
-              <Link href="/contact" className="block text-base text-on-dark-muted hover:text-white">Advertise with Us</Link>
+              <Link href="/shop/collections/gift-cards" className="block text-base text-on-dark-muted hover:text-black">Gift Cards</Link>
+              <Link href="/pricing" className="block text-base text-on-dark-muted hover:text-black">Coupons and Promos</Link>
+              <Link href="/contact" className="block text-base text-on-dark-muted hover:text-black">Investors</Link>
+              <Link href="/sustainability" className="block text-base text-on-dark-muted hover:text-black">Sustainability</Link>
+              <Link href="/contact" className="block text-base text-on-dark-muted hover:text-black">Advertise with Us</Link>
             </div>
           </div>
         </div>
@@ -184,22 +184,22 @@ export function SiteFooter() {
         <div className="mt-10 flex items-start justify-evenly border-t border-gold/15 pt-8 pb-10">
           {/* Group 1: Text links (short pipes between items, no tall line) */}
           <div className="flex items-center gap-2">
-            <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-white">Pricing</Link>
+            <Link href="/pricing" className="text-sm font-semibold text-on-dark-muted hover:text-black">Pricing</Link>
             <Pipe />
-            <Link href="/services" className="text-sm font-semibold text-on-dark-muted hover:text-white">Services</Link>
+            <Link href="/services" className="text-sm font-semibold text-on-dark-muted hover:text-black">Services</Link>
             <Pipe />
-            <Link href="/contact" className="text-sm font-semibold text-on-dark-muted hover:text-white">Contact</Link>
+            <Link href="/contact" className="text-sm font-semibold text-on-dark-muted hover:text-black">Contact</Link>
             <Pipe />
-            <Link href="/process" className="text-sm font-semibold text-on-dark-muted hover:text-white">Our Process</Link>
+            <Link href="/process" className="text-sm font-semibold text-on-dark-muted hover:text-black">Our Process</Link>
             <Pipe />
-            <Link href="/shop" className="text-sm font-semibold text-on-dark-muted hover:text-white">/shop</Link>
+            <Link href="/shop" className="text-sm font-semibold text-on-dark-muted hover:text-black">/shop</Link>
           </div>
           {/* Group 2: Pet type nav — tall vertical line on left */}
           <div className="flex items-center gap-3 border-l border-gold/30 pl-6">
-            <Link href="/shop/dog" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-white"><Dog size={14} className="text-white" /> Dog</Link>
-            <Link href="/shop/cat" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-white"><Cat size={14} className="text-white" /> Cat</Link>
-            <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-white"><Package size={14} className="text-white" /> Product</Link>
-            <Link href="/shop/collections" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-white"><LayoutGrid size={14} className="text-white" /> Collections</Link>
+            <Link href="/shop/dog" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-black"><Dog size={14} className="text-black" /> Dog</Link>
+            <Link href="/shop/cat" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-black"><Cat size={14} className="text-black" /> Cat</Link>
+            <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-black"><Package size={14} className="text-black" /> Product</Link>
+            <Link href="/shop/collections" className="flex items-center gap-1 text-sm font-semibold text-on-dark-muted hover:text-black"><LayoutGrid size={14} className="text-black" /> Collections</Link>
           </div>
           {/* Group 3: Booking — tall vertical line on left, expands DOWN */}
           <div className="border-l border-gold/30 pl-6">
@@ -242,8 +242,8 @@ export function SiteFooter() {
         <div className="flex flex-col items-center justify-between gap-6 border-t border-gold/15 py-10 sm:flex-row">
           <div className="flex items-center gap-3">
             <p className="text-sm text-on-dark-muted">© {new Date().getFullYear()} {BUSINESS.legalName}. All rights reserved.</p>
-            <span className="text-white/20">|</span>
-            <Link href="/sitemap" className="text-sm text-on-dark-muted hover:text-white">Sitemap</Link>
+            <span className="text-black/20">|</span>
+            <Link href="/sitemap" className="text-sm text-on-dark-muted hover:text-black">Sitemap</Link>
           </div>
           <div className="flex items-center gap-3">
             <VisaLogo />
@@ -252,7 +252,7 @@ export function SiteFooter() {
             <ApplePayLogo />
             <GooglePayLogo />
             <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Scroll to top"
-              className="flex h-9 w-9 items-center justify-center rounded border border-gold/30 text-white hover:border-gold hover:bg-gold hover:text-ink">
+              className="flex h-9 w-9 items-center justify-center rounded border border-gold/30 text-black hover:border-gold hover:bg-gold hover:text-ink">
               <ArrowUp size={16} />
             </button>
           </div>
