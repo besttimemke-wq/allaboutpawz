@@ -70,3 +70,35 @@ nohup.out
 
 # --- agent session artifacts (may capture file contents incl. secrets) ---
 agent-ctx/
+
+# --- owner directive: do NOT commit these — they stay local ---
+worklog.md
+/worklog*.md
+/download/
+/prisma/
+/tests/
+/todo/
+/verify/
+/examples/
+/db/
+/sql/
+/skills/
+/agent-ctx/
+/tool-results/
+/.zscripts/
+
+# Root-level unnecessary files (build scripts, migration helpers, temp data)
+*.cjs
+migration_report.json
+sql_diff_report.txt
+_r.json
+_sm.html
+_sm.xml
+--full-page
+--viewport
+dev-keeper.log
+nohup.out
+
+# PNG images stay local (screenshots, reference images, etc.)
+/*.png
+/*.jpeg
