@@ -256,6 +256,17 @@ export async function AnimalLandingPage({
       {/* Department carousel — "how to get there" */}
       <CategoryCarousel title={`Shop ${animal.name.replace(" Supplies", "")} by Department`} cards={departmentCards} />
 
+      {/* The PLP — sidebar (categories + filters) + product grid.
+          EVERY shop page has BOTH: the carousel above for browse-by-image,
+          AND the sidebar+grid here for actual shopping. The sidebar's
+          Categories section shows ONLY this animal's departments (the
+          Plp filters by current path). */}
+      <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
+        <div className="mx-auto max-w-7xl">
+          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
+        </div>
+      </section>
+
       {/* Grooming cross-sell — single line, no box */}
       <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-8 lg:px-12">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
@@ -384,6 +395,15 @@ export async function DepartmentPage({
           cards={subcategoryCards}
         />
       )}
+
+      {/* The PLP — sidebar (categories + filters) + product grid.
+          EVERY shop page has BOTH: the carousel above for browse-by-image,
+          AND the sidebar+grid here for actual shopping. */}
+      <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
+        <div className="mx-auto max-w-7xl">
+          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} />
+        </div>
+      </section>
 
       {/* Grooming cross-sell — single line, no box */}
       <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-8 lg:px-12">

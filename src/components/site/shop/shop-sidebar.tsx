@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { X, ChevronDown, Search, Star, PawPrint, ChevronUp } from "lucide-react"
+import { X, Plus, Minus, Search, Star, PawPrint, ChevronUp, ChevronDown } from "lucide-react"
 import { CATEGORY_ICONS as ICONS } from "./category-icons"
 import type { FilterSection, NavCategory, MerchCollection } from "@/lib/shop/types"
 
@@ -159,10 +159,10 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
   }
 
   return (
-    <div className="flex h-full flex-col bg-neutral-50">
+    <div className="flex h-full flex-col bg-white">
       {/* ---- Header ---- */}
-      <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4">
-        <p className="text-[13px] font-bold tracking-[0.14em] text-ink">SHOP</p>
+      <div className="flex items-center justify-between px-5 py-4">
+        <p className="text-[14px] font-semibold text-ink">Shop</p>
         {onClose ? (
           <button
             type="button"
@@ -179,9 +179,9 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
 
       {/* ---- Scrollable body: CATEGORIES nav + FILTERS (instant-apply) ---- */}
       <div className="flex-1 overflow-y-auto px-5 pb-5 pt-5">
-        {/* ================= CATEGORIES (navigation) ================= */}
+        {/* ================= Categories (navigation) ================= */}
         <nav aria-label="Shop categories">
-          <p className="sectionLabel">CATEGORIES</p>
+          <p className="text-[14px] font-semibold text-ink">Categories</p>
           <ul className="mt-3 space-y-0.5">
             {/* Shop-all row */}
             <li>
@@ -286,23 +286,23 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
           </ul>
         </nav>
 
-        {/* ================= FILTERS (checkbox-driven) ================= */}
+        {/* ================= FILTERS (collapsible +, instant-apply) ================= */}
         {data.filterSections.length > 0 && (
           <div className="mt-6">
             <div className="flex items-center justify-between">
-              <p className="sectionLabel">FILTERS{appliedCount > 0 ? ` (${appliedCount})` : ""}</p>
+              <p className="text-[14px] font-semibold text-ink">Filters{appliedCount > 0 ? ` (${appliedCount})` : ""}</p>
               {appliedCount > 0 && (
                 <button
                   type="button"
                   onClick={clearAll}
-                  className="text-[9px] font-bold tracking-[0.1em] uppercase text-gold-deep underline-offset-2 hover:underline"
+                  className="text-[11px] font-semibold text-gold-deep underline-offset-2 hover:underline"
                 >
                   Clear all
                 </button>
               )}
             </div>
 
-            <div className="mt-3 space-y-1">
+            <div className="mt-2">
               {data.filterSections.map((section) => (
                 <FilterGroup key={section.kind === "check" ? section.key : section.kind} section={section}>
                   {section.kind === "price" && (
@@ -421,7 +421,11 @@ function CountTag({ n }: { n: number }) {
   return <span className="ml-auto text-[9.5px] font-medium text-ink-soft/70">{n}</span>
 }
 
-/** Collapsible filter group — state survives open/close per the spec. */
+/** Collapsible filter group — Plus icon when collapsed, Minus when expanded.
+ *  Starts COLLAPSED by default (the user clicks to expand each section).
+ *  No border around the section — just a thin light gray divider line below
+ *  (border-b border-neutral-100) so the sections stack cleanly like the
+ *  Petco reference. */
 function FilterGroup({
   section,
   children,
@@ -429,23 +433,26 @@ function FilterGroup({
   section: FilterSection
   children: React.ReactNode
 }) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const label = section.label
   return (
-    <div className="border-b border-neutral-200 pb-1.5 last:border-b-0">
+    <div className="border-b border-neutral-100 last:border-b-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between py-2 text-left"
+        className="flex w-full items-center justify-between py-3 text-left"
       >
-        <span className="text-[10px] font-bold tracking-[0.14em] text-ink uppercase">{label}</span>
-        <ChevronDown
-          className={`h-3.5 w-3.5 text-ink-soft transition-transform duration-200 ${open ? "" : "-rotate-90"}`}
-          strokeWidth={2}
-        />
+        {/* Title Case header — bold dark, NOT uppercase. */}
+        <span className="text-[14px] font-semibold text-ink">{label}</span>
+        {/* Plus icon (collapsed) → Minus icon (expanded). */}
+        {open ? (
+          <Minus className="h-3.5 w-3.5 text-ink" strokeWidth={2} aria-hidden="true" />
+        ) : (
+          <Plus className="h-3.5 w-3.5 text-ink" strokeWidth={2} aria-hidden="true" />
+        )}
       </button>
-      {open && <div className="pb-2">{children}</div>}
+      {open && <div className="pb-3">{children}</div>}
     </div>
   )
 }

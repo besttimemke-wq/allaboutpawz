@@ -116,10 +116,12 @@ export async function Plp({
     <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
       {/* Desktop rail — sticky; categories navigate, filters refine.
           Height-constrained to the viewport so the rail never extends past
-          the footer (the bug the owner called out). overflow-y-auto lets
-          the categories + filters scroll independently inside the rail. */}
+          the footer. NO outer border — the sidebar is white background
+          that blends into the page (matches the Petco reference design:
+          no border around the filter sidebar, just subtle internal dividers
+          between filter sections). */}
       <aside className="hidden w-[240px] shrink-0 self-start lg:sticky lg:top-6 lg:block">
-        <div className="max-h-[calc(100vh-3rem)] overflow-y-auto border border-neutral-200 bg-white">
+        <div className="max-h-[calc(100vh-3rem)] overflow-y-auto bg-white">
           <ShopSidebar key={JSON.stringify(applied)} data={sidebar} />
         </div>
       </aside>
