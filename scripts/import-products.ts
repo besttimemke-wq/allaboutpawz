@@ -168,7 +168,7 @@ const PRODUCT_TYPE_MAP: Record<string, { animal: string; subcategory: string }> 
 }
 
 async function main() {
-  const client = new pg.Client({ connectionString: DB_URL })
+  const client = new pg.Client({ connectionString: DB_URL, ssl: { rejectUnauthorized: false } })
   await client.connect()
   console.log("Connected to Supabase")
 
@@ -178,7 +178,7 @@ async function main() {
   if (plRes.rows.length > 0) {
     priceListId = plRes.rows[0].id
   } else {
-    const newPl = await client.query("INSERT INTO public.commerce_price_lists (tenant_id, name, currency, active) VALUES ($1, 'Retail', 'USD', true) RETURNING id", [TENANT])
+    const newPl = await client.query("INSERT INTO public.commerce_price_lists (tenant_id, code, name, currency, active) VALUES ($1, 'RETAIL', 'Retail', 'USD', true) RETURNING id", [TENANT])
     priceListId = newPl.rows[0].id
   }
 
@@ -188,7 +188,7 @@ async function main() {
   if (whRes.rows.length > 0) {
     warehouseId = whRes.rows[0].id
   } else {
-    const newWh = await client.query("INSERT INTO public.erp_warehouses (tenant_id, name, is_active) VALUES ($1, 'Main', true) RETURNING id", [TENANT])
+    const newWh = await client.query("INSERT INTO public.erp_warehouses (tenant_id, code, name, warehouse_type, is_active) VALUES ($1, 'MAIN', 'Main', 'store', true) RETURNING id", [TENANT])
     warehouseId = newWh.rows[0].id
   }
 
