@@ -76,7 +76,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
   }
 
   return (
-    <article className="group flex flex-col rounded-lg border border-neutral-200 bg-white overflow-hidden transition-all hover:border-[#002B5C] hover:shadow-md">
+    <article className="group flex flex-col rounded-lg border border-neutral-200 bg-white overflow-hidden transition-all hover:border-[#F2C500] hover:shadow-md">
       {/* 1. Image — 1:1 crop */}
       <div className="relative aspect-square overflow-hidden bg-neutral-50">
         {badge && (
@@ -108,7 +108,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
         {product.category && (
           <Link
             href={`/shop?category=${encodeURIComponent(product.category)}`}
-            className="text-[8px] font-bold tracking-[0.18em] text-neutral-400 uppercase hover:underline"
+            className="text-[8px] font-bold tracking-[0.18em] text-neutral-400 uppercase hover:text-[#806500] hover:underline"
           >
             {product.category}
           </Link>
@@ -117,7 +117,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
         {/* 4. Product name — 2-line clamp */}
         <Link
           href={href}
-          className="mt-1 text-[13px] leading-[1.35] font-semibold text-neutral-900 hover:text-[#002B5C] transition-colors line-clamp-2"
+          className="mt-1 text-[13px] leading-[1.35] font-semibold text-neutral-900 hover:text-[#806500] transition-colors line-clamp-2"
         >
           {product.name}
         </Link>

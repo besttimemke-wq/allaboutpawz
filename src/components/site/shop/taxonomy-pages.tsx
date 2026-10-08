@@ -1,11 +1,12 @@
 import Link from "next/link"
-import { ChevronRight, ArrowRight } from "lucide-react"
+import { ChevronRight, ArrowRight, PawPrint, Plus } from "lucide-react"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath, type ShopNavAnimal, type ShopNavDepartment } from "@/lib/shop-nav"
 import { BUSINESS } from "@/lib/business"
 import { SITE_URL } from "@/lib/site-url"
 import { breadcrumbSchema } from "@/lib/business"
 import { Plp } from "./plp"
 import { CategoryCarousel } from "./category-carousel"
+import { ShopPromoBanner } from "./shop-promo-banner"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 
 // ---------------------------------------------------------------------------
@@ -88,21 +89,33 @@ const DEPARTMENT_IMAGE: Record<string, string> = {
   // cat departments
   "cat/beds-bedding": "/Shop/departments/cat-beds-bedding.jpeg",
   "cat/bowls-feeders": "/Shop/departments/cat-bowls-feeders.jpeg",
+  "cat/carriers-containment": "/Shop/departments/cat-carriers-containment.jpeg",
+  "cat/cleaners-waste-disposal": "/Shop/departments/cat-cleaners-waste-disposal.jpeg",
+  "cat/clothing-accessories": "/Shop/departments/cat-clothing-accessories.jpeg",
   "cat/food": "/Shop/departments/cat-food.jpeg",
+  "cat/flea-tick": "/Shop/departments/cat-flea-tick.jpeg",
   "cat/furniture-scratchers": "/Shop/departments/cat-furniture-scratchers.jpeg",
   "cat/grooming-bathing": "/Shop/departments/cat-grooming-bathing.jpeg",
+  "cat/health-wellness": "/Shop/departments/cat-health-wellness-extra.jpeg",
   "cat/litter-litter-boxes-accessories": "/Shop/departments/cat-litter.jpeg",
+  "cat/steps-ramps": "/Shop/departments/cat-steps-ramps.jpeg",
   "cat/toys": "/Shop/departments/cat-toys.jpeg",
+  "cat/training-behavior": "/Shop/departments/cat-training-behavior.jpeg",
   "cat/treats": "/Shop/departments/cat-treats.jpeg",
   // dog departments
+  "dog/apparel-accessories": "/Shop/departments/dog-apparel-accessories.jpeg",
   "dog/beds-bedding": "/Shop/departments/dog-beds-bedding.jpeg",
   "dog/bowls-feeding": "/Shop/departments/dog-bowls-feeding.jpeg",
+  "dog/cleaning-potty-supplies": "/Shop/departments/dog-cleaning-potty-supplies.jpeg",
+  "dog/collars-harnesses-leashes": "/Shop/departments/dog-collars-harnesses-leashes.jpeg",
+  "dog/crates-containment": "/Shop/departments/dog-crates-containment.jpeg",
+  "dog/flea-tick": "/Shop/departments/dog-flea-tick.jpeg",
   "dog/food": "/Shop/departments/dog-food.jpeg",
   "dog/grooming-bathing": "/Shop/departments/dog-grooming-bathing.jpeg",
+  "dog/health-wellness": "/Shop/departments/dog-health-wellness.jpeg",
+  "dog/outdoor-travel-gear": "/Shop/departments/dog-outdoor-travel-gear.jpeg",
   "dog/toys": "/Shop/departments/dog-toys.jpeg",
   "dog/treats-chews": "/Shop/departments/dog-treats-chews.jpeg",
-  "dog/collars-harnesses-leashes": "/Shop/departments/dog-collars-harnesses-leashes.jpeg",
-  "dog/health-wellness": "/Shop/departments/dog-health-wellness.jpeg",
 }
 
 // Fallback breed portraits for departments WITHOUT a generated image.
@@ -121,9 +134,61 @@ const FALLBACK_IMAGES = [
   "/Shop/heroes/border-collie.jpeg",
 ]
 
-function imageForCard(deptPath: string | undefined, fallbackIndex: number): string {
+function imageForCard(deptPath: string | undefined, fallbackIndex: number): string | undefined {
   if (deptPath && DEPARTMENT_IMAGE[deptPath]) return DEPARTMENT_IMAGE[deptPath]
+  if (deptPath && !deptPath.startsWith("cat/") && !deptPath.startsWith("dog/")) return undefined
   return FALLBACK_IMAGES[fallbackIndex % FALLBACK_IMAGES.length]
+}
+
+function TaxonomyHero({
+  eyebrow,
+  title,
+  description,
+  image,
+  imageAlt,
+  quickLinks,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  image?: string
+  imageAlt: string
+  quickLinks: { name: string; href: string; image?: string; imageAlt: string }[]
+}) {
+  return (
+    <section className="px-6 pb-7 pt-5 lg:px-12">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid overflow-hidden border border-[#002B5C]/15 bg-white lg:grid-cols-[1fr_1.05fr]">
+          <div className="flex flex-col justify-center px-6 py-7 sm:px-9 lg:py-9">
+            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#002B5C]/65">{eyebrow}</p>
+            <h1 className="mt-2 font-display text-[30px] font-bold leading-tight text-[#002B5C] sm:text-[38px]">{title}</h1>
+            <p className="mt-3 max-w-lg text-[12px] leading-relaxed text-neutral-600">{description}</p>
+            <Link href="#shop-category-carousel" className="mt-5 inline-flex min-h-10 w-fit items-center gap-2 bg-[#002B5C] px-4 text-[10px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">
+              Browse categories <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          </div>
+          <div className={`relative flex min-h-[220px] items-center justify-center overflow-hidden sm:min-h-[280px] ${image ? "bg-neutral-100" : "bg-[#002B5C]"}`}>
+            {image ? (
+              <img src={image} alt={imageAlt} className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <PawPrint className="h-14 w-14 text-white/45" strokeWidth={1.1} aria-hidden="true" />
+            )}
+          </div>
+        </div>
+        {quickLinks.length > 0 && (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {quickLinks.slice(0, 3).map((item) => (
+              <Link key={item.href} href={item.href} className="group grid grid-cols-[88px_1fr_auto] items-center gap-3 border border-neutral-200 bg-white p-2 transition-colors hover:border-[#F2C500] hover:bg-[#FFF9D9]">
+                <img src={item.image} alt={item.imageAlt} className="aspect-[4/3] h-full w-full object-cover" />
+                <span className="text-[11px] font-bold leading-snug text-[#002B5C]">{item.name}</span>
+                <Plus className="mr-1 h-4 w-4 text-[#002B5C] transition-transform group-hover:rotate-90" aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
 }
 
 // --- Animal Landing Page (/shop/dog, /shop/cat) ---
@@ -169,8 +234,7 @@ export async function AnimalLandingPage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
 
-      {/* Breadcrumb + H1 — single line, no narrative */}
-      <section className="border-b border-neutral-200 px-6 py-6 lg:px-12 lg:py-8">
+      <section className="border-b border-neutral-200 px-6 py-3 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <nav className="flex items-center gap-2 text-[12px] text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
@@ -179,14 +243,24 @@ export async function AnimalLandingPage({
             <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <span className="text-ink">{animal.name}</span>
           </nav>
-          <h1 className="mt-3 font-display text-[28px] leading-[1.15] text-ink lg:text-[36px]">
-            {seo?.h1 || `${animal.name} in Memphis, TN`}
-          </h1>
         </div>
       </section>
 
-      {/* Department carousel — "how to get there" */}
-      <CategoryCarousel title={`Shop ${animal.name.replace(" Supplies", "")} by Department`} cards={departmentCards} />
+      <TaxonomyHero
+        eyebrow="SHOP BY ANIMAL"
+        title={seo?.h1 || animal.name}
+        description={animal.tagline}
+        image={imageForCard(`${animal.slug}/${animal.departments[0]?.slug}`, 0)}
+        imageAlt={`${animal.name} collection at All About Pawz`}
+        quickLinks={departmentCards.slice(0, 3)}
+      />
+      <ShopPromoBanner
+        image={imageForCard(`${animal.slug}/${animal.departments[0]?.slug}`, 0)}
+        imageAlt={`${animal.name} shop offer`}
+        href={path}
+      />
+
+      <CategoryCarousel id="shop-category-carousel" title={`Shop ${animal.name.replace(" Supplies", "")} by Department`} cards={departmentCards} />
 
       {/* The PLP — sidebar (categories + filters) + product grid.
           EVERY shop page has BOTH: the carousel above for browse-by-image,
@@ -289,8 +363,7 @@ export async function DepartmentPage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemList) }} />
 
-      {/* Breadcrumb + H1 — single line, no narrative */}
-      <section className="border-b border-neutral-200 px-6 py-6 lg:px-12 lg:py-8">
+      <section className="border-b border-neutral-200 px-6 py-3 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <nav className="flex flex-wrap items-center gap-2 text-[12px] text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
@@ -301,15 +374,22 @@ export async function DepartmentPage({
             <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <span className="text-ink">{dept.name}</span>
           </nav>
-          <h1 className="mt-3 font-display text-[28px] leading-[1.15] text-ink lg:text-[36px]">
-            {seo?.h1 || dept.name}
-          </h1>
         </div>
       </section>
 
-      {/* Subcategory carousel — "how to get there" */}
+      <TaxonomyHero
+        eyebrow={animal.name}
+        title={seo?.h1 || dept.name}
+        description={descriptionFor(`${animal.slug}/${dept.slug}`)}
+        image={parentImage}
+        imageAlt={`${dept.name} at All About Pawz`}
+        quickLinks={subcategoryCards.slice(0, 3)}
+      />
+      <ShopPromoBanner image={parentImage} imageAlt={`${dept.name} shop offer`} href={path} />
+
       {subcategoryCards.length > 0 && (
         <CategoryCarousel
+          id="shop-category-carousel"
           title="Shop by Category"
           cards={subcategoryCards}
         />
@@ -385,13 +465,21 @@ export async function SubcategoryPage({
     { name: dept.name, url: departmentPath(animal.slug, dept.slug) },
     { name: subName, url: path },
   ])
+  const parentImage = imageForCard(`${animal.slug}/${dept.slug}`, 0)
+  const siblingCards = dept.subcategories.map((sub) => ({
+    name: sub.name,
+    description: descriptionFor(`${animal.slug}/${dept.slug}`),
+    href: subcategoryPath(animal.slug, dept.slug, sub.slug),
+    image: parentImage,
+    imageAlt: `${sub.name} at All About Pawz`,
+  }))
+  const quickLinks = siblingCards.filter((card) => card.href !== path)
 
   return (
     <article className="bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
 
-      {/* Breadcrumb + H1 + ONE-sentence intro */}
-      <section className="border-b border-neutral-200 px-6 py-6 lg:px-12 lg:py-8">
+      <section className="border-b border-neutral-200 px-6 py-3 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <nav className="flex flex-wrap items-center gap-2 text-[12px] text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
@@ -404,16 +492,22 @@ export async function SubcategoryPage({
             <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <span className="text-ink">{subName}</span>
           </nav>
-          <h1 className="mt-3 font-display text-[24px] leading-[1.15] text-ink lg:text-[28px]">
-            {seo?.h1 || subName}
-          </h1>
-          <p className="mt-2 max-w-2xl text-[12px] leading-relaxed text-ink-soft">
-            Shop {subName.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.
-          </p>
         </div>
       </section>
 
-      {/* Plp — sidebar filters + sort toolbar + product grid (the leaf) */}
+      <TaxonomyHero
+        eyebrow={dept.name}
+        title={seo?.h1 || subName}
+        description={`Shop ${subName.toLowerCase()} at All About Pawz Memphis, selected for quality and everyday use.`}
+        image={parentImage}
+        imageAlt={`${subName} at All About Pawz`}
+        quickLinks={quickLinks.length > 0 ? quickLinks : [{ name: `All ${dept.name}`, href: departmentPath(animal.slug, dept.slug), image: parentImage, imageAlt: dept.name }]}
+      />
+      <ShopPromoBanner image={parentImage} imageAlt={`${subName} shop offer`} href={path} />
+      {siblingCards.length > 0 && (
+        <CategoryCarousel id="shop-category-carousel" title={`More in ${dept.name}`} cards={siblingCards} />
+      )}
+
       <section className="px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} categoryFilter={dept.subcategories.length > 0 ? dept.subcategories.map(s => s.name) : [dept.name]} />

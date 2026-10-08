@@ -161,7 +161,7 @@ function CategoryCard({ node, compact = false }: { node: NavCategory; compact?: 
   return (
     <Link
       href={node.path}
-      className={`group flex shrink-0 snap-start flex-col border border-ink/10 bg-white transition-colors hover:border-[#002B5C]/40 ${
+      className={`group flex shrink-0 snap-start flex-col border border-ink/10 bg-white transition-colors hover:border-[#F2C500] ${
         compact ? "w-[150px] lg:w-auto" : ""
       }`}
     >
@@ -186,7 +186,7 @@ function CategoryCard({ node, compact = false }: { node: NavCategory; compact?: 
       </div>
       <div className="flex items-center gap-2.5 px-3.5 py-3">
         <Icon className="h-4 w-4 shrink-0 text-[#002B5C]" strokeWidth={1.6} aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[0.04em] text-ink group-hover:text-[#002B5C]">
+        <span className="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[0.04em] text-ink group-hover:text-[#806500]">
           {node.displayName}
         </span>
         <ChevronRight className="h-3 w-3 shrink-0 text-ink-soft/50 transition-transform group-hover:translate-x-0.5" strokeWidth={2} aria-hidden="true" />
@@ -210,7 +210,7 @@ export function SiblingTabs({ nodes, currentPath, parentPath, parentLabel }: {
         className={`shrink-0 border px-3.5 py-1.5 text-[10px] font-bold tracking-[0.08em] uppercase transition-colors ${
           currentPath === parentPath
             ? "border-[#002B5C] bg-[#002B5C] text-white"
-            : "border-ink/15 bg-white text-ink-soft hover:border-[#002B5C] hover:text-[#002B5C]"
+            : "border-ink/15 bg-white text-ink-soft hover:border-[#F2C500] hover:bg-[#FFF9D9] hover:text-[#002B5C]"
         }`}
       >
         All {parentLabel}
@@ -223,7 +223,7 @@ export function SiblingTabs({ nodes, currentPath, parentPath, parentLabel }: {
           className={`shrink-0 border px-3.5 py-1.5 text-[10px] font-bold tracking-[0.08em] uppercase transition-colors ${
             n.path === currentPath
               ? "border-[#002B5C] bg-[#002B5C] text-white"
-              : "border-ink/15 bg-white text-ink-soft hover:border-[#002B5C] hover:text-[#002B5C]"
+              : "border-ink/15 bg-white text-ink-soft hover:border-[#F2C500] hover:bg-[#FFF9D9] hover:text-[#002B5C]"
           }`}
         >
           {n.displayName}

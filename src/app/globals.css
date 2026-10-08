@@ -190,15 +190,15 @@
   border-radius: 0.25rem;
   transition: background-color 0.15s ease, color 0.15s ease;
   &:hover {
-    background-color: color-mix(in oklab, var(--cream-deep) 70%, transparent);
-    color: var(--gold-deep);
+    background-color: #fff9d9;
+    color: #002b5c;
   }
 }
 @utility navRowActive {
-  background-color: color-mix(in oklab, var(--gold-light) 30%, transparent);
-  color: var(--gold-deep);
+  background-color: #fff4b2;
+  color: #002b5c;
   font-weight: 700;
-  box-shadow: inset 2px 0 0 var(--gold-deep);
+  box-shadow: inset 2px 0 0 #f2c500;
 }
 @utility subRow {
   display: flex;
@@ -211,10 +211,10 @@
   color: var(--ink-soft);
   border-radius: 0.25rem;
   transition: color 0.15s ease;
-  &:hover { color: var(--gold-deep); }
+  &:hover { background-color: #fff9d9; color: #002b5c; }
 }
 @utility subRowActive {
-  color: var(--gold-deep);
+  color: #002b5c;
   font-weight: 700;
 }
 @utility navIconWrap {

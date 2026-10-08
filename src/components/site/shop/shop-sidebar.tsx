@@ -3,8 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { X, Plus, Minus, Search, Star, PawPrint, ChevronUp, ChevronDown } from "lucide-react"
-import { CATEGORY_ICONS as ICONS } from "./category-icons"
+import { X, Plus, Minus, Search, Star, ChevronUp, ChevronDown } from "lucide-react"
 import type { FilterSection, NavCategory, MerchCollection } from "@/lib/shop/types"
 
 // ---------------------------------------------------------------------------
@@ -34,6 +33,8 @@ export type SidebarData = {
   categories: NavCategory[]
   /** New Arrivals / Sale — merchandising destinations. */
   merch: MerchCollection[]
+  /** Categories represented by products currently marked as new. */
+  newArrivalCategories: { key: string; displayName: string; path: string; count: number }[]
   /** The current route's category node (null = shop-all). */
   current: NavCategory | null
   /** Current merch key when on /shop/new-arrivals or /shop/sale. */
@@ -91,6 +92,8 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
   const [sectionQueries, setSectionQueries] = useState<Record<string, string>>({})
   // Per-section "show more" toggles (keyed by section.key).
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
+  const [expandedNewArrivals, setExpandedNewArrivals] = useState<boolean | null>(null)
 
   const appliedCount = countApplied(data.applied)
 
@@ -158,6 +161,50 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
     return node.level === 1 && !!data.current?.path.startsWith(`${node.path}/`)
   }
 
+  const categoryIsExpanded = (node: NavCategory) => {
+    if (expandedCategories[node.key] !== undefined) return expandedCategories[node.key]
+    return !!data.current?.path.startsWith(`${node.path}/`) || data.current?.path === node.path
+  }
+
+  const renderCategory = (node: NavCategory): React.ReactNode => {
+    const active = isCurrent(node)
+    const hasChildren = node.children.length > 0
+    const expanded = categoryIsExpanded(node)
+    return (
+      <li key={node.key}>
+        <div className="flex items-center gap-1">
+          <Link
+            href={node.path}
+            className={`navRow min-w-0 flex-1 ${active ? "navRowActive" : ""}`}
+            aria-current={data.current?.path === node.path ? "page" : undefined}
+          >
+            <span className="navLabel">{node.displayName}</span>
+            <CountTag n={node.count} />
+          </Link>
+          {hasChildren && (
+            <button
+              type="button"
+              onClick={() => setExpandedCategories((state) => ({ ...state, [node.key]: !expanded }))}
+              aria-label={`${expanded ? "Collapse" : "Expand"} ${node.displayName} categories`}
+              aria-expanded={expanded}
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-ink-soft transition-colors hover:bg-[#FFF9D9] hover:text-[#002B5C]"
+            >
+              {expanded ? <Minus className="h-3.5 w-3.5" aria-hidden="true" /> : <Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+            </button>
+          )}
+        </div>
+        {hasChildren && expanded && (
+          <ul className="mb-1 ml-3 space-y-0.5 border-l border-neutral-200 pl-2">
+            {node.children.map(renderCategory)}
+          </ul>
+        )}
+      </li>
+    )
+  }
+  const newArrivals = data.merch.find((item) => item.key === "new-arrivals")
+  const otherMerch = data.merch.filter((item) => item.key !== "new-arrivals")
+  const newArrivalsOpen = expandedNewArrivals ?? data.currentMerch === "new-arrivals"
+
   return (
     <div className="flex h-full flex-col bg-white">
       {/* ---- Header ---- */}
@@ -184,106 +231,61 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
         <nav aria-label="Shop categories">
           <p className="text-[14px] font-semibold text-ink">Categories</p>
           <ul className="mt-3 space-y-0.5">
-            {/* Shop-all row */}
-            <li>
-              <Link
-                href="/shop"
-                className={`navRow ${isCurrent(null) ? "navRowActive" : ""}`}
-                aria-current={isCurrent(null) ? "page" : undefined}
-              >
-                <span className="navIconWrap">
-                  <PawPrint className="h-[15px] w-[15px]" strokeWidth={1.7} aria-hidden="true" />
-                </span>
-                <span className="navLabel">All Products</span>
-                <CountTag n={data.categories.reduce((s, c) => s + c.count, 0)} />
-              </Link>
-            </li>
-
-            {/* Species parents (Dog) + their departments as flat rows —
-                the reference layout: Dog, Grooming, Wellness, Toys, … */}
-            {data.categories.map((node) => {
-              const Icon = ICONS[node.key] || PawPrint
-              const active = isCurrent(node)
-              return (
-                <li key={node.key}>
+            {newArrivals && (
+              <li>
+                <div className="flex items-center gap-1">
                   <Link
-                    href={node.path}
-                    className={`navRow ${active ? "navRowActive" : ""}`}
-                    aria-current={active ? "page" : undefined}
+                    href={newArrivals.path}
+                    className={`navRow min-w-0 flex-1 ${data.currentMerch === "new-arrivals" ? "navRowActive" : ""}`}
+                    aria-current={data.currentMerch === "new-arrivals" ? "page" : undefined}
                   >
-                    <span className="navIconWrap">
-                      <Icon className="h-[15px] w-[15px]" strokeWidth={1.7} />
-                    </span>
-                    <span className="navLabel">{node.displayName}</span>
-                    <CountTag n={node.count} />
+                    <span className="navLabel">{newArrivals.displayName}</span>
+                    <CountTag n={newArrivals.count} />
                   </Link>
-
-                  {/* The species' departments render as top rows (nav, not
-                      checkboxes); the active department additionally exposes
-                      its subcategories as indented destinations. */}
-                  <ul className="mt-0.5 space-y-0.5">
-                    {node.children.map((c) => {
-                      const CIcon = ICONS[c.key] || PawPrint
-                      const cActive = isCurrent(c)
-                      return (
-                        <li key={c.key}>
-                          <Link
-                            href={c.path}
-                            className={`navRow ${cActive ? "navRowActive" : ""}`}
-                            aria-current={cActive ? "page" : undefined}
-                          >
-                            <span className="navIconWrap">
-                              <CIcon className="h-[15px] w-[15px]" strokeWidth={1.7} />
-                            </span>
-                            <span className="navLabel">{c.displayName}</span>
-                            <CountTag n={c.count} />
-                          </Link>
-                          {cActive && c.children.length > 0 && (
-                            <ul className="mb-1 ml-[26px] space-y-0.5 border-l border-neutral-200 pl-3">
-                              {c.children.map((gc) => (
-                                <li key={gc.key}>
-                                  <Link
-                                    href={gc.path}
-                                    className={`subRow ${data.current?.path === gc.path ? "subRowActive" : ""}`}
-                                  >
-                                    <span className="navLabel">{gc.displayName}</span>
-                                    <CountTag n={gc.count} />
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      )
-                    })}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedNewArrivals(!newArrivalsOpen)}
+                    aria-label={`${newArrivalsOpen ? "Collapse" : "Expand"} New Arrivals categories`}
+                    aria-expanded={newArrivalsOpen}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center text-ink-soft transition-colors hover:bg-[#FFF9D9] hover:text-[#002B5C]"
+                  >
+                    {newArrivalsOpen ? <Minus className="h-3.5 w-3.5" aria-hidden="true" /> : <Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+                  </button>
+                </div>
+                {newArrivalsOpen && (
+                  <ul className="mb-1 ml-3 space-y-0.5 border-l border-neutral-200 pl-2">
+                    {data.newArrivalCategories.length > 0 ? data.newArrivalCategories.map((category) => (
+                      <li key={category.key}>
+                        <Link href={category.path} className="subRow">
+                          <span className="navLabel">{category.displayName}</span>
+                          <CountTag n={category.count} />
+                        </Link>
+                      </li>
+                    )) : (
+                      <li className="px-2 py-2 text-[11px] text-ink-soft">No current arrival categories</li>
+                    )}
                   </ul>
-                </li>
-              )
-            })}
+                )}
+              </li>
+            )}
 
-            {/* Merchandising destinations */}
-            {data.merch.length > 0 && (
+            {data.categories.map(renderCategory)}
+
+            {otherMerch.length > 0 && (
               <li aria-hidden="true" className="my-3 border-t border-neutral-200" />
             )}
-            {data.merch.map((m) => {
-              const Icon = ICONS[m.key] || PawPrint
-              const active = data.currentMerch === m.key
-              return (
-                <li key={m.key}>
-                  <Link
-                    href={m.path}
-                    className={`navRow ${active ? "navRowActive" : ""}`}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <span className="navIconWrap">
-                      <Icon className="h-[15px] w-[15px]" strokeWidth={1.7} />
-                    </span>
-                    <span className="navLabel">{m.displayName}</span>
-                    <CountTag n={m.count} />
-                  </Link>
-                </li>
-              )
-            })}
+            {otherMerch.map((item) => (
+              <li key={item.key}>
+                <Link
+                  href={item.path}
+                  className={`navRow ${data.currentMerch === item.key ? "navRowActive" : ""}`}
+                  aria-current={data.currentMerch === item.key ? "page" : undefined}
+                >
+                  <span className="navLabel">{item.displayName}</span>
+                  <CountTag n={item.count} />
+                </Link>
+              </li>
+            ))}
           </ul>
         </nav>
 

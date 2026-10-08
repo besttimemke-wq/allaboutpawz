@@ -3,6 +3,7 @@ import { X, ChevronLeft, ChevronRight, PawPrint } from "lucide-react"
 import {
   getMerchCollections,
   getFilterSections,
+  getProducts,
   queryProducts,
   parseSearchParams,
   type NavCategory,
@@ -31,6 +32,10 @@ export type PlpScope =
   | { kind: "all" }
   | { kind: "category"; node: NavCategory }
   | { kind: "merch"; merch: MerchKey; title: string; blurb: string }
+
+function normalizeCategoryLabel(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "")
+}
 
 export async function Plp({
   scope,
@@ -81,6 +86,14 @@ export async function Plp({
   //   /shop/cat/food   → food's subcategories (Broths, Dry Food, Wet Food...)
   //   /shop/cat/food/dry-cat-food → same subcategories (siblings, current highlighted)
   const fullTree = buildNavTreeFromTaxonomy() as unknown as NavCategory[]
+  const allNavCategories: NavCategory[] = []
+  const collectCategories = (nodes: NavCategory[]) => {
+    for (const node of nodes) {
+      allNavCategories.push(node)
+      collectCategories(node.children)
+    }
+  }
+  collectCategories(fullTree)
   const pathSegments = currentPath.split("/").filter(Boolean)
 
   let navTree: NavCategory[]
@@ -113,11 +126,35 @@ export async function Plp({
     }
   }
 
-  const [merch, filterSections, state] = await Promise.all([
+  const [merch, filterSections, state, allProducts] = await Promise.all([
     getMerchCollections(),
     getFilterSections(scopeIds, currentPath),
     Promise.resolve(parseSearchParams(searchParams)),
+    getProducts(),
   ])
+
+  const newArrivalCategoryCounts = new Map<string, { node: NavCategory; count: number }>()
+  for (const product of allProducts) {
+    if (!product.isNew || !product.category) continue
+    const categoryLabels = [
+      product.category,
+      ...product.category.split(/[>/|]/).map((label) => label.trim()),
+    ].map(normalizeCategoryLabel).filter(Boolean)
+    const matches = allNavCategories.filter((node) => {
+      const lastKey = node.key.split("/").pop() || node.key
+      return categoryLabels.includes(normalizeCategoryLabel(node.displayName)) || categoryLabels.includes(normalizeCategoryLabel(lastKey))
+    })
+    if (matches.length === 0) continue
+    const deepestLevel = Math.max(...matches.map((node) => node.level))
+    const deepestMatches = matches.filter((node) => node.level === deepestLevel)
+    if (deepestMatches.length !== 1) continue
+    const node = deepestMatches[0]
+    const existing = newArrivalCategoryCounts.get(node.path)
+    newArrivalCategoryCounts.set(node.path, { node, count: (existing?.count || 0) + 1 })
+  }
+  const newArrivalCategories = Array.from(newArrivalCategoryCounts.values())
+    .map(({ node, count }) => ({ key: node.key, displayName: node.displayName, path: node.path, count }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName))
 
   const result = await queryProducts({
     scopeIds,
@@ -144,6 +181,7 @@ export async function Plp({
   const sidebar: SidebarData = {
     categories: navTree,
     merch,
+    newArrivalCategories,
     current: currentNode,
     currentMerch: scope.kind === "merch" ? scope.merch : null,
     filterSections,

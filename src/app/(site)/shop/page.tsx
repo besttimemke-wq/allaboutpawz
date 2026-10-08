@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ChevronRight, ArrowRight, Search } from "lucide-react"
+import { ChevronRight, ArrowRight, Minus, PawPrint, Plus } from "lucide-react"
 import { SITE_URL } from "@/lib/site-url"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 import { BUSINESS } from "@/lib/business"
-import { SHOP_NAV_TAXONOMY, departmentPath } from "@/lib/shop-nav"
+import { SHOP_ANIMALS, SHOP_NAV_TAXONOMY, departmentPath } from "@/lib/shop-nav"
+import { ShopPromoBanner } from "@/components/site/shop/shop-promo-banner"
 
 export const metadata: Metadata = {
   title: "Dog & Cat Supplies, grooming & shopping in Memphis, TN | All About Pawz",
@@ -27,16 +28,19 @@ export default async function ShopPage({ searchParams }: PageProps) {
   await searchParams // searchParams read for stability; not used in landing
   const seo = findSeoCopy("/shop")
 
-  // Build the two animal cards (Cat, Dog) — the only navigation on /shop.
-  const animalCards = SHOP_NAV_TAXONOMY.map((animal) => ({
-    name: animal.name,
-    description: animal.tagline,
-    href: `/shop/${animal.slug}`,
-    deptCount: animal.departments.length,
-    firstDeptHref: animal.departments[0]
-      ? departmentPath(animal.slug, animal.departments[0].slug)
-      : `/shop/${animal.slug}`,
-  }))
+  const animalCards = SHOP_ANIMALS.map((animal) => {
+    const taxonomy = SHOP_NAV_TAXONOMY.find((entry) => entry.slug === animal.slug)
+    return {
+      ...animal,
+      description: taxonomy?.tagline || "Browse the full collection.",
+      departments: taxonomy?.departments || [],
+      image: animal.slug === "cat"
+        ? "/Shop/departments/cat-food.jpeg"
+        : animal.slug === "dog"
+          ? "/Shop/departments/dog-food.jpeg"
+          : null,
+    }
+  })
 
   return (
     <article className="bg-white">
@@ -72,35 +76,56 @@ export default async function ShopPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      {/* Animal cards — Cat, Dog. The only navigation on /shop. */}
       <section className="px-6 py-8 lg:px-12 lg:py-10">
         <div className="mx-auto max-w-7xl">
-          <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">Shop by Animal</h2>
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
+          <h2 className="font-display text-[20px] font-bold text-[#002B5C] lg:text-[24px]">Shop by Animal</h2>
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {animalCards.map((c) => (
-              <Link
-                key={c.href}
-                href={c.href}
-                className="group overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-[#002B5C] hover:shadow-md"
-              >
-                <div className="aspect-[16/9] overflow-hidden bg-neutral-100">
-                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-200">
-                    <Search className="h-10 w-10 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
+              <details key={c.href} className="group border border-neutral-200 bg-white open:border-[#F2C500]">
+                <summary className="list-none cursor-pointer">
+                  <div className="relative aspect-[16/9] overflow-hidden bg-neutral-100">
+                    {c.image ? (
+                      <img src={c.image} alt={c.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[#002B5C]/45">
+                        <PawPrint className="h-10 w-10" strokeWidth={1.3} aria-hidden="true" />
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-center justify-between p-5">
-                  <div>
-                    <h3 className="text-[18px] font-bold text-ink group-hover:text-[#002B5C]">{c.name}</h3>
-                    <p className="mt-1 text-[13px] text-ink-soft">{c.description}</p>
-                    <p className="mt-1 text-[11px] text-ink-soft/70">{c.deptCount} departments</p>
+                  <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-3 transition-colors group-hover:bg-[#FFF9D9]">
+                    <div>
+                      <h3 className="text-[13px] font-bold text-[#002B5C]">{c.name}</h3>
+                      <p className="mt-1 text-[11px] text-neutral-600">{c.description}</p>
+                    </div>
+                    <Plus className="h-4 w-4 shrink-0 text-[#002B5C] group-open:hidden" aria-hidden="true" />
+                    <Minus className="hidden h-4 w-4 shrink-0 text-[#002B5C] group-open:block" aria-hidden="true" />
                   </div>
-                  <ArrowRight className="h-5 w-5 shrink-0 text-ink-soft transition-colors group-hover:text-[#002B5C]" aria-hidden="true" />
+                </summary>
+                <div className="border-t border-neutral-200 px-4 py-3">
+                  {c.departments.length > 0 ? (
+                    <ul className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                      {c.departments.map((department) => (
+                        <li key={department.slug}>
+                          <Link href={departmentPath(c.slug, department.slug)} className="text-[11px] text-neutral-700 transition-colors hover:text-[#806500] hover:underline">
+                            {department.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[11px] text-neutral-600">Browse available {c.name.toLowerCase()} categories.</p>
+                  )}
+                  <Link href={c.href} className="mt-3 inline-flex min-h-9 items-center gap-2 bg-[#002B5C] px-3 text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">
+                    Shop all <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Link>
                 </div>
-              </Link>
+              </details>
             ))}
           </div>
         </div>
       </section>
+
+      <ShopPromoBanner image="/Shop/departments/cat-food.jpeg" imageAlt="All About Pawz shop offer" href="/shop" />
 
       {/* Grooming cross-sell — single line, no box */}
       <section className="border-t border-neutral-200 bg-neutral-50 px-6 py-8 lg:px-12">
