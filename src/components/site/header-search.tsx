@@ -320,7 +320,7 @@ function SearchField({
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <div className="flex items-center gap-2.5 rounded-full border border-ink/15 bg-white px-4 py-2.5 shadow-sm focus-within:border-gold-deep focus-within:ring-2 focus-within:ring-gold-deep/30 transition-colors">
+      <div className="flex items-center gap-2.5 rounded-none border border-ink/15 bg-white px-4 py-2.5 shadow-sm focus-within:border-gold-deep focus-within:ring-2 focus-within:ring-gold-deep/30 transition-colors">
         <Search className="h-4 w-4 shrink-0 text-ink-soft" strokeWidth={1.7} aria-hidden="true" />
         <input
           ref={inputRef}
@@ -372,7 +372,7 @@ function SearchField({
         <div
           id={`${inputId}-listbox`}
           role="listbox"
-          className="custom-scrollbar absolute left-0 right-0 top-full z-50 mt-1 max-h-[60vh] overflow-y-auto rounded-md border border-gold/35 bg-white shadow-lg"
+          className="custom-scrollbar absolute left-0 right-0 top-full z-50 mt-1 max-h-[60vh] overflow-y-auto rounded-none border border-gold/35 bg-white shadow-lg"
         >
           {!results.hasAny && (
             <div className="px-3 py-3 text-[11px] leading-relaxed text-ink-soft">
@@ -542,7 +542,7 @@ export function HeaderSearch() {
   return (
     <>
       {/* Desktop: persistent input — Petco-scale, 60% of viewport width, centered */}
-      <div className="hidden flex-1 max-w-[60vw] mx-auto lg:block">
+      <div className="hidden flex-1 max-w-[75vw] mx-auto lg:block">
         <SearchField inputId="header-search-desktop" />
       </div>
 

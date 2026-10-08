@@ -160,11 +160,11 @@ function TaxonomyHero({
       <div className="mx-auto max-w-7xl">
         <div className="grid overflow-hidden border border-[#002B5C]/15 bg-white lg:grid-cols-[1fr_1.05fr]">
           <div className="flex flex-col justify-center px-6 py-7 sm:px-9 lg:py-9">
-            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#002B5C]/65">{eyebrow}</p>
-            <h1 className="mt-2 font-display text-[30px] font-bold leading-tight text-[#002B5C] sm:text-[38px]">{title}</h1>
-            <p className="mt-3 max-w-lg text-[12px] leading-relaxed text-neutral-600">{description}</p>
-            <Link href="#shop-category-carousel" className="mt-5 inline-flex min-h-10 w-fit items-center gap-2 bg-[#002B5C] px-4 text-[10px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">
-              Browse categories <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-[#002B5C]/70">{eyebrow}</p>
+            <h1 className="mt-2 font-display text-[34px] font-bold leading-tight text-[#002B5C] sm:text-[44px]">{title}</h1>
+            <p className="mt-3 max-w-lg text-[16px] leading-relaxed text-neutral-700">{description}</p>
+            <Link href="#shop-category-carousel" className="mt-5 inline-flex min-h-12 w-fit items-center gap-2 bg-[#002B5C] px-5 text-[14px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">
+              Browse categories <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
           <div className={`relative flex min-h-[220px] items-center justify-center overflow-hidden sm:min-h-[280px] ${image ? "bg-neutral-100" : "bg-[#002B5C]"}`}>
@@ -178,9 +178,15 @@ function TaxonomyHero({
         {quickLinks.length > 0 && (
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {quickLinks.slice(0, 3).map((item) => (
-              <Link key={item.href} href={item.href} className="group grid grid-cols-[88px_1fr_auto] items-center gap-3 border border-neutral-200 bg-white p-2 transition-colors hover:border-[#F2C500] hover:bg-[#FFF9D9]">
-                <img src={item.image} alt={item.imageAlt} className="aspect-[4/3] h-full w-full object-cover" />
-                <span className="text-[11px] font-bold leading-snug text-[#002B5C]">{item.name}</span>
+              <Link key={item.href} href={item.href} className="group grid grid-cols-[96px_1fr_auto] items-center gap-3 border border-neutral-200 bg-white p-2 transition-colors hover:border-[#F2C500]">
+                {item.image ? (
+                  <img src={item.image} alt={item.imageAlt} className="aspect-[4/3] h-full w-full object-cover" />
+                ) : (
+                  <div className="flex aspect-[4/3] items-center justify-center bg-[#002B5C] text-white/45">
+                    <PawPrint className="h-6 w-6" strokeWidth={1.2} aria-hidden="true" />
+                  </div>
+                )}
+                <span className="text-[15px] font-semibold leading-snug text-[#002B5C] underline-offset-4 decoration-[#F2C500] decoration-2 group-hover:underline">{item.name}</span>
                 <Plus className="mr-1 h-4 w-4 text-[#002B5C] transition-transform group-hover:rotate-90" aria-hidden="true" />
               </Link>
             ))}

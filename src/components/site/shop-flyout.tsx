@@ -89,55 +89,55 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
       onMouseLeave={onLeave}
       className="fixed inset-0 z-[60] flex h-screen w-screen bg-white shadow-2xl"
     >
-      <div className="relative flex w-[160px] shrink-0 flex-col overflow-y-auto border-r border-neutral-200 bg-white px-3 py-7 sm:w-[228px] sm:px-5">
+      <div className="relative flex w-[200px] shrink-0 flex-col overflow-y-auto border-r border-neutral-200 bg-white px-4 py-7 sm:w-[270px] sm:px-6">
         <button
           onClick={onClose}
           aria-label="Close mega menu"
-          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center text-neutral-500 transition-colors hover:bg-[#F2C500] hover:text-black"
+          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center text-neutral-600 transition-colors hover:text-black"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5" />
         </button>
 
-        <p className="mb-4 pr-10 text-[10px] font-bold tracking-[0.18em] text-neutral-400">SHOP BY</p>
+        <p className="mb-3 pr-10 text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500">Shop by</p>
 
-        <div className="space-y-1">
+        <div>
           {ANIMALS.map(a => (
             <button
               key={a.slug}
               onMouseEnter={() => handleAnimalSelect(a.slug)}
               onClick={() => handleAnimalSelect(a.slug)}
-              className={`flex w-full items-center justify-between gap-2 px-2 py-3 text-left text-[12px] font-medium leading-snug transition-colors sm:px-3 sm:text-[13px] ${
+              className={`flex w-full items-center justify-between gap-2 py-2.5 text-left text-[16px] leading-snug underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline ${
                 selectedAnimal === a.slug && view === "animal"
-                  ? "bg-[#F2C500] text-[#002B5C]"
-                  : "text-neutral-800 hover:bg-[#F2C500] hover:text-[#002B5C]"
+                  ? "font-semibold text-[#002B5C] underline"
+                  : "text-neutral-900"
               }`}
             >
               {a.name}
               {selectedAnimal === a.slug && view === "animal"
-                ? <Minus size={14} aria-hidden="true" />
-                : <Plus size={14} aria-hidden="true" />}
+                ? <Minus size={16} aria-hidden="true" />
+                : <Plus size={16} aria-hidden="true" />}
             </button>
           ))}
         </div>
 
-        <div className="my-5 border-t border-neutral-200" />
+        <div className="my-4 border-t border-neutral-200" />
 
-        <div className="space-y-1">
-          <Link href="/shop/sale" onClick={onClose} className="block px-3 py-2.5 text-[12px] font-bold tracking-[0.12em] text-neutral-800 transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">SALE</Link>
-          <Link href="/shop/collections" onClick={onClose} className="block px-3 py-2.5 text-[12px] font-bold tracking-[0.12em] text-neutral-800 transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">PROMOTIONS</Link>
-          <Link href="/gift-cards" onClick={onClose} className="block px-3 py-2.5 text-[12px] font-bold tracking-[0.12em] text-neutral-800 transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">GIFT CARDS</Link>
+        <div>
+          <Link href="/shop/sale" onClick={onClose} className="block py-2.5 text-[16px] text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">Sale</Link>
+          <Link href="/shop/collections" onClick={onClose} className="block py-2.5 text-[16px] text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">Promotions</Link>
+          <Link href="/gift-cards" onClick={onClose} className="block py-2.5 text-[16px] text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">Gift cards</Link>
         </div>
 
-        <div className="my-5 border-t border-neutral-200" />
+        <div className="my-4 border-t border-neutral-200" />
 
         <button
           onMouseEnter={handleBrandHover}
           onClick={handleBrandHover}
-          className={`block w-full px-3 py-2.5 text-left text-[12px] font-bold tracking-[0.12em] transition-colors ${
-            view === "brands" ? "bg-[#F2C500] text-[#002B5C]" : "text-neutral-800 hover:bg-[#F2C500] hover:text-[#002B5C]"
+          className={`block w-full py-2.5 text-left text-[16px] underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline ${
+            view === "brands" ? "font-semibold text-[#002B5C] underline" : "text-neutral-900"
           }`}
         >
-          SHOP BY BRAND
+          Shop by brand
         </button>
       </div>
 
@@ -146,16 +146,16 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
           <div className="flex-1 px-3 py-5 sm:px-5 sm:py-6 lg:px-7">
             <div className="flex items-end justify-between gap-4 border-b border-neutral-200 pb-4">
               <div>
-                <h2 className="font-display text-[20px] font-bold leading-tight text-[#002B5C]">{selectedAnimalName}</h2>
-                {animal?.tagline && <p className="mt-1 text-[11px] text-neutral-600">{animal.tagline}</p>}
+                <h2 className="font-display text-[26px] font-bold leading-tight text-[#002B5C]">{selectedAnimalName}</h2>
+                {animal?.tagline && <p className="mt-1 text-[15px] text-neutral-700">{animal.tagline}</p>}
               </div>
-              <Link href={selectedAnimalHref} onClick={onClose} className="shrink-0 text-[11px] font-bold text-neutral-900 underline underline-offset-2 transition-colors hover:text-[#806500]">
+              <Link href={selectedAnimalHref} onClick={onClose} className="shrink-0 text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">
                 Shop all
               </Link>
             </div>
 
             {animal ? (
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {animal.departments.map(dept => {
                   const departmentKey = `${animal.slug}/${dept.slug}`
                   const imageName = DEPARTMENT_IMAGES[departmentKey]
@@ -174,7 +174,7 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
                         )}
                         {!imageName && <PawPrint className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/40" strokeWidth={1.1} aria-hidden="true" />}
                       </Link>
-                      <Link href={departmentPath(animal.slug, dept.slug)} onClick={onClose} className="flex min-h-9 items-center px-2.5 text-[11px] font-bold leading-snug text-neutral-900 transition-colors hover:text-[#806500]">
+                      <Link href={departmentPath(animal.slug, dept.slug)} onClick={onClose} className="flex min-h-12 items-center px-3 text-[16px] font-semibold leading-snug text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
                         {dept.name}
                       </Link>
                       {dept.subcategories.length > 0 && (
@@ -184,16 +184,16 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
                             aria-expanded={expanded}
                             aria-label={`${expanded ? "Hide" : "Browse"} ${dept.name} categories`}
                             onClick={() => setExpandedDepartment(expanded ? null : departmentKey)}
-                            className="flex min-h-8 w-full items-center justify-between border-t border-neutral-200 px-2.5 text-left text-[10px] text-neutral-600 transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]"
+                            className="flex min-h-11 w-full items-center justify-between border-t border-neutral-200 px-3 text-left text-[15px] text-neutral-700"
                           >
                             Browse categories
-                            {expanded ? <Minus size={12} /> : <Plus size={12} />}
+                            {expanded ? <Minus size={16} /> : <Plus size={16} />}
                           </button>
                           {expanded && (
-                            <ul className="space-y-1 border-t border-neutral-200 px-2.5 py-2">
+                            <ul className="border-t border-neutral-200 px-3 py-2">
                               {dept.subcategories.map(sub => (
                                 <li key={sub.slug}>
-                                  <Link href={subcategoryPath(animal.slug, dept.slug, sub.slug)} onClick={onClose} className="block text-[10px] leading-snug text-neutral-700 transition-colors hover:text-[#806500] hover:underline">
+                                  <Link href={subcategoryPath(animal.slug, dept.slug, sub.slug)} onClick={onClose} className="block py-1.5 text-[15px] leading-snug text-neutral-800 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
                                     {sub.name}
                                   </Link>
                                 </li>
@@ -207,7 +207,7 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
                 })}
               </div>
             ) : (
-              <p className="mt-5 text-[12px] text-neutral-600">Browse the {selectedAnimalName.toLowerCase()} catalog.</p>
+              <p className="mt-5 text-[15px] text-neutral-700">Browse the {selectedAnimalName.toLowerCase()} catalog.</p>
             )}
           </div>
         )}
@@ -216,18 +216,18 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
         {view === "brands" && (
           <div className="flex-1 px-8 py-8">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold tracking-[0.18em] text-neutral-400">SHOP BY BRAND</p>
-              <Link href="/shop/brands" onClick={onClose} className="text-[11px] font-semibold text-neutral-500 transition-colors hover:text-[#806500]">View all</Link>
+              <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500">Shop by brand</p>
+              <Link href="/shop/brands" onClick={onClose} className="text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">View all</Link>
             </div>
-            <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {BRANDS.slice(0, 12).map(brand => (
                 <Link
                   key={brand.slug}
                   href={`/shop/brands/${brand.slug}`}
                   onClick={onClose}
-                  className="flex items-center justify-center border border-neutral-200 bg-white px-2 py-4 text-center transition-colors hover:border-[#F2C500] hover:bg-[#F2C500]"
+                  className="flex items-center justify-center border border-neutral-200 bg-white px-3 py-5 text-center transition-colors hover:border-[#F2C500]"
                 >
-                  <span className="text-[10px] font-bold text-neutral-900">{brand.name}</span>
+                  <span className="text-[15px] font-semibold text-neutral-900">{brand.name}</span>
                 </Link>
               ))}
             </div>

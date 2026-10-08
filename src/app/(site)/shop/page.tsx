@@ -106,7 +106,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
                     <ul className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                       {c.departments.map((department) => (
                         <li key={department.slug}>
-                          <Link href={departmentPath(c.slug, department.slug)} className="text-[11px] text-neutral-700 transition-colors hover:text-[#806500] hover:underline">
+                          <Link href={departmentPath(c.slug, department.slug)} className="block py-1 text-[15px] text-neutral-800 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
                             {department.name}
                           </Link>
                         </li>

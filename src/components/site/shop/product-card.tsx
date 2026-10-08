@@ -80,7 +80,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
       {/* 1. Image — 1:1 crop */}
       <div className="relative aspect-square overflow-hidden bg-neutral-50">
         {badge && (
-          <span className="absolute left-0 top-0 z-10 bg-[#002B5C] px-2.5 py-1 text-[8px] font-bold tracking-[0.14em] text-white uppercase">
+          <span className="absolute left-0 top-0 z-10 bg-[#002B5C] px-3 py-1.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase">
             {badge}
           </span>
         )}
@@ -96,19 +96,19 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
             />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <span className="text-[10px] text-neutral-300">No image</span>
+              <span className="text-[14px] text-neutral-400">No image</span>
             </div>
           )}
         </Link>
       </div>
 
       {/* 2-7. Info block */}
-      <div className="flex flex-1 flex-col p-3">
+      <div className="flex flex-1 flex-col p-4">
         {/* 3. Category eyebrow */}
         {product.category && (
           <Link
             href={`/shop?category=${encodeURIComponent(product.category)}`}
-            className="text-[8px] font-bold tracking-[0.18em] text-neutral-400 uppercase hover:text-[#806500] hover:underline"
+            className="text-[12px] font-bold tracking-[0.12em] text-neutral-500 uppercase underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline"
           >
             {product.category}
           </Link>
@@ -117,18 +117,18 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
         {/* 4. Product name — 2-line clamp */}
         <Link
           href={href}
-          className="mt-1 text-[13px] leading-[1.35] font-semibold text-neutral-900 hover:text-[#806500] transition-colors line-clamp-2"
+          className="mt-1.5 text-[16px] leading-[1.35] font-semibold text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline line-clamp-2"
         >
           {product.name}
         </Link>
 
         {/* 5. Stars + count — empty state: unfilled stars */}
-        <div className="mt-1.5 flex items-center gap-1">
-          <span className="flex items-center gap-[1px]" aria-label={`Rated ${product.rating?.avg?.toFixed(1) || 0} out of 5`}>
+        <div className="mt-2 flex items-center gap-1.5">
+          <span className="flex items-center gap-[2px]" aria-label={`Rated ${product.rating?.avg?.toFixed(1) || 0} out of 5`}>
             {Array.from({ length: 5 }).map((_, i) => (
               <Star
                 key={i}
-                className={`h-[11px] w-[11px] ${
+                className={`h-[15px] w-[15px] ${
                   product.rating && product.rating.count > 0 && i < Math.round(product.rating.avg)
                     ? "fill-[#002B5C] text-[#002B5C]"
                     : "fill-none text-neutral-300"
@@ -137,19 +137,19 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
               />
             ))}
           </span>
-          <span className="text-[10px] text-neutral-500">
+          <span className="text-[13px] text-neutral-600">
             ({product.rating?.count || 0})
           </span>
         </div>
 
         {/* 6. Price row */}
-        <div className="mt-1.5 flex items-center gap-2">
-          <span className="text-[15px] font-bold text-neutral-900">{product.price}</span>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-[19px] font-bold text-neutral-900">{product.price}</span>
           {strikePrice && (
-            <span className="text-[12px] text-neutral-400 line-through">{strikePrice}</span>
+            <span className="text-[14px] text-neutral-500 line-through">{strikePrice}</span>
           )}
           {discountPct && discountPct > 0 && (
-            <span className="text-[10px] font-bold text-[#002B5C]">-{discountPct}%</span>
+            <span className="text-[13px] font-bold text-[#002B5C]">-{discountPct}%</span>
           )}
         </div>
 
@@ -157,7 +157,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
         <button
           onClick={handleAddToCart}
           disabled={added}
-          className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-[11px] font-bold tracking-[0.08em] uppercase transition-colors"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-md py-3 text-[14px] font-bold tracking-[0.06em] uppercase transition-colors"
           style={{
             backgroundColor: added ? "#16a34a" : NAVY,
             color: "#fff",
@@ -165,11 +165,11 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
         >
           {added ? (
             <>
-              <ShoppingBag className="h-3.5 w-3.5" /> ADDED!
+              <ShoppingBag className="h-4 w-4" /> ADDED!
             </>
           ) : (
             <>
-              <ShoppingBag className="h-3.5 w-3.5" /> ADD TO CART
+              <ShoppingBag className="h-4 w-4" /> ADD TO CART
             </>
           )}
         </button>

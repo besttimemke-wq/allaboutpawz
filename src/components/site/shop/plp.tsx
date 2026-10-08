@@ -3,7 +3,6 @@ import { X, ChevronLeft, ChevronRight, PawPrint } from "lucide-react"
 import {
   getMerchCollections,
   getFilterSections,
-  getProducts,
   queryProducts,
   parseSearchParams,
   type NavCategory,
@@ -32,10 +31,6 @@ export type PlpScope =
   | { kind: "all" }
   | { kind: "category"; node: NavCategory }
   | { kind: "merch"; merch: MerchKey; title: string; blurb: string }
-
-function normalizeCategoryLabel(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "")
-}
 
 export async function Plp({
   scope,
@@ -86,18 +81,11 @@ export async function Plp({
   //   /shop/cat/food   → food's subcategories (Broths, Dry Food, Wet Food...)
   //   /shop/cat/food/dry-cat-food → same subcategories (siblings, current highlighted)
   const fullTree = buildNavTreeFromTaxonomy() as unknown as NavCategory[]
-  const allNavCategories: NavCategory[] = []
-  const collectCategories = (nodes: NavCategory[]) => {
-    for (const node of nodes) {
-      allNavCategories.push(node)
-      collectCategories(node.children)
-    }
-  }
-  collectCategories(fullTree)
   const pathSegments = currentPath.split("/").filter(Boolean)
 
   let navTree: NavCategory[]
   let currentNode: NavCategory | null = null
+  let ancestors: SidebarData["ancestors"] = []
 
   if (pathSegments.length <= 1) {
     // /shop → all animals
@@ -119,6 +107,7 @@ export async function Plp({
       if (deptNode) {
         navTree = [deptNode]
         currentNode = deptNode
+        ancestors = [{ displayName: animalNode.displayName, path: animalNode.path }]
       } else {
         navTree = [animalNode]
         currentNode = animalNode
@@ -126,35 +115,11 @@ export async function Plp({
     }
   }
 
-  const [merch, filterSections, state, allProducts] = await Promise.all([
+  const [merch, filterSections, state] = await Promise.all([
     getMerchCollections(),
     getFilterSections(scopeIds, currentPath),
     Promise.resolve(parseSearchParams(searchParams)),
-    getProducts(),
   ])
-
-  const newArrivalCategoryCounts = new Map<string, { node: NavCategory; count: number }>()
-  for (const product of allProducts) {
-    if (!product.isNew || !product.category) continue
-    const categoryLabels = [
-      product.category,
-      ...product.category.split(/[>/|]/).map((label) => label.trim()),
-    ].map(normalizeCategoryLabel).filter(Boolean)
-    const matches = allNavCategories.filter((node) => {
-      const lastKey = node.key.split("/").pop() || node.key
-      return categoryLabels.includes(normalizeCategoryLabel(node.displayName)) || categoryLabels.includes(normalizeCategoryLabel(lastKey))
-    })
-    if (matches.length === 0) continue
-    const deepestLevel = Math.max(...matches.map((node) => node.level))
-    const deepestMatches = matches.filter((node) => node.level === deepestLevel)
-    if (deepestMatches.length !== 1) continue
-    const node = deepestMatches[0]
-    const existing = newArrivalCategoryCounts.get(node.path)
-    newArrivalCategoryCounts.set(node.path, { node, count: (existing?.count || 0) + 1 })
-  }
-  const newArrivalCategories = Array.from(newArrivalCategoryCounts.values())
-    .map(({ node, count }) => ({ key: node.key, displayName: node.displayName, path: node.path, count }))
-    .sort((a, b) => a.displayName.localeCompare(b.displayName))
 
   const result = await queryProducts({
     scopeIds,
@@ -181,7 +146,7 @@ export async function Plp({
   const sidebar: SidebarData = {
     categories: navTree,
     merch,
-    newArrivalCategories,
+    ancestors,
     current: currentNode,
     currentMerch: scope.kind === "merch" ? scope.merch : null,
     filterSections,
@@ -202,13 +167,13 @@ export async function Plp({
   }))
 
   return (
-    <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
+    <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[280px_1fr]">
       {/* Desktop rail — sticky. NO outer border + NO internal scrollbar:
           the sidebar is white background that blends into the page. When
           a filter section expands, the PAGE gets longer (the rail pushes
           the page down with it). The owner is explicit: "no scroller
           anywhere — make the page long enough to fit when it expands." */}
-      <aside className="hidden w-[240px] shrink-0 self-start lg:sticky lg:top-6 lg:block">
+      <aside className="hidden w-[280px] shrink-0 self-start lg:sticky lg:top-6 lg:block">
         <div className="bg-white">
           <ShopSidebar key={JSON.stringify(applied)} data={sidebar} />
         </div>
@@ -221,7 +186,7 @@ export async function Plp({
         {/* Active filter chips — individually removable, server-rendered */}
         {(applied.priceBucket || applied.minPrice || applied.maxPrice || applied.rating || applied.availability.length > 0 || applied.q || Object.values(applied.facets).some((vs) => vs.length > 0)) && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-[9px] font-bold tracking-[0.14em] text-ink-soft">ACTIVE:</span>
+            <span className="text-[14px] font-semibold text-ink-soft">Active:</span>
             {applied.q && (
               <FilterChip label={`"${applied.q}"`} params={["q"]} basePath={basePath} searchParams={searchParams} />
             )}
@@ -262,7 +227,7 @@ export async function Plp({
             )}
             <Link
               href={basePath}
-              className="ml-1 text-[9px] font-bold tracking-[0.1em] text-[#002B5C] uppercase underline-offset-2 hover:underline"
+              className="ml-1 text-[14px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4"
             >
               Clear all
             </Link>
@@ -391,11 +356,11 @@ function FilterChip({
   return (
     <Link
       href={qs ? `${basePath}?${qs}` : basePath}
-      className="inline-flex items-center gap-1.5 border border-ink/15 bg-white px-2.5 py-1 text-[10px] font-semibold text-ink transition-colors hover:border-[#002B5C] hover:text-[#002B5C]"
+      className="inline-flex items-center gap-2 border border-ink/15 bg-white px-3 py-1.5 text-[14px] font-semibold text-ink transition-colors hover:border-[#F2C500]"
       aria-label={`Remove filter ${label}`}
     >
       {label}
-      <X className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
+      <X className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
     </Link>
   )
 }
@@ -426,10 +391,10 @@ function PageLink({
       href={qs ? `${basePath}?${qs}` : basePath}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`flex h-8 min-w-8 items-center justify-center px-2 text-[11px] font-bold transition-colors ${
+      className={`flex h-11 min-w-11 items-center justify-center px-3 text-[15px] font-semibold transition-colors ${
         active
           ? "bg-[#002B5C] text-white"
-          : "border border-ink/15 bg-white text-ink hover:border-[#002B5C] hover:text-[#002B5C]"
+          : "border border-ink/15 bg-white text-ink hover:border-[#F2C500]"
       }`}
     >
       {children}
@@ -447,21 +412,21 @@ function EmptyState({
   return (
     <div className="mt-7 flex flex-col items-center border border-ink/10 bg-white-deep/40 px-6 py-14 text-center">
       <PawPrint className="h-8 w-8 text-[#002B5C]/50" strokeWidth={1.2} aria-hidden="true" />
-      <p className="mt-4 text-[13px] font-semibold text-ink">
+      <p className="mt-4 text-[17px] font-semibold text-ink">
         {hasFilters ? "No products match these filters." : "No products here yet."}
       </p>
-      <p className="mt-1.5 max-w-sm text-[11.5px] leading-relaxed text-ink-soft">
+      <p className="mt-1.5 max-w-sm text-[15px] leading-relaxed text-ink-soft">
         {hasFilters
           ? "Try removing a filter or exploring related categories."
           : "New arrivals land regularly — check back soon or browse the collection."}
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {hasFilters && (
-          <Link href={basePath} className="inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44] text-[9px]">
+          <Link href={basePath} className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#002B5C] px-5 text-[14px] font-bold tracking-[0.06em] text-white uppercase transition-colors hover:bg-[#001F44]">
             CLEAR ALL FILTERS
           </Link>
         )}
-        <Link href="/shop" className={hasFilters ? "btn-ghost text-[9px]" : "inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44] text-[9px]"}>
+        <Link href="/shop" className={hasFilters ? "btn-ghost min-h-11 text-[14px]" : "inline-flex min-h-11 items-center justify-center rounded-md bg-[#002B5C] px-5 text-[14px] font-bold tracking-[0.06em] text-white uppercase transition-colors hover:bg-[#001F44]"}>
           {hasFilters ? "VIEW ALL PRODUCTS" : "BROWSE THE COLLECTION"}
         </Link>
       </div>

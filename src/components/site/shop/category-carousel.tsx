@@ -146,9 +146,9 @@ export function CategoryCarousel({
                   )}
                 </div>
                 <div className="p-4">
-                  <h3 className="text-[14px] font-bold text-ink group-hover:text-[#806500]">{c.name}</h3>
+                  <h3 className="text-[17px] font-semibold text-ink underline-offset-4 decoration-[#F2C500] decoration-2 group-hover:underline">{c.name}</h3>
                   {c.description && (
-                    <p className="mt-1 text-[12px] leading-snug text-ink-soft line-clamp-2">{c.description}</p>
+                    <p className="mt-1.5 text-[14px] leading-snug text-ink-soft line-clamp-2">{c.description}</p>
                   )}
                 </div>
               </Link>
