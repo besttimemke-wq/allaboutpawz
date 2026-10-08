@@ -17,18 +17,18 @@ export function Breadcrumbs({ chain }: { chain: NavCategory[] }) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex flex-wrap items-center gap-2 border-b border-blue-600/25 bg-white px-8 py-3.5 lg:px-12"
+      className="flex flex-wrap items-center gap-2 border-b border-[#002B5C]/25 bg-white px-8 py-3.5 lg:px-12"
     >
-      <span className="text-[10.5px] font-bold tracking-[0.2em] text-blue-600">06</span>
+      <span className="text-[10.5px] font-bold tracking-[0.2em] text-[#002B5C]">06</span>
       <Link
         href="/shop"
-        className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-blue-600"
+        className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-[#002B5C]"
       >
         SHOP
       </Link>
       {chain.map((c) => (
         <span key={c.path} className="flex items-center gap-2">
-          <ChevronRight className="h-3 w-3 text-blue-600/60" strokeWidth={2} aria-hidden="true" />
+          <ChevronRight className="h-3 w-3 text-[#002B5C]/60" strokeWidth={2} aria-hidden="true" />
           {chain[chain.length - 1] === c ? (
             <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink">
               {c.displayName.toUpperCase()}
@@ -36,7 +36,7 @@ export function Breadcrumbs({ chain }: { chain: NavCategory[] }) {
           ) : (
             <Link
               href={c.path}
-              className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-blue-600"
+              className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-[#002B5C]"
             >
               {c.displayName.toUpperCase()}
             </Link>
@@ -62,7 +62,7 @@ export function ParentHero({ node }: { node: NavCategory }) {
           hand-selected by our groomers for quality, comfort, and style.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link href="#categories" className="inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700">
+          <Link href="#categories" className="inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44]">
             SHOP BY CATEGORY <ChevronRight className="ml-1 inline h-3.5 w-3.5" strokeWidth={2} />
           </Link>
           <Link href="/book" className="btn-ghost">BOOK A GROOM</Link>
@@ -77,9 +77,9 @@ export function ParentHero({ node }: { node: NavCategory }) {
               alt={hero.alt}
               width={640}
               height={640}
-              className="max-h-[420px] w-auto max-w-full rounded-full border border-blue-600/25 object-cover shadow-sm"
+              className="max-h-[420px] w-auto max-w-full rounded-full border border-[#002B5C]/25 object-cover shadow-sm"
             />
-            <span className="absolute left-2 top-0 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-blue-600">
+            <span className="absolute left-2 top-0 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-[#002B5C]">
               SHOP {node.displayName.toUpperCase()}
             </span>
           </>
@@ -113,7 +113,7 @@ export function PrimaryHero({ node }: { node: NavCategory }) {
             alt={hero.alt}
             width={220}
             height={220}
-            className="h-[180px] w-[180px] rounded-full border border-blue-600/25 object-cover"
+            className="h-[180px] w-[180px] rounded-full border border-[#002B5C]/25 object-cover"
           />
         </div>
       )}
@@ -133,7 +133,7 @@ export function CategoryCards({
 }) {
   if (nodes.length === 0) return null
   return (
-    <section id="categories" className="marble scroll-mt-24 border-t border-blue-600/25 bg-white px-8 py-10 lg:px-12">
+    <section id="categories" className="marble scroll-mt-24 border-t border-[#002B5C]/25 bg-white px-8 py-10 lg:px-12">
       <div className="flex items-baseline justify-between">
         <h2 className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{title}</h2>
         <p className="text-[10px] font-bold tracking-[0.14em] text-ink-soft">{nodes.length} CATEGORIES</p>
@@ -161,7 +161,7 @@ function CategoryCard({ node, compact = false }: { node: NavCategory; compact?: 
   return (
     <Link
       href={node.path}
-      className={`group flex shrink-0 snap-start flex-col border border-ink/10 bg-white transition-colors hover:border-blue-600/40 ${
+      className={`group flex shrink-0 snap-start flex-col border border-ink/10 bg-white transition-colors hover:border-[#002B5C]/40 ${
         compact ? "w-[150px] lg:w-auto" : ""
       }`}
     >
@@ -176,17 +176,17 @@ function CategoryCard({ node, compact = false }: { node: NavCategory; compact?: 
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
           />
         ) : (
-          <Icon className="h-8 w-8 text-blue-600/60" strokeWidth={1.2} aria-hidden="true" />
+          <Icon className="h-8 w-8 text-[#002B5C]/60" strokeWidth={1.2} aria-hidden="true" />
         )}
         {node.count > 0 && (
-          <span className="absolute right-2 top-2 bg-ink/85 px-2 py-0.5 text-[8.5px] font-bold tracking-[0.1em] text-blue-600">
+          <span className="absolute right-2 top-2 bg-ink/85 px-2 py-0.5 text-[8.5px] font-bold tracking-[0.1em] text-[#002B5C]">
             {node.count}
           </span>
         )}
       </div>
       <div className="flex items-center gap-2.5 px-3.5 py-3">
-        <Icon className="h-4 w-4 shrink-0 text-blue-600" strokeWidth={1.6} aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[0.04em] text-ink group-hover:text-blue-600">
+        <Icon className="h-4 w-4 shrink-0 text-[#002B5C]" strokeWidth={1.6} aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate text-[11px] font-bold tracking-[0.04em] text-ink group-hover:text-[#002B5C]">
           {node.displayName}
         </span>
         <ChevronRight className="h-3 w-3 shrink-0 text-ink-soft/50 transition-transform group-hover:translate-x-0.5" strokeWidth={2} aria-hidden="true" />
@@ -209,8 +209,8 @@ export function SiblingTabs({ nodes, currentPath, parentPath, parentLabel }: {
         href={parentPath}
         className={`shrink-0 border px-3.5 py-1.5 text-[10px] font-bold tracking-[0.08em] uppercase transition-colors ${
           currentPath === parentPath
-            ? "border-blue-600 bg-blue-600 text-white"
-            : "border-ink/15 bg-white text-ink-soft hover:border-blue-600 hover:text-blue-600"
+            ? "border-[#002B5C] bg-[#002B5C] text-white"
+            : "border-ink/15 bg-white text-ink-soft hover:border-[#002B5C] hover:text-[#002B5C]"
         }`}
       >
         All {parentLabel}
@@ -222,8 +222,8 @@ export function SiblingTabs({ nodes, currentPath, parentPath, parentLabel }: {
           aria-current={n.path === currentPath ? "page" : undefined}
           className={`shrink-0 border px-3.5 py-1.5 text-[10px] font-bold tracking-[0.08em] uppercase transition-colors ${
             n.path === currentPath
-              ? "border-blue-600 bg-blue-600 text-white"
-              : "border-ink/15 bg-white text-ink-soft hover:border-blue-600 hover:text-blue-600"
+              ? "border-[#002B5C] bg-[#002B5C] text-white"
+              : "border-ink/15 bg-white text-ink-soft hover:border-[#002B5C] hover:text-[#002B5C]"
           }`}
         >
           {n.displayName}
@@ -245,11 +245,11 @@ export function ProductRail({
 }) {
   if (products.length === 0) return null
   return (
-    <section className="border-t border-blue-600/25 bg-white-deep px-8 py-10 lg:px-12">
+    <section className="border-t border-[#002B5C]/25 bg-white-deep px-8 py-10 lg:px-12">
       <div className="flex items-baseline justify-between">
         <h2 className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{title}</h2>
         {viewAllHref && (
-          <Link href={viewAllHref} className="text-[9.5px] font-bold tracking-[0.14em] text-blue-600 underline-offset-2 hover:underline">
+          <Link href={viewAllHref} className="text-[9.5px] font-bold tracking-[0.14em] text-[#002B5C] underline-offset-2 hover:underline">
             VIEW ALL
           </Link>
         )}
@@ -273,11 +273,11 @@ export function TrustStrip() {
     { Icon: Award, title: "Groomer Approved", body: "The same tools we use in-salon." },
   ]
   return (
-    <section className="border-y border-blue-600/25 bg-white-deep px-8 py-6 lg:px-12">
+    <section className="border-y border-[#002B5C]/25 bg-white-deep px-8 py-6 lg:px-12">
       <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-3">
         {items.map(({ Icon, title, body }, i) => (
-          <div key={title} className={`flex items-start gap-3 ${i > 0 ? "sm:border-l sm:border-blue-600/25 sm:pl-6" : ""}`}>
-            <Icon className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" strokeWidth={1.4} aria-hidden="true" />
+          <div key={title} className={`flex items-start gap-3 ${i > 0 ? "sm:border-l sm:border-[#002B5C]/25 sm:pl-6" : ""}`}>
+            <Icon className="mt-0.5 h-5 w-5 shrink-0 text-[#002B5C]" strokeWidth={1.4} aria-hidden="true" />
             <div>
               <p className="text-[11px] font-bold tracking-[0.08em] text-ink">{title.toUpperCase()}</p>
               <p className="mt-1 text-[11.5px] leading-[1.6] text-ink-soft">{body}</p>

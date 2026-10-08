@@ -35,9 +35,9 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
     <article className="group relative flex flex-col">
       {/* Canvas-native: the rail sits ON the marble canvas (deeper cream
           panel + hairline border) — never an opaque white block. */}
-      <div className="relative overflow-hidden border border-ink/10 bg-white-deep/40 transition-colors group-hover:border-blue-600/40">
+      <div className="relative overflow-hidden border border-ink/10 bg-white-deep/40 transition-colors group-hover:border-[#002B5C]/40">
         {cornerBadge && (
-          <span className="absolute left-0 top-0 z-10 bg-ink px-2.5 py-1 text-[8px] font-bold tracking-[0.14em] text-blue-600">
+          <span className="absolute left-0 top-0 z-10 bg-ink px-2.5 py-1 text-[8px] font-bold tracking-[0.14em] text-[#002B5C]">
             {cornerBadge.toUpperCase()}
           </span>
         )}
@@ -54,7 +54,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
             />
           ) : (
             <div className="flex h-[190px] items-center justify-center">
-              <PawPrint className="h-10 w-10 text-blue-600/40" strokeWidth={1.2} />
+              <PawPrint className="h-10 w-10 text-[#002B5C]/40" strokeWidth={1.2} />
             </div>
           )}
         </Link>
@@ -62,13 +62,13 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
 
       <div className="flex flex-1 flex-col pt-4 text-center">
         {product.category && (
-          <p className="text-[8.5px] font-bold tracking-[0.18em] text-blue-600/80">
+          <p className="text-[8.5px] font-bold tracking-[0.18em] text-[#002B5C]/80">
             {product.category.toUpperCase()}
           </p>
         )}
         <Link
           href={href}
-          className="mt-1 text-[12.5px] leading-[1.5] font-semibold text-ink transition-colors hover:text-blue-600"
+          className="mt-1 text-[12.5px] leading-[1.5] font-semibold text-ink transition-colors hover:text-[#002B5C]"
         >
           {product.name}
         </Link>
@@ -85,7 +85,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
           )}
           <span
             className={`text-[13px] font-bold ${
-              product.isOnSale ? "text-ink" : "text-blue-600"
+              product.isOnSale ? "text-ink" : "text-[#002B5C]"
             }`}
           >
             {product.displayPrice ?? product.price}
@@ -96,7 +96,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
             the corner badge stays single-purpose and the customer still sees
             the Sale flag in the body of the card. */}
         {showSecondarySalePill && (
-          <span className="mt-1.5 inline-flex items-center self-center border border-blue-600/40 bg-blue-600/5 px-2 py-0.5 text-[8px] font-bold tracking-[0.14em] text-blue-600">
+          <span className="mt-1.5 inline-flex items-center self-center border border-[#002B5C]/40 bg-[#002B5C]/5 px-2 py-0.5 text-[8px] font-bold tracking-[0.14em] text-[#002B5C]">
             SALE
           </span>
         )}
@@ -108,7 +108,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
                 <Star
                   key={i}
                   className={`h-[10px] w-[10px] ${
-                    i < Math.round(product.rating.avg) ? "fill-blue-600 text-blue-600" : "fill-none text-ink-soft/40"
+                    i < Math.round(product.rating.avg) ? "fill-[#002B5C] text-[#002B5C]" : "fill-none text-ink-soft/40"
                   }`}
                   strokeWidth={1.5}
                 />
@@ -119,7 +119,7 @@ export function ProductCard({ product, priority = false }: { product: ShopProduc
         )}
 
         <div className="mt-auto pt-3.5">
-          <Link href={href} className="inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 w-full text-[9px]" aria-label={`View ${product.name} details`}>
+          <Link href={href} className="inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44] w-full text-[9px]" aria-label={`View ${product.name} details`}>
             VIEW DETAILS
           </Link>
         </div>

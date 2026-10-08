@@ -104,7 +104,7 @@ export function CheckoutIsland() {
   if (view === "success") {
     return (
       <div className="border border-neutral-200/30 bg-card p-10 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-600">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#002B5C]">
           <Check size={32} weight="bold" className="text-white" />
         </div>
         <h2 className="mt-4 font-display text-[28px] text-ink">Order Received</h2>
@@ -117,7 +117,7 @@ export function CheckoutIsland() {
               : "We've received your order and are confirming your payment. You'll get a receipt by email shortly."}
         </p>
         <div className="mt-6 flex justify-center gap-3">
-          <a href="/shop" className="inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700" onClick={() => { s.reset(); setView("catalog") }}>CONTINUE SHOPPING</a>
+          <a href="/shop" className="inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44]" onClick={() => { s.reset(); setView("catalog") }}>CONTINUE SHOPPING</a>
           <a href="/book" className="btn-ghost">BOOK A GROOM</a>
         </div>
       </div>
@@ -128,7 +128,7 @@ export function CheckoutIsland() {
     return (
       <div>
         {notice && (
-          <p className="mb-4 border border-neutral-200/30 bg-white-deep px-4 py-2 text-[12px] text-blue-600">{notice}</p>
+          <p className="mb-4 border border-neutral-200/30 bg-white-deep px-4 py-2 text-[12px] text-[#002B5C]">{notice}</p>
         )}
         <CheckoutWizard onExit={() => { s.setStep(0); setView("catalog") }} />
       </div>
@@ -136,7 +136,7 @@ export function CheckoutIsland() {
   }
 
   return notice ? (
-    <p className="mb-4 border border-neutral-200/30 bg-white-deep px-4 py-2 text-[12px] text-blue-600">{notice}</p>
+    <p className="mb-4 border border-neutral-200/30 bg-white-deep px-4 py-2 text-[12px] text-[#002B5C]">{notice}</p>
   ) : null
 }
 
@@ -347,7 +347,7 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
             type="button"
             onClick={onContinue}
             disabled={!canNext || submitting}
-            className={`inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 ${!canNext || submitting ? "cursor-not-allowed opacity-40" : ""}`}
+            className={`inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44] ${!canNext || submitting ? "cursor-not-allowed opacity-40" : ""}`}
           >
             {submitting ? "Saving…" : "Continue"} <ArrowRight size={14} weight="bold" />
           </button>
@@ -366,7 +366,7 @@ function StepBag() {
   if (s.items.length === 0) {
     return (
       <div className={`${stepWrapCls} space-y-4 text-center`}>
-        <ShoppingBag size={40} className="mx-auto text-blue-600/50" />
+        <ShoppingBag size={40} className="mx-auto text-[#002B5C]/50" />
         <h2 className="font-display text-[22px] text-ink">Your bag is empty</h2>
         <p className="text-[12px] text-ink-soft">Add a few pawfection favorites to continue.</p>
       </div>
@@ -387,12 +387,12 @@ function StepBag() {
               {i.image ? (
                 <img src={i.image} alt={i.alt || i.name} width={128} height={160} className="h-full w-full object-contain p-1" />
               ) : (
-                <PawPrint size={20} className="text-blue-600/40" />
+                <PawPrint size={20} className="text-[#002B5C]/40" />
               )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-bold text-ink">{i.name}</p>
-              <p className="mt-0.5 text-[12px] text-blue-600">{i.price}</p>
+              <p className="mt-0.5 text-[12px] text-[#002B5C]">{i.price}</p>
               <div className="mt-2 inline-flex items-center border border-neutral-200/35 bg-white">
                 <QtyBtn onClick={() => s.setQty(i.productId, i.quantity - 1)} label="Decrease quantity">
                   {i.quantity <= 1 ? <Trash size={12} /> : <Minus size={12} weight="bold" />}
@@ -421,11 +421,11 @@ function StepBag() {
 
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-ink-soft">
-          <Truck size={12} weight="fill" className="mr-1 inline text-blue-600" />
+          <Truck size={12} weight="fill" className="mr-1 inline text-[#002B5C]" />
           Complimentary standard shipping on every order.
         </p>
         <p className="text-[14px] font-bold text-ink">
-          Subtotal <span className="text-blue-600">{formatCents(s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0))}</span>
+          Subtotal <span className="text-[#002B5C]">{formatCents(s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0))}</span>
         </p>
       </div>
     </div>
@@ -439,7 +439,7 @@ function QtyBtn({ children, onClick, label, disabled }: { children: React.ReactN
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-9 w-9 items-center justify-center text-ink transition-colors hover:bg-white-deep hover:text-blue-600 disabled:opacity-30"
+      className="flex h-9 w-9 items-center justify-center text-ink transition-colors hover:bg-white-deep hover:text-[#002B5C] disabled:opacity-30"
     >
       {children}
     </button>
@@ -461,7 +461,7 @@ function StepContact({ sessionUser }: { sessionUser: SessionUser }) {
       </div>
       {sessionUser && (
         <div className="flex items-center gap-2.5 border border-neutral-200/30 bg-white-deep px-4 py-3">
-          <Check size={14} weight="bold" className="shrink-0 text-blue-600" />
+          <Check size={14} weight="bold" className="shrink-0 text-[#002B5C]" />
           <p className="min-w-0 truncate text-[12px] text-ink-soft">
             Signed in as{" "}
             <span className="font-bold text-ink">{sessionUser.name || sessionUser.email}</span>
@@ -511,14 +511,14 @@ function StepDelivery() {
             key={value}
             type="button"
             onClick={() => s.patch({ deliveryMethod: value })}
-            className={`flex items-start gap-4 border px-5 py-4 text-left transition-colors ${s.deliveryMethod === value ? "border-blue-600 bg-white-deep" : "border-neutral-200/35 bg-white hover:border-blue-600"}`}
+            className={`flex items-start gap-4 border px-5 py-4 text-left transition-colors ${s.deliveryMethod === value ? "border-[#002B5C] bg-white-deep" : "border-neutral-200/35 bg-white hover:border-[#002B5C]"}`}
           >
-            <Icon size={24} weight="fill" className="mt-0.5 shrink-0 text-blue-600" />
+            <Icon size={24} weight="fill" className="mt-0.5 shrink-0 text-[#002B5C]" />
             <div>
               <p className="text-[13px] font-bold text-ink">{title}</p>
               <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">{body}</p>
             </div>
-            {s.deliveryMethod === value && <Check size={16} weight="bold" className="ml-auto shrink-0 text-blue-600" />}
+            {s.deliveryMethod === value && <Check size={16} weight="bold" className="ml-auto shrink-0 text-[#002B5C]" />}
           </button>
         ))}
       </div>
@@ -559,7 +559,7 @@ function StepDelivery() {
               5515 Quince Rd, Memphis, TN 38119 · Open Tue–Sat 9am–6pm, Sun 10am–4pm
             </p>
             <p className="mt-3 text-[11.5px] text-ink-soft">
-              <PawPrint size={12} weight="fill" className="mr-1 inline text-blue-600" />
+              <PawPrint size={12} weight="fill" className="mr-1 inline text-[#002B5C]" />
               No payment needed now for pickup scheduling — just complete checkout and we&apos;ll have it bagged within one business day.
             </p>
           </div>
@@ -609,7 +609,7 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
                   <p className="truncate text-[12.5px] font-bold text-ink">{i.name}</p>
                   <p className="text-[11px] text-ink-soft">Qty {i.quantity} × {i.price}</p>
                 </div>
-                <p className="text-[12.5px] font-bold text-blue-600">
+                <p className="text-[12.5px] font-bold text-[#002B5C]">
                   {formatCents((parsePriceToCents(i.price) || 0) * i.quantity)}
                 </p>
               </li>
@@ -619,10 +619,10 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
             <div className="flex justify-between text-ink-soft"><span>Subtotal</span><span className="text-ink">{formatCents(subtotalCents)}</span></div>
             <div className="flex justify-between text-ink-soft">
               <span>{s.deliveryMethod === "ship" ? "Standard shipping" : "Pickup in salon"}</span>
-              <span className="text-blue-600">{s.deliveryMethod === "ship" ? "FREE" : "—"}</span>
+              <span className="text-[#002B5C]">{s.deliveryMethod === "ship" ? "FREE" : "—"}</span>
             </div>
             <div className="flex justify-between border-t border-neutral-200/20 pt-2 text-[14px] font-bold text-ink">
-              <span>Total</span><span className="text-blue-600">{formatCents(total)}</span>
+              <span>Total</span><span className="text-[#002B5C]">{formatCents(total)}</span>
             </div>
           </div>
         </section>
@@ -643,7 +643,7 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
             {s.notes && <p className="text-ink-soft"><span className="font-bold text-ink">Notes:</span> {s.notes}</p>}
           </div>
           <div className="flex items-center gap-2 border border-neutral-200/25 bg-white p-4 text-[11px] text-ink-soft">
-            <LockKey size={16} weight="fill" className="shrink-0 text-blue-600" />
+            <LockKey size={16} weight="fill" className="shrink-0 text-[#002B5C]" />
             <p>Payments are processed securely by Stripe. Your card details never touch our servers.</p>
           </div>
         </section>
@@ -653,13 +653,13 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
         type="button"
         onClick={onSubmit}
         disabled={submitting || redirecting}
-        className={`inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 w-full text-[11px] ${submitting || redirecting ? "cursor-wait opacity-70" : ""}`}
+        className={`inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44] w-full text-[11px] ${submitting || redirecting ? "cursor-wait opacity-70" : ""}`}
       >
         <CreditCard size={14} weight="fill" />
         {redirecting ? "REDIRECTING TO STRIPE…" : submitting ? "CREATING SECURE ORDER…" : `PAY SECURELY — ${formatCents(total)}`}
       </button>
       <p className="text-center text-[10.5px] text-ink-soft">
-        <Sparkle size={10} weight="fill" className="mr-1 inline text-blue-600" />
+        <Sparkle size={10} weight="fill" className="mr-1 inline text-[#002B5C]" />
         By completing checkout you&apos;ll receive an email receipt for this order.
       </p>
     </div>
@@ -686,15 +686,15 @@ function Stepper({ step, labels, onJump }: { step: number; labels: string[]; onJ
               disabled={!canJump}
               className={`flex flex-col items-center gap-1.5 ${canJump ? "cursor-pointer" : "cursor-default"}`}
             >
-              <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-colors ${isActive ? "border-blue-600 bg-blue-600 text-white" : isDone ? "border-blue-600 bg-blue-600 text-white" : "border-neutral-200/30 bg-white text-blue-600"}`}>
+              <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-colors ${isActive ? "border-[#002B5C] bg-[#002B5C] text-white" : isDone ? "border-[#002B5C] bg-[#002B5C] text-white" : "border-neutral-200/30 bg-white text-[#002B5C]"}`}>
                 {isDone ? <Check size={14} weight="bold" /> : stepNumber}
               </span>
-              <span className={`hidden text-[8px] font-bold tracking-[0.08em] sm:block ${isActive ? "text-blue-600" : "text-ink-soft"}`}>
+              <span className={`hidden text-[8px] font-bold tracking-[0.08em] sm:block ${isActive ? "text-[#002B5C]" : "text-ink-soft"}`}>
                 {label.toUpperCase()}
               </span>
             </button>
             {idx < labels.length - 1 && (
-              <span className={`mx-1 h-px flex-1 ${step > stepNumber ? "bg-blue-600" : "bg-blue-600/25"}`} />
+              <span className={`mx-1 h-px flex-1 ${step > stepNumber ? "bg-[#002B5C]" : "bg-[#002B5C]/25"}`} />
             )}
           </div>
         )
@@ -707,16 +707,16 @@ function Stepper({ step, labels, onJump }: { step: number; labels: string[]; onJ
 // Shared field primitives (same design as the booking wizard)
 // ===========================================================================
 
-const inputCls = "w-full border border-neutral-200/35 bg-white px-3.5 py-3 text-[14px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-600"
-const sectionHeaderCls = "text-[10px] font-bold tracking-[0.18em] text-blue-600 uppercase"
+const inputCls = "w-full border border-neutral-200/35 bg-white px-3.5 py-3 text-[14px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#002B5C]"
+const sectionHeaderCls = "text-[10px] font-bold tracking-[0.18em] text-[#002B5C] uppercase"
 const stepWrapCls = "border border-neutral-200/30 bg-card p-7 lg:p-10"
 
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div>
-      <label className={labelCls}>{label}{required && <span className="text-blue-600"> *</span>}</label>
+      <label className={labelCls}>{label}{required && <span className="text-[#002B5C]"> *</span>}</label>
       {children}
     </div>
   )
 }
-const labelCls = "mb-1.5 block text-[9px] font-bold tracking-[0.16em] text-blue-600"
+const labelCls = "mb-1.5 block text-[9px] font-bold tracking-[0.16em] text-[#002B5C]"

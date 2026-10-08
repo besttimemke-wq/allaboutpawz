@@ -208,7 +208,7 @@ export async function AnimalLandingPage({
           </p>
           <Link
             href="/book/appointment"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-600"
+            className="inline-flex items-center gap-2 rounded-md bg-[#002B5C] px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#002B5C]"
           >
             Book a Groom →
           </Link>
@@ -333,7 +333,7 @@ export async function DepartmentPage({
           </p>
           <Link
             href="/book/appointment"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-600"
+            className="inline-flex items-center gap-2 rounded-md bg-[#002B5C] px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#002B5C]"
           >
             Book a Groom →
           </Link>
@@ -429,7 +429,7 @@ export async function SubcategoryPage({
           </p>
           <Link
             href="/book/appointment"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-600"
+            className="inline-flex items-center gap-2 rounded-md bg-[#002B5C] px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#002B5C]"
           >
             Book a Groom →
           </Link>

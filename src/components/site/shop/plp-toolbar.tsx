@@ -63,12 +63,12 @@ export function PlpToolbar({
           type="button"
           onClick={() => setDrawerOpen(true)}
           aria-expanded={drawerOpen}
-          className="inline-flex min-h-[44px] items-center gap-2 border border-ink/15 bg-white px-4 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-blue-600 hover:text-blue-600 lg:hidden"
+          className="inline-flex min-h-[44px] items-center gap-2 border border-ink/15 bg-white px-4 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-[#002B5C] hover:text-[#002B5C] lg:hidden"
         >
           <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} />
           FILTERS
           {appliedCount > 0 && (
-            <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-blue-600 px-1 text-[8.5px] font-bold leading-none text-white">
+            <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-[#002B5C] px-1 text-[8.5px] font-bold leading-none text-white">
               {appliedCount}
             </span>
           )}
@@ -88,7 +88,7 @@ export function PlpToolbar({
             id="plp-sort"
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="min-h-[36px] cursor-pointer border border-ink/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-ink focus:border-blue-600 focus:outline-none"
+            className="min-h-[36px] cursor-pointer border border-ink/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-ink focus:border-[#002B5C] focus:outline-none"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>

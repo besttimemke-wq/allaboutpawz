@@ -218,7 +218,7 @@ export async function Plp({
             )}
             <Link
               href={basePath}
-              className="ml-1 text-[9px] font-bold tracking-[0.1em] text-blue-600 uppercase underline-offset-2 hover:underline"
+              className="ml-1 text-[9px] font-bold tracking-[0.1em] text-[#002B5C] uppercase underline-offset-2 hover:underline"
             >
               Clear all
             </Link>
@@ -347,7 +347,7 @@ function FilterChip({
   return (
     <Link
       href={qs ? `${basePath}?${qs}` : basePath}
-      className="inline-flex items-center gap-1.5 border border-ink/15 bg-white px-2.5 py-1 text-[10px] font-semibold text-ink transition-colors hover:border-blue-600 hover:text-blue-600"
+      className="inline-flex items-center gap-1.5 border border-ink/15 bg-white px-2.5 py-1 text-[10px] font-semibold text-ink transition-colors hover:border-[#002B5C] hover:text-[#002B5C]"
       aria-label={`Remove filter ${label}`}
     >
       {label}
@@ -384,8 +384,8 @@ function PageLink({
       aria-current={active ? "page" : undefined}
       className={`flex h-8 min-w-8 items-center justify-center px-2 text-[11px] font-bold transition-colors ${
         active
-          ? "bg-blue-600 text-white"
-          : "border border-ink/15 bg-white text-ink hover:border-blue-600 hover:text-blue-600"
+          ? "bg-[#002B5C] text-white"
+          : "border border-ink/15 bg-white text-ink hover:border-[#002B5C] hover:text-[#002B5C]"
       }`}
     >
       {children}
@@ -402,7 +402,7 @@ function EmptyState({
 }) {
   return (
     <div className="mt-7 flex flex-col items-center border border-ink/10 bg-white-deep/40 px-6 py-14 text-center">
-      <PawPrint className="h-8 w-8 text-blue-600/50" strokeWidth={1.2} aria-hidden="true" />
+      <PawPrint className="h-8 w-8 text-[#002B5C]/50" strokeWidth={1.2} aria-hidden="true" />
       <p className="mt-4 text-[13px] font-semibold text-ink">
         {hasFilters ? "No products match these filters." : "No products here yet."}
       </p>
@@ -413,11 +413,11 @@ function EmptyState({
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {hasFilters && (
-          <Link href={basePath} className="inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 text-[9px]">
+          <Link href={basePath} className="inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44] text-[9px]">
             CLEAR ALL FILTERS
           </Link>
         )}
-        <Link href="/shop" className={hasFilters ? "btn-ghost text-[9px]" : "inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 text-[9px]"}>
+        <Link href="/shop" className={hasFilters ? "btn-ghost text-[9px]" : "inline-flex items-center justify-center rounded-md bg-[#002B5C] px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-[#001F44] text-[9px]"}>
           {hasFilters ? "VIEW ALL PRODUCTS" : "BROWSE THE COLLECTION"}
         </Link>
       </div>
