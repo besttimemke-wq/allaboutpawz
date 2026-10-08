@@ -686,7 +686,7 @@ export async function POST(req: NextRequest) {
 
       // ───────────────────────────────────────────────────────────────────
       // FINANCIAL REPORT RPCs — call into the 4 PostgreSQL functions
-      // created in /sql/rpcs/. Each returns real aggregated data from
+      // created in /supabase/rpcs/. Each returns real aggregated data from
       // acct_journal_entries + acct_journal_lines + acct_chart_of_accounts.
       // ───────────────────────────────────────────────────────────────────
 
