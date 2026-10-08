@@ -71,7 +71,7 @@ function DropdownBar({ icon: Icon, label, items }: { icon: React.ComponentType<{
 
 export function SiteFooter() {
   return (
-    <footer className="bg-ink">
+    <footer className="bg-black">
       <div className="w-full px-8 lg:px-12">
 
         {/* ===== TIER 1: 5-COLUMN GRID WITH VERTICAL DIVIDING LINES BETWEEN COLUMNS ===== */}
