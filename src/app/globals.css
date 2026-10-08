@@ -180,6 +180,27 @@
   }
 }
 
+/* Thin, unobtrusive scrollbar for the shop mega menu / flyout panels — the
+   live taxonomy tree is tall (6 animals, 60+ departments), so the panel
+   scrolls, but the scrollbar should stay quiet against the white sheet. */
+@utility shop-nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 27, 24, 0.25) transparent;
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(31, 27, 24, 0.25);
+    border-radius: 8px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(31, 27, 24, 0.4);
+  }
+}
+
 /* ---- Brand utilities (exact from the source site) ---- */
 @utility eyebrow {
   font-family: var(--font-body);

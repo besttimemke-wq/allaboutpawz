@@ -1,22 +1,155 @@
 import { NextResponse } from "next/server"
-import { getNavTree, flattenNav, type NavCategory } from "@/lib/shop/catalog"
+import fs from "node:fs"
+import path from "node:path"
+import { getTaxonomyTree } from "@/lib/shop/taxonomy-db"
 
-// GET /api/shop/nav
+// ---------------------------------------------------------------------------
+// GET /api/shop/nav — the LIVE taxonomy tree shaped for the shop flyout and
+// mega menu. Source of truth: taxonomy_nodes + product_nodes/products counts
+// (via getTaxonomyTree). The static SHOP_NAV_TAXONOMY in shop-nav.ts is only
+// an instant-paint fallback; this endpoint is what the nav actually renders.
 //
-// Public customer-facing navigation tree (the same resolver the shop sidebar
-// uses). Roots are virtual species parents (Dog); their children are the
-// flattened department nodes (Grooming, Wellness, …) with canonical
-// `/shop/<species>/<department>` paths. Used by the storefront header mega
-// menu. No secrets — only category names, slugs, paths, and rolled-up counts.
+// Response shape:
+// {
+//   animals: [{
+//     slug, name, productCount, tagline,
+//     departments: [{
+//       slug, name, path, productCount, image,
+//       subcategories: [{ slug, name, path, productCount, image }]
+//     }]
+//   }]
+// }
+//
+// Image resolution happens server-side (no client 404 guessing):
+//   • L2 department: /Shop/departments/<animal>-<dept>.jpeg|png, else
+//     /Shop/categories/<animal>-<dept>.jpg, else null (client paw tile)
+//   • L3 subcategory: /Shop/categories/<animal>-<dept>-<sub>.jpg, else the
+//     animal hero /Shop/categories/<animal>.jpg, else null
+// ---------------------------------------------------------------------------
 
-export async function GET() {
-  const tree = await getNavTree()
-  const flat = flattenNav(tree)
-  return NextResponse.json({ ready: true, categories: tree, flat })
+export const revalidate = 300
+
+const ANIMAL_META: Record<string, { name: string; tagline: string }> = {
+  dog: {
+    name: "Dog Supplies",
+    tagline: "Food, treats, gear, and grooming for every good dog",
+  },
+  cat: {
+    name: "Cat Supplies",
+    tagline: "Everything your cat needs — food, litter, trees, and toys",
+  },
+  fish: {
+    name: "Fish & Aquatics",
+    tagline: "Aquariums, filters, food, and water care for fishkeepers",
+  },
+  bird: {
+    name: "Bird Supplies",
+    tagline: "Cages, perches, seed, and enrichment for companion birds",
+  },
+  reptile: {
+    name: "Reptile Supplies",
+    tagline: "Habitat essentials, food, heat, and lighting for reptiles",
+  },
+  "small-animal": {
+    name: "Small Animal Supplies",
+    tagline: "Habitat, bedding, food, and enrichment for small pets",
+  },
 }
 
-export type NavResponse = {
-  ready: boolean
-  categories: NavCategory[]
-  flat: NavCategory[]
+// Legacy slugs used by the static nav / old links → canonical DB slugs, so
+// the image file-name lookup and paths line up with public/Shop/.
+const IMAGE_SLUG: Record<string, string> = {
+  "small-animal": "small-pet",
+}
+
+function scanShopImages(): Set<string> {
+  const out = new Set<string>()
+  for (const dir of ["categories", "departments"]) {
+    try {
+      const full = path.join(process.cwd(), "public", "Shop", dir)
+      for (const f of fs.readdirSync(full)) out.add(f)
+    } catch {
+      // public/Shop missing in some deploy contexts — image fields go null
+    }
+  }
+  return out
+}
+
+function pickImage(
+  files: Set<string>,
+  candidates: { dir: "categories" | "departments"; file: string }[],
+): string | null {
+  for (const c of candidates) {
+    if (files.has(c.file)) return `/Shop/${c.dir}/${c.file}`
+  }
+  return null
+}
+
+export async function GET() {
+  try {
+    const tree = await getTaxonomyTree()
+    const files = scanShopImages()
+
+    const animals = tree.map((a) => {
+      const meta = ANIMAL_META[a.slug]
+      const imgAnimal = IMAGE_SLUG[a.slug] ?? a.slug
+      const heroImage = pickImage(files, [
+        { dir: "categories", file: `${imgAnimal}.jpg` },
+      ])
+
+      const departments = a.groups.map((g) => {
+        const deptImage = pickImage(files, [
+          { dir: "departments", file: `${imgAnimal}-${g.slug}.jpeg` },
+          { dir: "departments", file: `${imgAnimal}-${g.slug}.png` },
+          { dir: "categories", file: `${imgAnimal}-${g.slug}.jpg` },
+        ]) ?? heroImage
+
+        const subcategories = g.subcategories.map((s) => ({
+          slug: s.slug,
+          name: s.name,
+          path: `/shop/${a.slug}/${g.slug}/${s.slug}`,
+          productCount: s.productCount,
+          image:
+            pickImage(files, [
+              { dir: "categories", file: `${imgAnimal}-${g.slug}-${s.slug}.jpg` },
+            ]) ?? deptImage,
+        }))
+
+        return {
+          slug: g.slug,
+          name: g.name,
+          path: `/shop/${a.slug}/${g.slug}`,
+          productCount: g.productCount,
+          image: deptImage,
+          subcategories,
+        }
+      })
+
+      return {
+        slug: a.slug,
+        name: meta?.name ?? a.name,
+        tagline: meta?.tagline ?? "",
+        productCount: a.productCount,
+        departments,
+      }
+    })
+
+    // Canonical animals first (dog, cat), then the rest by product count.
+    animals.sort((x, y) => {
+      const rank = (s: string) => (s === "dog" ? 0 : s === "cat" ? 1 : 2)
+      const r = rank(x.slug) - rank(y.slug)
+      return r !== 0 ? r : y.productCount - x.productCount
+    })
+
+    return NextResponse.json(
+      { animals },
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
+    )
+  } catch (err) {
+    console.error("[api/shop/nav] failed to build nav tree:", err)
+    return NextResponse.json(
+      { animals: [], error: "nav tree unavailable" },
+      { status: 503 },
+    )
+  }
 }
