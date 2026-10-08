@@ -537,6 +537,31 @@ export async function SubcategoryPage({
   )
 }
 
+// Old taxonomy slugs → new canonical slugs. These render 200 at the old URL
+// (NO redirect — the canonical <link> in the metadata tells Google which
+// URL is canonical). Per the owner: "I asked you not to introduce redirects."
+const DEPARTMENT_ALIASES: Record<string, string> = {
+  // dog old slugs → new slugs
+  "dog/wellness": "dog/health-wellness",
+  "dog/treats": "dog/treats-chews",
+  "dog/chew-toys": "dog/toys",
+  "dog/feeding-watering": "dog/bowls-feeding",
+  "dog/grooming": "dog/grooming-bathing",
+  "dog/grooming-essentials": "dog/grooming-bathing",
+  "dog/travel": "dog/outdoor-travel-gear",
+  "dog/beds-furniture": "dog/beds-bedding",
+  "dog/apparel-accessories": "dog/apparel-accessories", // same slug, no change
+  // cat old slugs → new slugs (if any exist)
+  "cat/feeding-watering": "cat/bowls-feeders",
+  "cat/grooming": "cat/grooming-bathing",
+  "cat/health": "cat/health-wellness",
+}
+
+// Helper — resolve a dept slug to its canonical slug (or return as-is).
+function resolveDeptSlug(animalSlug: string, deptSlug: string): string {
+  return DEPARTMENT_ALIASES[`${animalSlug}/${deptSlug}`] || deptSlug
+}
+
 // Helper — resolve a taxonomy path to the right template
 export function resolveTaxonomyPage(segments: string[]): {
   type: "animal" | "department" | "subcategory"
@@ -554,14 +579,24 @@ export function resolveTaxonomyPage(segments: string[]): {
     return { type: "animal", animal }
   }
 
-  const deptSlug = segments[1]
-  const dept = animal.departments.find(d => d.slug === deptSlug)
+  // Try the dept slug as-is, then check old-slug aliases
+  const rawDeptSlug = segments[1]
+  const canonicalDeptSlug = resolveDeptSlug(animalSlug, rawDeptSlug)
+  const dept = animal.departments.find(d => d.slug === canonicalDeptSlug)
   if (!dept) return null
 
   if (segments.length === 2) {
     return { type: "department", animal, dept }
   }
 
-  // Subcategory or deeper
-  return { type: "subcategory", animal, dept, subSlug: segments[2] }
+  // Subcategory or deeper — if the subcategory slug doesn't exist in the
+  // new taxonomy, still render the DEPARTMENT page (so the URL returns 200
+  // instead of 404). The canonical tag points to the department page.
+  const subSlug = segments[2]
+  const subExists = dept.subcategories.some(s => s.slug === subSlug)
+  if (!subExists) {
+    // Render the department page at this URL (no redirect, no 404)
+    return { type: "department", animal, dept }
+  }
+  return { type: "subcategory", animal, dept, subSlug }
 }
