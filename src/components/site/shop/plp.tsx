@@ -50,11 +50,18 @@ export async function Plp({
 
   const currentPath = path || (scope.kind === "category" ? scope.node.path : scope.kind === "merch" ? `/shop/${scope.merch}` : "/shop")
 
-  // The new shop taxonomy (SHOP_NAV_TAXONOMY from shop-nav.ts) — this is the
-  // REAL cat/dog tree the owner specified, NOT the legacy SQL taxonomy.
-  // The sidebar's CATEGORIES section now navigates to /shop/cat,
-  // /shop/cat/food, /shop/cat/food/dry-food, etc. — matching the new routes.
-  const navTree = buildNavTreeFromTaxonomy() as unknown as NavCategory[]
+  // Context-aware nav tree — the sidebar's CATEGORIES section shows ONLY the
+  // animal the visitor is shopping (on /shop/dog/* → just Dog Supplies + its
+  // departments; on /shop/cat/* → just Cat Supplies + its departments;
+  // on /shop-all → both). This is the bifurcation the owner requires:
+  // clicking Dog Supplies should never show Cat categories in the rail.
+  const animalSlug = currentPath.startsWith("/shop/cat") ? "cat"
+    : currentPath.startsWith("/shop/dog") ? "dog"
+    : null
+  const fullTree = buildNavTreeFromTaxonomy() as unknown as NavCategory[]
+  const navTree = animalSlug
+    ? fullTree.filter((node) => node.key === animalSlug)
+    : fullTree
 
   const [merch, filterSections, state] = await Promise.all([
     getMerchCollections(),
