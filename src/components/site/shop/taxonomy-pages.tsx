@@ -369,7 +369,7 @@ export async function AnimalLandingPage({
           <Plp
             scope={{ kind: "taxonomy", title: animal.name, path, nodeIds: [animal.id], rootId: animal.id }}
             searchParams={searchParams || {}}
-            perPage={10}
+            perPage={48}
             fallbackImage={heroImage}
           />
         </div>
@@ -508,7 +508,7 @@ export async function DepartmentPage({
           <Plp
             scope={{ kind: "taxonomy", title: dept.name, path, nodeIds, rootId: dept.id }}
             searchParams={searchParams || {}}
-            perPage={10}
+            perPage={48}
             fallbackImage={parentImage}
           />
         </div>
@@ -626,7 +626,7 @@ export async function SubcategoryPage({
           <Plp
             scope={{ kind: "taxonomy", title: sub.name, path, nodeIds, rootId: sub.id }}
             searchParams={searchParams || {}}
-            perPage={10}
+            perPage={48}
             fallbackImage={parentImage}
           />
         </div>

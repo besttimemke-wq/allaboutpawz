@@ -869,6 +869,52 @@ export async function getTaxProductDetailBySlug(
 
   const brandName = (p.brand as string) || brandNameRows[0]?.name || null
 
+  // Also-bought / also-viewed rails — same contract as the
+  // api-recommendations edge function: also_bought = same primary category
+  // node, different product; also_viewed = same brand, different product.
+  // Server-side so the PDP renders the rails without a client fetch.
+  type MiniRow = { id: string; slug: string; name: string; brand: string | null; image: string | null; price: number | null; is_best_seller: boolean | null; is_sale: boolean | null; is_new: boolean | null }
+  // Two concrete queries (cleaner than one parametrized shape):
+  const alsoBoughtRows = p.category_id
+    ? await pgQuery<MiniRow>(
+        `SELECT p2.id, p2.slug, COALESCE(p2.title, p2.name) AS name,
+                p2.brand, p2.is_best_seller, p2.is_sale, p2.is_new,
+                (SELECT url FROM product_media mm WHERE mm.product_id = p2.id AND mm.media_type = 'image' ORDER BY mm.sort_order ASC LIMIT 1) AS image,
+                (SELECT MIN(v.price) FROM product_variants v WHERE v.product_id = p2.id AND v.status = 'active') AS price
+           FROM products p2
+          WHERE p2.status = 'published' AND p2.id <> $1 AND p2.category_id = $2
+          ORDER BY p2.is_best_seller DESC NULLS LAST, p2.is_featured DESC NULLS LAST, p2.created_at DESC
+          LIMIT 6`,
+        [p.id, p.category_id],
+      )
+    : []
+  const alsoViewedRows = p.brand_id
+    ? await pgQuery<MiniRow>(
+        `SELECT p2.id, p2.slug, COALESCE(p2.title, p2.name) AS name,
+                p2.brand, p2.is_best_seller, p2.is_sale, p2.is_new,
+                (SELECT url FROM product_media mm WHERE mm.product_id = p2.id AND mm.media_type = 'image' ORDER BY mm.sort_order ASC LIMIT 1) AS image,
+                (SELECT MIN(v.price) FROM product_variants v WHERE v.product_id = p2.id AND v.status = 'active') AS price
+           FROM products p2
+          WHERE p2.status = 'published' AND p2.id <> $1 AND p2.brand_id = $2
+          ORDER BY p2.is_best_seller DESC NULLS LAST, p2.created_at DESC
+          LIMIT 6`,
+        [p.id, p.brand_id],
+      )
+    : []
+  const toMini = (r: MiniRow) => ({
+    id: String(r.id),
+    slug: String(r.slug),
+    name: String(r.name ?? ""),
+    brand: (r.brand as string) || null,
+    image: r.image,
+    priceCents: r.price != null && Number.isFinite(Number(r.price)) ? Math.round(Number(r.price) * 100) : null,
+    isBestseller: r.is_best_seller === true,
+    isOnSale: r.is_sale === true,
+    isNew: r.is_new === true,
+  })
+  const alsoBought = alsoBoughtRows.map(toMini)
+  const alsoViewed = alsoViewedRows.map(toMini)
+
   // Best node names for the breadcrumb chain (category_id → node → ancestors).
   const categoryNodeRows = (p.category_id
     ? await pgQuery<{ id: string; name: string; display_name: string | null; slug: string; parent_id: string | null }>(
@@ -914,5 +960,7 @@ export async function getTaxProductDetailBySlug(
     sortOrder: 0,
     createdAt: (p.created_at as string) ?? new Date().toISOString(),
     updatedAt: (p.updated_at as string) ?? new Date().toISOString(),
+    alsoBought,
+    alsoViewed,
   } as unknown as import("@/lib/enterprise/catalog").CatalogProduct
 }

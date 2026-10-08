@@ -11,7 +11,8 @@ import {
   type CatalogProduct,
 } from "@/lib/enterprise/catalog"
 import { getTaxProductDetailBySlug } from "@/lib/shop/taxonomy-db"
-import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
+import { ProductBuyBox, ReviewForm, ProductGallery, type BuyBoxProduct } from "@/components/site/islands/product-detail"
+import { ProductCard } from "@/components/site/shop/product-card"
 import { SITE_URL } from "@/lib/site-url"
 
 // ---------------------------------------------------------------------------
@@ -70,6 +71,35 @@ function fmtDate(iso: string | null | undefined) {
 
 const hasText = (v: any) => typeof v === "string" && v.trim().length > 0
 
+/** Mini recommendation card shape attached by getTaxProductDetailBySlug. */
+type MiniRec = {
+  id: string
+  slug: string
+  name: string
+  brand: string | null
+  image: string | null
+  priceCents: number | null
+  isBestseller: boolean
+  isOnSale: boolean
+  isNew: boolean
+}
+
+/** Map a MiniRec to the global ProductCard contract. */
+function recToCard(mp: MiniRec) {
+  return {
+    id: mp.id,
+    name: mp.name,
+    slug: mp.slug,
+    price: mp.priceCents != null ? `$${(mp.priceCents / 100).toFixed(2)}` : "",
+    image: mp.image,
+    category: mp.brand,
+    isOnSale: mp.isOnSale,
+    isNew: mp.isNew,
+    isBestseller: mp.isBestseller,
+    priceCents: mp.priceCents,
+  }
+}
+
 // Split a "·"-separated spec string into definition-list rows.
 function specRows(specs: string) {
   return specs
@@ -122,6 +152,11 @@ export default async function ProductPage({ params }: Params) {
   const related = [...inCategory, ...outCategory].slice(0, 4)
 
   const category = product.category || "Shop"
+
+  // Also-bought / also-viewed rails (live feed products only — the legacy
+  // enterprise path renders its own `related` grid lower on the page).
+  const alsoBought = ((product as { alsoBought?: MiniRec[] }).alsoBought ?? []) as MiniRec[]
+  const alsoViewed = ((product as { alsoViewed?: MiniRec[] }).alsoViewed ?? []) as MiniRec[]
 
   // Customer-facing breadcrumb chain: find the presentation node for the
   // product's raw categoryId, then walk up through its chain.
@@ -267,24 +302,11 @@ export default async function ProductPage({ params }: Params) {
       {/* Two-column hero */}
       <section className="grid grid-cols-1 gap-10 bg-white px-8 py-12 lg:grid-cols-[0.85fr_1fr] lg:gap-14 lg:px-12 lg:py-16">
         <div className="relative">
-          {product.image ? (
-                        <img
-              src={product.image}
-              alt={product.alt || product.name}
-              width={900}
-              height={1024}
-              className="h-[340px] w-full border border-neutral-200 bg-neutral-50 object-cover lg:h-[460px]"
-            />
-          ) : (
-            <div className="flex h-[340px] w-full items-center justify-center border border-neutral-200 bg-neutral-50 lg:h-[460px]">
-              <PawPrint className="h-10 w-10 text-[#002B5C]/40" strokeWidth={1.2} />
-            </div>
-          )}
-          {product.badge && (
-            <span className="absolute left-4 top-4 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-[#002B5C]">
-              {String(product.badge).toUpperCase()}
-            </span>
-          )}
+          <ProductGallery
+            images={(product.media ?? []).slice(0, 8).map((m) => ({ url: String(m.url), alt: (m as { altText?: string | null }).altText ?? null }))}
+            name={product.name}
+            badge={product.badge ? String(product.badge).toUpperCase() : null}
+          />
         </div>
 
         <div className="flex flex-col justify-center">
@@ -401,6 +423,37 @@ export default async function ProductPage({ params }: Params) {
                   ))}
                 </dl>
               </DetailBlock>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Customers Also Bought / You May Also Like — server-rendered rails
+          (same contract as the api-recommendations edge function). */}
+      {(alsoBought.length > 0 || alsoViewed.length > 0) && (
+        <section className="border-t border-neutral-200 bg-white px-8 pb-14 lg:px-12">
+          <div className="pt-10">
+            {alsoBought.length > 0 && (
+              <>
+                <p className="eyebrow">CUSTOMERS ALSO BOUGHT</p>
+                <h2 className="mt-2 font-display text-[26px] text-ink">Pairs well with this pick</h2>
+                <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 xl:grid-cols-6">
+                  {alsoBought.slice(0, 6).map((mp) => (
+                    <ProductCard key={mp.id} product={recToCard(mp)} />
+                  ))}
+                </div>
+              </>
+            )}
+            {alsoViewed.length > 0 && (
+              <div className={alsoBought.length > 0 ? "mt-12" : ""}>
+                <p className="eyebrow">MORE FROM {String(product.brand ?? "THE BRAND").toUpperCase()}</p>
+                <h2 className="mt-2 font-display text-[26px] text-ink">You may also like</h2>
+                <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 xl:grid-cols-6">
+                  {alsoViewed.slice(0, 6).map((mp) => (
+                    <ProductCard key={mp.id} product={recToCard(mp)} />
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </section>

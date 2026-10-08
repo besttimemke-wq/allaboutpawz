@@ -284,3 +284,77 @@ export function ReviewForm({ productId }: { productId: string }) {
     </div>
   )
 }
+
+// ---------------------------------------------------------------------------
+// <ProductGallery /> — main image + thumbnail strip (up to 8, from
+// product_media). Click a thumb to swap the main image. Server page hands
+// us the media array; the island only owns which one is showing.
+// ---------------------------------------------------------------------------
+
+export type GalleryImage = { url: string; alt: string | null }
+
+export function ProductGallery({
+  images,
+  name,
+  badge,
+}: {
+  images: GalleryImage[]
+  name: string
+  badge?: string | null
+}) {
+  const [active, setActive] = useState(0)
+  const main = images[active] ?? images[0]
+
+  if (!main) {
+    return (
+      <div className="flex h-[340px] w-full items-center justify-center border border-neutral-200 bg-neutral-50 lg:h-[460px]">
+        <PawPrint className="h-10 w-10 text-[#002B5C]/40" strokeWidth={1.2} aria-hidden="true" />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="relative">
+        {badge && (
+          <span className="absolute left-4 top-4 z-10 bg-[#002B5C] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+            {badge}
+          </span>
+        )}
+        <img
+          src={main.url}
+          alt={main.alt || name}
+          width={900}
+          height={1024}
+          className="h-[340px] w-full border border-neutral-200 bg-neutral-50 object-cover lg:h-[460px]"
+        />
+      </div>
+      {images.length > 1 && (
+        <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1" role="tablist" aria-label={`${name} images`}>
+          {images.slice(0, 8).map((img, i) => (
+            <button
+              key={`${img.url}-${i}`}
+              type="button"
+              role="tab"
+              aria-selected={i === active}
+              aria-label={`Show image ${i + 1} of ${name}`}
+              onClick={() => setActive(i)}
+              className={`relative h-16 w-16 shrink-0 overflow-hidden border-2 transition-colors ${
+                i === active ? "border-[#002B5C]" : "border-neutral-200 hover:border-[#F2C500]"
+              }`}
+            >
+              <img
+                src={img.url}
+                alt=""
+                width={128}
+                height={128}
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

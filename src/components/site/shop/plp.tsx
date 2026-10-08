@@ -50,15 +50,16 @@ export type PlpScope =
 export async function Plp({
   scope,
   searchParams,
-  perPage = 10,
+  perPage = 48,
   path,
   categoryFilter,
   fallbackImage,
 }: {
   scope: PlpScope
   searchParams: Record<string, string | string[] | undefined>
-  /** Page size is capped at 10 per the storefront spec — "See More" loads
-   *  the next page server-side. */
+  /** Page size — 48 per page (4 cols × 12 rows desktop) per owner spec,
+   *  with the AA promo banner injected after row 6. "See More" loads the
+   *  next page server-side. */
   perPage?: number
   /** The current shop route path (e.g. "/shop", "/shop/cat/food"), used to
    *  resolve page-specific facets from src/lib/shop/facets.ts. */
@@ -204,6 +205,9 @@ export async function Plp({
   }
 
   // Applied URL state for the rail + chips (kept as display strings).
+  // Banner pick comes from THIS page's listings so the CTA always routes
+  // to a product the visitor is already shopping.
+  const bannerItem = pickBannerItem(gridItems)
   const one = (k: string) => (typeof searchParams[k] === "string" ? (searchParams[k] as string) : null)
   const applied: SidebarData["applied"] = {
     minPrice: one("minPrice") || "",
@@ -306,13 +310,27 @@ export async function Plp({
           </div>
         )}
 
-        {/* Product grid */}
+        {/* Product grid — 48/page (4 cols × 12 rows desktop per owner spec).
+            The AA promo banner injects after row 6 (24 cards) and routes to
+            a product with a GET THIS NOW CTA. */}
         {gridItems.length > 0 ? (
-          <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 xl:grid-cols-4">
-            {gridItems.map((p, i) => (
-              <ProductCard key={String(p.id)} product={p as never} priority={i < 4 && state.page === 1} />
-            ))}
-          </div>
+          <>
+            <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 xl:grid-cols-4">
+              {gridItems.slice(0, BANNER_AFTER).map((p, i) => (
+                <ProductCard key={String(p.id)} product={p as never} priority={i < 4 && state.page === 1} />
+              ))}
+            </div>
+            {gridItems.length > BANNER_AFTER && bannerItem != null && (
+              <PromoBanner product={bannerItem} />
+            )}
+            {gridItems.length > BANNER_AFTER && (
+              <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 xl:grid-cols-4">
+                {gridItems.slice(BANNER_AFTER).map((p) => (
+                  <ProductCard key={String(p.id)} product={p as never} />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <EmptyState
             basePath={basePath}
@@ -380,6 +398,79 @@ function taxProductToCard(p: TaxProduct, fallbackImage?: string | null) {
     isBestseller: p.isBestseller,
     rating: { avg: p.ratingAvg ?? 0, count: p.ratingCount },
   }
+}
+
+/** AA promo banner injects after this many cards — row 6 on the 4-col grid. */
+const BANNER_AFTER = 24
+
+/** Pick the banner's featured product from the page's own listings:
+ *  best-seller first, then sale item, then anything with an image. */
+function pickBannerItem(items: Array<Record<string, unknown>>): Record<string, unknown> | null {
+  if (items.length === 0) return null
+  const byFlag = (flag: string) => items.find((p) => p[flag] === true)
+  return (
+    byFlag("isBestseller") ||
+    byFlag("isOnSale") ||
+    items.find((p) => p.image != null) ||
+    items[0]
+  )
+}
+
+/** Full-width AA promo banner — routes to the featured product's PDP with a
+ *  high-contrast GET THIS NOW CTA (owner spec: banner between grid rows). */
+function PromoBanner({
+  product,
+}: {
+  product: Record<string, unknown>
+}) {
+  const href = `/products/${String(product.slug ?? "")}`
+  const image = product.image as string | null | undefined
+  const price = typeof product.price === "string" ? product.price : null
+  const compareAt =
+    product.compareAtPriceCents != null && product.priceCents != null && (product.isOnSale as boolean)
+      ? `$${((product.compareAtPriceCents as number) / 100).toFixed(2)}`
+      : null
+
+  return (
+    <section
+      aria-label="Featured deal"
+      className="mt-10 flex flex-col overflow-hidden border-2 border-[#002B5C] bg-[#002B5C] sm:flex-row sm:items-stretch"
+    >
+      <div className="relative h-44 w-full shrink-0 bg-[#002B5C]/60 sm:h-auto sm:w-56 lg:w-72">
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image}
+            alt={String(product.name ?? "Featured product")}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : null}
+        <span className="absolute left-4 top-4 bg-[#F2C500] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#002B5C]">
+          AA Pick
+        </span>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-2 px-6 py-6 sm:px-8">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#F2C500]">
+          {String(product.category ?? "All About Pawz")}
+        </p>
+        <h2 className="text-[22px] font-extrabold leading-[1.15] text-white lg:text-[26px]">
+          {String(product.name ?? "")}
+        </h2>
+        <p className="flex items-baseline gap-2.5">
+          {price && <span className="text-[20px] font-extrabold text-white">{price}</span>}
+          {compareAt && <span className="text-[14px] font-semibold text-white/60 line-through">{compareAt}</span>}
+        </p>
+        <Link
+          href={href}
+          className="mt-2 inline-flex items-center gap-2 bg-[#F2C500] px-6 py-3 text-[14px] font-extrabold uppercase tracking-[0.1em] text-[#002B5C] transition-colors hover:bg-white"
+        >
+          Get This Now
+          <ChevronRight className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+        </Link>
+      </div>
+    </section>
+  )
 }
 
 /** Sidebar filter sections: the owner's DB-driven per-node facets FIRST
