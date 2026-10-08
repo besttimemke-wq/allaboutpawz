@@ -8,7 +8,9 @@ Stripe handles the $25 booking deposit and shop checkout.
 
 - **Next.js 16** (App Router) · React 19 · TypeScript 5
 - **Tailwind CSS 4** + shadcn/ui (New York) + Phosphor & Lucide icons
-- **Supabase** — 47 tables, auth, storage (see `supabase/schema.sql`)
+- **Supabase** — full live schema in `supabase/schema.sql` (690 tables across
+  `public`, `lms`, `api`, `private`, `platform_audit` — RLS policies, functions,
+  triggers included; dumped with the Supabase CLI)
 - **Stripe** — checkout sessions + billing portal + webhook
 - **Resend** — transactional email
 
