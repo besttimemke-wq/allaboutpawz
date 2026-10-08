@@ -72,40 +72,6 @@ export default async function ShopPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      {/* Promo banner — split-color, "what's on sale". Image LEFT, navy bg
-          RIGHT with the deal headline + code + Shop Now CTA. */}
-      <section className="px-6 py-6 lg:px-12 lg:py-8">
-        <div className="mx-auto max-w-7xl overflow-hidden rounded-lg border border-neutral-200 grid grid-cols-1 md:grid-cols-5">
-          {/* Image side */}
-          <div className="md:col-span-2 aspect-[4/3] md:aspect-auto bg-neutral-100 overflow-hidden">
-            <img
-              src="/Shop/departments/dog-food.jpeg"
-              alt="All About Pawz shop sale"
-              className="h-full w-full object-cover"
-            />
-          </div>
-          {/* Navy side */}
-          <div className="md:col-span-3 flex flex-col justify-center gap-3 bg-[#002B5C] px-6 py-8 text-white md:px-10 md:py-12">
-            <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/70">Limited time</p>
-            <h2 className="font-display text-[28px] leading-[1.05] md:text-[40px]">20% OFF SITEWIDE</h2>
-            <p className="text-[14px] text-white/85">with code: PAWZ20</p>
-            <div className="mt-2 flex flex-wrap items-center gap-4">
-              <Link
-                href="/shop/dog"
-                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] uppercase text-[#002B5C] transition-colors hover:bg-neutral-100"
-              >
-                Shop Now
-                <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-              </Link>
-              <p className="text-[11px] text-white/70">
-                Ends Sunday.{" "}
-                <Link href="/policies/refunds-returns" className="underline hover:text-white">Details</Link>
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Animal cards — Cat, Dog. The only navigation on /shop. */}
       <section className="px-6 py-8 lg:px-12 lg:py-10">
         <div className="mx-auto max-w-7xl">

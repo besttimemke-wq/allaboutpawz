@@ -28,63 +28,6 @@ import { findSeoCopy } from "@/lib/shop/seo-copy"
 // NEVER renders as a visible wall of text.
 // ---------------------------------------------------------------------------
 
-// --- Shared promo banner (split-color, image LEFT / colored bg RIGHT) ---
-function PromoBanner({
-  image,
-  imageAlt,
-  headline,
-  subhead,
-  ctaLabel,
-  ctaHref,
-  finePrint,
-}: {
-  image: string
-  imageAlt: string
-  headline: string
-  subhead?: string
-  ctaLabel: string
-  ctaHref: string
-  finePrint?: string
-}) {
-  return (
-    <section className="px-6 py-6 lg:px-12 lg:py-8">
-      <div className="mx-auto max-w-7xl overflow-hidden rounded-lg border border-neutral-200 grid grid-cols-1 md:grid-cols-5">
-        {/* Image side — ~40% on desktop, full-width on mobile */}
-        <div className="md:col-span-2 aspect-[4/3] md:aspect-auto bg-neutral-100 overflow-hidden">
-          {/* Using <img> because Next/Image would need remote config for local
-              public assets we haven't whitelisted yet; this is the same pattern
-              the existing shop components use. */}
-          <img
-            src={image}
-            alt={imageAlt}
-            className="h-full w-full object-cover"
-          />
-        </div>
-        {/* Colored side — ~60% on desktop */}
-        <div className="md:col-span-3 flex flex-col justify-center gap-3 bg-[#002B5C] px-6 py-8 md:px-10 md:py-12 text-white">
-          <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-white/70">Limited time</p>
-          <h2 className="font-display text-[28px] leading-[1.05] md:text-[40px]">{headline}</h2>
-          {subhead && <p className="text-[14px] text-white/85">{subhead}</p>}
-          <div className="mt-2 flex flex-wrap items-center gap-4">
-            <Link
-              href={ctaHref}
-              className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] uppercase text-[#002B5C] transition-colors hover:bg-neutral-100"
-            >
-              {ctaLabel}
-              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
-            </Link>
-            {finePrint && (
-              <p className="text-[11px] text-white/70">
-                {finePrint}{" "}
-                <Link href="/policies/refunds-returns" className="underline hover:text-white">Details</Link>
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
 
 // --- Shared category-card horizontal carousel (scrollable sideways with
 // chevron arrows on the edges — Petco-style, NOT a vertical grid that
@@ -242,17 +185,6 @@ export async function AnimalLandingPage({
         </div>
       </section>
 
-      {/* Promo banner — split-color, "what's on sale" */}
-      <PromoBanner
-        image="/Shop/departments/dog-food.jpeg"
-        imageAlt={`${animal.name} sale at All About Pawz Memphis`}
-        headline="20% OFF SITEWIDE"
-        subhead="with code: PAWZ20"
-        ctaLabel="Shop Now"
-        ctaHref={departmentPath(animal.slug, animal.departments[0]?.slug || "")}
-        finePrint="Ends Sunday. Some exclusions apply."
-      />
-
       {/* Department carousel — "how to get there" */}
       <CategoryCarousel title={`Shop ${animal.name.replace(" Supplies", "")} by Department`} cards={departmentCards} />
 
@@ -374,19 +306,6 @@ export async function DepartmentPage({
           </h1>
         </div>
       </section>
-
-      {/* Promo banner — "what's on sale" */}
-      <PromoBanner
-        image="/Shop/departments/dog-food.jpeg"
-        imageAlt={`${dept.name} sale at All About Pawz Memphis`}
-        headline="20% OFF SITEWIDE"
-        subhead="with code: PAWZ20"
-        ctaLabel="Shop Now"
-        ctaHref={dept.subcategories[0]
-          ? subcategoryPath(animal.slug, dept.slug, dept.subcategories[0].slug)
-          : path}
-        finePrint="Ends Sunday. Some exclusions apply."
-      />
 
       {/* Subcategory carousel — "how to get there" */}
       {subcategoryCards.length > 0 && (
@@ -537,31 +456,6 @@ export async function SubcategoryPage({
   )
 }
 
-// Old taxonomy slugs → new canonical slugs. These render 200 at the old URL
-// (NO redirect — the canonical <link> in the metadata tells Google which
-// URL is canonical). Per the owner: "I asked you not to introduce redirects."
-const DEPARTMENT_ALIASES: Record<string, string> = {
-  // dog old slugs → new slugs
-  "dog/wellness": "dog/health-wellness",
-  "dog/treats": "dog/treats-chews",
-  "dog/chew-toys": "dog/toys",
-  "dog/feeding-watering": "dog/bowls-feeding",
-  "dog/grooming": "dog/grooming-bathing",
-  "dog/grooming-essentials": "dog/grooming-bathing",
-  "dog/travel": "dog/outdoor-travel-gear",
-  "dog/beds-furniture": "dog/beds-bedding",
-  "dog/apparel-accessories": "dog/apparel-accessories", // same slug, no change
-  // cat old slugs → new slugs (if any exist)
-  "cat/feeding-watering": "cat/bowls-feeders",
-  "cat/grooming": "cat/grooming-bathing",
-  "cat/health": "cat/health-wellness",
-}
-
-// Helper — resolve a dept slug to its canonical slug (or return as-is).
-function resolveDeptSlug(animalSlug: string, deptSlug: string): string {
-  return DEPARTMENT_ALIASES[`${animalSlug}/${deptSlug}`] || deptSlug
-}
-
 // Helper — resolve a taxonomy path to the right template
 export function resolveTaxonomyPage(segments: string[]): {
   type: "animal" | "department" | "subcategory"
@@ -579,24 +473,14 @@ export function resolveTaxonomyPage(segments: string[]): {
     return { type: "animal", animal }
   }
 
-  // Try the dept slug as-is, then check old-slug aliases
-  const rawDeptSlug = segments[1]
-  const canonicalDeptSlug = resolveDeptSlug(animalSlug, rawDeptSlug)
-  const dept = animal.departments.find(d => d.slug === canonicalDeptSlug)
+  const deptSlug = segments[1]
+  const dept = animal.departments.find(d => d.slug === deptSlug)
   if (!dept) return null
 
   if (segments.length === 2) {
     return { type: "department", animal, dept }
   }
 
-  // Subcategory or deeper — if the subcategory slug doesn't exist in the
-  // new taxonomy, still render the DEPARTMENT page (so the URL returns 200
-  // instead of 404). The canonical tag points to the department page.
-  const subSlug = segments[2]
-  const subExists = dept.subcategories.some(s => s.slug === subSlug)
-  if (!subExists) {
-    // Render the department page at this URL (no redirect, no 404)
-    return { type: "department", animal, dept }
-  }
-  return { type: "subcategory", animal, dept, subSlug }
+  // Subcategory or deeper
+  return { type: "subcategory", animal, dept, subSlug: segments[2] }
 }

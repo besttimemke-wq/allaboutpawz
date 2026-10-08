@@ -242,23 +242,6 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
             </div>
           </div>
         )}
-
-        {/* --- Promo banner (bottom of main panel, dark brown bg) --- */}
-        <div className="border-t border-[#E8E4DC] px-8 py-6">
-          <Link
-            href="/book/appointment"
-            onClick={onClose}
-            className="flex items-center justify-between rounded-lg bg-[#2C241B] px-6 py-5 transition hover:bg-[#1A1510]"
-          >
-            <div>
-              <p className="text-[14px] font-bold text-white">First Groom 10% Off</p>
-              <p className="mt-1 text-[12px] text-white/70">Use code PAWZ10 at booking</p>
-            </div>
-            <span className="flex items-center gap-1 text-[12px] font-bold text-white">
-              BOOK NOW <ArrowRight size={14} />
-            </span>
-          </Link>
-        </div>
       </div>
     </div>
   )
