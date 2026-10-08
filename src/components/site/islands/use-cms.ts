@@ -103,7 +103,7 @@ const DEFAULT_GALLERY = [
 // ─── Add-ons (pricing) ──────────────────────────────────────────────────────
 
 const DEFAULT_ADDONS = [
-  { id: "add-1", title: "Teeth Brushing", price: "$15", icon: "Sparkles", visible: true, order: 0 },
+  { id: "add-1", title: "Teeth Brushing", price: "$15", icon: "PawPrint", visible: true, order: 0 },
   { id: "add-2", title: "De-shedding", price: "$15 - $35", icon: "Scissors", visible: true, order: 1 },
   { id: "add-3", title: "Paw Treatment", price: "$15", icon: "PawPrint", visible: true, order: 2 },
   { id: "add-4", title: "Nail Trim", price: "$15", icon: "Droplets", visible: true, order: 3 },

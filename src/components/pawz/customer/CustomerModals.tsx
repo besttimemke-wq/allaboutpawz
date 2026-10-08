@@ -2,33 +2,7 @@
 
 import React, { useState } from 'react';
 import { CustomerFullProfile, CustomerPetDetail, CustomerAppointmentItem } from '@/lib/types';
-import {
-  X,
-  Pencil,
-  Plus,
-  Trash2,
-  Calendar,
-  Clock,
-  Scissors,
-  CheckCircle,
-  AlertCircle,
-  Camera,
-  FileText,
-  DollarSign,
-  Download,
-  CreditCard,
-  ShieldCheck,
-  Send,
-  Sparkles,
-  RefreshCw,
-  Mail,
-  MessageSquare,
-  History,
-  Tag,
-  UserCheck,
-  Printer,
-  ChevronRight,
-} from 'lucide-react';
+import { X, Pencil, Plus, Trash2, Calendar, Clock, Scissors, CheckCircle, AlertCircle, Camera, FileText, DollarSign, Download, CreditCard, ShieldCheck, Send, PawPrint, RefreshCw, Mail, MessageSquare, History, Tag, UserCheck, Printer, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 
 /* -------------------------------------------------------------
@@ -401,7 +375,7 @@ export const AddonServiceModal: React.FC<{
       <div className="bg-card rounded-2xl border border-border shadow-2xl max-w-md w-full overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-muted/40">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-warning" />
+            <PawPrint className="w-4 h-4 text-warning" />
             <h3 className="font-semibold text-foreground text-sm">Add-on / Service Update – {appointment.pet}</h3>
           </div>
           <button onClick={onClose} className="text-muted-foreground/70 hover:text-muted-foreground p-1 cursor-pointer">

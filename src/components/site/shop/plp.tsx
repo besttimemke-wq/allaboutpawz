@@ -46,12 +46,15 @@ export type PlpScope =
 export async function Plp({
   scope,
   searchParams,
-  perPage = 12,
+  perPage = 10,
   path,
   categoryFilter,
+  fallbackImage,
 }: {
   scope: PlpScope
   searchParams: Record<string, string | string[] | undefined>
+  /** Page size is capped at 10 per the storefront spec — "See More" loads
+   *  the next page server-side. */
   perPage?: number
   /** The current shop route path (e.g. "/shop", "/shop/cat/food"), used to
    *  resolve page-specific facets from src/lib/shop/facets.ts. */
@@ -60,6 +63,10 @@ export async function Plp({
    *  metadata category matches one of these names will appear in the grid.
    *  This is what makes the bedding page show ONLY bedding products. */
   categoryFilter?: string[]
+  /** Category-page image shown on cards whose feed product has no photo —
+   *  the category image is duplicated onto the ecommerce grid so nothing
+   *  renders an empty placeholder. */
+  fallbackImage?: string | null
 }) {
   const isTax = scope.kind === "taxonomy"
   const scopeIds =
@@ -170,7 +177,7 @@ export async function Plp({
       },
     })
     result = tax
-    gridItems = tax.items.map(taxProductToCard) as unknown as Array<Record<string, unknown>>
+    gridItems = tax.items.map((t) => taxProductToCard(t, fallbackImage)) as unknown as Array<Record<string, unknown>>
   } else {
     const [merch, sections] = await Promise.all([
       getMerchCollections(),
@@ -311,29 +318,31 @@ export async function Plp({
           />
         )}
 
-        {/* Pagination */}
+        {/* Pagination — 10 per page with a See More control (per spec).
+            Server-rendered links; no numbered grid. */}
         {result.pages > 1 && (
-          <nav aria-label="Pagination" className="mt-10 flex items-center justify-center gap-2">
+          <nav aria-label="Pagination" className="mt-10 flex flex-wrap items-center justify-center gap-4">
             {result.page > 1 && (
               <PageLink basePath={basePath} searchParams={searchParams} page={result.page - 1} label="Previous page">
-                <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} />
+                <span className="inline-flex items-center gap-1.5">
+                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2} /> Previous
+                </span>
               </PageLink>
             )}
-            {Array.from({ length: result.pages }).map((_, i) => (
+            <span className="text-[13px] font-semibold tracking-[0.08em] text-ink-soft uppercase">
+              Page {result.page} of {result.pages} — {result.total} products
+            </span>
+            {result.page < result.pages && (
               <PageLink
-                key={i + 1}
                 basePath={basePath}
                 searchParams={searchParams}
-                page={i + 1}
-                label={`Page ${i + 1}`}
-                active={result.page === i + 1}
+                page={result.page + 1}
+                label={`See more products (page ${result.page + 1} of ${result.pages})`}
+                primary
               >
-                {i + 1}
-              </PageLink>
-            ))}
-            {result.page < result.pages && (
-              <PageLink basePath={basePath} searchParams={searchParams} page={result.page + 1} label="Next page">
-                <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
+                <span className="inline-flex items-center gap-1.5">
+                  See More <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
+                </span>
               </PageLink>
             )}
           </nav>
@@ -347,8 +356,9 @@ export async function Plp({
 // Pieces
 // ---------------------------------------------------------------------------
 
-/** Map a LIVE-catalog product (taxonomy-db) to the ProductCard contract. */
-function taxProductToCard(p: TaxProduct) {
+/** Map a LIVE-catalog product (taxonomy-db) to the ProductCard contract.
+ *  Products without feed media inherit the category-page image. */
+function taxProductToCard(p: TaxProduct, fallbackImage?: string | null) {
   return {
     id: p.id,
     name: p.name,
@@ -357,7 +367,7 @@ function taxProductToCard(p: TaxProduct) {
     priceCents: p.priceCents,
     basePriceCents: p.priceCents,
     compareAtPriceCents: p.compareAtPriceCents,
-    image: p.image,
+    image: p.image ?? fallbackImage ?? null,
     alt: p.name,
     category: p.brand,
     isOnSale: p.isOnSale,
@@ -480,6 +490,7 @@ function PageLink({
   page,
   label,
   active,
+  primary,
   children,
 }: {
   basePath: string
@@ -487,6 +498,7 @@ function PageLink({
   page: number
   label: string
   active?: boolean
+  primary?: boolean
   children: React.ReactNode
 }) {
   const next = new URLSearchParams()
@@ -500,10 +512,12 @@ function PageLink({
       href={qs ? `${basePath}?${qs}` : basePath}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`flex h-11 min-w-11 items-center justify-center px-3 text-[15px] font-semibold transition-colors ${
-        active
-          ? "bg-[#002B5C] text-white"
-          : "border border-ink/15 bg-white text-ink hover:border-[#F2C500]"
+      className={`inline-flex h-11 min-h-11 items-center justify-center px-5 text-[14px] font-bold tracking-[0.06em] uppercase transition-colors ${
+        primary
+          ? "bg-[#002B5C] text-white hover:bg-[#001F44]"
+          : active
+            ? "bg-[#002B5C] text-white"
+            : "border border-ink/15 bg-white text-ink hover:border-[#F2C500]"
       }`}
     >
       {children}

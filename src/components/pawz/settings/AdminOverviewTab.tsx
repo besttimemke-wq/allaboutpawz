@@ -1,29 +1,7 @@
 'use client';
 
 import React from 'react';
-import { 
-  Building2, 
-  Users, 
-  Calendar, 
-  Tag, 
-  CreditCard, 
-  Globe, 
-  UserCheck, 
-  MessageSquare, 
-  Package, 
-  BarChart3, 
-  Sliders, 
-  Sparkles, 
-  Link as LinkIcon, 
-  ArrowRight, 
-  CheckCircle2, 
-  ExternalLink,
-  MapPin,
-  Phone,
-  Mail,
-  Store,
-  GraduationCap
-} from 'lucide-react';
+import { Building2, Users, Calendar, Tag, CreditCard, Globe, UserCheck, MessageSquare, Package, BarChart3, Sliders, PawPrint, Link as LinkIcon, ArrowRight, CheckCircle2, ExternalLink, MapPin, Phone, Mail, Store, GraduationCap } from 'lucide-react';
 import { DawgNavSection } from '@/lib/types';
 
 interface AdminOverviewTabProps {
@@ -456,7 +434,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 bg-primary text-primary-foreground flex items-center justify-center">
-                <Sparkles className="w-4 h-4" />
+                <PawPrint className="w-4 h-4" />
               </div>
               <h4 className="text-sm font-semibold uppercase tracking-tight text-foreground">Release Notes</h4>
             </div>

@@ -2,75 +2,10 @@
 
 import React, { useState } from 'react';
 import { CustomerFullProfile, CustomerPetDetail, CustomerAppointmentItem } from '@/lib/types';
-import {
-  ChevronRight,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  ChevronDown,
-  Phone,
-  Mail,
-  MapPin,
-  Wallet,
-  BadgeDollarSign,
-  DollarSign,
-  Star,
-  Calendar,
-  CheckCircle,
-  ShieldCheck,
-  AlertCircle,
-  CalendarPlus,
-  PawPrint,
-  CreditCard,
-  MessageSquare,
-  FileEdit,
-  FileCheck,
-  ArrowRight,
-  Scissors,
-  X,
-  Send,
-  Upload,
-  Check,
-  Search,
-  FileText,
-  Dog,
-  Camera,
-  Pin,
-  History,
-  Tag,
-  UserCheck,
-  Clock,
-  BellRing,
-  RotateCcw,
-  Sparkles,
-  Eye,
-  Printer,
-  CheckCheck,
-} from 'lucide-react';
+import { ChevronRight, MoreHorizontal, Pencil, Plus, ChevronDown, Phone, Mail, MapPin, Wallet, BadgeDollarSign, DollarSign, Star, Calendar, CheckCircle, ShieldCheck, AlertCircle, CalendarPlus, PawPrint, CreditCard, MessageSquare, FileEdit, FileCheck, ArrowRight, Scissors, X, Send, Upload, Check, Search, FileText, Dog, Camera, Pin, History, Tag, UserCheck, Clock, BellRing, RotateCcw, Eye, Printer, CheckCheck } from 'lucide-react';
 import Image from 'next/image';
-import {
-  EditPetModal,
-  ManageVaccinesModal,
-  RescheduleModal,
-  AddonServiceModal,
-  AppointmentDetailsModal,
-  ViewGroomingRecordModal,
-  ViewPhotosModal,
-  RecommendNextVisitModal,
-  InvoiceModal,
-  RefundModal,
-  AuditLogModal,
-  CampaignModal,
-  OptInOutModal,
-} from './customer/CustomerModals';
-import {
-  QuickActionTakePaymentView,
-  QuickActionNewAppointmentView,
-  QuickActionAddPetView,
-  QuickActionSendMessageView,
-  QuickActionUpdateDocumentsView,
-  QuickActionAddNoteView,
-} from './customer/CustomerQuickActionsViews';
+import { EditPetModal, ManageVaccinesModal, RescheduleModal, AddonServiceModal, AppointmentDetailsModal, ViewGroomingRecordModal, ViewPhotosModal, RecommendNextVisitModal, InvoiceModal, RefundModal, AuditLogModal, CampaignModal, OptInOutModal } from './customer/CustomerModals';
+import { QuickActionTakePaymentView, QuickActionNewAppointmentView, QuickActionAddPetView, QuickActionSendMessageView, QuickActionUpdateDocumentsView, QuickActionAddNoteView } from './customer/CustomerQuickActionsViews';
 
 interface CustomerDetailsViewProps {
   customerProfile: CustomerFullProfile;
@@ -1781,7 +1716,7 @@ export const CustomerDetailsView: React.FC<CustomerDetailsViewProps> = ({
                             className="p-1.5 text-muted-foreground hover:text-warning hover:bg-muted/40 rounded-lg cursor-pointer"
                             title="Add-on / Service Update"
                           >
-                            <Sparkles className="w-3.5 h-3.5" />
+                            <PawPrint className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleSendApptReminder(appt)}

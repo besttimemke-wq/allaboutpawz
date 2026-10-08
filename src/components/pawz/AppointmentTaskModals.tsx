@@ -1,34 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  X, 
-  Eye, 
-  Edit3, 
-  Calendar as CalendarIcon, 
-  Sparkles, 
-  Check, 
-  Clock, 
-  CheckCircle2, 
-  CreditCard, 
-  Send, 
-  FileText, 
-  Printer, 
-  Receipt, 
-  Copy, 
-  XCircle, 
-  UserMinus, 
-  Trash2, 
-  Phone, 
-  Mail, 
-  User, 
-  DollarSign, 
-  AlertCircle, 
-  ShieldCheck, 
-  MessageSquare,
-  Scissors,
-  CheckSquare
-} from 'lucide-react';
+import { X, Eye, Edit3, Calendar as CalendarIcon, PawPrint, Check, Clock, CheckCircle2, CreditCard, Send, FileText, Printer, Receipt, Copy, XCircle, UserMinus, Trash2, Phone, Mail, User, DollarSign, AlertCircle, ShieldCheck, MessageSquare, Scissors, CheckSquare } from 'lucide-react';
 import { AppointmentItem, AppointmentStatus } from '@/lib/types';
 
 export type AppointmentActionType = 
@@ -64,7 +37,7 @@ const AVAILABLE_ADDONS = [
   { id: 'paw-butter', name: 'Paw Butter & Pad Restoration', price: 10.0, icon: '🐾' },
   { id: 'teeth-cleaning', name: 'Ultrasonic Teeth Brushing & Mint Breath', price: 18.0, icon: '🪥' },
   { id: 'flea-tick', name: 'Medicated Flea & Tick Soak', price: 25.0, icon: '🛁' },
-  { id: 'deshedding', name: 'FURminator De-Shedding & Undercoat Blowout', price: 30.0, icon: '✨' },
+  { id: 'deshedding', name: 'FURminator De-Shedding & Undercoat Blowout', price: 30.0, icon: '💦' },
   { id: 'nail-grind', name: 'Dremel Nail Grinding & Polish', price: 15.0, icon: '💅' },
   { id: 'specialty-cologne', name: 'Hypoallergenic Spa Cologne & Bandana', price: 8.0, icon: '🎀' },
 ];
@@ -791,7 +764,7 @@ const AddonServiceModalContent: React.FC<{
       <div className="p-5 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-primary/5 text-primary">
-            <Sparkles className="w-5 h-5" />
+            <PawPrint className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-base font-semibold text-foreground">Add-on / Service Upgrades</h2>
@@ -992,7 +965,7 @@ const TakePaymentModalContent: React.FC<{
                   : 'border-border bg-card hover:bg-muted/40 text-foreground'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <PawPrint className="w-4 h-4" />
               <span>Apple / Google Pay</span>
             </button>
             <button

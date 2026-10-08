@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Globe, Sparkles, ExternalLink, Image as ImageIcon, CheckCircle2, Megaphone, Search } from 'lucide-react';
+import { Globe, PawPrint, ExternalLink, Image as ImageIcon, CheckCircle2, Megaphone, Search } from 'lucide-react';
 
 export const WebsiteTab: React.FC = () => {
   const [bannerActive, setBannerActive] = useState(true);
-  const [bannerText, setBannerText] = useState('✨ Spring Spa Special: $15 Off All Full Grooms Booked for Tuesdays & Wednesdays!');
+  const [bannerText, setBannerText] = useState('Spring Spa Special: $15 Off All Full Grooms Booked for Tuesdays & Wednesdays!');
   const [seoTitle, setSeoTitle] = useState('All About Pawz - Premier Pet Grooming & Spa in Frisco, TX');
   const [seoDesc, setSeoDesc] = useState('Luxury dog styling, blueberry facials, gentle de-shedding, and breed cuts with cage-free care.');
   const [saved, setSaved] = useState(false);
@@ -86,7 +86,7 @@ export const WebsiteTab: React.FC = () => {
 
         {bannerActive && (
           <div className="p-3 rounded-xl bg-primary/5 border border-primary/20/80 text-primary text-[11px] flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary shrink-0" />
+            <PawPrint className="w-4 h-4 text-primary shrink-0" />
             <span><strong>Live Preview:</strong> {bannerText}</span>
           </div>
         )}

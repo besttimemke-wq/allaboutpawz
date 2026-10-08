@@ -1,36 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  PawPrint, 
-  Calendar as CalendarIcon, 
-  Users, 
-  Scissors, 
-  Package, 
-  Folder, 
-  MessageSquare, 
-  Clock, 
-  Star, 
-  ChevronRight, 
-  Check, 
-  Plus, 
-  AlertCircle, 
-  CheckCircle2, 
-  Camera, 
-  PenTool, 
-  FileText, 
-  Phone, 
-  Mail, 
-  ChevronDown, 
-  Bell, 
-  Menu, 
-  X,
-  Sparkles,
-  ShieldCheck,
-  Award,
-  LogOut,
-  UserCheck
-} from 'lucide-react';
+import { PawPrint, Calendar as CalendarIcon, Users, Scissors, Package, Folder, MessageSquare, Clock, Star, ChevronRight, Check, Plus, AlertCircle, CheckCircle2, Camera, PenTool, FileText, Phone, Mail, ChevronDown, Bell, Menu, X, ShieldCheck, Award, LogOut, UserCheck } from 'lucide-react';
 import { GroomerAppointmentItem, AuthUser } from '@/lib/types';
 import { INITIAL_GROOMER_APPOINTMENTS } from '@/lib/dawg-mock-data';
 

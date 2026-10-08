@@ -1,18 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Truck, 
-  Search, 
-  Printer, 
-  Scale, 
-  Box, 
-  FileText, 
-  CheckCircle2, 
-  DollarSign, 
-  Sparkles,
-  Barcode
-} from 'lucide-react';
+import { Truck, Search, Printer, Scale, Box, FileText, CheckCircle2, DollarSign, PawPrint, Barcode } from 'lucide-react';
 import { DawgNavSection } from '@/lib/types';
 
 interface ShippingStationViewProps {

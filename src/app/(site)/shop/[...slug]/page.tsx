@@ -1,4 +1,4 @@
-import { redirect, notFound } from "next/navigation"
+import { redirect, notFound, permanentRedirect } from "next/navigation"
 import type { Metadata } from "next"
 import { PageHeader } from "@/components/site/site-chrome"
 
@@ -16,7 +16,6 @@ import {
   AnimalLandingPage,
   DepartmentPage,
   SubcategoryPage,
-  resolveTaxonomyPage,
 } from "@/components/site/shop/taxonomy-pages"
 import {
   getProducts,
@@ -25,7 +24,8 @@ import {
   MERCH_META,
   type MerchKey,
 } from "@/lib/shop/catalog"
-import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
+import { resolveTaxPath } from "@/lib/shop/taxonomy-db"
+import { departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { SITE_URL } from "@/lib/site-url"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 
@@ -53,38 +53,37 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
 
-  // ---- New taxonomy resolution (animal landing + department pages) ----
-  const taxonomy = resolveTaxonomyPage(slug || [])
-  if (taxonomy) {
-    if (taxonomy.type === "animal" && taxonomy.animal) {
-      const a = taxonomy.animal
+  // ---- LIVE taxonomy resolution (Supabase taxonomy_nodes — every animal,
+  // department and subcategory in the feed tree) ----
+  const resolved = await resolveTaxPath(slug || [])
+  if (resolved) {
+    if (resolved.notFound) return { title: "Shop — All About Pawz" }
+    if (!resolved.group) {
+      const a = resolved.animal
       const path = `/shop/${a.slug}`
       const seo = findSeoCopy(path)
       return {
         title: seo?.title || `${a.name} in Memphis, TN | All About Pawz`,
-        description: seo?.metaDescription || `Shop ${a.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon. ${a.tagline}.`,
+        description: seo?.metaDescription || `Shop ${a.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.`,
         alternates: { canonical: `${SITE_URL}${path}` },
       }
     }
-    if (taxonomy.type === "department" && taxonomy.animal && taxonomy.dept) {
-      const animalName = taxonomy.animal.name.replace(" Supplies", "")
-      const path = departmentPath(taxonomy.animal.slug, taxonomy.dept.slug)
+    if (!resolved.sub) {
+      const animalName = resolved.animal.name.replace(" Supplies", "")
+      const path = departmentPath(resolved.animal.slug, resolved.group.slug)
       const seo = findSeoCopy(path)
       return {
-        title: seo?.title || `${taxonomy.dept.name} for ${animalName}s in Memphis, TN | All About Pawz`,
-        description: seo?.metaDescription || `Shop ${taxonomy.dept.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop. Browse categories and visit us at 699 Waring Rd.`,
+        title: seo?.title || `${resolved.group.name} for ${animalName}s in Memphis, TN | All About Pawz`,
+        description: seo?.metaDescription || `Shop ${resolved.group.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop. Browse categories and visit us at 699 Waring Rd.`,
         alternates: { canonical: `${SITE_URL}${path}` },
       }
     }
-    if (taxonomy.type === "subcategory" && taxonomy.animal && taxonomy.dept && taxonomy.subSlug) {
-      const path = subcategoryPath(taxonomy.animal.slug, taxonomy.dept.slug, taxonomy.subSlug)
-      const seo = findSeoCopy(path)
-      const subName = (taxonomy.dept.subcategories.find((s) => s.slug === taxonomy.subSlug)?.name) || taxonomy.subSlug.replace(/-/g, " ")
-      return {
-        title: seo?.title || `${subName} | All About Pawz – Memphis`,
-        description: seo?.metaDescription || `Shop ${subName.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.`,
-        alternates: { canonical: `${SITE_URL}${path}` },
-      }
+    const path = subcategoryPath(resolved.animal.slug, resolved.group.slug, resolved.sub.slug)
+    const seo = findSeoCopy(path)
+    return {
+      title: seo?.title || `${resolved.sub.name} | All About Pawz – Memphis`,
+      description: seo?.metaDescription || `Shop ${resolved.sub.name.toLowerCase()} at All About Pawz Memphis — locally owned pet supply shop and grooming salon.`,
+      alternates: { canonical: `${SITE_URL}${path}` },
     }
   }
 
@@ -97,17 +96,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       alternates: { canonical: `${SITE_URL}/shop/${merch}` },
     }
   }
-  const resolved = await resolveCategory(slug || [])
-  if (!resolved) return { title: "Shop — All About Pawz" }
-  const title = resolved.chain.map((c) => c.displayName).join(" — ")
+  const resolvedLegacy = await resolveCategory(slug || [])
+  if (!resolvedLegacy) return { title: "Shop — All About Pawz" }
+  const title = resolvedLegacy.chain.map((c) => c.displayName).join(" — ")
   return {
     title: `${title} — All About Pawz Shop`,
     description:
-      resolved.node.children.length > 0
-        ? `Shop ${resolved.node.displayName} and ${resolved.node.count} curated products at All About Pawz.`
-        : `Shop ${resolved.node.displayName} for dogs — groomer-approved quality from All About Pawz.`,
+      resolvedLegacy.node.children.length > 0
+        ? `Shop ${resolvedLegacy.node.displayName} and ${resolvedLegacy.node.count} curated products at All About Pawz.`
+        : `Shop ${resolvedLegacy.node.displayName} for dogs — groomer-approved quality from All About Pawz.`,
     // Filter/sort query variants consolidate onto the canonical category URL.
-    alternates: { canonical: `${SITE_URL}${resolved.node.path}` },
+    alternates: { canonical: `${SITE_URL}${resolvedLegacy.node.path}` },
   }
 }
 
@@ -141,37 +140,26 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
   if (segments.length === 0) notFound()
 
-  // ---- New taxonomy resolution (animal landing + department pages) ----
-  // Resolves against SHOP_NAV_TAXONOMY from shop-nav.ts. If the URL
-  // segments match the new cat/dog taxonomy tree, render the new template.
-  // This fixes the 404s for /shop/cat, /shop/dog/food, /shop/cat/beds-bedding, etc.
-  const taxonomy = resolveTaxonomyPage(segments)
-  if (taxonomy) {
-    if (taxonomy.type === "animal" && taxonomy.animal) {
-      return <AnimalLandingPage animal={taxonomy.animal} searchParams={sp} />
+  // ---- LIVE taxonomy resolution (Supabase taxonomy_nodes) ----
+  // Every animal landing, department and subcategory in the feed tree —
+  // fish/bird/reptile/small-animal (the 12/9/13/16 spec subcategories),
+  // dog/cat departments and supplier-tree groups — resolves here. Legacy
+  // slugs 301 to their canonical path; unknown segments under a known
+  // animal 404.
+  const resolved = await resolveTaxPath(segments)
+  if (resolved) {
+    if (resolved.notFound) notFound()
+    if (resolved.canonicalPath) permanentRedirect(resolved.canonicalPath)
+    if (!resolved.group) {
+      return <AnimalLandingPage animal={resolved.animal} searchParams={sp} />
     }
-    if (taxonomy.type === "department" && taxonomy.animal && taxonomy.dept) {
-      return <DepartmentPage animal={taxonomy.animal} dept={taxonomy.dept} searchParams={sp} />
+    if (!resolved.sub) {
+      return <DepartmentPage animal={resolved.animal} dept={resolved.group} searchParams={sp} />
     }
-    // Subcategory pages: render a real PLP with sidebar + filters + SEO copy.
-    if (taxonomy.type === "subcategory" && taxonomy.animal && taxonomy.dept && taxonomy.subSlug) {
-      const sub = taxonomy.dept.subcategories.find(s => s.slug === taxonomy.subSlug)
-      const subName = sub?.name || taxonomy.subSlug.replace(/-/g, " ")
-      return (
-        <SubcategoryPage
-          animal={taxonomy.animal}
-          dept={taxonomy.dept}
-          subSlug={taxonomy.subSlug}
-          subName={subName}
-          searchParams={sp}
-        />
-      )
-    }
+    return <SubcategoryPage animal={resolved.animal} dept={resolved.group} sub={resolved.sub} searchParams={sp} />
   }
 
   // ---- Merchandising collections (legacy) ----
-
-  // ---- Merchandising collections ----
   const merch = merchKey(segments[0])
   if (merch && segments.length === 1) {
     const meta = MERCH_META[merch]
@@ -199,10 +187,10 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     )
   }
 
-  // ---- Category resolution (server, per request) ----
-  const resolved = await resolveCategory(segments)
+  // ---- Category resolution (server, per request) — legacy mini-catalog ----
+  const resolvedLegacy = await resolveCategory(segments)
 
-  if (!resolved) {
+  if (!resolvedLegacy) {
     // Flat single-segment alias (/shop/grooming) → canonical nested path.
     if (segments.length === 1) {
       const alias = await resolveFlatAlias(segments[0])
@@ -216,7 +204,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     notFound()
   }
 
-  const { node, chain, parentNode, siblings } = resolved
+  const { node, chain, parentNode, siblings } = resolvedLegacy
   const categoryTrail = chain.map((c) => ({ name: c.displayName, path: c.path }))
   const categoryBreadcrumbScript = (
     <script

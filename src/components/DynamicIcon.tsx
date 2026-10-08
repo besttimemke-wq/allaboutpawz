@@ -8,7 +8,6 @@ import {
   Users,
   Scissors,
   Shield,
-  Sparkles,
   MessageSquare,
   Home,
   GraduationCap,
@@ -45,7 +44,7 @@ export function DynamicIcon({ name, className = 'w-5 h-5' }: DynamicIconProps) {
     case 'shield':
       return <Shield className={className} />;
     case 'sparkles':
-      return <Sparkles className={className} />;
+      return <PawPrint className={className} />;
     case 'messagesquare':
       return <MessageSquare className={className} />;
     case 'home':

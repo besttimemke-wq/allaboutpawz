@@ -1,23 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Tag, 
-  UserCheck, 
-  MessageSquare, 
-  Package, 
-  BarChart3, 
-  Sliders, 
-  CheckCircle2, 
-  Download, 
-  Mail, 
-  ShieldCheck, 
-  Key, 
-  Database,
-  Clock,
-  Sparkles,
-  ArrowRight
-} from 'lucide-react';
+import { Tag, UserCheck, MessageSquare, Package, BarChart3, Sliders, CheckCircle2, Download, Mail, ShieldCheck, Key, Database, Clock, PawPrint, ArrowRight } from 'lucide-react';
 import { DawgNavSection } from '@/lib/types';
 
 interface TabProps {

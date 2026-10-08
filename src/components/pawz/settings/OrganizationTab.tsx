@@ -2,23 +2,7 @@
 
 import React, { useState } from 'react';
 import { LocationItem } from '@/lib/types';
-import { 
-  Building2, 
-  MapPin, 
-  Plus, 
-  Phone, 
-  Mail, 
-  Clock, 
-  User, 
-  Trash2, 
-  Store, 
-  Truck, 
-  CheckCircle2, 
-  Globe, 
-  Sparkles, 
-  Calendar,
-  X
-} from 'lucide-react';
+import { Building2, MapPin, Plus, Phone, Mail, Clock, User, Trash2, Store, Truck, CheckCircle2, Globe, PawPrint, Calendar, X } from 'lucide-react';
 
 interface OrganizationTabProps {
   locations: LocationItem[];
@@ -152,7 +136,7 @@ export const OrganizationTab: React.FC<OrganizationTabProps> = ({
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Sparkles className="w-4 h-4" />
+          <PawPrint className="w-4 h-4" />
           <span>Brand &amp; Identity</span>
         </button>
 

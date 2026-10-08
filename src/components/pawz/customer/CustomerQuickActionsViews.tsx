@@ -2,23 +2,7 @@
 
 import React, { useState } from 'react';
 import { CustomerFullProfile, CustomerPetDetail } from '@/lib/types';
-import {
-  Calendar,
-  Clock,
-  Check,
-  ChevronRight,
-  Plus,
-  Sparkles,
-  Upload,
-  MoreHorizontal,
-  ArrowRight,
-  Phone,
-  Mail,
-  X,
-  FileText,
-  ShieldCheck,
-  CheckCircle,
-} from 'lucide-react';
+import { Calendar, Clock, Check, ChevronRight, Plus, PawPrint, Upload, MoreHorizontal, ArrowRight, Phone, Mail, X, FileText, ShieldCheck, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 
 interface CustomerQuickActionsProps {
@@ -1389,7 +1373,7 @@ export const QuickActionSendMessageView: React.FC<CustomerQuickActionsProps> = (
                 className="w-full h-full p-4 text-sm text-foreground bg-card border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition resize-none leading-relaxed"
               ></textarea>
               <div className="absolute bottom-3 right-3.5 flex items-center space-x-1.5 text-muted-foreground/70 pointer-events-none select-none">
-                <Sparkles className="w-4 h-4 stroke-[1.75]" />
+                <PawPrint className="w-4 h-4 stroke-[1.75]" />
                 <span className="text-[13px] font-medium text-muted-foreground/70 tracking-tight">
                   {message.length}/160
                 </span>

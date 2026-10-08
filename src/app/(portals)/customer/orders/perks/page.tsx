@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Gift, Sparkles, ShoppingBag, CalendarDays, RefreshCcw, AlertCircle } from 'lucide-react';
+import { Gift, PawPrint, ShoppingBag, CalendarDays, RefreshCcw, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -148,7 +148,7 @@ export default function PerksPage() {
         </div>
         {history.length === 0 ? (
           <div className="flex items-center gap-3 px-5 py-8">
-            <Sparkles className="h-6 w-6 shrink-0 text-gold-deep" aria-hidden="true" />
+            <PawPrint className="h-6 w-6 shrink-0 text-gold-deep" aria-hidden="true" />
             <div>
               <p className="text-[13.5px] font-medium text-foreground">No points yet</p>
               <p className="mt-0.5 text-[12px] text-muted-foreground">

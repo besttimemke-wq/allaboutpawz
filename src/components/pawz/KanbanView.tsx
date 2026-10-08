@@ -2,18 +2,7 @@
 
 import React, { useState } from 'react';
 import { AppointmentItem, AppointmentStatus } from '@/lib/types';
-import { 
-  Clock, 
-  User, 
-  MoreHorizontal, 
-  Plus, 
-  Scissors, 
-  DollarSign, 
-  CheckCircle2, 
-  Play, 
-  ArrowRight,
-  Sparkles
-} from 'lucide-react';
+import { Clock, User, MoreHorizontal, Plus, Scissors, DollarSign, CheckCircle2, Play, ArrowRight, PawPrint } from 'lucide-react';
 import { AppointmentActionMenu } from './AppointmentActionMenu';
 
 interface KanbanViewProps {

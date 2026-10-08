@@ -1,20 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Sparkles, 
-  Settings, 
-  Palette, 
-  Globe, 
-  FileText, 
-  RefreshCw, 
-  Download, 
-  Plus, 
-  Image as ImageIcon,
-  Lock,
-  ChevronRight,
-  Eye
-} from 'lucide-react';
+import { PawPrint, Settings, Palette, Globe, FileText, RefreshCw, Download, Plus, Image as ImageIcon, Lock, ChevronRight, Eye } from 'lucide-react';
 
 interface ScreenProps {
   onNavigateScreen?: (screenId: string) => void;
@@ -187,7 +174,7 @@ export const CmsBookingWizardScreen: React.FC<ScreenProps> = ({
         <div className="xl:col-span-7 bg-card border border-border flex flex-col">
           <div className="px-4 py-2.5 border-b border-border bg-muted/40 flex items-center justify-between tabular-nums">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-foreground" />
+              <PawPrint className="w-4 h-4 text-foreground" />
               <span className="font-semibold text-[13px] uppercase text-foreground">Booking Wizard Flow Stages</span>
             </div>
             <span className="text-[10px] text-muted-foreground font-semibold">5 Steps</span>

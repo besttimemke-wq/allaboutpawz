@@ -3,9 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import {
-  CalendarClock, Sparkles, Loader2, AlertCircle, Phone,
-} from 'lucide-react';
+import { CalendarClock, PawPrint, Loader2, AlertCircle, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PromoCodeBox, type AppliedPromo } from '@/components/site/islands/promo-code-box';
 
@@ -257,7 +255,7 @@ function SubscriptionsInner() {
 
       {notice && (
         <div className="flex items-start gap-3 rounded-lg border border-gold-deep/30 bg-amber-50/50 p-4">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" aria-hidden="true" />
+          <PawPrint className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" aria-hidden="true" />
           <p className="text-[13px] leading-relaxed text-foreground">{notice}</p>
         </div>
       )}

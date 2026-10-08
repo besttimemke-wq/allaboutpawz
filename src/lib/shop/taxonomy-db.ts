@@ -279,7 +279,43 @@ export async function resolveTaxPath(segments: string[]): Promise<ResolvedTaxPat
   }
 
   const rawSubSlug = segments[2]
-  const sub = group.subcategories.find((s) => s.slug === rawSubSlug)
+  let sub = group.subcategories.find((s) => s.slug === rawSubSlug) ?? null
+
+  if (!sub) {
+    // Not a direct depth-3 child — the slug may be a deeper node (depth-4+)
+    // or a supplier-tree variant. BFS the group's subtree for the first
+    // published node with this slug so EVERY live slug resolves to a page.
+    const seen = new Set<string>([group.id])
+    const stack = [...(nodes.childrenMap.get(group.id) ?? [])]
+    while (stack.length > 0) {
+      const cur = stack.pop()!
+      if (seen.has(cur)) continue
+      seen.add(cur)
+      const rec = nodes.byId.get(cur)
+      if (rec && rec.slug === rawSubSlug) {
+        const childCount = (nodes.childrenMap.get(rec.id) ?? []).length
+        const cnt = await pgQuery<{ n: number }>(
+          `SELECT count(*)::int AS n FROM (
+             SELECT pn.product_id FROM product_nodes pn WHERE pn.node_id = ANY($1::uuid[])
+             UNION
+             SELECT p.id FROM products p
+              WHERE p.category_id = ANY($1::uuid[]) AND p.status = 'published'
+           ) t`,
+          [[rec.id]],
+        )
+        sub = {
+          id: rec.id,
+          slug: rec.slug,
+          name: rec.name,
+          productCount: Number(cnt[0]?.n) || 0,
+          hasChildren: childCount > 0,
+        }
+        break
+      }
+      for (const c of nodes.childrenMap.get(cur) ?? []) stack.push(c)
+    }
+  }
+
   if (!sub) {
     return { animal, group, sub: null, nodeIds: subtreeIds([group.id], childrenOf), deepestHasChildren: true, canonicalPath: null, notFound: true }
   }
@@ -399,7 +435,7 @@ const SCOPE_SQL = (alias: string) => `
     LEFT JOIN LATERAL (
       SELECT count(*)::int AS n, avg(rr.rating) AS avg
         FROM product_reviews rr
-       WHERE rr.product_id = p.id AND rr.visible = true
+       WHERE rr."productId" = p.id::text AND rr.visible = true
     ) review ON true
    WHERE p.status = 'published'`
 
@@ -531,7 +567,7 @@ export async function queryTaxProducts(opts: {
         LEFT JOIN LATERAL (
           SELECT count(*)::int AS n, avg(rr.rating) AS avg
             FROM product_reviews rr
-           WHERE rr.product_id = p.id AND rr.visible = true
+           WHERE rr."productId" = p.id::text AND rr.visible = true
         ) review ON true
        WHERE p.status = 'published'` + where,
       params,

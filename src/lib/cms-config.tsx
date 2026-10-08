@@ -1,5 +1,5 @@
 import {
-  Scissors, Bathtub, PawPrint, Drop, Sparkle, Bug, ShoppingBag,
+  Scissors, Bathtub, PawPrint, Drop, Bug, ShoppingBag,
   Image as ImageIcon, Tag, Question, ShieldCheck, Quotes, Star,
   Dog, Users, PaintBrush, HandsPraying, Tooth,
 } from "@phosphor-icons/react"
@@ -167,11 +167,11 @@ export const RESOURCES: ResourceConfig[] = [
     title: "Add-ons",
     singular: "Add-on",
     description: "Optional services that can be added to any groom.",
-    icon: Sparkle,
+    icon: PawPrint,
     fields: [
       { key: "title", label: "Title", type: "text" },
       { key: "price", label: "Price", type: "text", placeholder: "$15" },
-      { key: "icon", label: "Icon (lucide name)", type: "text", placeholder: "Sparkle" },
+      { key: "icon", label: "Icon (lucide name)", type: "text", placeholder: "PawPrint" },
       { key: "order", label: "Order", type: "number" },
     ],
     cardImage: () => null,
@@ -263,7 +263,7 @@ export const LOOKUP_RESOURCES: ResourceConfig[] = [
   lookupConfig("sanitary_options", "Sanitary Options", "Sanitary Option", HandsPraying),
   lookupConfig("nail_services", "Nail Services", "Nail Service", PawPrint),
   lookupConfig("paw_pad_services", "Paw Pad Services", "Paw Pad Service", PawPrint),
-  lookupConfig("ear_services", "Ear Services", "Ear Service", Sparkle),
+  lookupConfig("ear_services", "Ear Services", "Ear Service", PawPrint),
   lookupConfig("teeth_services", "Teeth Services", "Teeth Service", Tooth),
   lookupConfig("deshedding_services", "Deshedding Services", "Deshedding Service", Drop),
   lookupConfig("coat_techniques", "Coat Techniques", "Coat Technique", PaintBrush),
@@ -278,10 +278,10 @@ export const ALL_RESOURCES = [...RESOURCES, ...LOOKUP_RESOURCES]
 export const ICONS: Record<string, Icon> = {
   Scissors, Bath: Bathtub, PawPrint, Droplets: Drop, Bug, ShoppingBag, ImageIcon,
   Tag, HelpCircle: Question, ShieldCheck, Quotes, Star,
-  Sparkles: Sparkle, // Lucide "Sparkles" -> Phosphor "Sparkle"
+  Sparkles: PawPrint, // Lucide "Sparkles" retired as an AI symbol -> paw
 }
 
-export function getStoredIcon(name: string | null | undefined, fallback: Icon = Sparkle): Icon {
+export function getStoredIcon(name: string | null | undefined, fallback: Icon = PawPrint): Icon {
   if (name && ICONS[name]) return ICONS[name]
   return fallback
 }

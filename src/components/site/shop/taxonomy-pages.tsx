@@ -90,6 +90,33 @@ function descriptionFor(deptPath: string): string {
 // /public/Shop/departments/{animal}-{department-slug}.jpeg. KEYED BY LIVE
 // taxonomy slugs `${animal}/${group}` per taxonomy_nodes.
 const DEPARTMENT_IMAGE: Record<string, string> = {
+  // ---- Supplier-tree group slugs (dog-*/cat-* feed nodes) map to their
+  // canonical department image so NO card ever renders an empty placeholder.
+  "dog/dog-dog-toys": "/Shop/departments/dog-toys.jpeg",
+  "dog/dog-dog-food": "/Shop/departments/dog-food.jpeg",
+  "dog/dog-dog-treats-chews": "/Shop/departments/dog-treats-chews.jpeg",
+  "dog/dog-dog-bowls-feeding-supplies": "/Shop/departments/dog-bowls-feeding.jpeg",
+  "dog/dog-dog-collars-leashes-harnesses": "/Shop/departments/dog-collars-harnesses-leashes.jpeg",
+  "dog/dog-dog-crates-gates-housing-accessories": "/Shop/departments/dog-crates-containment.jpeg",
+  "dog/dog-dog-health-wellness": "/Shop/departments/dog-health-wellness.jpeg",
+  "dog/dog-flea-tick-solutions-for-dogs": "/Shop/departments/dog-flea-tick.jpeg",
+  "dog/dog-grooming-supplies": "/Shop/departments/dog-grooming-bathing.jpeg",
+  "dog/dog-cleaning-potty-supplies": "/Shop/departments/dog-cleaning-potty-supplies.jpeg",
+  "dog/dog-beds-bedding": "/Shop/departments/dog-beds-bedding.jpeg",
+  "dog/dog-training-behavior-supplies": "/Shop/departments/dog-training-behavior.png",
+  "cat/cat-cat-toys": "/Shop/departments/cat-toys.jpeg",
+  "cat/cat-cat-food": "/Shop/departments/cat-food.jpeg",
+  "cat/cat-cat-treats": "/Shop/departments/cat-treats.jpeg",
+  "cat/cat-cat-bowls-feeders": "/Shop/departments/cat-bowls-feeders.jpeg",
+  "cat/cat-cat-beds-bedding": "/Shop/departments/cat-beds-bedding.jpeg",
+  "cat/cat-cat-furniture-scratchers": "/Shop/departments/cat-furniture-scratchers.jpeg",
+  "cat/cat-cat-health-wellness": "/Shop/departments/cat-health-wellness-extra.jpeg",
+  "cat/cat-cat-litter-litter-boxes-accessories": "/Shop/departments/cat-litter.jpeg",
+  "cat/cat-collars-leashes-harnesses": "/Shop/departments/cat-collars-leashes-harnesses.png",
+  "cat/cat-training-behavior": "/Shop/departments/cat-training-behavior.jpeg",
+  "cat/flea-tick-solutions-for-cats": "/Shop/departments/cat-flea-tick.jpeg",
+  "cat/cat-grooming-bathing": "/Shop/departments/cat-grooming-bathing.jpeg",
+  "cat/cat-cleaners-waste-disposal": "/Shop/departments/cat-cleaners-waste-disposal.jpeg",
   // cat departments
   "cat/beds-bedding": "/Shop/departments/cat-beds-bedding.jpeg",
   "cat/bowls-feeding": "/Shop/departments/cat-bowls-feeders.jpeg",
@@ -106,6 +133,7 @@ const DEPARTMENT_IMAGE: Record<string, string> = {
   "cat/toys": "/Shop/departments/cat-toys.jpeg",
   "cat/training-behavior": "/Shop/departments/cat-training-behavior.jpeg",
   "cat/treats": "/Shop/departments/cat-treats.jpeg",
+  "cat/collars-leashes-harnesses": "/Shop/departments/cat-collars-leashes-harnesses.png",
   // dog departments
   "dog/clothes-accessories": "/Shop/departments/dog-apparel-accessories.jpeg",
   "dog/beds-bedding": "/Shop/departments/dog-beds-bedding.jpeg",
@@ -283,14 +311,18 @@ export async function AnimalLandingPage({
     })),
   }
 
-  const departmentCards = animal.groups.map((d, i) => ({
+  // Product-rich groups lead the carousel; feed sort_order breaks ties.
+  const sortedGroups = [...animal.groups].sort(
+    (x, y) => y.productCount - x.productCount,
+  )
+  const departmentCards = sortedGroups.map((d, i) => ({
     name: d.name,
     description: descriptionFor(`${animal.slug}/${d.slug}`),
     href: departmentPath(animal.slug, d.slug),
     image: taxImage(animal.slug, d.slug, undefined, i),
     imageAlt: `${d.name} — All About Pawz Memphis`,
   }))
-  const heroImage = taxImage(animal.slug, animal.groups[0]?.slug ?? "", undefined, 0)
+  const heroImage = taxImage(animal.slug, sortedGroups[0]?.slug ?? "", undefined, 0)
 
   return (
     <article className="bg-white">
@@ -330,12 +362,15 @@ export async function AnimalLandingPage({
           AND the sidebar+grid here for actual shopping. The sidebar's
           Categories section shows ONLY this animal's departments (the
           Plp filters by current path). The grid resolves from the LIVE
-          Supabase catalog scoped to this animal's whole taxonomy subtree. */}
+          Supabase catalog scoped to this animal's whole taxonomy subtree.
+          Page size is capped at 10 with a See More control per spec. */}
       <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp
             scope={{ kind: "taxonomy", title: animal.name, path, nodeIds: [animal.id] }}
             searchParams={searchParams || {}}
+            perPage={10}
+            fallbackImage={heroImage}
           />
         </div>
       </section>
@@ -376,16 +411,18 @@ export async function AnimalLandingPage({
   )
 }
 
-// --- Department Page (/shop/dog/food, /shop/cat/beds-bedding) ---
+// --- Department Page (/shop/dog/food, /shop/cat/beds-bedding, /shop/fish/aquatics) ---
 // H1 + promo banner + horizontal subcategory card carousel. NO sidebar.
 // The customer picks a subcategory to drill into the leaf where filters appear.
+// Resolves from the LIVE taxonomy (TaxAnimal/TaxGroup) — every group node in
+// taxonomy_nodes gets one of these pages, supplier-tree and canonical alike.
 export async function DepartmentPage({
   animal,
   dept,
   searchParams,
 }: {
-  animal: ShopNavAnimal
-  dept: ShopNavDepartment
+  animal: TaxAnimal
+  dept: TaxGroup
   searchParams?: Record<string, string | string[] | undefined>
 }) {
   const path = departmentPath(animal.slug, dept.slug)
@@ -409,21 +446,21 @@ export async function DepartmentPage({
     })),
   }
 
-  // Subcategory cards inherit their parent department's image AND
-  // description as a sensible fallback — there's no per-subcategory image
-  // or description yet, but at least the card shows a relevant picture +
-  // summary (e.g. "Bolster Cat Beds" shows the cat-beds image + the
-  // cat-beds-department description).
+  // Subcategory cards: per-subcategory photo when one exists
+  // (CATEGORY_IMAGES), otherwise the department image — the "category page
+  // image duplicated onto every card" so nothing renders empty.
   const parentDeptPath = `${animal.slug}/${dept.slug}`
-  const parentImage = imageForCard(parentDeptPath, 0)
+  const parentImage = taxImage(animal.slug, dept.slug, undefined, 0)
   const parentDescription = descriptionFor(parentDeptPath)
-  const subcategoryCards = dept.subcategories.map((s) => ({
+  const subcategoryCards = dept.subcategories.map((s, i) => ({
     name: s.name,
     description: parentDescription,
     href: subcategoryPath(animal.slug, dept.slug, s.slug),
-    image: parentImage,
+    image: taxImage(animal.slug, dept.slug, s.slug, i) || parentImage,
     imageAlt: `${s.name} — All About Pawz Memphis`,
   }))
+  // LIVE product scope — the whole subtree of THIS department node.
+  const nodeIds = await subtreeNodeIds(dept.id)
 
   return (
     <article className="bg-white">
@@ -464,10 +501,16 @@ export async function DepartmentPage({
 
       {/* The PLP — sidebar (categories + filters) + product grid.
           EVERY shop page has BOTH: the carousel above for browse-by-image,
-          AND the sidebar+grid here for actual shopping. */}
+          AND the sidebar+grid here for actual shopping. Scoped to the LIVE
+          department node (product_nodes + category_id), 10 per page. */}
       <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} categoryFilter={dept.subcategories.map(s => s.name)} />
+          <Plp
+            scope={{ kind: "taxonomy", title: dept.name, path, nodeIds }}
+            searchParams={searchParams || {}}
+            perPage={10}
+            fallbackImage={parentImage}
+          />
         </div>
       </section>
 
@@ -507,23 +550,24 @@ export async function DepartmentPage({
   )
 }
 
-// --- Subcategory Page (/shop/dog/food/dry-food, /shop/cat/beds-bedding/bolster-cat-beds) ---
+// --- Subcategory Page (/shop/dog/food/dry-food, /shop/fish/aquatics/water-care) ---
 // THIS is the leaf — the customer is browsing actual products. H1 + 1-line
-// intro + Plp (sidebar filters + product grid + sort toolbar).
+// intro + Plp (sidebar filters + product grid + sort toolbar). Scoped to the
+// LIVE taxonomy sub node — the 50 spec subcategories across fish/bird/reptile/
+// small-animal all render here, plus every dog/cat sub.
 export async function SubcategoryPage({
   animal,
   dept,
-  subSlug,
-  subName,
+  sub,
   searchParams,
 }: {
-  animal: ShopNavAnimal
-  dept: ShopNavDepartment
-  subSlug: string
-  subName: string
+  animal: TaxAnimal
+  dept: TaxGroup
+  sub: TaxSub
   searchParams?: Record<string, string | string[] | undefined>
 }) {
-  const path = subcategoryPath(animal.slug, dept.slug, subSlug)
+  const subName = sub.name
+  const path = subcategoryPath(animal.slug, dept.slug, sub.slug)
   const seo = findSeoCopy(path)
   const breadcrumb = breadcrumbSchema([
     { name: "Home", url: "/" },
@@ -532,15 +576,17 @@ export async function SubcategoryPage({
     { name: dept.name, url: departmentPath(animal.slug, dept.slug) },
     { name: subName, url: path },
   ])
-  const parentImage = imageForCard(`${animal.slug}/${dept.slug}`, 0)
-  const siblingCards = dept.subcategories.map((sub) => ({
-    name: sub.name,
+  const parentImage = taxImage(animal.slug, dept.slug, sub.slug, 0) || taxImage(animal.slug, dept.slug, undefined, 0)
+  const siblingCards = dept.subcategories.map((s, i) => ({
+    name: s.name,
     description: descriptionFor(`${animal.slug}/${dept.slug}`),
-    href: subcategoryPath(animal.slug, dept.slug, sub.slug),
-    image: parentImage,
-    imageAlt: `${sub.name} at All About Pawz`,
+    href: subcategoryPath(animal.slug, dept.slug, s.slug),
+    image: taxImage(animal.slug, dept.slug, s.slug, i) || parentImage,
+    imageAlt: `${s.name} at All About Pawz`,
   }))
   const quickLinks = siblingCards.filter((card) => card.href !== path)
+  // LIVE product scope — the whole subtree of THIS sub node.
+  const nodeIds = await subtreeNodeIds(sub.id)
 
   return (
     <article className="bg-white">
@@ -577,7 +623,12 @@ export async function SubcategoryPage({
 
       <section className="px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} categoryFilter={dept.subcategories.length > 0 ? dept.subcategories.map(s => s.name) : [dept.name]} />
+          <Plp
+            scope={{ kind: "taxonomy", title: sub.name, path, nodeIds }}
+            searchParams={searchParams || {}}
+            perPage={10}
+            fallbackImage={parentImage}
+          />
         </div>
       </section>
 
@@ -615,33 +666,4 @@ export async function SubcategoryPage({
       )}
     </article>
   )
-}
-
-// Helper — resolve a taxonomy path to the right template
-export function resolveTaxonomyPage(segments: string[]): {
-  type: "animal" | "department" | "subcategory"
-  animal?: ShopNavAnimal
-  dept?: ShopNavDepartment
-  subSlug?: string
-} | null {
-  if (segments.length === 0) return null
-
-  const animalSlug = segments[0]
-  const animal = SHOP_NAV_TAXONOMY.find(a => a.slug === animalSlug)
-  if (!animal) return null
-
-  if (segments.length === 1) {
-    return { type: "animal", animal }
-  }
-
-  const deptSlug = segments[1]
-  const dept = animal.departments.find(d => d.slug === deptSlug)
-  if (!dept) return null
-
-  if (segments.length === 2) {
-    return { type: "department", animal, dept }
-  }
-
-  // Subcategory or deeper
-  return { type: "subcategory", animal, dept, subSlug: segments[2] }
 }

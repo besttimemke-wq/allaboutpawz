@@ -1,5 +1,5 @@
 import {
-  Scissors, Bath, PawPrint, Droplets, Sparkles, Bug, ShoppingBag,
+  Scissors, Bath, PawPrint, Droplets, Bug, ShoppingBag,
   ImageIcon, Tag, HelpCircle, ShieldCheck, Quote, Star, Leaf, Award,
   Dog, Heart, CalendarDays, Mail, Phone, MapPin, Clock, Facebook, Instagram,
   CheckCircle2, Play, Check, Menu, ChevronRight, Minus, Plus, Search,
@@ -73,8 +73,11 @@ const Toothbrush = ToothbrushBase as unknown as LucideIcon
 const Comb = CombBase as unknown as LucideIcon
 
 // Map of icon names (stored in the DB) to Lucide components.
+// "Sparkles" is retired as an AI symbol — stored rows that reference it
+// render the paw instead.
 export const ICONS: Record<string, LucideIcon> = {
-  Scissors, Bath, PawPrint, Droplets, Sparkles, Bug, ShoppingBag, ImageIcon,
+  Scissors, Bath, PawPrint, Droplets, Bug, ShoppingBag, ImageIcon,
+  Sparkles: PawPrint,
   Tag, HelpCircle, ShieldCheck, Quote, Star, Leaf, Award, Dog, Heart,
   CalendarDays, Mail, Phone, MapPin, Clock, Facebook, Instagram,
   CheckCircle2, Play, Check, Menu, ChevronRight, Minus, Plus, Search,
@@ -83,7 +86,7 @@ export const ICONS: Record<string, LucideIcon> = {
   Toothbrush, Comb,
 }
 
-export function getIcon(name: string | null | undefined, fallback: LucideIcon = Sparkles): LucideIcon {
+export function getIcon(name: string | null | undefined, fallback: LucideIcon = PawPrint): LucideIcon {
   if (name && ICONS[name]) return ICONS[name]
   return fallback
 }

@@ -3,11 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import {
-  GraduationCap, BookOpen, FolderOpen, Users, Sparkles, TrendingUp,
-  ClipboardCheck, Award, HeartHandshake, Bell, ShieldCheck,
-  ArrowRightLeft, Bot, LayoutGrid, Search, ChevronRight, FileText,
-} from 'lucide-react';
+import { GraduationCap, BookOpen, FolderOpen, Users, PawPrint, TrendingUp, ClipboardCheck, Award, HeartHandshake, Bell, ShieldCheck, ArrowRightLeft, Bot, LayoutGrid, Search, ChevronRight, FileText } from 'lucide-react';
 import type { DawgNavSection } from '@/lib/types';
 
 // ============================================================================
@@ -74,7 +70,7 @@ const TAB_CATEGORIES: TabCategory[] = [
   {
     title: '5. AI & 6. PROGRESS',
     tabs: [
-      { id: 'ai-sessions', label: 'AI Teaching Sessions', icon: Sparkles },
+      { id: 'ai-sessions', label: 'AI Teaching Sessions', icon: PawPrint },
       { id: 'consent', label: 'AI Consent Gate', icon: ShieldCheck },
       { id: 'escalation', label: 'Human Escalation Queue', icon: HeartHandshake },
       { id: 'progress', label: 'Learner Progress', icon: TrendingUp },

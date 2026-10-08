@@ -2,27 +2,7 @@
 
 import React from 'react';
 import { AppointmentItem } from '@/lib/types';
-import { 
-  Eye, 
-  Edit3, 
-  Calendar as CalendarIcon, 
-  Sparkles, 
-  Check, 
-  Clock, 
-  CheckCircle2, 
-  CreditCard, 
-  Send, 
-  FileText, 
-  Printer, 
-  Receipt, 
-  Copy, 
-  XCircle, 
-  UserMinus, 
-  UserPlus, 
-  Trash2,
-  Zap,
-  UserCheck 
-} from 'lucide-react';
+import { Eye, Edit3, Calendar as CalendarIcon, PawPrint, Check, Clock, CheckCircle2, CreditCard, Send, FileText, Printer, Receipt, Copy, XCircle, UserMinus, UserPlus, Trash2, Zap, UserCheck } from 'lucide-react';
 
 interface AppointmentActionMenuProps {
   appointment: AppointmentItem;
@@ -137,7 +117,7 @@ export const AppointmentActionMenu: React.FC<AppointmentActionMenuProps> = ({
             onClick={() => onAction('add-on', appointment)}
             className="w-full flex items-center gap-2.5 px-3 py-1.5 text-foreground hover:bg-muted/40 hover:text-primary transition text-left cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-muted-foreground/70" />
+            <PawPrint className="w-3.5 h-3.5 text-muted-foreground/70" />
             <span>Add-on / Service Update</span>
           </button>
 

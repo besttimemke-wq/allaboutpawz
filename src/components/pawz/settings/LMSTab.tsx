@@ -1,32 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  GraduationCap,
-  BookOpen,
-  Award,
-  Users,
-  Plus,
-  Play,
-  CheckCircle2,
-  Clock,
-  Search,
-  Filter,
-  FileText,
-  AlertTriangle,
-  ChevronRight,
-  Sparkles,
-  Download,
-  Eye,
-  Trash2,
-  Edit,
-  ShieldCheck,
-  Video,
-  HelpCircle,
-  BarChart2,
-  RefreshCw,
-  Layers
-} from 'lucide-react';
+import { GraduationCap, BookOpen, Award, Users, Plus, Play, CheckCircle2, Clock, Search, Filter, FileText, AlertTriangle, ChevronRight, PawPrint, Download, Eye, Trash2, Edit, ShieldCheck, Video, HelpCircle, BarChart2, RefreshCw, Layers } from 'lucide-react';
 
 interface Lesson {
   id: string;
@@ -620,7 +595,7 @@ export const LMSTab: React.FC<{ systemSettings?: any; saveSettingsToDb?: (update
 
           <div className="bg-card border border-border p-5 space-y-3">
             <div className="w-10 h-10 bg-primary text-primary-foreground flex items-center justify-center border border-border">
-              <Sparkles className="w-5 h-5" />
+              <PawPrint className="w-5 h-5" />
             </div>
             <h3 className="font-semibold text-sm text-foreground uppercase">Master Scissor Stylist Badge</h3>
             <p className="text-[13px] text-muted-foreground leading-relaxed tabular-nums">

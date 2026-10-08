@@ -2,10 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import {
-  Check, ArrowLeft, ArrowRight, Plus, PawPrint,
-  Dog, CreditCard, Sparkle, Camera, Spinner,
-} from "@phosphor-icons/react"
+import { Check, ArrowLeft, ArrowRight, Plus, PawPrint, Dog, CreditCard, Camera, Spinner } from "@phosphor-icons/react"
 import { useWizard, type BookingType } from "@/lib/wizard/wizard-store"
 import { track, identifyViewer } from "@/lib/analytics"
 
@@ -1414,7 +1411,7 @@ function StepReview({
         </button>
       )}
       <p className="text-center text-[10px] tracking-[0.1em] text-ink-soft">
-        <Sparkle size={11} weight="fill" className="mr-1 inline text-gold-deep" />
+        <PawPrint size={11} weight="fill" className="mr-1 inline text-gold-deep" />
         Secure payment via Stripe. Your booking is held once the deposit is received.
       </p>
     </div>

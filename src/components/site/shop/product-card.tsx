@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { Star, ShoppingBag } from "lucide-react"
+import { Star, ShoppingBag, PawPrint } from "lucide-react"
 import { useCart } from "@/lib/wizard/cart-store"
 
 const NAVY = "#002B5C"
@@ -26,6 +26,8 @@ type ProductData = {
   slug: string
   price: string
   image: string | null
+  /** Category-page image used when the feed product has no photo. */
+  fallbackImage?: string | null
   alt?: string | null
   badge?: string | null
   category?: string | null
@@ -42,6 +44,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
   const href = `/products/${product.slug}`
   const add = useCart((s) => s.add)
   const [added, setAdded] = useState(false)
+  const imageSrc = product.image || product.fallbackImage || null
 
   // Badge priority per spec: SALE → NEW → BEST SELLER (one max)
   const badge = product.isOnSale ? "SALE"
@@ -66,7 +69,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
       productId: product.id,
       name: product.name,
       price: product.price,
-      image: product.image,
+      image: imageSrc,
       alt: product.alt,
       badge: product.badge,
       category: product.category,
@@ -85,9 +88,9 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
           </span>
         )}
         <Link href={href} aria-label={`View ${product.name}`} className="block h-full w-full">
-          {product.image ? (
+          {imageSrc ? (
             <img
-              src={product.image}
+              src={imageSrc}
               alt={product.alt || product.name}
               width={512}
               height={512}
@@ -95,8 +98,8 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
-            <div className="flex h-full items-center justify-center">
-              <span className="text-[14px] text-neutral-400">No image</span>
+            <div className="flex h-full items-center justify-center" aria-hidden="true">
+              <PawPrint className="h-10 w-10 text-neutral-300" strokeWidth={1.2} />
             </div>
           )}
         </Link>

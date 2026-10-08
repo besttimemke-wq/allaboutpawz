@@ -535,6 +535,14 @@ export function flattenTaxonomy(): { animal: string; department: string; subcate
 // Backwards compat — the old ShopNavBar still imports SHOP_NAV_CATEGORIES.
 // This wraps the new taxonomy in the old shape so the existing component
 // keeps rendering until we update the mega-menu component.
+export type ShopCategory = {
+  slug: string
+  name: string
+  subcategories: { slug: string; name: string }[]
+  whatsNew: { label: string; href: string }[]
+  images: { src: string; alt: string; href: string }[]
+}
+
 export const SHOP_NAV_CATEGORIES = SHOP_NAV_TAXONOMY.flatMap(animal =>
   animal.departments.map(dept => ({
     slug: `${animal.slug}/${dept.slug}`,

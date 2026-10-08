@@ -6,53 +6,8 @@ import { Customer, CustomerFullProfile } from '@/lib/types';
 import { CustomerDetailsView } from './CustomerDetailsView';
 import { SARAH_JOHNSON_PROFILE } from '@/lib/dawg-mock-data';
 import { QuickActionsModal, UnifiedQuickActionType } from './QuickActionsModal';
-import {
-  QuickActionTakePaymentView,
-  QuickActionNewAppointmentView,
-  QuickActionAddPetView,
-  QuickActionSendMessageView,
-  QuickActionUpdateDocumentsView,
-  QuickActionAddNoteView,
-} from './customer/CustomerQuickActionsViews';
-import {
-  Users,
-  Search,
-  Plus,
-  Phone,
-  Mail,
-  MapPin,
-  Dog,
-  Calendar,
-  DollarSign,
-  ChevronDown,
-  X,
-  CreditCard,
-  MessageSquare,
-  FileText,
-  FileCheck,
-  CalendarPlus,
-  Scissors,
-  ArrowRight,
-  Filter,
-  Check,
-  MoreHorizontal,
-  Pencil,
-  AlertTriangle,
-  Clock,
-  Sparkles,
-  ChevronRight,
-  SlidersHorizontal,
-  Bookmark,
-  Zap,
-  CheckCircle2,
-  ShieldCheck,
-  Activity,
-  AlertCircle,
-  RotateCw,
-  User,
-  PawPrint,
-  MoreVertical,
-} from 'lucide-react';
+import { QuickActionTakePaymentView, QuickActionNewAppointmentView, QuickActionAddPetView, QuickActionSendMessageView, QuickActionUpdateDocumentsView, QuickActionAddNoteView } from './customer/CustomerQuickActionsViews';
+import { Users, Search, Plus, Phone, Mail, MapPin, Dog, Calendar, DollarSign, ChevronDown, X, CreditCard, MessageSquare, FileText, FileCheck, CalendarPlus, Scissors, ArrowRight, Filter, Check, MoreHorizontal, Pencil, AlertTriangle, Clock, PawPrint, ChevronRight, SlidersHorizontal, Bookmark, Zap, CheckCircle2, ShieldCheck, Activity, AlertCircle, RotateCw, User, MoreVertical } from 'lucide-react';
 import { PageHeader, PageTabs, PageToolbar, FilterSelect } from './_shared/PageHeader';
 import { cn } from '@/lib/utils';
 

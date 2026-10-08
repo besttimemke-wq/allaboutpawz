@@ -10,23 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { ServicePrice, MemberSavingsBadge } from "@/components/site/islands/service-price"
 import { PromoCodeBox, type AppliedPromo } from "@/components/site/islands/promo-code-box"
-import {
-  AlertCircle as AlertIcon,
-  Calendar as CalendarIcon,
-  Check as CheckIcon,
-  ChevronDown as ChevronDownIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  Loader2 as SpinnerIcon,
-  Mail as MailIcon,
-  MapPin as MapPinIcon,
-  PawPrint as PawPrintIcon,
-  Scissors as ScissorsIcon,
-  ShieldCheck as ShieldCheckIcon,
-  Sparkles as Sparkle,
-  Sun as SunIcon,
-  Sunrise as SunriseIcon,
-} from "lucide-react"
+import { AlertCircle as AlertIcon, Calendar as CalendarIcon, Check as CheckIcon, ChevronDown as ChevronDownIcon, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon, Loader2 as SpinnerIcon, Mail as MailIcon, MapPin as MapPinIcon, PawPrint as PawPrintIcon, Scissors as ScissorsIcon, ShieldCheck as ShieldCheckIcon, PawPrint as PawPrint, Sun as SunIcon, Sunrise as SunriseIcon } from "lucide-react"
 
 // ---------------------------------------------------------------------------
 // The 5-step booking flow — SIGN IN → PET → SERVICE → TIME → REVIEW.
@@ -1566,7 +1550,7 @@ function StepService({
           the visitor's membership; non-members see it as the upsell. */}
       {!menu.isMember && menu.bathClub.length > 0 && (
         <div className="mt-4 flex items-start gap-3 rounded-lg border border-gold-deep/30 bg-amber-50/30 p-4">
-          <Sparkle className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" aria-hidden="true" />
+          <PawPrint className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" aria-hidden="true" />
           <p className="text-[12.5px] leading-relaxed text-ink-soft">
             <a href="/pricing#bath-club" className="font-bold text-gold-deep underline underline-offset-2">
               Join the PAWfection Bath Club
@@ -1577,7 +1561,7 @@ function StepService({
       )}
       {menu.isMember && (
         <div className="mt-4 flex items-start gap-3 rounded-lg border border-gold-deep/40 bg-amber-50/40 p-4">
-          <Sparkle className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" aria-hidden="true" />
+          <PawPrint className="mt-0.5 h-5 w-5 shrink-0 text-gold-deep" aria-hidden="true" />
           <p className="text-[12.5px] leading-relaxed text-ink-soft">
             <span className="font-bold text-gold-deep">Bath Club member pricing is on.</span>{" "}
             Your membership price applies to every service, add-on, and treatment — automatically.

@@ -1,6 +1,6 @@
 "use client"
 
-import { Sparkles } from "lucide-react"
+import { PawPrint } from "lucide-react"
 import { getIcon } from "@/lib/icons"
 import { useCms } from "./use-cms"
 
@@ -38,7 +38,7 @@ export function AddonsGrid() {
   return (
     <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-5">
       {addons.map(({ id, title, price, icon }, i: number) => {
-        const Icon = getIcon(icon, Sparkles)
+        const Icon = getIcon(icon, PawPrint)
         const t = String(title || "").toUpperCase()
         // The toothbrush & comb marks — gold, from the brand icon set.
         const customIcon =

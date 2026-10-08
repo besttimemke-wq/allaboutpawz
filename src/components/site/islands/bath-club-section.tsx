@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Check, X, Sparkles, CalendarCheck, Percent, Repeat } from "lucide-react"
+import { Check, X, PawPrint, CalendarCheck, Percent, Repeat } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // ---------------------------------------------------------------------------
@@ -158,7 +158,7 @@ export function BathClubSection() {
         {/* Pay early + multi-pet + terms */}
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-gold-deep/30 bg-amber-50/40 p-5">
-            <Sparkles className="h-5 w-5 text-gold-deep" aria-hidden="true" />
+            <PawPrint className="h-5 w-5 text-gold-deep" aria-hidden="true" />
             <p className="mt-3 text-[13px] font-bold text-ink">Pay early and save</p>
             <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
               Prepay {featured?.annualPrepayMonths ?? 12} months for the price of{" "}

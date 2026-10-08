@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import {
-  Check, ArrowLeft, ArrowRight, ShoppingBag, Plus, Minus, X, Trash,
-  Truck, Storefront, LockKey, PawPrint, CreditCard, Sparkle,
-} from "@phosphor-icons/react"
+import { Check, ArrowLeft, ArrowRight, ShoppingBag, Plus, Minus, X, Trash, Truck, Storefront, LockKey, PawPrint, CreditCard } from "@phosphor-icons/react"
 import { useCart, parsePriceToCents, formatCents } from "@/lib/wizard/cart-store"
 import { track, priceToDollars, identifyViewer } from "@/lib/analytics"
 
@@ -659,7 +656,7 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
         {redirecting ? "REDIRECTING TO STRIPE…" : submitting ? "CREATING SECURE ORDER…" : `PAY SECURELY — ${formatCents(total)}`}
       </button>
       <p className="text-center text-[10.5px] text-ink-soft">
-        <Sparkle size={10} weight="fill" className="mr-1 inline text-[#002B5C]" />
+        <PawPrint size={10} weight="fill" className="mr-1 inline text-[#002B5C]" />
         By completing checkout you&apos;ll receive an email receipt for this order.
       </p>
     </div>

@@ -1,15 +1,7 @@
 'use client';
 
 import React from 'react';
-import { 
-  CheckCircle2, 
-  Clock, 
-  Calendar, 
-  XCircle, 
-  AlertCircle, 
-  Sparkles,
-  Info
-} from 'lucide-react';
+import { CheckCircle2, Clock, Calendar, XCircle, AlertCircle, PawPrint, Info } from 'lucide-react';
 
 interface StatusLegendModalProps {
   onClose: () => void;
@@ -74,7 +66,7 @@ export const StatusLegendModal: React.FC<StatusLegendModalProps> = ({ onClose })
         <div className="flex items-center justify-between border-b border-border pb-5">
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-primary/5 text-primary">
-              <Sparkles className="w-5 h-5" />
+              <PawPrint className="w-5 h-5" />
             </span>
             <div>
               <h2 className="text-xl font-semibold text-foreground tracking-tight">

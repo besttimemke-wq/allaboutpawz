@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Calendar, Clock, AlertTriangle, ShieldCheck, CheckCircle2, UserCheck, Sparkles } from 'lucide-react';
+import { Calendar, Clock, AlertTriangle, ShieldCheck, CheckCircle2, UserCheck, PawPrint } from 'lucide-react';
 
 export const BookingOperationsTab: React.FC = () => {
   const [allowOnlineBooking, setAllowOnlineBooking] = useState(true);
@@ -177,7 +177,7 @@ export const BookingOperationsTab: React.FC = () => {
         <div className="bg-card p-5 rounded-2xl border border-border/90 shadow-2xs space-y-3 md:col-span-2">
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" />
+              <PawPrint className="w-4 h-4 text-primary" />
               <h3 className="font-semibold text-foreground text-sm">Smart Waitlist &amp; Auto-Fill Dispatch</h3>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">

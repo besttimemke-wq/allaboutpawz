@@ -7,7 +7,6 @@ import {
   BedDouble,
   Cookie,
   Tent,
-  Sparkles,
   BadgePercent,
   Utensils,
   Shirt,

@@ -10,6 +10,7 @@ import {
   listCatalogProducts,
   type CatalogProduct,
 } from "@/lib/enterprise/catalog"
+import { getTaxProductDetailBySlug } from "@/lib/shop/taxonomy-db"
 import { ProductBuyBox, ReviewForm, type BuyBoxProduct } from "@/components/site/islands/product-detail"
 import { SITE_URL } from "@/lib/site-url"
 
@@ -31,7 +32,12 @@ import { SITE_URL } from "@/lib/site-url"
 type Params = { params: Promise<{ slug: string }> }
 
 async function loadProduct(slug: string): Promise<CatalogProduct | null> {
-  return getCatalogProductBySlug(slug)
+  // 1) The normalized legacy enterprise catalog.
+  const legacy = await getCatalogProductBySlug(slug)
+  if (legacy) return legacy
+  // 2) LIVE feed catalog (products / product_variants / product_media in
+  //    Supabase) — the 10k+ feed-synced items the PLP cards link to.
+  return getTaxProductDetailBySlug(slug)
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
