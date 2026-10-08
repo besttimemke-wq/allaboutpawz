@@ -32,6 +32,15 @@ export type ShopNavAnimal = {
   departments: ShopNavDepartment[]
 }
 
+export const SHOP_ANIMALS = [
+  { slug: "cat", name: "Cat Supplies", href: "/shop/cat" },
+  { slug: "dog", name: "Dog Supplies", href: "/shop/dog" },
+  { slug: "fish", name: "Fish & Aquatics", href: "/shop/fish" },
+  { slug: "bird", name: "Bird Supplies", href: "/shop/bird" },
+  { slug: "reptile", name: "Reptile Supplies", href: "/shop/reptile" },
+  { slug: "small-pet", name: "Small Animal Supplies", href: "/shop/small-pet" },
+]
+
 const cat = (slug: string) => slug
 
 export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
@@ -389,6 +398,108 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
           { slug: "flea-tick-treatment-sprays-for-dogs", name: "Flea & Tick Treatment Sprays for Dogs" },
           { slug: "flea-bombs-foggers-for-dogs", name: "Flea Bombs & Foggers for Dogs" },
           { slug: "topical-flea-tick-treatment", name: "Topical Flea & Tick Treatment" },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "fish",
+    name: "Fish & Aquatics",
+    tagline: "Aquariums, water care, and supplies for aquatic life",
+    departments: [
+      {
+        slug: "aquatics",
+        name: "Aquatics",
+        subcategories: [
+          { slug: "accessories", name: "Accessories" },
+          { slug: "aquarium-cleaning", name: "Aquarium Cleaning" },
+          { slug: "aquariums", name: "Aquariums" },
+          { slug: "aquariums-parts", name: "Aquariums Parts" },
+          { slug: "decor", name: "Decor" },
+          { slug: "filter-cartridges", name: "Filter Cartridges" },
+          { slug: "filters-pumps", name: "Filters & Pumps" },
+          { slug: "food", name: "Food" },
+          { slug: "heaters-gauges", name: "Heaters & Gauges" },
+          { slug: "light-fixtures-bulbs", name: "Light Fixtures & Bulbs" },
+          { slug: "supplements", name: "Supplements" },
+          { slug: "water-care", name: "Water Care" },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "bird",
+    name: "Bird Supplies",
+    tagline: "Food, perches, toys, and everyday care for birds",
+    departments: [
+      {
+        slug: "bird",
+        name: "Bird",
+        subcategories: [
+          { slug: "cage", name: "Cage" },
+          { slug: "cage-accessory", name: "Cage Accessory" },
+          { slug: "food", name: "Food" },
+          { slug: "mineral-block", name: "Mineral Block" },
+          { slug: "perches", name: "Perches" },
+          { slug: "supplements", name: "Supplements" },
+          { slug: "toys", name: "Toys" },
+          { slug: "treats", name: "Treats" },
+          { slug: "wild-bird-food", name: "Wild Bird Food" },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "reptile",
+    name: "Reptile Supplies",
+    tagline: "Habitat essentials, food, heat, and lighting for reptiles",
+    departments: [
+      {
+        slug: "reptile",
+        name: "Reptile",
+        subcategories: [
+          { slug: "bedding-substrates", name: "Bedding and Substrates" },
+          { slug: "cleaning", name: "Cleaning" },
+          { slug: "decor", name: "Decor" },
+          { slug: "dishes", name: "Dishes" },
+          { slug: "filter-pumps", name: "Filter & Pumps" },
+          { slug: "food", name: "Food" },
+          { slug: "habitat-accessory", name: "Habitat Accessory" },
+          { slug: "habitats", name: "Habitats" },
+          { slug: "heaters-gauges", name: "Heaters & Gauges" },
+          { slug: "light-fixtures-bulbs", name: "Light Fixtures & Bulbs" },
+          { slug: "liners", name: "Liners" },
+          { slug: "supplements", name: "Supplements" },
+          { slug: "treats", name: "Treats" },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "small-pet",
+    name: "Small Animal Supplies",
+    tagline: "Habitat, bedding, food, and enrichment for small pets",
+    departments: [
+      {
+        slug: "small-animal",
+        name: "Small Animal",
+        subcategories: [
+          { slug: "accessories", name: "Accessories" },
+          { slug: "bedding", name: "Bedding" },
+          { slug: "dishes-waterers", name: "Dishes & Waterers" },
+          { slug: "feeders-waterers", name: "Feeders and Waterers" },
+          { slug: "food", name: "Food" },
+          { slug: "food-ferret", name: "Food Ferret" },
+          { slug: "food-hamster", name: "Food Hamster" },
+          { slug: "food-hamster-gerbil", name: "Food Hamster and Gerbil" },
+          { slug: "food-rabbit", name: "Food Rabbit" },
+          { slug: "grooming", name: "Grooming" },
+          { slug: "habitats", name: "Habitats" },
+          { slug: "litter", name: "Litter" },
+          { slug: "supplements", name: "Supplements" },
+          { slug: "toys", name: "Toys" },
+          { slug: "treats", name: "Treats" },
+          { slug: "treats-ferret", name: "Treats Ferret" },
         ],
       },
     ],

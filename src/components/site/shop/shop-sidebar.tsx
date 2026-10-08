@@ -1,32 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { Fragment, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { X, Plus, Minus, Search, Star, PawPrint, ChevronUp, ChevronDown } from "lucide-react"
-import { CATEGORY_ICONS as ICONS } from "./category-icons"
+import { X, Plus, Minus, Search, Star, ChevronUp, ChevronDown } from "lucide-react"
 import type { FilterSection, NavCategory, MerchCollection } from "@/lib/shop/types"
 
 // ---------------------------------------------------------------------------
-// ShopSidebar — the desktop rail / mobile drawer for every PLP.
+// ShopSidebar — the rail for every PLP: one accordion list where Categories
+// and each filter are peer rows (Plus/Minus), so it reads as a single control.
+// Filters instant-apply to the URL; there is no separate Apply step.
 //
-// Architecture (enterprise faceting — the Petco/Amazon model):
-//   CATEGORIES  → navigation. Icon + name + count rows that LINK to the
-//                 category route. NO checkboxes. The current category gets
-//                 an active state (weight + background + icon tint).
-//   FILTERS     → INSTANT-APPLY refinement. Every checkbox, price bucket, and
-//                 rating row commits to the URL the moment it's clicked —
-//                 shareable, server-rendered, no separate APPLY step. The
-//                 results grid behind updates immediately. Price MIN/MAX
-//                 inputs commit on Enter/blur so typing isn't thrashed.
-//                 "Clear all" sits at the top of the section.
-//
-//   FACETS      → Multi-select checkbox facets (Brand, Flavor, Size, ...).
-//                 Each section can be:
-//                   • searchable — renders a search-within input above the list.
-//                   • collapsible — collapses options beyond defaultVisible
-//                     behind a "Show more" toggle.
-//                 Selected values commit to the URL as ?key=v1,v2,v3.
 // ---------------------------------------------------------------------------
 
 export type SidebarData = {
@@ -34,6 +18,8 @@ export type SidebarData = {
   categories: NavCategory[]
   /** New Arrivals / Sale — merchandising destinations. */
   merch: MerchCollection[]
+  /** Parent categories above the current node, outermost first. */
+  ancestors: { displayName: string; path: string }[]
   /** The current route's category node (null = shop-all). */
   current: NavCategory | null
   /** Current merch key when on /shop/new-arrivals or /shop/sale. */
@@ -150,265 +136,187 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
     commit({ ...draft, rating: draft.rating === value ? null : value })
   }
 
-  const isCurrent = (node: NavCategory | null) => {
-    if (!node) return data.current == null && data.currentMerch == null
-    if (data.current?.path === node.path) return true
-    // Departments own their subtree (a leaf page keeps its department row
-    // active, spec §4); the species row matches exactly only.
-    return node.level === 1 && !!data.current?.path.startsWith(`${node.path}/`)
-  }
+  const newArrivals = data.merch.find((item) => item.key === "new-arrivals")
+  const otherMerch = data.merch.filter((item) => item.key !== "new-arrivals")
+  // Only one branch is shown at a time, so its children are listed; at /shop the six animals stay collapsed.
+  const showChildren = data.categories.length === 1
 
   return (
     <div className="flex h-full flex-col bg-white">
       {/* ---- Header ---- */}
       <div className="flex items-center justify-between px-5 py-4">
-        <p className="text-[14px] font-semibold text-ink">Shop</p>
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close filters"
-            className="flex h-8 w-8 items-center justify-center text-ink-soft transition-colors hover:text-ink"
-          >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </button>
-        ) : (
-          <span className="text-[9px] font-bold tracking-[0.14em] text-ink-soft/60">PAWZ &amp; CO.</span>
-        )}
+        <p className="text-[18px] font-semibold text-ink">Shop</p>
+        <div className="flex items-center gap-3">
+          {appliedCount > 0 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4"
+            >
+              Clear all ({appliedCount})
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close filters"
+              className="flex h-9 w-9 items-center justify-center text-ink-soft transition-colors hover:text-ink"
+            >
+              <X className="h-5 w-5" strokeWidth={2} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ---- Body: Categories nav + Filters (no internal scroller — the
           page gets longer when a filter section expands). ---- */}
-      <div className="flex-1 px-5 pb-5 pt-5">
-        {/* ================= Categories (navigation) ================= */}
-        <nav aria-label="Shop categories">
-          <p className="text-[14px] font-semibold text-ink">Categories</p>
-          <ul className="mt-3 space-y-0.5">
-            {/* Shop-all row */}
-            <li>
-              <Link
-                href="/shop"
-                className={`navRow ${isCurrent(null) ? "navRowActive" : ""}`}
-                aria-current={isCurrent(null) ? "page" : undefined}
-              >
-                <span className="navIconWrap">
-                  <PawPrint className="h-[15px] w-[15px]" strokeWidth={1.7} aria-hidden="true" />
-                </span>
-                <span className="navLabel">All Products</span>
-                <CountTag n={data.categories.reduce((s, c) => s + c.count, 0)} />
-              </Link>
-            </li>
-
-            {/* Species parents (Dog) + their departments as flat rows —
-                the reference layout: Dog, Grooming, Wellness, Toys, … */}
-            {data.categories.map((node) => {
-              const Icon = ICONS[node.key] || PawPrint
-              const active = isCurrent(node)
-              return (
-                <li key={node.key}>
-                  <Link
-                    href={node.path}
-                    className={`navRow ${active ? "navRowActive" : ""}`}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <span className="navIconWrap">
-                      <Icon className="h-[15px] w-[15px]" strokeWidth={1.7} />
-                    </span>
-                    <span className="navLabel">{node.displayName}</span>
-                    <CountTag n={node.count} />
-                  </Link>
-
-                  {/* The species' departments render as top rows (nav, not
-                      checkboxes); the active department additionally exposes
-                      its subcategories as indented destinations. */}
-                  <ul className="mt-0.5 space-y-0.5">
-                    {node.children.map((c) => {
-                      const CIcon = ICONS[c.key] || PawPrint
-                      const cActive = isCurrent(c)
-                      return (
-                        <li key={c.key}>
-                          <Link
-                            href={c.path}
-                            className={`navRow ${cActive ? "navRowActive" : ""}`}
-                            aria-current={cActive ? "page" : undefined}
-                          >
-                            <span className="navIconWrap">
-                              <CIcon className="h-[15px] w-[15px]" strokeWidth={1.7} />
-                            </span>
-                            <span className="navLabel">{c.displayName}</span>
-                            <CountTag n={c.count} />
-                          </Link>
-                          {cActive && c.children.length > 0 && (
-                            <ul className="mb-1 ml-[26px] space-y-0.5 border-l border-neutral-200 pl-3">
-                              {c.children.map((gc) => (
-                                <li key={gc.key}>
-                                  <Link
-                                    href={gc.path}
-                                    className={`subRow ${data.current?.path === gc.path ? "subRowActive" : ""}`}
-                                  >
-                                    <span className="navLabel">{gc.displayName}</span>
-                                    <CountTag n={gc.count} />
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </li>
-              )
-            })}
-
-            {/* Merchandising destinations */}
-            {data.merch.length > 0 && (
-              <li aria-hidden="true" className="my-3 border-t border-neutral-200" />
+      <div className="flex-1 px-5 pb-5">
+        <AccordionRow label="Categories">
+          <ul className="pb-1">
+            {newArrivals && (
+              <li>
+                <CategoryLink href={newArrivals.path} active={pathname === newArrivals.path}>
+                  {newArrivals.displayName}
+                </CategoryLink>
+              </li>
             )}
-            {data.merch.map((m) => {
-              const Icon = ICONS[m.key] || PawPrint
-              const active = data.currentMerch === m.key
-              return (
-                <li key={m.key}>
-                  <Link
-                    href={m.path}
-                    className={`navRow ${active ? "navRowActive" : ""}`}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <span className="navIconWrap">
-                      <Icon className="h-[15px] w-[15px]" strokeWidth={1.7} />
-                    </span>
-                    <span className="navLabel">{m.displayName}</span>
-                    <CountTag n={m.count} />
-                  </Link>
+            {data.ancestors.map((ancestor) => (
+              <li key={ancestor.path}>
+                <CategoryLink href={ancestor.path} active={false}>
+                  {ancestor.displayName}
+                </CategoryLink>
+              </li>
+            ))}
+            {data.categories.map((node) => (
+              <Fragment key={node.key}>
+                <li>
+                  <CategoryLink href={node.path} active={pathname === node.path}>
+                    {node.displayName}
+                  </CategoryLink>
                 </li>
-              )
-            })}
+                {showChildren &&
+                  node.children.map((child) => (
+                    <li key={child.key}>
+                      <CategoryLink href={child.path} active={pathname === child.path} indent>
+                        {child.displayName}
+                      </CategoryLink>
+                    </li>
+                  ))}
+              </Fragment>
+            ))}
+            {otherMerch.map((item) => (
+              <li key={item.key}>
+                <CategoryLink href={item.path} active={pathname === item.path}>
+                  {item.displayName}
+                </CategoryLink>
+              </li>
+            ))}
           </ul>
-        </nav>
+        </AccordionRow>
 
-        {/* ================= FILTERS (collapsible +, instant-apply) ================= */}
-        {data.filterSections.length > 0 && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between">
-              <p className="text-[14px] font-semibold text-ink">Filters{appliedCount > 0 ? ` (${appliedCount})` : ""}</p>
-              {appliedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  className="text-[11px] font-semibold text-[#002B5C] underline-offset-2 hover:underline"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
+        {data.filterSections.map((section) => (
+          <AccordionRow key={section.kind === "check" ? `check-${section.key}` : section.kind} label={section.label}>
+            {section.kind === "price" && (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <PriceInput
+                    label="Min"
+                    value={draft.minPrice}
+                    placeholder="MIN"
+                    onChange={(v) => setDraft((d) => ({ ...d, minPrice: v, priceBucket: null }))}
+                    onCommit={() => commit(draft)}
+                  />
+                  <span className="text-[15px] text-ink-soft">—</span>
+                  <PriceInput
+                    label="Max"
+                    value={draft.maxPrice}
+                    placeholder="MAX"
+                    onChange={(v) => setDraft((d) => ({ ...d, maxPrice: v, priceBucket: null }))}
+                    onCommit={() => commit(draft)}
+                  />
+                </div>
+                <ul className="space-y-0.5">
+                  {section.buckets.map((b) => (
+                    <li key={b.value}>
+                      <CheckRow
+                        checked={draft.priceBucket === b.value}
+                        onToggle={() => setBucket(b.value)}
+                        label={b.label}
+                        count={b.count}
+                        name="Price"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            <div className="mt-2">
-              {data.filterSections.map((section) => (
-                <FilterGroup key={section.kind === "check" ? `check-${section.key}` : section.kind} section={section}>
-                  {section.kind === "price" && (
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2">
-                        <PriceInput
-                          label="Min"
-                          value={draft.minPrice}
-                          placeholder="MIN"
-                          onChange={(v) => setDraft((d) => ({ ...d, minPrice: v, priceBucket: null }))}
-                          onCommit={() => commit(draft)}
-                        />
-                        <span className="text-[11px] text-ink-soft/70">—</span>
-                        <PriceInput
-                          label="Max"
-                          value={draft.maxPrice}
-                          placeholder="MAX"
-                          onChange={(v) => setDraft((d) => ({ ...d, maxPrice: v, priceBucket: null }))}
-                          onCommit={() => commit(draft)}
-                        />
-                      </div>
-                      <ul className="space-y-0.5">
-                        {section.buckets.map((b) => (
-                          <li key={b.value}>
-                            <CheckRow
-                              checked={draft.priceBucket === b.value}
-                              onToggle={() => setBucket(b.value)}
-                              label={b.label}
-                              count={b.count}
-                              name="Price"
-                            />
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {section.kind === "rating" && (
-                    <ul className="space-y-0.5">
-                      {section.rows.map((r) => (
-                        <li key={r.value}>
-                          <CheckRow
-                            checked={draft.rating === r.value}
-                            onToggle={() => setRating(r.value)}
-                            label={
-                              <span className="flex items-center gap-1.5">
-                                <span className="flex items-center gap-[1px]" aria-hidden="true">
-                                  {Array.from({ length: 5 }).map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`h-[11px] w-[11px] ${
-                                        i < Number.parseInt(r.value, 10)
-                                          ? "fill-[#002B5C] text-[#002B5C]"
-                                          : "fill-none text-ink-soft/40"
-                                      }`}
-                                      strokeWidth={1.5}
-                                    />
-                                  ))}
-                                </span>
-                                <span className="sr-only">{r.label}</span>
-                                <span aria-hidden="true" className="text-[10px] text-ink-soft">
-                                  &amp; up
-                                </span>
-                              </span>
-                            }
-                            count={r.count}
-                            name={`Rating ${r.label}`}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {section.kind === "check" && section.key === "availability" && (
-                    <ul className="space-y-0.5">
-                      {section.options.map((o) => (
-                        <li key={o.value}>
-                          <CheckRow
-                            checked={draft.availability.includes(o.value)}
-                            onToggle={() => toggleAvailability(o.value)}
-                            label={o.label}
-                            count={o.count}
-                            name={section.label}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {section.kind === "check" && section.key !== "availability" && (
-                    <FacetCheckList
-                      section={section}
-                      draft={draft}
-                      onToggle={toggleFacet}
-                      sectionQueries={sectionQueries}
-                      setSectionQueries={setSectionQueries}
-                      expandedSections={expandedSections}
-                      setExpandedSections={setExpandedSections}
+            {section.kind === "rating" && (
+              <ul className="space-y-0.5">
+                {section.rows.map((r) => (
+                  <li key={r.value}>
+                    <CheckRow
+                      checked={draft.rating === r.value}
+                      onToggle={() => setRating(r.value)}
+                      label={
+                        <span className="flex items-center gap-2">
+                          <span className="flex items-center gap-[2px]" aria-hidden="true">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-[14px] w-[14px] ${
+                                  i < Number.parseInt(r.value, 10)
+                                    ? "fill-[#002B5C] text-[#002B5C]"
+                                    : "fill-none text-ink-soft/40"
+                                }`}
+                                strokeWidth={1.5}
+                              />
+                            ))}
+                          </span>
+                          <span className="sr-only">{r.label}</span>
+                          <span aria-hidden="true" className="text-[14px] text-ink-soft">
+                            &amp; up
+                          </span>
+                        </span>
+                      }
+                      count={r.count}
+                      name={`Rating ${r.label}`}
                     />
-                  )}
-                </FilterGroup>
-              ))}
-            </div>
-          </div>
-        )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {section.kind === "check" && section.key === "availability" && (
+              <ul className="space-y-0.5">
+                {section.options.map((o) => (
+                  <li key={o.value}>
+                    <CheckRow
+                      checked={draft.availability.includes(o.value)}
+                      onToggle={() => toggleAvailability(o.value)}
+                      label={o.label}
+                      count={o.count}
+                      name={section.label}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {section.kind === "check" && section.key !== "availability" && (
+              <FacetCheckList
+                section={section}
+                draft={draft}
+                onToggle={toggleFacet}
+                sectionQueries={sectionQueries}
+                setSectionQueries={setSectionQueries}
+                expandedSections={expandedSections}
+                setExpandedSections={setExpandedSections}
+              />
+            )}
+          </AccordionRow>
+        ))}
       </div>
     </div>
   )
@@ -418,39 +326,54 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
 // Pieces
 // ---------------------------------------------------------------------------
 
-function CountTag({ n }: { n: number }) {
-  return <span className="ml-auto text-[9.5px] font-medium text-ink-soft/70">{n}</span>
-}
+const linkUnderline = "underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline"
 
-/** Collapsible filter group — Plus icon when collapsed, Minus when expanded.
- *  Starts COLLAPSED by default (the user clicks to expand each section).
- *  No border around the section — just a thin light gray divider line below
- *  (border-b border-neutral-100) so the sections stack cleanly like the
- *  Petco reference. */
-function FilterGroup({
-  section,
+function CategoryLink({
+  href,
+  active,
+  indent = false,
   children,
 }: {
-  section: FilterSection
+  href: string
+  active: boolean
+  indent?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`block py-2 text-[15px] leading-snug ${indent ? "pl-4" : ""} ${linkUnderline} ${
+        active ? "font-semibold text-[#002B5C]" : "text-ink"
+      }`}
+    >
+      {children}
+    </Link>
+  )
+}
+
+/** One row of the rail; Categories and every filter share it so they read as a single control. */
+function AccordionRow({
+  label,
+  children,
+}: {
+  label: string
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
-  const label = section.label
   return (
-    <div className="border-b border-neutral-100 last:border-b-0">
+    <div className="border-b border-neutral-200">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between py-3 text-left"
+        className="flex w-full items-center justify-between py-3.5 text-left"
       >
-        {/* Title Case header — bold dark, NOT uppercase. */}
-        <span className="text-[14px] font-semibold text-ink">{label}</span>
-        {/* Plus icon (collapsed) → Minus icon (expanded). */}
+        <span className="text-[15px] font-semibold text-ink">{label}</span>
         {open ? (
-          <Minus className="h-3.5 w-3.5 text-ink" strokeWidth={2} aria-hidden="true" />
+          <Minus className="h-4 w-4 text-ink" strokeWidth={2} aria-hidden="true" />
         ) : (
-          <Plus className="h-3.5 w-3.5 text-ink" strokeWidth={2} aria-hidden="true" />
+          <Plus className="h-4 w-4 text-ink" strokeWidth={2} aria-hidden="true" />
         )}
       </button>
       {open && <div className="pb-3">{children}</div>}
@@ -473,7 +396,7 @@ function PriceInput({
 }) {
   return (
     <label className="relative block flex-1">
-      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-ink-soft/70">$</span>
+      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-ink-soft">$</span>
       <span className="sr-only">{label} price</span>
       <input
         type="text"
@@ -489,12 +412,11 @@ function PriceInput({
         }}
         placeholder={placeholder}
         aria-label={`${label} price in dollars`}
-        className="w-full border border-neutral-300 bg-white py-1.5 pl-5 pr-2 text-[11px] text-ink placeholder:font-semibold placeholder:text-neutral-400 focus:border-[#002B5C] focus:outline-none"
+        className="w-full border border-neutral-300 bg-white py-2 pl-6 pr-2 text-[15px] text-ink placeholder:text-neutral-400 focus:border-[#002B5C] focus:outline-none"
       />
     </label>
   )
 }
-
 function CheckRow({
   checked,
   onToggle,
@@ -509,18 +431,18 @@ function CheckRow({
   name: string
 }) {
   return (
-    <label className="flex min-h-[30px] cursor-pointer items-center gap-2.5 py-0.5 text-[11.5px] text-ink select-none">
-      <span className="relative flex h-[15px] w-[15px] shrink-0 items-center justify-center">
+    <label className="flex min-h-[36px] cursor-pointer items-center gap-3 py-1 text-[15px] text-ink select-none">
+      <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center">
         <input
           type="checkbox"
           checked={checked}
           onChange={() => onToggle()}
           name={name}
-          className="peer h-[15px] w-[15px] cursor-pointer appearance-none border border-neutral-400 bg-white checked:border-[#002B5C] checked:bg-[#002B5C] focus:outline-none focus-visible:ring-2 focus-visible:ring-#002B5C/40"
+          className="peer h-[18px] w-[18px] cursor-pointer appearance-none border border-neutral-400 bg-white checked:border-[#002B5C] checked:bg-[#002B5C] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F2C500]"
         />
         <svg
           viewBox="0 0 12 12"
-          className="pointer-events-none absolute h-[9px] w-[9px] text-white opacity-0 peer-checked:opacity-100"
+          className="pointer-events-none absolute h-[11px] w-[11px] text-white opacity-0 peer-checked:opacity-100"
           fill="none"
           aria-hidden="true"
         >
@@ -529,7 +451,7 @@ function CheckRow({
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count > 0 && (
-        <span className="text-[9.5px] text-ink-soft/70">({count})</span>
+        <span className="text-[14px] text-ink-soft">({count})</span>
       )}
     </label>
   )
@@ -597,7 +519,7 @@ function FacetCheckList({
       {isSearchable && (
         <div className="relative">
           <Search
-            className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-ink-soft/60"
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft"
             strokeWidth={2}
             aria-hidden="true"
           />
@@ -609,13 +531,13 @@ function FacetCheckList({
             }
             placeholder={`Search ${section.label.toLowerCase()}…`}
             aria-label={`Search ${section.label}`}
-            className="w-full border border-neutral-300 bg-white py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-neutral-400 focus:border-[#002B5C] focus:outline-none"
+            className="w-full border border-neutral-300 bg-white py-2 pl-9 pr-2 text-[15px] text-ink placeholder:text-neutral-400 focus:border-[#002B5C] focus:outline-none"
           />
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <p className="py-1.5 text-[10.5px] italic text-ink-soft/70">
+        <p className="py-1.5 text-[14px] italic text-ink-soft">
           {isSearchable && query ? "No matches in this facet." : "No options yet."}
         </p>
       ) : (
@@ -643,7 +565,7 @@ function FacetCheckList({
               onClick={() =>
                 setExpandedSections((s) => ({ ...s, [key]: !expanded }))
               }
-              className="flex w-full items-center justify-center gap-1 py-1 text-[11px] font-semibold text-[#002B5C] hover:underline"
+              className="flex w-full items-center justify-center gap-1 py-2 text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4"
               aria-expanded={expanded}
               aria-label={`${expanded ? "Show less" : "Show all"} ${section.label}`}
             >

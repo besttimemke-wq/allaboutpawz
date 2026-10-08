@@ -63,32 +63,32 @@ export function PlpToolbar({
           type="button"
           onClick={() => setDrawerOpen(true)}
           aria-expanded={drawerOpen}
-          className="inline-flex min-h-[44px] items-center gap-2 border border-ink/15 bg-white px-4 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-[#002B5C] hover:text-[#002B5C] lg:hidden"
+          className="inline-flex min-h-[44px] items-center gap-2 border border-ink/15 bg-white px-4 text-[14px] font-bold tracking-[0.08em] text-ink transition-colors hover:border-[#F2C500] lg:hidden"
         >
-          <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} />
+          <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
           FILTERS
           {appliedCount > 0 && (
-            <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-[#002B5C] px-1 text-[8.5px] font-bold leading-none text-white">
+            <span className="flex h-[20px] min-w-[20px] items-center justify-center bg-[#002B5C] px-1 text-[12px] font-bold leading-none text-white">
               {appliedCount}
             </span>
           )}
         </button>
 
         {/* Product count */}
-        <p className="text-[11px] font-bold tracking-[0.12em] text-ink" aria-live="polite">
-          {shown === total ? `${total} PRODUCTS` : `${shown} OF ${total} PRODUCTS`}
+        <p className="text-[15px] font-semibold text-ink" aria-live="polite">
+          {shown === total ? `${total} products` : `${shown} of ${total} products`}
         </p>
 
         {/* Sort */}
         <div className="ml-auto flex items-center gap-2">
-          <label htmlFor="plp-sort" className="hidden text-[9.5px] font-bold tracking-[0.12em] text-ink-soft sm:block">
-            SORT BY
+          <label htmlFor="plp-sort" className="hidden text-[14px] font-semibold text-ink-soft sm:block">
+            Sort by
           </label>
           <select
             id="plp-sort"
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="min-h-[36px] cursor-pointer border border-ink/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-ink focus:border-[#002B5C] focus:outline-none"
+            className="min-h-[44px] cursor-pointer border border-ink/15 bg-white px-3 py-2 text-[15px] font-semibold text-ink focus:border-[#002B5C] focus:outline-none"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>

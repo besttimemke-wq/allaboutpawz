@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, PawPrint } from "lucide-react"
 
 export type CategoryCard = {
   name: string
@@ -25,9 +25,11 @@ export type CategoryCard = {
 }
 
 export function CategoryCarousel({
+  id,
   title,
   cards,
 }: {
+  id?: string
   title: string
   cards: CategoryCard[]
 }) {
@@ -80,7 +82,7 @@ export function CategoryCarousel({
   if (cards.length === 0) return null
 
   return (
-    <section className="px-6 py-8 lg:px-12 lg:py-10">
+    <section id={id} className="scroll-mt-24 px-6 py-8 lg:px-12 lg:py-10">
       <div className="mx-auto max-w-7xl">
         <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">{title}</h2>
 
@@ -95,7 +97,7 @@ export function CategoryCarousel({
               type="button"
               onClick={() => scrollByCards(-1)}
               aria-label="Scroll left"
-              className="absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-300 bg-white shadow-md transition-all hover:border-[#002B5C] hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002B5C]/40"
+              className="absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-300 bg-white shadow-md transition-all hover:border-[#F2C500] hover:bg-[#FFF9D9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F2C500]"
             >
               <ChevronLeft className="h-5 w-5 text-ink" strokeWidth={2} aria-hidden="true" />
             </button>
@@ -107,7 +109,7 @@ export function CategoryCarousel({
               type="button"
               onClick={() => scrollByCards(1)}
               aria-label="Scroll right"
-              className="absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-300 bg-white shadow-md transition-all hover:border-[#002B5C] hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#002B5C]/40"
+              className="absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-neutral-300 bg-white shadow-md transition-all hover:border-[#F2C500] hover:bg-[#FFF9D9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F2C500]"
             >
               <ChevronRight className="h-5 w-5 text-ink" strokeWidth={2} aria-hidden="true" />
             </button>
@@ -127,20 +129,26 @@ export function CategoryCarousel({
                 key={c.href}
                 href={c.href}
                 role="listitem"
-                className="group w-[240px] shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-[#002B5C] hover:shadow-md sm:w-[260px] lg:w-[280px]"
+                className="group w-[240px] shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-[#F2C500] hover:shadow-md sm:w-[260px] lg:w-[280px]"
               >
                 {/* Image (full-bleed, 4:3 aspect). */}
                 <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
-                  <img
-                    src={c.image}
-                    alt={c.imageAlt || `${c.name} — All About Pawz Memphis`}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
+                  {c.image ? (
+                    <img
+                      src={c.image}
+                      alt={c.imageAlt || `${c.name} — All About Pawz Memphis`}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center bg-[#002B5C] text-white/45">
+                      <PawPrint className="h-9 w-9" strokeWidth={1.1} aria-hidden="true" />
+                    </div>
+                  )}
                 </div>
                 <div className="p-4">
-                  <h3 className="text-[14px] font-bold text-ink group-hover:text-[#002B5C]">{c.name}</h3>
+                  <h3 className="text-[17px] font-semibold text-ink underline-offset-4 decoration-[#F2C500] decoration-2 group-hover:underline">{c.name}</h3>
                   {c.description && (
-                    <p className="mt-1 text-[12px] leading-snug text-ink-soft line-clamp-2">{c.description}</p>
+                    <p className="mt-1.5 text-[14px] leading-snug text-ink-soft line-clamp-2">{c.description}</p>
                   )}
                 </div>
               </Link>
