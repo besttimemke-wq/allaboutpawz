@@ -39,6 +39,15 @@ function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120) || "product";
 }
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+async function fetchWithRetry(url: string, tries = 5): Promise<Response> {
+  let res: Response | null = null;
+  for (let i = 0; i < tries; i++) {
+    res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (supplier-feed-sync)" } });
+    if (res.status !== 429) return res;
+    await sleep(2000 * (i + 1) + Math.random() * 1000);
+  }
+  return res!;
+}
 function chunk<T>(a: T[], n: number): T[][] {
   const o: T[][] = [];
   for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n));
@@ -74,15 +83,17 @@ serve(async (req: Request) => {
     }
 
     // ---- Reference data ----
-    const [{ data: srcRows }, { data: mapRows }, { data: nodeRows }] = await Promise.all([
+    const [{ data: srcRows }, { data: mapRows }, { data: nodeRows }, { data: allL1 }] = await Promise.all([
       sb.from("sources").select("id,name").eq("tenant_id", TENANT_ID),
       sb.from("supplier_category_mapping").select("supplier,lookup_key,landing,primary_category,pet_scope,in_taxonomy"),
       sb.from("taxonomy_nodes").select("id,name,parent_id,animal_id,depth,status").eq("status", "published"),
+      // L1s unfiltered by status: Dog|Cat root is draft but its children are published.
+      sb.from("taxonomy_nodes").select("id,name").is("parent_id", null),
     ]);
     const srcIdByName = new Map((srcRows || []).map((r: any) => [r.name, r.id]));
     const mapByKey = new Map((mapRows || []).map((m: any) => [`${m.supplier}|${m.lookup_key}`, m]));
     // node lookup: root-animal|lower(name) -> node id (L3 preferred)
-    const l1ById = new Map((nodeRows || []).filter((n: any) => !n.parent_id).map((n: any) => [n.id, n.name]));
+    const l1ById = new Map((allL1 || []).map((n: any) => [n.id, n.name]));
     const nodeByAnimalName = new Map<string, string>();
     for (const n of nodeRows || []) {
       const rootId = n.animal_id || n.id;
@@ -112,7 +123,7 @@ serve(async (req: Request) => {
         const staged: any[] = [];
         let page = 1;
         for (;;) {
-          const res = await fetch(`${src.base}${page}`, { headers: { "User-Agent": "Mozilla/5.0 (supplier-feed-sync)" } });
+          const res = await fetchWithRetry(`${src.base}${page}`);
           if (!res.ok) throw new Error(`feed HTTP ${res.status} page ${page}`);
           const data = await res.json();
           const products = (data && data.products) || [];
@@ -141,9 +152,10 @@ serve(async (req: Request) => {
           await sleep(POLITE_MS);
         }
 
-        // ---- Phase 2: stage ----
+        // ---- Phase 2: stage (delete+insert per supplier; no unique-constraint dependency) ----
+        await sb.from("stg_feed").delete().eq("supplier", src.name);
         for (const b of chunk(staged, BATCH)) {
-          const { error } = await sb.from("stg_feed").upsert(b, { onConflict: "supplier,source_variant_id" });
+          const { error } = await sb.from("stg_feed").insert(b);
           if (error) throw new Error("stg_feed: " + error.message);
         }
         per.staged = staged.length;
@@ -156,41 +168,64 @@ serve(async (req: Request) => {
           byProduct.get(k)!.push(r);
         }
 
-        // Brands present in this feed.
+        // Brands present in this feed (insert missing only; no constraint dependency).
         const brandNames = [...new Set(staged.map((r) => r.vendor).filter(Boolean))];
         const brandIdByName = new Map<string, string>();
         if (brandNames.length) {
-          await sb.from("brands").upsert(
-            brandNames.map((n) => ({ tenant_id: TENANT_ID, name: n, slug: slugify(n), status: "published" })),
-            { onConflict: "tenant_id,name" }
-          );
-          const { data: bRows } = await sb.from("brands").select("id,name").in("name", brandNames);
-          for (const b of bRows || []) brandIdByName.set(b.name, b.id);
+          const { data: existingBrands } = await sb.from("brands").select("id,name").in("name", brandNames);
+          for (const b of existingBrands || []) brandIdByName.set(b.name, b.id);
+          const missing = brandNames.filter((n) => !brandIdByName.has(n));
+          if (missing.length) {
+            // NOTE: brands insert as draft — the publish trigger requires a purchase
+            // order + authorized seller, which doesn't exist for dropship suppliers yet.
+            // Products still link via brand_id and carry the brand text for display.
+            const { data: ins, error: bErr } = await sb.from("brands").insert(
+              missing.map((n) => ({ tenant_id: TENANT_ID, name: n, slug: slugify(n), status: "draft", description: `Brand imported from supplier feed.` }))
+            ).select("id,name");
+            if (bErr) throw new Error("brands: " + bErr.message);
+            for (const b of ins || []) brandIdByName.set(b.name, b.id);
+          }
         }
 
         const supplierId = srcIdByName.get(src.name) || null;
+        // Existing products for this supplier: update by id, never re-upsert by slug
+        // (the slug-dedup trigger renames on collision, which would create dupes).
+        const existingBySpid = new Map<string, string>();
+        if (supplierId) {
+          let off = 0;
+          for (;;) {
+            const { data } = await sb.from("products").select("id,source_product_id")
+              .eq("supplier_id", supplierId).range(off, off + 999);
+            if (!data || !data.length) break;
+            for (const p of data as any[]) if (p.source_product_id) existingBySpid.set(String(p.source_product_id), p.id);
+            off += 1000;
+          }
+        }
         let bi = 0;
         for (const [, rows] of byProduct) {
           bi++;
           const r0 = rows[0];
           const m = mapByKey.get(`${r0.supplier}|${norm(r0.product_type || "")}`);
-          if (!m || !m.in_taxonomy) {
+          const qRow = {
+            tenant_id: TENANT_ID, supplier: r0.supplier, source_product_id: r0.source_product_id,
+            title: r0.title, brand: r0.vendor, supplier_product_type: r0.product_type || "",
+            resolved: false,
+          };
+          const quarantineIt = async (reason: string) => {
             per.quarantined++; summary.quarantined++;
-            await sb.from("quarantine").upsert({
-              tenant_id: TENANT_ID, supplier: r0.supplier, source_product_id: r0.source_product_id,
-              title: r0.title, brand: r0.vendor, supplier_product_type: r0.product_type || "",
-              reason: !m ? "no mapping row" : "in_taxonomy=false", resolved: false,
-            }, { onConflict: "supplier,source_product_id" });
+            const { data: exists } = await sb.from("quarantine").select("id")
+              .eq("supplier", r0.supplier).eq("source_product_id", r0.source_product_id).limit(1);
+            if (!exists || !exists.length) {
+              await sb.from("quarantine").insert({ ...qRow, reason });
+            }
+          };
+          if (!m || !m.in_taxonomy) {
+            await quarantineIt(!m ? "no mapping row" : "in_taxonomy=false");
             continue;
           }
           const nodeId = resolveNode(m.pet_scope, m.primary_category);
           if (!nodeId) {
-            per.quarantined++; summary.quarantined++;
-            await sb.from("quarantine").upsert({
-              tenant_id: TENANT_ID, supplier: r0.supplier, source_product_id: r0.source_product_id,
-              title: r0.title, brand: r0.vendor, supplier_product_type: r0.product_type || "",
-              reason: `node not found: ${m.pet_scope}/${m.primary_category}`, resolved: false,
-            }, { onConflict: "supplier,source_product_id" });
+            await quarantineIt(`node not found: ${m.pet_scope}/${m.primary_category}`);
             continue;
           }
 
@@ -205,7 +240,9 @@ serve(async (req: Request) => {
             tags: r0.tags, status: "published", published_at: new Date().toISOString(),
             is_salon_favorite: salonFavorite(r0.supplier, r0.vendor, minPrice),
           };
-          const { data: pUp, error: pErr } = await sb.from("products").upsert(prodRow, { onConflict: "tenant_id,slug" }).select("id").maybeSingle();
+          const { data: pUp, error: pErr } = existingBySpid.has(String(r0.source_product_id))
+            ? await sb.from("products").update({ ...prodRow, slug: undefined }).eq("id", existingBySpid.get(String(r0.source_product_id))).select("id").maybeSingle()
+            : await sb.from("products").insert(prodRow).select("id").maybeSingle();
           if (pErr) throw new Error("products: " + pErr.message);
           const pid = pUp.id;
 
@@ -248,6 +285,8 @@ serve(async (req: Request) => {
           }
 
           per.placed++; summary.placed++;
+          // Clear any prior quarantine for this product now that it placed.
+          await sb.from("quarantine").delete().eq("supplier", r0.supplier).eq("source_product_id", r0.source_product_id);
           if (bi % 50 === 0) await sleep(10);
         }
 

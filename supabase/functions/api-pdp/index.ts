@@ -41,13 +41,11 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "product not found" }), { status: 404, headers: corsHeaders });
     }
 
-    const [varRes, medRes, revRes, pnRes, brandRes] = await Promise.all([
+    const [varRes, medRes, pnRes, brandRes] = await Promise.all([
       sb.from("product_variants").select("id,sku,variant_title,option_size,option_color,price,compare_at_price,in_stock,stock_quantity,weight_grams")
         .eq("product_id", prod.id).eq("status", "active").order("price", { ascending: true }),
       sb.from("product_media").select("url,alt_text,sort_order,variant_id")
         .eq("product_id", prod.id).eq("media_type", "image").order("sort_order", { ascending: true }),
-      sb.from("product_reviews").select("author,rating,title,body,verified,createdAt")
-        .eq("productId", prod.id).eq("visible", true).order("createdAt", { ascending: false }).limit(20),
       sb.from("product_nodes").select("node_id,is_primary").eq("product_id", prod.id),
       prod.brand_id
         ? sb.from("brands").select("id,name,slug,logo_url").eq("id", prod.brand_id).maybeSingle()
@@ -55,11 +53,17 @@ serve(async (req: Request) => {
     ]);
     if (varRes.error) throw new Error("product_variants: " + varRes.error.message);
     if (medRes.error) throw new Error("product_media: " + medRes.error.message);
-    if (revRes.error) throw new Error("product_reviews: " + revRes.error.message);
+    // Reviews are optional — RLS may block anon reads; never fail the PDP for them.
+    let revRows: any[] = [];
+    try {
+      const { data } = await sb.from("product_reviews").select("author,rating,title,body,verified,created_at")
+        .eq("product_id", prod.id).eq("visible", true).order("created_at", { ascending: false }).limit(20);
+      revRows = data || [];
+    } catch { /* no reviews */ }
 
     const variants = varRes.data || [];
     const prices = variants.map((v: any) => Number(v.price)).filter((n: number) => Number.isFinite(n) && n > 0);
-    const reviews = revRes.data || [];
+    const reviews = revRows;
     const avg = reviews.length ? reviews.reduce((s: number, r: any) => s + (Number(r.rating) || 0), 0) / reviews.length : null;
 
     // Breadcrumb: primary node, walk up via parent_id.

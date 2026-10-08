@@ -127,14 +127,15 @@ serve(async (req: Request) => {
     const revAgg = new Map<string, { sum: number; n: number }>();
     for (let i = 0; i < products.length; i += 200) {
       const ids = products.slice(i, i + 200).map((p: any) => p.id);
-      const { data, error } = await sb.from("product_reviews")
-        .select("productId,rating").in("productId", ids).eq("visible", true);
-      if (error) throw new Error("product_reviews: " + error.message);
-      for (const r of data || []) {
-        const a = revAgg.get(r.productId) || { sum: 0, n: 0 };
-        a.sum += Number(r.rating) || 0; a.n++;
-        revAgg.set(r.productId, a);
-      }
+      try {
+        const { data } = await sb.from("product_reviews")
+          .select("product_id,rating").in("product_id", ids).eq("visible", true);
+        for (const r of data || []) {
+          const a = revAgg.get(r.product_id) || { sum: 0, n: 0 };
+          a.sum += Number(r.rating) || 0; a.n++;
+          revAgg.set(r.product_id, a);
+        }
+      } catch { /* reviews optional; RLS may block anon reads */ }
     }
 
     // ---- 4. Cards, filters, sort ----
