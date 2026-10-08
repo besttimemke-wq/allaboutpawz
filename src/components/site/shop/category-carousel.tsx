@@ -27,11 +27,9 @@ export type CategoryCard = {
 export function CategoryCarousel({
   title,
   cards,
-  totalCount,
 }: {
   title: string
   cards: CategoryCard[]
-  totalCount?: number
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   // Track whether the carousel can scroll left / right at its current
@@ -84,10 +82,7 @@ export function CategoryCarousel({
   return (
     <section className="px-6 py-8 lg:px-12 lg:py-10">
       <div className="mx-auto max-w-7xl">
-        <div className="flex items-end justify-between">
-          <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">{title}</h2>
-          <span className="text-[11px] text-ink-soft">{totalCount ?? cards.length} categories</span>
-        </div>
+        <h2 className="font-display text-[20px] font-bold text-ink lg:text-[24px]">{title}</h2>
 
         {/* Carousel container — relative so the arrow buttons can absolute-
             position against it. The scroll container has overflow-x-auto +

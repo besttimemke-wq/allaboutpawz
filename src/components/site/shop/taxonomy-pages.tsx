@@ -91,12 +91,56 @@ function PromoBanner({
 // looks like the sitemap). Each card: image (full-bleed) + title + ONE
 // sentence. ---
 //
-// Per-department image lookup — the 16 images I generated with z-ai image
-// CLI live at /public/Shop/departments/{animal}-{department-slug}.jpeg.
-// Keyed by the full dept path segment "{animal}/{dept}" so it works for
-// both the animal landing pages (which list departments) and the
-// department pages (which list subcategories — the subcategory cards
-// inherit their parent department's image as a sensible fallback).
+// Per-department card descriptions — ONE sentence explaining what this
+// category IS (the explanatory narrative lives ON the card, not as a hero
+// wall of text above it). Pulled/condensed from the SEO copy blocks in
+// src/lib/shop/seo-copy.ts. The card description tells the shopper "this
+// is the cat food department — dry, wet, raw for every life stage" so they
+// know what's behind the click without a wall of text on the landing page.
+const DEPARTMENT_DESCRIPTION: Record<string, string> = {
+  // ---- cat ----
+  "cat/beds-bedding": "Bolster, cave, heated, and orthopedic beds for the 16 hours a day a cat sleeps.",
+  "cat/bowls-feeders": "Whisker-friendly shallow bowls, elevated stands, and running water fountains.",
+  "cat/carriers-containment": "Soft carriers, hard crates, and strollers for vet trips and travel.",
+  "cat/cleaners-waste-disposal": "Enzyme cleaners, disposal systems, and potty supplies for clean floors.",
+  "cat/clothing-accessories": "Collars, harnesses, bandanas, and seasonal costumes for the well-dressed cat.",
+  "cat/food": "Dry kibble, wet pate, raw, and freeze-dried formulas for every life stage.",
+  "cat/furniture-scratchers": "Cat trees, scratching posts, window perches, and condos for vertical territory.",
+  "cat/grooming-bathing": "Feline-safe shampoos, brushes, nail tools, and waterless grooming wipes.",
+  "cat/health-wellness": "Calming aids, dental care, supplements, and flea prevention for indoor cats.",
+  "cat/litter-litter-boxes-accessories": "Clumping, crystal, natural, and lightweight litter plus every box style.",
+  "cat/steps-ramps": "Steps and ramps so senior or small cats can reach the couch, bed, or window.",
+  "cat/toys": "Wands, mice, catnip toys, and electronic chasers for hunters and zoomies.",
+  "cat/training-behavior": "Clickers, scratching posts, and deterrents to channel natural behaviors.",
+  "cat/treats": "Crunchy, soft, freeze-dried, and lickable treats for training or just because.",
+  "cat/flea-tick": "Topical drops, collars, chews, and yard sprays to keep fleas and ticks off cats.",
+  // ---- dog ----
+  "dog/beds-bedding": "Bolster, orthopedic, cooling, and crate mats sized from teacup to giant breeds.",
+  "dog/bowls-feeding": "Stainless, ceramic, slow-feeders, and auto feeders for every dining style.",
+  "dog/crates-containment": "Crates, kennels, gates, and pens for safe containment at home and on the road.",
+  "dog/cleaning-potty-supplies": "Potty pads, poop bags, diapers, and enzyme cleaners for accidents and pickup.",
+  "dog/apparel-accessories": "Coats, sweaters, booties, and bandanas for cold, heat, and dress-up.",
+  "dog/collars-harnesses-leashes": "Collars, no-pull harnesses, leashes, and ID tags for every walk.",
+  "dog/food": "Dry, wet, raw, freeze-dried, and air-dried food for every breed size and life stage.",
+  "dog/grooming-bathing": "Coat-safe shampoos, slicker brushes, nail tools, and deshedding gear.",
+  "dog/health-wellness": "Calming aids, dental care, joint supplements, and dewormers for healthy dogs.",
+  "dog/outdoor-travel-gear": "Cooling mats, paw balm, travel bowls, and life jackets for Memphis summers.",
+  "dog/toys": "Chew, fetch, puzzle, and plush toys built for chewers, fetchers, and pullers.",
+  "dog/training-behavior-supplies": "Treat pouches, clickers, and long lines for training that sticks.",
+  "dog/treats-chews": "Biscuits, jerky, bully sticks, and dental chews for training and quiet evenings.",
+  "dog/flea-tick": "Topicals, collars, chews, and yard sprays to keep fleas and ticks off dogs.",
+}
+
+function descriptionFor(deptPath: string): string {
+  return DEPARTMENT_DESCRIPTION[deptPath] || "Shop the collection at All About Pawz Memphis."
+}
+
+// Per-department image lookup — generated with z-ai image CLI, lives at
+// /public/Shop/departments/{animal}-{department-slug}.jpeg. Keyed by the
+// full dept path segment "{animal}/{dept}" so it works for both the
+// animal landing pages (which list departments) and the department pages
+// (which list subcategories — the subcategory cards inherit their parent
+// department's image as a sensible fallback).
 const DEPARTMENT_IMAGE: Record<string, string> = {
   // cat departments
   "cat/beds-bedding": "/Shop/departments/cat-beds-bedding.jpeg",
@@ -118,10 +162,10 @@ const DEPARTMENT_IMAGE: Record<string, string> = {
   "dog/health-wellness": "/Shop/departments/dog-health-wellness.jpeg",
 }
 
-// Fallback breed portraits for departments WITHOUT a generated image
-// (cat carriers, cat cleaners, cat clothing, cat health, cat steps, cat
-// training, flea & tick — and the dog equivalents). Applied per-card index
-// when DEPARTMENT_IMAGE has no entry for the card's dept path.
+// Fallback breed portraits for departments WITHOUT a generated image.
+// Applied per-card index when DEPARTMENT_IMAGE has no entry for the
+// card's dept path. (Cat carriers, cat cleaners, cat clothing, cat health,
+// cat steps, cat training, flea & tick — and the dog equivalents.)
 const FALLBACK_IMAGES = [
   "/Shop/heroes/beagle.jpeg",
   "/Shop/heroes/cocker-spaniel.jpeg",
@@ -171,9 +215,7 @@ export async function AnimalLandingPage({
 
   const departmentCards = animal.departments.map((d, i) => ({
     name: d.name,
-    description: d.subcategories.length > 0
-      ? `${d.subcategories.length} categories`
-      : "Browse all",
+    description: descriptionFor(`${animal.slug}/${d.slug}`),
     href: departmentPath(animal.slug, d.slug),
     image: imageForCard(`${animal.slug}/${d.slug}`, i),
     imageAlt: `${d.name} — All About Pawz Memphis`,
@@ -283,17 +325,19 @@ export async function DepartmentPage({
     })),
   }
 
-  // Subcategory cards inherit their parent department's image as a sensible
-  // fallback — there's no per-subcategory image yet, but at least the card
-  // shows a relevant picture (e.g. "Bolster Cat Beds" shows the cat-beds
-  // image, "Dry Dog Food" shows the dog-food image).
+  // Subcategory cards inherit their parent department's image AND
+  // description as a sensible fallback — there's no per-subcategory image
+  // or description yet, but at least the card shows a relevant picture +
+  // summary (e.g. "Bolster Cat Beds" shows the cat-beds image + the
+  // cat-beds-department description).
   const parentDeptPath = `${animal.slug}/${dept.slug}`
   const parentImage = imageForCard(parentDeptPath, 0)
-  const subcategoryCards = dept.subcategories.map((s, i) => ({
+  const parentDescription = descriptionFor(parentDeptPath)
+  const subcategoryCards = dept.subcategories.map((s) => ({
     name: s.name,
-    description: "Shop the collection",
+    description: parentDescription,
     href: subcategoryPath(animal.slug, dept.slug, s.slug),
-    image: i === 0 ? parentImage : imageForCard(parentDeptPath, i),
+    image: parentImage,
     imageAlt: `${s.name} — All About Pawz Memphis`,
   }))
 
