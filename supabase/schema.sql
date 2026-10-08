@@ -4656,8 +4656,11 @@ BEGIN
     IF NEW.brand_id IS NULL THEN
       RAISE EXCEPTION 'Product "%" needs a brand before it can be published', NEW.name;
     END IF;
-    IF NOT product_has_live_brand(NEW.id, NEW.brand_id) THEN
-      RAISE EXCEPTION 'Product "%" cannot be published: its brand is not live in any of the product''s categories', NEW.name;
+    -- First-party dropship bypasses marketplace brand gating (separate architecture).
+    IF NEW.fulfillment_type IS DISTINCT FROM 'supplier_dropship' THEN
+      IF NOT product_has_live_brand(NEW.id, NEW.brand_id) THEN
+        RAISE EXCEPTION 'Product "%" cannot be published: its brand is not live in any of the product''s categories', NEW.name;
+      END IF;
     END IF;
     IF TG_OP = 'INSERT' OR OLD.status <> 'published' THEN NEW.published_at := now(); END IF;
   END IF;
