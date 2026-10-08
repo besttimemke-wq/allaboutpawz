@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 // design language.
 function Rating({ value, className = "" }: { value: number; className?: string }) {
   return (
-    <span className={`font-display text-[15px] leading-none text-gold-deep ${className}`}>
+    <span className={`font-display text-[15px] leading-none text-[#002B5C] ${className}`}>
       {value.toFixed(1)}
     </span>
   )
@@ -222,22 +222,22 @@ export default async function ProductPage({ params }: Params) {
       {/* Breadcrumb */}
       <nav
         aria-label="Breadcrumb"
-        className="flex flex-wrap items-center gap-2.5 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12"
+        className="flex flex-wrap items-center gap-2.5 border-b border-neutral-200 bg-white px-8 py-3.5 lg:px-12"
       >
-        <span className="text-[10.5px] font-bold tracking-[0.2em] text-gold-deep">06</span>
+        <span className="text-[10.5px] font-bold tracking-[0.2em] text-[#002B5C]">06</span>
         <Link
           href="/shop"
-          className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
+          className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-[#002B5C]"
         >
           SHOP
         </Link>
         {chain.length > 0 ? (
           chain.map((c) => (
             <Fragment key={c.path}>
-              <span className="text-[10px] text-gold/50">/</span>
+              <span className="text-[10px] text-[#002B5C]/50">/</span>
               <Link
                 href={c.path}
-                className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
+                className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-[#002B5C]"
               >
                 {c.name.toUpperCase()}
               </Link>
@@ -245,21 +245,21 @@ export default async function ProductPage({ params }: Params) {
           ))
         ) : (
           <>
-            <span className="text-[10px] text-gold/50">/</span>
+            <span className="text-[10px] text-[#002B5C]/50">/</span>
             <Link
               href="/shop"
-              className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-gold-deep"
+              className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-[#002B5C]"
             >
               {String(category).toUpperCase()}
             </Link>
           </>
         )}
-        <span className="text-[10px] text-gold/50">/</span>
+        <span className="text-[10px] text-[#002B5C]/50">/</span>
         <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{product.name}</span>
       </nav>
 
       {/* Two-column hero */}
-      <section className="marble grid grid-cols-1 gap-10 bg-cream px-8 py-12 lg:grid-cols-[0.85fr_1fr] lg:gap-14 lg:px-12 lg:py-16">
+      <section className="grid grid-cols-1 gap-10 bg-white px-8 py-12 lg:grid-cols-[0.85fr_1fr] lg:gap-14 lg:px-12 lg:py-16">
         <div className="relative">
           {product.image ? (
                         <img
@@ -267,15 +267,15 @@ export default async function ProductPage({ params }: Params) {
               alt={product.alt || product.name}
               width={900}
               height={1024}
-              className="h-[340px] w-full border border-gold/25 bg-cream-deep object-cover lg:h-[460px]"
+              className="h-[340px] w-full border border-neutral-200 bg-neutral-50 object-cover lg:h-[460px]"
             />
           ) : (
-            <div className="flex h-[340px] w-full items-center justify-center border border-gold/25 bg-cream-deep lg:h-[460px]">
-              <PawPrint className="h-10 w-10 text-gold/40" strokeWidth={1.2} />
+            <div className="flex h-[340px] w-full items-center justify-center border border-neutral-200 bg-neutral-50 lg:h-[460px]">
+              <PawPrint className="h-10 w-10 text-[#002B5C]/40" strokeWidth={1.2} />
             </div>
           )}
           {product.badge && (
-            <span className="absolute left-4 top-4 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-gold">
+            <span className="absolute left-4 top-4 bg-ink px-3 py-1.5 text-[9px] font-bold tracking-[0.16em] text-[#002B5C]">
               {String(product.badge).toUpperCase()}
             </span>
           )}
@@ -306,7 +306,7 @@ export default async function ProductPage({ params }: Params) {
               </span>
             )}
             {isOnSale && (
-              <span className="border border-gold-deep/40 bg-gold-deep/5 px-2.5 py-1 text-[9px] font-bold tracking-[0.16em] text-gold-deep">
+              <span className="border border-[#002B5C]/40 bg-[#002B5C]/5 px-2.5 py-1 text-[9px] font-bold tracking-[0.16em] text-[#002B5C]">
                 SALE
               </span>
             )}
@@ -328,8 +328,8 @@ export default async function ProductPage({ params }: Params) {
         hasText(product.directions) ||
         hasText(product.warranty) ||
         specs.length > 0) && (
-        <section className="marble border-t border-gold/25 bg-cream px-8 pb-14 lg:px-12">
-          <div className="divide-y divide-gold/20">
+        <section className="border-t border-neutral-200 bg-white px-8 pb-14 lg:px-12">
+          <div className="divide-y divide-neutral-200/20">
             {hasText(product.description) && (
               <DetailBlock label="THE DETAILS">
                 <p className="max-w-2xl text-[12.5px] leading-[1.9] text-ink-soft">{product.description}</p>
@@ -344,16 +344,16 @@ export default async function ProductPage({ params }: Params) {
 
             {freeOf && (
               <DetailBlock label="INGREDIENTS & SAFETY">
-                <div className="max-w-2xl border border-gold/30 bg-cream-deep p-5 lg:p-6">
+                <div className="max-w-2xl border border-neutral-200/30 bg-neutral-50 p-5 lg:p-6">
                   <p className="text-[12.5px] leading-[1.9] text-ink-soft">{freeOf.main}</p>
                   {freeOf.freeOf && (
-                    <div className="mt-4 border-t border-gold/20 pt-4">
-                      <p className="text-[9px] font-bold tracking-[0.18em] text-gold-deep">FREE FROM</p>
+                    <div className="mt-4 border-t border-neutral-200/20 pt-4">
+                      <p className="text-[9px] font-bold tracking-[0.18em] text-[#002B5C]">FREE FROM</p>
                       <div className="mt-2.5 flex flex-wrap gap-2">
                         {freeOf.freeOf.map((f) => (
                           <span
                             key={f}
-                            className="border border-gold/40 bg-cream px-2.5 py-1 text-[9.5px] font-bold tracking-[0.08em] text-ink-soft"
+                            className="border border-neutral-200/40 bg-white px-2.5 py-1 text-[9.5px] font-bold tracking-[0.08em] text-ink-soft"
                           >
                             {f.toUpperCase()}
                           </span>
@@ -373,7 +373,7 @@ export default async function ProductPage({ params }: Params) {
 
             {hasText(product.warranty) && (
               <DetailBlock label="WARRANTY & CARE">
-                <p className="max-w-2xl border-l-2 border-gold-deep/60 pl-4 text-[12.5px] leading-[1.9] text-ink-soft">
+                <p className="max-w-2xl border-l-2 border-[#002B5C]/60 pl-4 text-[12.5px] leading-[1.9] text-ink-soft">
                   {product.warranty}
                 </p>
               </DetailBlock>
@@ -385,9 +385,9 @@ export default async function ProductPage({ params }: Params) {
                   {specs.map((s, i) => (
                     <div
                       key={s}
-                      className={`flex items-baseline gap-4 py-2.5 ${i > 0 ? "border-t border-gold/15" : ""}`}
+                      className={`flex items-baseline gap-4 py-2.5 ${i > 0 ? "border-t border-neutral-200/15" : ""}`}
                     >
-                      <dt className="w-7 shrink-0 text-[10px] font-bold tracking-[0.1em] text-gold-deep">
+                      <dt className="w-7 shrink-0 text-[10px] font-bold tracking-[0.1em] text-[#002B5C]">
                         {String(i + 1).padStart(2, "0")}
                       </dt>
                       <dd className="text-[12.5px] leading-[1.7] text-ink-soft">{s}</dd>
@@ -401,7 +401,7 @@ export default async function ProductPage({ params }: Params) {
       )}
 
       {/* Reviews */}
-      <section id="reviews" className="marble scroll-mt-24 border-t border-gold/25 bg-cream px-8 pb-14 lg:px-12">
+      <section id="reviews" className="scroll-mt-24 border-t border-neutral-200 bg-white px-8 pb-14 lg:px-12">
         <div className="pt-10">
           <p className="eyebrow">REVIEWS</p>
           <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
@@ -419,7 +419,7 @@ export default async function ProductPage({ params }: Params) {
           </div>
 
           {reviews.length > 0 && (
-            <ul className="mt-7 divide-y divide-gold/20 border-y border-gold/20">
+            <ul className="mt-7 divide-y divide-neutral-200/20 border-y border-neutral-200/20">
               {reviews.map((r: any) => (
                 <li key={r.id} className="py-6">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -433,7 +433,7 @@ export default async function ProductPage({ params }: Params) {
                   <div className="mt-3 flex flex-wrap items-center gap-2.5">
                     <p className="text-[11px] font-bold text-ink">{r.author}</p>
                     {r.verified && (
-                      <span className="border border-gold/40 px-2 py-0.5 text-[8.5px] font-bold tracking-[0.14em] text-gold-deep">
+                      <span className="border border-neutral-200/40 px-2 py-0.5 text-[8.5px] font-bold tracking-[0.14em] text-[#002B5C]">
                         VERIFIED BUYER
                       </span>
                     )}
@@ -451,8 +451,8 @@ export default async function ProductPage({ params }: Params) {
 
       {/* Related products */}
       {related.length > 0 && (
-        <section className="marble border-t border-gold/25 bg-cream-deep px-8 py-12 lg:px-12">
-          <h2 className="border-t border-gold/25 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
+        <section className="border-t border-neutral-200 bg-neutral-50 px-8 py-12 lg:px-12">
+          <h2 className="border-t border-neutral-200 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
             YOU MAY ALSO LIKE
           </h2>
           <div className="mt-8 grid grid-cols-2 gap-8 lg:grid-cols-4">
@@ -465,11 +465,11 @@ export default async function ProductPage({ params }: Params) {
               <article key={p.id} className="group flex flex-col">
                 <Link
                   href={`/products/${p.slug}`}
-                  className="relative block overflow-hidden border border-gold/25 bg-cream p-4 transition-colors group-hover:border-gold-deep/50"
+                  className="relative block overflow-hidden border border-neutral-200 bg-white p-4 transition-colors group-hover:border-[#002B5C]/50"
                   aria-label={`View ${p.name}`}
                 >
                   {(rOnSale ? "Sale" : p.badge) && (
-                    <span className="absolute left-0 top-0 z-10 bg-ink px-2.5 py-1 text-[8px] font-bold tracking-[0.14em] text-gold">
+                    <span className="absolute left-0 top-0 z-10 bg-ink px-2.5 py-1 text-[8px] font-bold tracking-[0.14em] text-[#002B5C]">
                       {(rOnSale ? "SALE" : String(p.badge).toUpperCase())}
                     </span>
                   )}
@@ -484,19 +484,19 @@ export default async function ProductPage({ params }: Params) {
                     />
                   ) : (
                     <div className="flex h-[170px] items-center justify-center">
-                      <PawPrint className="h-9 w-9 text-gold/40" strokeWidth={1.2} />
+                      <PawPrint className="h-9 w-9 text-[#002B5C]/40" strokeWidth={1.2} />
                     </div>
                   )}
                 </Link>
                 <div className="flex flex-1 flex-col pt-4 text-center">
                   {p.category && (
-                    <p className="text-[8.5px] font-bold tracking-[0.18em] text-gold-deep/80">
+                    <p className="text-[8.5px] font-bold tracking-[0.18em] text-[#002B5C]/80">
                       {String(p.category).toUpperCase()}
                     </p>
                   )}
                   <Link
                     href={`/products/${p.slug}`}
-                    className="mt-1 text-[12.5px] leading-[1.5] text-ink transition-colors hover:text-gold-deep"
+                    className="mt-1 text-[12.5px] leading-[1.5] text-ink transition-colors hover:text-[#002B5C]"
                   >
                     {p.name}
                   </Link>
@@ -508,7 +508,7 @@ export default async function ProductPage({ params }: Params) {
                     )}
                     <span
                       className={`text-[13px] font-bold ${
-                        rOnSale ? "text-ink" : "text-gold-deep"
+                        rOnSale ? "text-ink" : "text-[#002B5C]"
                       }`}
                     >
                       {rDisplay}
@@ -520,7 +520,7 @@ export default async function ProductPage({ params }: Params) {
             })}
           </div>
           <div className="mt-10 text-center">
-            <Link href="/shop" className="btn-ghost">BROWSE THE FULL COLLECTION</Link>
+            <Link href="/shop" className="inline-flex items-center justify-center rounded-md border border-neutral-300 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-neutral-700 uppercase transition-colors hover:border-[#002B5C] hover:text-[#002B5C]">BROWSE THE FULL COLLECTION</Link>
           </div>
         </section>
       )}

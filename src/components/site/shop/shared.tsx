@@ -51,7 +51,7 @@ export function Breadcrumbs({ chain }: { chain: NavCategory[] }) {
 export function ParentHero({ node }: { node: NavCategory }) {
   const hero = categoryHero(node.key)
   return (
-    <section className="marble relative grid grid-cols-1 items-stretch gap-10 bg-white px-8 pt-10 pb-12 lg:min-h-[440px] lg:grid-cols-[1.1fr_0.9fr] lg:px-12">
+    <section className="relative grid grid-cols-1 items-stretch gap-10 bg-white px-8 pt-10 pb-12 lg:min-h-[440px] lg:grid-cols-[1.1fr_0.9fr] lg:px-12">
       <div className="flex flex-col justify-center">
         <p className="eyebrow">THE PAWZ COLLECTION</p>
         <h1 className="mt-3 font-display text-[42px] leading-[1.08] text-ink lg:text-[52px]">
@@ -93,7 +93,7 @@ export function ParentHero({ node }: { node: NavCategory }) {
 export function PrimaryHero({ node }: { node: NavCategory }) {
   const hero = categoryHero(node.key)
   return (
-    <section className="marble grid grid-cols-1 items-center gap-8 bg-white px-8 py-10 lg:grid-cols-[1fr_auto] lg:px-12">
+    <section className="grid grid-cols-1 items-center gap-8 bg-white px-8 py-10 lg:grid-cols-[1fr_auto] lg:px-12">
       <div>
         <p className="eyebrow">{node.parentKey ? `${node.parentKey.toUpperCase()} /` : ""} SHOP</p>
         <h1 className="mt-2 font-display text-[34px] leading-[1.1] text-ink lg:text-[40px]">
@@ -133,7 +133,7 @@ export function CategoryCards({
 }) {
   if (nodes.length === 0) return null
   return (
-    <section id="categories" className="marble scroll-mt-24 border-t border-[#002B5C]/25 bg-white px-8 py-10 lg:px-12">
+    <section id="categories" className="scroll-mt-24 border-t border-[#002B5C]/25 bg-white px-8 py-10 lg:px-12">
       <div className="flex items-baseline justify-between">
         <h2 className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{title}</h2>
         <p className="text-[10px] font-bold tracking-[0.14em] text-ink-soft">{nodes.length} CATEGORIES</p>

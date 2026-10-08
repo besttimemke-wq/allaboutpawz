@@ -180,14 +180,14 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       <>
         <PageHeader n="06" label={`SHOP / ${meta.displayName.toUpperCase()}`} />
         
-        <section className="marble bg-white px-8 py-10 lg:px-12">
+        <section className="bg-white px-8 py-10 lg:px-12">
           <p className="eyebrow">THE PAWZ COLLECTION</p>
           <h1 className="mt-2 font-display text-[34px] leading-[1.1] text-ink lg:text-[40px]">
             {meta.displayName}
           </h1>
           <p className="mt-4 max-w-[460px] text-[12.5px] leading-[1.8] text-ink-soft">{meta.blurb}</p>
         </section>
-        <section className="marble border-t border-gold/25 bg-white px-8 pb-14 pt-8 lg:px-12">
+        <section className="border-t border-neutral-200 bg-white px-8 pb-14 pt-8 lg:px-12">
           <Plp scope={{ kind: "merch", merch, title: meta.displayName, blurb: meta.blurb }} searchParams={sp} />
         </section>
         <TrustStrip />
@@ -258,7 +258,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
         {node.children.length > 0 && (
           <CategoryCards title="SHOP BY CATEGORY" nodes={node.children} variant="rail" />
         )}
-        <section className="marble border-t border-gold/25 bg-white px-8 pb-14 pt-8 lg:px-12">
+        <section className="border-t border-neutral-200 bg-white px-8 pb-14 pt-8 lg:px-12">
           <Plp scope={{ kind: "category", node }} searchParams={sp} />
         </section>
         <TrustStrip />
@@ -275,7 +275,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
           deep in Shampoos & Conditioners keeps the whole taxonomy one hover
           away, and the bar carries the active department highlight. */}
       
-      <section className="marble bg-white px-8 py-8 lg:px-12">
+      <section className="bg-white px-8 py-8 lg:px-12">
         <p className="eyebrow">{chain.length > 1 ? chain[chain.length - 2].displayName.toUpperCase() : "SHOP"}</p>
         <h1 className="mt-2 font-display text-[28px] leading-[1.1] text-ink lg:text-[32px]">
           {node.displayName}
@@ -294,7 +294,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
           />
         </div>
       </section>
-      <section className="marble border-t border-gold/25 bg-white px-8 pb-14 pt-8 lg:px-12">
+      <section className="border-t border-neutral-200 bg-white px-8 pb-14 pt-8 lg:px-12">
         <Plp scope={{ kind: "category", node }} searchParams={sp} />
       </section>
       <TrustStrip />
