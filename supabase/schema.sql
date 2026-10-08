@@ -19,10 +19,28 @@ CREATE SCHEMA IF NOT EXISTS "api";
 ALTER SCHEMA "api" OWNER TO "postgres";
 
 
+CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";
+
+
+
+
+
+
 CREATE SCHEMA IF NOT EXISTS "lms";
 
 
 ALTER SCHEMA "lms" OWNER TO "postgres";
+
+
+COMMENT ON SCHEMA "public" IS 'standard public schema';
+
+
+
+CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "public";
+
+
+
+
 
 
 CREATE SCHEMA IF NOT EXISTS "platform_audit";
@@ -35,10 +53,6 @@ CREATE SCHEMA IF NOT EXISTS "private";
 
 
 ALTER SCHEMA "private" OWNER TO "postgres";
-
-
-COMMENT ON SCHEMA "public" IS 'standard public schema';
-
 
 
 CREATE EXTENSION IF NOT EXISTS "btree_gist" WITH SCHEMA "public";
@@ -56403,6 +56417,9 @@ ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
 
 
+
+
+
 GRANT USAGE ON SCHEMA "lms" TO "anon";
 GRANT USAGE ON SCHEMA "lms" TO "authenticated";
 
@@ -56412,6 +56429,9 @@ GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
+
+
+
 
 
 
@@ -56762,6 +56782,27 @@ GRANT ALL ON FUNCTION "public"."vector"("public"."vector", integer, boolean) TO 
 GRANT ALL ON FUNCTION "public"."vector"("public"."vector", integer, boolean) TO "anon";
 GRANT ALL ON FUNCTION "public"."vector"("public"."vector", integer, boolean) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."vector"("public"."vector", integer, boolean) TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -59311,6 +59352,12 @@ GRANT ALL ON FUNCTION "public"."sum"("public"."vector") TO "postgres";
 GRANT ALL ON FUNCTION "public"."sum"("public"."vector") TO "anon";
 GRANT ALL ON FUNCTION "public"."sum"("public"."vector") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."sum"("public"."vector") TO "service_role";
+
+
+
+
+
+
 
 
 
