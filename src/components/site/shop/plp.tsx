@@ -114,14 +114,13 @@ export async function Plp({
 
   return (
     <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
-      {/* Desktop rail — sticky; categories navigate, filters refine.
-          Height-constrained to the viewport so the rail never extends past
-          the footer. NO outer border — the sidebar is white background
-          that blends into the page (matches the Petco reference design:
-          no border around the filter sidebar, just subtle internal dividers
-          between filter sections). */}
+      {/* Desktop rail — sticky. NO outer border + NO internal scrollbar:
+          the sidebar is white background that blends into the page. When
+          a filter section expands, the PAGE gets longer (the rail pushes
+          the page down with it). The owner is explicit: "no scroller
+          anywhere — make the page long enough to fit when it expands." */}
       <aside className="hidden w-[240px] shrink-0 self-start lg:sticky lg:top-6 lg:block">
-        <div className="max-h-[calc(100vh-3rem)] overflow-y-auto bg-white">
+        <div className="bg-white">
           <ShopSidebar key={JSON.stringify(applied)} data={sidebar} />
         </div>
       </aside>

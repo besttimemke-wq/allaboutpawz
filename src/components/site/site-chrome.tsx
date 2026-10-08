@@ -62,7 +62,7 @@ function HeaderBagLink({ variant = "label" }: { variant?: "label" | "icon" }) {
       <Link
         href="/shop/bag"
         aria-label={count != null ? `View bag (${count} ${count === 1 ? "item" : "items"})` : "View bag"}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-black"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-white text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-black"
       >
         <ShoppingBag className="h-4 w-4 text-black" strokeWidth={1.7} aria-hidden="true" />
         {count != null && count > 0 && (
@@ -237,7 +237,7 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Hi ${firstName} — open your account menu`}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-cream-deep/60 text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-black"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-white text-ink-soft transition-colors hover:border-gold-deep/60 hover:text-black"
       >
         <User className="h-4 w-4 text-black" strokeWidth={1.7} aria-hidden="true" />
       </button>
@@ -260,7 +260,7 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="right"
-          className="flex w-full flex-col border-l border-gold/30 bg-cream p-0 sm:max-w-[360px]"
+          className="flex w-full flex-col border-l border-neutral-200 bg-white p-0 sm:max-w-[360px]"
         >
           <SheetHeader className="border-b border-gold/25 bg-white px-6 pb-4 pt-6 text-left">
             <SheetTitle className="font-display text-[15px] tracking-[0.1em] text-ink">
@@ -399,7 +399,7 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
       <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => { setOpen(false); closeShopFlyout(); }} onShopHover={openShopFlyout} onShopLeave={scheduleCloseShopFlyout} />
       {/* ONE tan header bar. `relative` ensures the mobile search overlay
           (absolute inset-0) covers the entire header bar, not the viewport. */}
-      <div className="sticky top-0 z-30 flex items-center gap-3 bg-cream px-4 py-3 lg:px-6 relative">
+      <div className="sticky top-0 z-30 flex items-center gap-3 bg-white px-4 py-3 lg:px-6 relative">
         <button onClick={() => setOpen((o) => !o)} aria-label="Open menu" className="flex h-9 w-9 items-center justify-center rounded text-ink hover:bg-black/5">
           <Menu className="h-5 w-5" />
         </button>
@@ -427,14 +427,14 @@ function Sidebar({ settings, pathname, gate, open, onClose, onShopHover, onShopL
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
   return (
-    <aside className={`marble fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-visible border-r border-gold/25 bg-cream ${open ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300`}>
+    <aside className={`fixed inset-y-0 left-0 z-50 flex w-[232px] flex-col overflow-visible border-r border-neutral-200 bg-white ${open ? "translate-x-0" : "-translate-x-full"} transition-transform duration-300`}>
       {/* Close button — top right of the sidebar */}
       <button onClick={onClose} aria-label="Close menu" className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded text-ink-soft hover:text-black">
         <X className="h-5 w-5" />
       </button>
       {/* No branding in sidebar — header carries "All About Pawz" per spec D */}
       <div className="px-7 pt-12">
-        <Link href="/book/appointment" onClick={onClose} className="flex w-full cursor-pointer items-center justify-center gap-2 border border-gold-deep/70 bg-cream-deep px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
+        <Link href="/book/appointment" onClick={onClose} className="flex w-full cursor-pointer items-center justify-center gap-2 border border-neutral-300 bg-neutral-50 px-3 py-3.5 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:bg-gold-deep hover:text-on-dark">
           <CalendarDays className="h-3.5 w-3.5 text-black" />
           BOOK APPOINTMENT
         </Link>
@@ -462,7 +462,7 @@ function Sidebar({ settings, pathname, gate, open, onClose, onShopHover, onShopL
                     onMouseLeave={onShopLeave}
                     className="group relative flex w-full cursor-pointer items-center gap-3"
                   >
-                    <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-black"}`}>
+                    <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-neutral-300 bg-neutral-50 text-black"}`}>
                       {item.n}
                     </span>
                     <span className={`text-[10.5px] font-bold tracking-[0.13em] transition-colors ${active ? "text-black" : "text-ink-soft group-hover:text-black"}`}>
@@ -481,7 +481,7 @@ function Sidebar({ settings, pathname, gate, open, onClose, onShopHover, onShopL
                     }}
                     className="group relative flex cursor-pointer items-center gap-3"
                   >
-                    <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-black"}`}>
+                    <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-neutral-300 bg-neutral-50 text-black"}`}>
                       {item.n}
                     </span>
                     <span className={`text-[10.5px] font-bold tracking-[0.13em] transition-colors ${active ? "text-black" : "text-ink-soft group-hover:text-black"}`}>
@@ -528,7 +528,7 @@ function Sidebar({ settings, pathname, gate, open, onClose, onShopHover, onShopL
 
 export function PageHeader({ n, label }: { n: string; label: string }) {
   return (
-    <div className="flex items-center gap-3 border-b border-gold/25 bg-cream px-8 py-3.5 lg:px-12">
+    <div className="flex items-center gap-3 border-b border-neutral-200 bg-white px-8 py-3.5 lg:px-12">
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-black">{n}</span>
       <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft">{label}</span>
       {/* Account + bag — always visible at the top-right of every page */}
@@ -545,7 +545,7 @@ export function PageHeader({ n, label }: { n: string; label: string }) {
 // desktop. Mobile already has the sticky mobile bar with the bag icon.
 export function TopUtilityBar() {
   return (
-    <div className="hidden items-center justify-end gap-5 border-b border-gold/25 bg-cream px-8 py-2.5 lg:flex">
+    <div className="hidden items-center justify-end gap-5 border-b border-neutral-200 bg-white px-8 py-2.5 lg:flex">
       <HeaderAccountLink />
       <HeaderBagLink />
     </div>

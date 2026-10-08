@@ -1,23 +1,20 @@
 // ---------------------------------------------------------------------------
 // Shop facets — the canonical taxonomy of filterable product attributes.
 //
-// Sourced verbatim from the owner's pasted-content spec (the filter tree for
-// every shop landing + department page: Cat Landing, Cat Food, Cat Treats,
-// Cat Litter, Furniture & Scratchers, Litter Boxes & Accessories, Cat Toys,
-// Carriers & Travel, Cat Health & Wellness, Cat Beds, Bowls & Feeders,
-// Flea & Tick, Top Dog Deals, Dog Food, Dog Treats, Flea & Tick, Dog Health
-// & Wellness, Crates & Containment, Dog Cleanup, Dog Beds, Dog Bowls &
-// Feeding, Dog Toys, Collars/Harnesses & Leashes).
+// Sourced VERBATIM from the owner's pasted-content spec
+// (Pasted Content_1791418582040.txt — the tree of filters per shop page).
+// Every facet on every page is enumerated here so the sidebar renders
+// EXACTLY what the spec calls for — no more, no less.
 //
-// This is the SCAFFOLDING — the customer-facing rail on every shop page
-// renders these facets whether or not product data populates them yet.
-// Options that have product counts render with `(N)` counts; options
-// without product coverage render count-free (so the facet is visible
-// for SEO + future inventory, but does not lie about depth).
+// UI behaviors (per spec):
+//   • Every filter section has a Plus (+) button to collapse/expand.
+//   • Sections with more than 6 options have a "Show all" button (the spec
+//     marks these as "(UI toggle: show all)" or "(UI toggle: collapse)").
+//   • Sections without a UI toggle render all options inline.
 //
-// Page-specific facets (per the spec): every shop landing/department page
-// declares the facets it should expose, in order, via SHOP_PAGE_FACETS.
-// Subcategory pages inherit their department's facet set.
+// Facet scaffolding renders with 0 counts until product attribute data
+// lands — the owner wants the rail visible per the spec ("Publish
+// Information here" sections become actual checkbox lists now).
 // ---------------------------------------------------------------------------
 
 export type FacetOption = {
@@ -32,19 +29,19 @@ export type FacetDefinition = {
   key: string
   /** Customer-facing section label, e.g. "Brand", "Size", "Flavor". */
   label: string
-  /** The set of options for this facet (may be partial per page via SHOP_PAGE_FACETS). */
+  /** The set of options for this facet. */
   options: FacetOption[]
   /** When true, render the section with a brand-style search filter input. */
   searchable?: boolean
   /** When true, render options collapsible after the first N (default 6). */
   collapsible?: boolean
-  /** Default number of options shown before "Show more" toggle. */
+  /** Default number of options shown before "Show all" toggle. Default 6. */
   defaultVisible?: number
 }
 
 // ---------------------------------------------------------------------------
-// All facet options (the union of every spec page) — single source of truth.
-// Page-level facet sets (below) reference these by key + filtered options.
+// ALL facet options (the union across every spec page) — single source.
+// Page-level facet sets (below) reference these by key.
 // ---------------------------------------------------------------------------
 
 export const FACET_OPTIONS: Record<string, FacetOption[]> = {
@@ -83,6 +80,28 @@ export const FACET_OPTIONS: Record<string, FacetOption[]> = {
     { value: "dehydrated", label: "Dehydrated" },
     { value: "food-topping", label: "Food Topping" },
     { value: "soft-and-chewy", label: "Soft & Chewy" },
+    { value: "air-dried", label: "Air Dried" },
+    { value: "clusters", label: "Clusters" },
+    { value: "frozen-cooked", label: "Frozen Cooked" },
+    { value: "raw", label: "Raw" },
+    { value: "frozen", label: "Frozen" },
+    { value: "frozen-raw", label: "Frozen Raw" },
+    { value: "granulated", label: "Granulated" },
+    { value: "granules", label: "Granules" },
+    { value: "extruded", label: "Extruded" },
+    { value: "solid", label: "Solid" },
+    { value: "pill-or-tablet", label: "Pill or Tablet" },
+    { value: "tablet", label: "Tablet" },
+    { value: "capsule", label: "Capsule" },
+    { value: "gel", label: "Gel" },
+    { value: "paste", label: "Paste" },
+    { value: "spray", label: "Spray" },
+    { value: "wipe", label: "Wipe" },
+    { value: "softgel", label: "Softgel" },
+    { value: "sliced", label: "Sliced" },
+    { value: "crumble", label: "Crumble" },
+    { value: "refrigerated", label: "Refrigerated" },
+    { value: "long-lasting-chew", label: "Long Lasting Chew" },
   ],
 
   // ---- Life Stage ----
@@ -129,6 +148,7 @@ export const FACET_OPTIONS: Record<string, FacetOption[]> = {
     { value: "potato", label: "Potato" },
     { value: "sweet-potato", label: "Sweet Potato" },
     { value: "peas", label: "Peas" },
+    { value: "green-pea", label: "Green Pea" },
     { value: "pumpkin", label: "Pumpkin" },
     { value: "carrot", label: "Carrot" },
     { value: "apple", label: "Apple" },
@@ -144,6 +164,7 @@ export const FACET_OPTIONS: Record<string, FacetOption[]> = {
     { value: "maple", label: "Maple" },
     { value: "mint", label: "Mint" },
     { value: "peppermint", label: "Peppermint" },
+    { value: "malt", label: "Malt" },
     { value: "vanilla", label: "Vanilla" },
     { value: "catnip", label: "Catnip" },
     { value: "hickory", label: "Hickory" },
@@ -182,13 +203,15 @@ export const FACET_OPTIONS: Record<string, FacetOption[]> = {
     { value: "holistic", label: "Holistic" },
     { value: "homeopathic", label: "Homeopathic" },
     { value: "hydrolyzed-protein", label: "Hydrolyzed Protein" },
+    { value: "hydrolized-protein", label: "Hydrolized Protein" },
     { value: "immune-support", label: "Immune Support" },
     { value: "kidney-care", label: "Kidney Care" },
     { value: "lactose-free", label: "Lactose Free" },
     { value: "liver-care", label: "Liver Care" },
     { value: "low-glycemic", label: "Low Glycemic" },
     { value: "metabolic", label: "Metabolic" },
-    { value: "multi-vitamin", label: "Muli-Vitamin" },
+    { value: "multi-vitamin", label: "Multi-Vitamin" },
+    { value: "muli-vitamin", label: "Muli-Vitamin" },
     { value: "muscle-care", label: "Muscle Care" },
     { value: "natural", label: "Natural" },
     { value: "organic", label: "Organic" },
@@ -214,6 +237,7 @@ export const FACET_OPTIONS: Record<string, FacetOption[]> = {
     { value: "bronze", label: "Bronze" },
     { value: "brown", label: "Brown" },
     { value: "clear", label: "Clear" },
+    { value: "copper", label: "Copper" },
     { value: "cream", label: "Cream" },
     { value: "gold", label: "Gold" },
     { value: "green", label: "Green" },
@@ -227,6 +251,7 @@ export const FACET_OPTIONS: Record<string, FacetOption[]> = {
     { value: "silver", label: "Silver" },
     { value: "tan", label: "Tan" },
     { value: "teal", label: "Teal" },
+    { value: "titanium", label: "Titanium" },
     { value: "white", label: "White" },
     { value: "yellow", label: "Yellow" },
   ],
@@ -282,6 +307,7 @@ export const FACET_OPTIONS: Record<string, FacetOption[]> = {
     { value: "1-5-lbs", label: "1-5 lbs" },
     { value: "5-10-lbs", label: "5-10 lbs" },
     { value: "10-20-lbs", label: "10-20 lbs" },
+    { value: "10-20-lb", label: "10-20 lb" },
     { value: "20-50-lbs", label: "20-50 lbs" },
     { value: "50-100-lbs", label: "50-100 lbs" },
     { value: "100-lbs-and-more", label: "100 lbs and more" },
@@ -350,31 +376,230 @@ export const FACET_OPTIONS: Record<string, FacetOption[]> = {
     { value: "2", label: "2★ & up" },
     { value: "1", label: "1★ & up" },
   ],
+
+  // ---- NEW facets per the spec ----
+
+  // ---- Litter Material (Cat Litter page) ----
+  litterMaterial: [
+    { value: "clay", label: "Clay" },
+    { value: "corn", label: "Corn" },
+    { value: "grass-seed", label: "Grass Seed" },
+    { value: "crystal", label: "Crystal" },
+    { value: "paper", label: "Paper" },
+    { value: "wood", label: "Wood" },
+    { value: "walnut", label: "Walnut" },
+    { value: "tofu", label: "Tofu" },
+    { value: "wheat", label: "Wheat" },
+    { value: "pine", label: "Pine" },
+  ],
+
+  // ---- Bed Shape (Cat Beds + Dog Beds) ----
+  bedShape: [
+    { value: "rectangle", label: "Rectangle" },
+    { value: "round", label: "Round" },
+    { value: "oval", label: "Oval" },
+    { value: "square", label: "Square" },
+    { value: "circle", label: "Circle" },
+    { value: "triangle", label: "Triangle" },
+    { value: "bone", label: "Bone" },
+    { value: "heart", label: "Heart" },
+    { value: "cat", label: "Cat" },
+  ],
+
+  // ---- Bed Type (Cat Beds + Dog Beds) ----
+  bedType: [
+    { value: "fashion-beds", label: "Fashion Beds" },
+    { value: "pillow-beds", label: "Pillow Beds" },
+    { value: "basic-beds", label: "Basic Beds" },
+    { value: "bolster-beds", label: "Bolster Beds" },
+    { value: "heated-beds", label: "Heated Beds" },
+    { value: "tufted-beds", label: "Tufted Beds" },
+    { value: "memory-foam-beds", label: "Memory Foam Beds" },
+    { value: "covered-beds", label: "Covered Beds" },
+    { value: "cooling-beds", label: "Cooling Beds" },
+    { value: "outdoor-beds", label: "Outdoor Beds" },
+    { value: "internet", label: "Internet" },
+    { value: "sofa-dog-beds", label: "Sofa Dog Beds" },
+    { value: "crate-mats", label: "Crate Mats" },
+  ],
+
+  // ---- Bed Fill (Cat Beds + Dog Beds) ----
+  bedFill: [
+    { value: "polyester", label: "Polyester" },
+    { value: "fiberfill", label: "Fiberfill" },
+    { value: "orthopedic-foam", label: "Orthopedic Foam" },
+    { value: "memory-foam", label: "Memory Foam" },
+    { value: "foam", label: "Foam" },
+  ],
+
+  // ---- Pet (which animal the product is for) ----
+  pet: [
+    { value: "cat", label: "Cat" },
+    { value: "dog", label: "Dog" },
+    { value: "cat-and-dog", label: "Cat & Dog" },
+  ],
+
+  // ---- Item Height Range (Furniture & Scratchers) ----
+  itemHeightRange: [
+    { value: "1-7", label: '1"-7"' },
+    { value: "8-24", label: '8"-24"' },
+    { value: "25-34", label: '25"-34"' },
+    { value: "35-44", label: '35"-44"' },
+    { value: "45-64", label: '45"-64"' },
+    { value: "65-110", label: '65"-110"' },
+  ],
+
+  // ---- Furniture Levels (1-9) ----
+  furnitureLevels: [
+    { value: "1", label: "1" },
+    { value: "2", label: "2" },
+    { value: "3", label: "3" },
+    { value: "4", label: "4" },
+    { value: "5", label: "5" },
+    { value: "6", label: "6" },
+    { value: "7", label: "7" },
+    { value: "8", label: "8" },
+    { value: "9", label: "9" },
+  ],
+
+  // ---- Number of Perches (0-8) ----
+  numberOfPerches: [
+    { value: "0", label: "0" },
+    { value: "1", label: "1" },
+    { value: "2", label: "2" },
+    { value: "3", label: "3" },
+    { value: "4", label: "4" },
+    { value: "5", label: "5" },
+    { value: "6", label: "6" },
+    { value: "7", label: "7" },
+    { value: "8", label: "8" },
+  ],
+
+  // ---- Number of Condos (0-4) ----
+  numberOfCondos: [
+    { value: "0", label: "0" },
+    { value: "1", label: "1" },
+    { value: "2", label: "2" },
+    { value: "3", label: "3" },
+    { value: "4", label: "4" },
+  ],
+
+  // ---- Number of Scratch Posts (0-10) ----
+  numberOfScratchPosts: [
+    { value: "0", label: "0" },
+    { value: "1", label: "1" },
+    { value: "2", label: "2" },
+    { value: "3", label: "3" },
+    { value: "4", label: "4" },
+    { value: "5", label: "5" },
+    { value: "6", label: "6" },
+    { value: "7", label: "7" },
+    { value: "8", label: "8" },
+    { value: "9", label: "9" },
+    { value: "10", label: "10" },
+  ],
+
+  // ---- Training Collar Type (Collars/Harnesses/Leashes + Cat/Dog Health) ----
+  trainingCollarType: [
+    { value: "martingale", label: "Martingale" },
+    { value: "choke", label: "Choke" },
+    { value: "head-collar", label: "Head Collar" },
+    { value: "slip", label: "Slip" },
+    { value: "prong", label: "Prong" },
+  ],
+
+  // ---- Collar Closure Type ----
+  collarClosureType: [
+    { value: "buckle", label: "Buckle" },
+    { value: "quick-release", label: "Quick Release" },
+    { value: "slip-on", label: "Slip On" },
+    { value: "hook-and-loop", label: "Hook & Loop" },
+    { value: "bolt-snap", label: "Bolt Snap" },
+  ],
+
+  // ---- Harness Type (Collars/Harnesses/Leashes) ----
+  harnessType: [
+    { value: "no-pull", label: "No Pull" },
+    { value: "back-clip", label: "Back Clip" },
+    { value: "service-dog", label: "Service Dog" },
+    { value: "dual-clip", label: "Dual Clip" },
+    { value: "car-safety", label: "Car Safety" },
+    { value: "headcollar", label: "Headcollar" },
+  ],
+
+  // ---- Features (the union across all spec pages that list features) ----
+  features: [
+    { value: "pullover", label: "Pullover" },
+    { value: "step-in", label: "Step In" },
+    { value: "water-resistant", label: "Water Resistant" },
+    { value: "water-proof", label: "Water Proof" },
+    { value: "natural", label: "Natural" },
+    { value: "leash-opening", label: "Leash Opening" },
+    { value: "padded", label: "Padded" },
+    { value: "squeaky", label: "Squeaky" },
+    { value: "crinkle", label: "Crinkle" },
+    { value: "unscented", label: "Unscented" },
+    { value: "teething", label: "Teething" },
+    { value: "scented", label: "Scented" },
+    { value: "stuffing-free", label: "Stuffing-Free" },
+    { value: "adjustable", label: "Adjustable" },
+    { value: "traffic-handle", label: "Traffic Handle" },
+    { value: "bungee", label: "Bungee" },
+    { value: "non-skid", label: "Non-Skid" },
+    { value: "reflective", label: "Reflective" },
+    { value: "led", label: "LED" },
+    { value: "personalized", label: "Personalized" },
+    { value: "water-toy", label: "Water Toy" },
+    { value: "glow-or-light-up", label: "Glow or Light Up" },
+    { value: "tough-chewer", label: "Tough Chewer" },
+    { value: "insulated", label: "Insulated" },
+    { value: "attractant", label: "Attractant" },
+    { value: "multi-dog-system", label: "Multi-Dog System" },
+    { value: "clumping", label: "Clumping" },
+    { value: "qr-code", label: "QR Code" },
+    { value: "catnip", label: "Catnip" },
+    { value: "gps", label: "GPS" },
+    { value: "multi-pet", label: "Multi Pet" },
+    { value: "odor-control", label: "Odor Control" },
+    { value: "low-tracking", label: "Low-Tracking" },
+    { value: "single-pet", label: "Single Pet" },
+    { value: "lightweight", label: "Lightweight" },
+    { value: "non-clumping", label: "Non-Clumping" },
+    { value: "health-monitoring", label: "Health Monitoring" },
+  ],
+
+  // ---- Dietary Preference (food + treats + health pages) ----
+  dietaryPreference: [
+    { value: "with-grain", label: "With Grain" },
+    { value: "grain-free", label: "Grain-Free" },
+    { value: "holistic", label: "Holistic" },
+    { value: "maintenance", label: "Maintenance" },
+    { value: "limited-ingredient-diet", label: "Limited Ingredient Diet" },
+    { value: "small-bites", label: "Small Bites" },
+    { value: "selective-eater", label: "Selective Eater" },
+    { value: "vegetarian", label: "Vegetarian" },
+    { value: "organic", label: "Organic" },
+    { value: "sensitive-stomach", label: "Sensitive Stomach" },
+  ],
+
+  // ---- Quantity (placeholder — "Publish Information here") ----
+  quantity: [
+    { value: "1", label: "1" },
+    { value: "2", label: "2" },
+    { value: "3", label: "3" },
+    { value: "6", label: "6" },
+    { value: "12", label: "12" },
+    { value: "24", label: "24" },
+    { value: "bulk", label: "Bulk" },
+  ],
 }
 
 // ---------------------------------------------------------------------------
-// Page-level facet sets — which facets each shop landing/department page
-// exposes, in the order they should render in the sidebar.
-//
-// Per the spec, every page lists Categories + Brand + Price + Customer Rating
-// at minimum, plus department-specific facets. Subcategory pages inherit
-// their parent department's facet set.
-//
-// Keys are URL paths (e.g. "/shop/cat", "/shop/cat/food").
+// The default facet set for the shop home, animal landings, and any path
+// not explicitly listed in SHOP_PAGE_FACETS. Per the spec, the cat landing
+// page is the canonical "all facets" reference.
 // ---------------------------------------------------------------------------
 
-export type PageFacets = {
-  /** Path key this set applies to (the department or animal landing URL). */
-  path: string
-  /** Ordered list of facet keys to render in the sidebar. */
-  facets: string[]
-}
-
-/**
- * The default facet set for the shop home, animal landings, and any path
- * not explicitly listed in SHOP_PAGE_FACETS. Per the spec, the cat landing
- * page is the canonical "all facets" reference.
- */
 export const DEFAULT_FACETS: string[] = [
   "categories",
   "brand",
@@ -386,13 +611,18 @@ export const DEFAULT_FACETS: string[] = [
   "material",
 ]
 
-/**
- * Page-specific facet sets. When a path isn't listed here, the page falls
- * back to DEFAULT_FACETS. Subcategory pages inherit their parent
- * department's set (the resolver in lib/shop/catalog.ts handles this).
- */
+// ---------------------------------------------------------------------------
+// Page-specific facet sets — EXACTLY per the owner's pasted spec
+// (Pasted Content_1791418582040.txt). Each entry matches a spec page's
+// filter tree, in order. Subcategory pages inherit their parent
+// department's set (the resolver in lib/shop/catalog.ts handles this).
+// ---------------------------------------------------------------------------
+
 export const SHOP_PAGE_FACETS: Record<string, string[]> = {
-  // ---- Cat landing (the spec reference page — all common facets) ----
+  // ---- Cat Landing (per spec: Categories + Brand + Food Form + Lifestage +
+  // Flavor + Health Feature + Color + Price + Customer Rating + Material +
+  // Breed Size + Product Weight + Features + Apparel Type + Size + Dietary
+  // Preference + Frame Material + Quantity) ----
   "/shop/cat": [
     "categories",
     "brand",
@@ -406,326 +636,410 @@ export const SHOP_PAGE_FACETS: Record<string, string[]> = {
     "material",
     "breedSize",
     "productWeight",
+    "features",
+    "apparelType",
+    "size",
+    "dietaryPreference",
     "frameMaterial",
+    "quantity",
   ],
 
-  // ---- Cat Food (full food form + flavor + health feature unions) ----
+  // ---- Cat Food (Categories + Brand + Food Form + Lifestage + Dietary
+  // Preference + Health Feature + Flavor + Quantity + Price + Customer
+  // Rating) ----
   "/shop/cat/food": [
     "categories",
     "brand",
     "foodForm",
-    "flavor",
     "lifeStage",
+    "dietaryPreference",
     "healthFeature",
+    "flavor",
+    "quantity",
     "price",
     "customerRating",
-    "breedSize",
-    "productWeight",
   ],
 
-  // ---- Cat Treats ----
+  // ---- Cat Treats (Categories + Brand + Flavor + Lifestage + Customer
+  // Rating + Health Feature + Pet + Price + Dietary Preference + Breed Size
+  // + Product Weight + Quantity) ----
   "/shop/cat/treats": [
     "categories",
     "brand",
     "flavor",
-    "healthFeature",
-    "price",
+    "lifeStage",
     "customerRating",
+    "healthFeature",
+    "pet",
+    "price",
+    "dietaryPreference",
     "breedSize",
+    "productWeight",
+    "quantity",
   ],
 
-  // ---- Cat Litter ----
+  // ---- Cat Litter (Categories + Brand + Litter Material + Features + Price
+  // + Product Weight + Customer Rating + Quantity) ----
   "/shop/cat/litter-litter-boxes-accessories": [
     "categories",
     "brand",
-    "material",
-    "healthFeature",
+    "litterMaterial",
+    "features",
     "price",
-    "customerRating",
     "productWeight",
+    "customerRating",
+    "quantity",
   ],
 
-  // ---- Cat Furniture & Scratchers ----
+  // ---- Cat Furniture & Scratchers (Categories + Item Height Range + Brand +
+  // Price + Customer Rating + Color + Material + Furniture Levels + Number
+  // of Perches + Size + Number of Condos + Number of Scratch Posts + Breed
+  // Size + Quantity) ----
   "/shop/cat/furniture-scratchers": [
     "categories",
+    "itemHeightRange",
     "brand",
-    "material",
-    "frameMaterial",
-    "color",
     "price",
     "customerRating",
-    "productWeight",
+    "color",
+    "material",
+    "furnitureLevels",
+    "numberOfPerches",
+    "size",
+    "numberOfCondos",
+    "numberOfScratchPosts",
+    "breedSize",
+    "quantity",
   ],
 
-  // ---- Cat Litter Boxes & Accessories ----
+  // ---- Litter Boxes & Accessories subcategory (Categories + Brand +
+  // Material + Size + Price + Customer Rating + Quantity) ----
   "/shop/cat/litter-litter-boxes-accessories/cat-litter-boxes-accessories": [
     "categories",
     "brand",
     "material",
-    "color",
+    "size",
     "price",
     "customerRating",
-    "productWeight",
+    "quantity",
   ],
 
-  // ---- Cat Toys ----
+  // ---- Cat Toys (Categories + Brand + Price + Features + Customer Rating +
+  // Lifestage + Size + Material + Flavor + Color + Product Weight +
+  // Quantity + Apparel Type) ----
   "/shop/cat/toys": [
     "categories",
     "brand",
+    "price",
+    "features",
+    "customerRating",
+    "lifeStage",
+    "size",
     "material",
     "flavor",
     "color",
-    "price",
-    "customerRating",
-    "breedSize",
+    "productWeight",
+    "quantity",
+    "apparelType",
   ],
 
-  // ---- Cat Carriers & Travel ----
+  // ---- Cat Carriers & Containment (Categories + Brand + Price + Breed Size
+  // + Material + Pet + Furniture Levels + Lifestage + Product Weight + Bed
+  // Shape + Features) ----
   "/shop/cat/carriers-containment": [
     "categories",
     "brand",
-    "material",
-    "color",
-    "size",
-    "breedSize",
     "price",
-    "customerRating",
+    "breedSize",
+    "material",
+    "pet",
+    "furnitureLevels",
+    "lifeStage",
     "productWeight",
+    "bedShape",
+    "features",
   ],
 
-  // ---- Cat Health & Wellness ----
+  // ---- Cat Health & Wellness (Categories + Brand + Pet + Lifestage + Health
+  // Feature + Size + Price + Flavor + Dietary Preference + Food Form +
+  // Customer Rating + Material + Features + Collar Closure Type + Product
+  // Weight + Quantity + Apparel Type) ----
   "/shop/cat/health-wellness": [
     "categories",
     "brand",
-    "healthFeature",
-    "flavor",
+    "pet",
     "lifeStage",
-    "breedSize",
+    "healthFeature",
+    "size",
     "price",
+    "flavor",
+    "dietaryPreference",
+    "foodForm",
     "customerRating",
+    "material",
+    "features",
+    "collarClosureType",
     "productWeight",
+    "quantity",
+    "apparelType",
   ],
 
-  // ---- Cat Beds ----
+  // ---- Cat Beds (Categories + Brand + Bed Shape + Size + Bed Type + Color
+  // + Lifestage + Material + Bed Fill + Price + Customer Rating) ----
   "/shop/cat/beds-bedding": [
     "categories",
     "brand",
-    "material",
-    "color",
+    "bedShape",
     "size",
-    "breedSize",
+    "bedType",
+    "color",
+    "lifeStage",
+    "material",
+    "bedFill",
     "price",
     "customerRating",
   ],
 
-  // ---- Cat Bowls & Feeders ----
+  // ---- Cat Bowls & Feeders (Categories + Material + Color + Price + Brand
+  // + Customer Rating + Quantity + Size) ----
   "/shop/cat/bowls-feeders": [
     "categories",
-    "brand",
     "material",
     "color",
-    "size",
     "price",
+    "brand",
     "customerRating",
+    "quantity",
+    "size",
   ],
 
-  // ---- Cat Flea & Tick ----
+  // ---- Cat Flea & Tick (Categories + Brand + Quantity + Customer Rating +
+  // Price) ----
   "/shop/cat/flea-tick": [
     "categories",
     "brand",
-    "healthFeature",
-    "lifeStage",
-    "breedSize",
-    "productWeight",
-    "price",
+    "quantity",
     "customerRating",
+    "price",
   ],
 
-  // ---- Dog landing ----
+  // ---- Dog Landing (Top Dog Deals — Categories + Brand + Size + Breed Size
+  // + Life Stage + Price + Customer Rating + Apparel Type + Flavor + Health
+  // Feature + Material + Color + Food Form + Features + Dietary Preference +
+  // Product Weight) ----
   "/shop/dog": [
     "categories",
     "brand",
-    "lifeStage",
+    "size",
     "breedSize",
-    "color",
-    "material",
+    "lifeStage",
     "price",
     "customerRating",
     "apparelType",
-    "size",
+    "flavor",
+    "healthFeature",
+    "material",
+    "color",
+    "foodForm",
+    "features",
+    "dietaryPreference",
+    "productWeight",
   ],
 
-  // ---- Dog Food ----
+  // ---- Dog Food (Categories + Brand + Flavor + Lifestage + Food Form +
+  // Health Feature + Dietary Preference + Breed Size + Pet) ----
   "/shop/dog/food": [
     "categories",
     "brand",
-    "foodForm",
     "flavor",
     "lifeStage",
+    "foodForm",
     "healthFeature",
+    "dietaryPreference",
     "breedSize",
-    "productWeight",
-    "price",
-    "customerRating",
+    "pet",
   ],
 
-  // ---- Dog Treats ----
+  // ---- Dog Treats (Categories + Brand + Flavor + Pet + Price + Size +
+  // Lifestage + Health Feature + Dietary Preference + Breed Size + Customer
+  // Rating + Food Form + Features + Product Weight + Quantity + Color +
+  // Material) ----
   "/shop/dog/treats-chews": [
     "categories",
     "brand",
     "flavor",
-    "healthFeature",
-    "lifeStage",
-    "breedSize",
+    "pet",
     "price",
+    "size",
+    "lifeStage",
+    "healthFeature",
+    "dietaryPreference",
+    "breedSize",
     "customerRating",
+    "foodForm",
+    "features",
+    "productWeight",
+    "quantity",
+    "color",
+    "material",
   ],
 
-  // ---- Dog Flea & Tick ----
+  // ---- Dog Flea & Tick (Categories + Brand + Price + Customer Rating +
+  // Product Weight + Quantity + Food Form + Dietary Preference + Flavor) ----
   "/shop/dog/flea-tick": [
     "categories",
     "brand",
-    "healthFeature",
-    "lifeStage",
-    "breedSize",
-    "productWeight",
     "price",
     "customerRating",
+    "productWeight",
+    "quantity",
+    "foodForm",
+    "dietaryPreference",
+    "flavor",
   ],
 
-  // ---- Dog Health & Wellness ----
+  // ---- Dog Health & Wellness (Categories + Brand + Pet + Health Feature +
+  // Lifestage + Price + Food Form + Dietary Preference + Customer Rating +
+  // Size + Flavor + Collar Closure Type + Features + Quantity + Product
+  // Weight + Apparel Type) ----
   "/shop/dog/health-wellness": [
     "categories",
     "brand",
+    "pet",
     "healthFeature",
-    "flavor",
     "lifeStage",
-    "breedSize",
     "price",
+    "foodForm",
+    "dietaryPreference",
     "customerRating",
+    "size",
+    "flavor",
+    "collarClosureType",
+    "features",
+    "quantity",
     "productWeight",
+    "apparelType",
   ],
 
-  // ---- Dog Crates & Containment ----
+  // ---- Dog Crates & Containment (Categories + Brand + Size + Breed Size +
+  // Price + Pet + Material + Color + Features + Quantity + Lifestage + Food
+  // Form) ----
   "/shop/dog/crates-containment": [
     "categories",
     "brand",
-    "material",
-    "size",
-    "breedSize",
-    "color",
-    "price",
-    "customerRating",
-    "productWeight",
-  ],
-
-  // ---- Dog Cleanup ----
-  "/shop/dog/cleanup": [
-    "categories",
-    "brand",
-    "material",
-    "color",
-    "price",
-    "customerRating",
-    "productWeight",
-  ],
-
-  // ---- Dog Beds ----
-  "/shop/dog/beds-bedding": [
-    "categories",
-    "brand",
-    "material",
-    "color",
     "size",
     "breedSize",
     "price",
-    "customerRating",
-  ],
-
-  // ---- Dog Bowls & Feeding ----
-  "/shop/dog/bowls-feeding": [
-    "categories",
-    "brand",
+    "pet",
     "material",
     "color",
-    "size",
-    "breedSize",
-    "price",
-    "customerRating",
+    "features",
+    "quantity",
+    "lifeStage",
+    "foodForm",
   ],
 
-  // ---- Dog Toys ----
-  "/shop/dog/toys": [
-    "categories",
-    "brand",
-    "material",
-    "flavor",
-    "color",
-    "size",
-    "breedSize",
-    "price",
-    "customerRating",
-  ],
-
-  // ---- Dog Collars, Harnesses & Leashes ----
-  "/shop/dog/collars-harnesses-leashes": [
-    "categories",
-    "brand",
-    "material",
-    "color",
-    "size",
-    "breedSize",
-    "price",
-    "customerRating",
-  ],
-
-  // ---- Dog Apparel & Accessories ----
-  "/shop/dog/apparel-accessories": [
-    "categories",
-    "brand",
-    "apparelType",
-    "material",
-    "color",
-    "size",
-    "breedSize",
-    "price",
-    "customerRating",
-  ],
-
-  // ---- Dog Grooming & Bathing ----
-  "/shop/dog/grooming-bathing": [
-    "categories",
-    "brand",
-    "material",
-    "healthFeature",
-    "breedSize",
-    "price",
-    "customerRating",
-  ],
-
-  // ---- Dog Outdoor & Travel ----
-  "/shop/dog/outdoor-travel-gear": [
-    "categories",
-    "brand",
-    "material",
-    "color",
-    "size",
-    "breedSize",
-    "price",
-    "customerRating",
-    "productWeight",
-  ],
-
-  // ---- Dog Cleaning & Potty Supplies ----
+  // ---- Dog Cleanup (Categories + Brand + Material + Price + Size + Customer
+  // Rating + Features + Quantity + Health Feature + Collar Closure Type) ----
   "/shop/dog/cleaning-potty-supplies": [
     "categories",
     "brand",
     "material",
-    "color",
     "price",
+    "size",
     "customerRating",
+    "features",
+    "quantity",
+    "healthFeature",
+    "collarClosureType",
+  ],
+
+  // ---- Dog Beds (Categories + Size + Brand + Bed Type + Bed Shape + Price
+  // + Color + Breed Size + Bed Fill + Lifestage + Customer Rating) ----
+  "/shop/dog/beds-bedding": [
+    "categories",
+    "size",
+    "brand",
+    "bedType",
+    "bedShape",
+    "price",
+    "color",
+    "breedSize",
+    "bedFill",
+    "lifeStage",
+    "customerRating",
+  ],
+
+  // ---- Dog Bowls & Feeding (Categories + Brand + Size + Pet + Material +
+  // Breed Size + Price + Color + Features + Customer Rating + Quantity +
+  // Product Weight) ----
+  "/shop/dog/bowls-feeding": [
+    "categories",
+    "brand",
+    "size",
+    "pet",
+    "material",
+    "breedSize",
+    "price",
+    "color",
+    "features",
+    "customerRating",
+    "quantity",
     "productWeight",
   ],
+
+  // ---- Dog Toys (Categories + Brand + Size + Price + Features + Lifestage
+  // + Breed Size + Customer Rating + Material + Color + Product Weight +
+  // Flavor + Quantity) ----
+  "/shop/dog/toys": [
+    "categories",
+    "brand",
+    "size",
+    "price",
+    "features",
+    "lifeStage",
+    "breedSize",
+    "customerRating",
+    "material",
+    "color",
+    "productWeight",
+    "flavor",
+    "quantity",
+  ],
+
+  // ---- Dog Collars, Harnesses & Leashes (Categories + Brand + Color + Size
+  // + Breed Size + Price + Pet + Customer Rating + Material + Training
+  // Collar Type + Collar Closure Type + Features + Harness Type + Product
+  // Weight + Quantity) ----
+  "/shop/dog/collars-harnesses-leashes": [
+    "categories",
+    "brand",
+    "color",
+    "size",
+    "breedSize",
+    "price",
+    "pet",
+    "customerRating",
+    "material",
+    "trainingCollarType",
+    "collarClosureType",
+    "features",
+    "harnessType",
+    "productWeight",
+    "quantity",
+  ],
+
+  // ---- Dog Grooming & Bathing — using the canonical "all facets" default
+  //      set (the spec page wasn't enumerated separately). ----
+
+  // ---- Dog Outdoor & Travel Gear — using the canonical "all facets"
+  //      default set (the spec page wasn't enumerated separately). ----
+
+  // ---- Dog Apparel & Accessories — using the canonical "all facets"
+  //      default set (the spec page wasn't enumerated separately). ----
+
+  // ---- Dog Training & Behavior Supplies — using the canonical "all
+  //      facets" default set (the spec page wasn't enumerated separately). ----
 }
 
 // ---------------------------------------------------------------------------
@@ -752,6 +1066,7 @@ export function resolveFacetsForPath(path: string): string[] {
 // ---------------------------------------------------------------------------
 
 export const FACETS: FacetDefinition[] = [
+  // ---- Brand — searchable (long list, brand-name search filter) ----
   {
     key: "brand",
     label: "Brand",
@@ -760,6 +1075,7 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Food Form — collapsible (full union is 47 options) ----
   {
     key: "foodForm",
     label: "Food Form",
@@ -767,13 +1083,15 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Life Stage ----
   {
     key: "lifeStage",
     label: "Life Stage",
     options: FACET_OPTIONS.lifeStage,
-    collapsible: true,
-    defaultVisible: 6,
+    collapsible: false,
+    defaultVisible: 99,
   },
+  // ---- Flavor — searchable + collapsible ----
   {
     key: "flavor",
     label: "Flavor",
@@ -782,6 +1100,7 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Health Feature — searchable + collapsible ----
   {
     key: "healthFeature",
     label: "Health Feature",
@@ -790,6 +1109,7 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Color — collapsible (20 options) ----
   {
     key: "color",
     label: "Color",
@@ -797,6 +1117,7 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Material — collapsible ----
   {
     key: "material",
     label: "Material",
@@ -804,6 +1125,7 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Breed Size ----
   {
     key: "breedSize",
     label: "Breed Size",
@@ -811,6 +1133,7 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Product Weight ----
   {
     key: "productWeight",
     label: "Product Weight",
@@ -818,6 +1141,7 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Frame Material ----
   {
     key: "frameMaterial",
     label: "Frame Material",
@@ -825,6 +1149,7 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Apparel Type — collapsible ----
   {
     key: "apparelType",
     label: "Apparel Type",
@@ -832,12 +1157,141 @@ export const FACETS: FacetDefinition[] = [
     collapsible: true,
     defaultVisible: 6,
   },
+  // ---- Size — collapsible ----
   {
     key: "size",
     label: "Size",
     options: FACET_OPTIONS.size,
     collapsible: true,
     defaultVisible: 6,
+  },
+  // ---- Litter Material ----
+  {
+    key: "litterMaterial",
+    label: "Litter Material",
+    options: FACET_OPTIONS.litterMaterial,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Bed Shape ----
+  {
+    key: "bedShape",
+    label: "Bed Shape",
+    options: FACET_OPTIONS.bedShape,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Bed Type ----
+  {
+    key: "bedType",
+    label: "Bed Type",
+    options: FACET_OPTIONS.bedType,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Bed Fill ----
+  {
+    key: "bedFill",
+    label: "Bed Fill",
+    options: FACET_OPTIONS.bedFill,
+    collapsible: false,
+    defaultVisible: 99,
+  },
+  // ---- Pet ----
+  {
+    key: "pet",
+    label: "Pet",
+    options: FACET_OPTIONS.pet,
+    collapsible: false,
+    defaultVisible: 99,
+  },
+  // ---- Item Height Range ----
+  {
+    key: "itemHeightRange",
+    label: "Item Height Range",
+    options: FACET_OPTIONS.itemHeightRange,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Furniture Levels ----
+  {
+    key: "furnitureLevels",
+    label: "Furniture Levels",
+    options: FACET_OPTIONS.furnitureLevels,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Number of Perches ----
+  {
+    key: "numberOfPerches",
+    label: "Number of Perches",
+    options: FACET_OPTIONS.numberOfPerches,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Number of Condos ----
+  {
+    key: "numberOfCondos",
+    label: "Number of Condos",
+    options: FACET_OPTIONS.numberOfCondos,
+    collapsible: false,
+    defaultVisible: 99,
+  },
+  // ---- Number of Scratch Posts ----
+  {
+    key: "numberOfScratchPosts",
+    label: "Number of Scratch Posts",
+    options: FACET_OPTIONS.numberOfScratchPosts,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Training Collar Type ----
+  {
+    key: "trainingCollarType",
+    label: "Training Collar Type",
+    options: FACET_OPTIONS.trainingCollarType,
+    collapsible: false,
+    defaultVisible: 99,
+  },
+  // ---- Collar Closure Type ----
+  {
+    key: "collarClosureType",
+    label: "Collar Closure Type",
+    options: FACET_OPTIONS.collarClosureType,
+    collapsible: false,
+    defaultVisible: 99,
+  },
+  // ---- Harness Type ----
+  {
+    key: "harnessType",
+    label: "Harness Type",
+    options: FACET_OPTIONS.harnessType,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Features — collapsible (38 options) ----
+  {
+    key: "features",
+    label: "Features",
+    options: FACET_OPTIONS.features,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Dietary Preference — collapsible ----
+  {
+    key: "dietaryPreference",
+    label: "Dietary Preference",
+    options: FACET_OPTIONS.dietaryPreference,
+    collapsible: true,
+    defaultVisible: 6,
+  },
+  // ---- Quantity ----
+  {
+    key: "quantity",
+    label: "Quantity",
+    options: FACET_OPTIONS.quantity,
+    collapsible: false,
+    defaultVisible: 99,
   },
 ]
 

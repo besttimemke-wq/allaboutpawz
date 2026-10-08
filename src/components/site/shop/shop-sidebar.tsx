@@ -177,8 +177,9 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
         )}
       </div>
 
-      {/* ---- Scrollable body: CATEGORIES nav + FILTERS (instant-apply) ---- */}
-      <div className="flex-1 overflow-y-auto px-5 pb-5 pt-5">
+      {/* ---- Body: Categories nav + Filters (no internal scroller — the
+          page gets longer when a filter section expands). ---- */}
+      <div className="flex-1 px-5 pb-5 pt-5">
         {/* ================= Categories (navigation) ================= */}
         <nav aria-label="Shop categories">
           <p className="text-[14px] font-semibold text-ink">Categories</p>
@@ -642,17 +643,17 @@ function FacetCheckList({
               onClick={() =>
                 setExpandedSections((s) => ({ ...s, [key]: !expanded }))
               }
-              className="flex w-full items-center justify-center gap-1 py-1 text-[10px] font-bold tracking-[0.1em] uppercase text-gold-deep hover:underline"
+              className="flex w-full items-center justify-center gap-1 py-1 text-[11px] font-semibold text-gold-deep hover:underline"
               aria-expanded={expanded}
-              aria-label={`${expanded ? "Show less" : "Show more"} ${section.label}`}
+              aria-label={`${expanded ? "Show less" : "Show all"} ${section.label}`}
             >
               {expanded ? (
                 <>
-                  SHOW LESS <ChevronUp className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
+                  Show less <ChevronUp className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
                 </>
               ) : (
                 <>
-                  SHOW {hiddenCount} MORE <ChevronDown className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
+                  Show all <ChevronDown className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
                 </>
               )}
             </button>
