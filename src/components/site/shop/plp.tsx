@@ -10,7 +10,7 @@ import {
   type MerchKey,
   type SortKey,
 } from "@/lib/shop/catalog"
-import { queryTaxProducts, getTaxFacets, buildNavFromTaxonomyDb, type TaxProduct } from "@/lib/shop/taxonomy-db"
+import { queryTaxProducts, getTaxFacets, getNodeFacetSections, buildNavFromTaxonomyDb, type TaxProduct } from "@/lib/shop/taxonomy-db"
 import { buildNavTreeFromTaxonomy } from "@/lib/shop-nav"
 import { ShopSidebar, type SidebarData } from "./shop-sidebar"
 import { PlpToolbar } from "./plp-toolbar"
@@ -41,6 +41,10 @@ export type PlpScope =
       title: string
       path: string
       nodeIds: string[]
+      /** The resolved node itself (subtree root) — facet sections walk UP
+       *  the ancestor chain from here (L3 → its L2 → …) per the owner's
+       *  node_filters mapping. */
+      rootId: string
     }
 
 export async function Plp({
@@ -156,11 +160,12 @@ export async function Plp({
 
   if (isTax) {
     // ---- LIVE catalog: facets + products straight from Supabase ----
-    const [facets, taxResult] = await Promise.all([
+    const [facets, dbSections, taxResult] = await Promise.all([
       getTaxFacets(scope.nodeIds),
+      getNodeFacetSections(scope.rootId),
       Promise.resolve(state),
     ])
-    filterSections = taxonomyFilterSections(facets)
+    filterSections = taxonomyFilterSections(facets, dbSections)
     const tax = await queryTaxProducts({
       nodeIds: scope.nodeIds,
       sort: state.sort,
@@ -377,9 +382,26 @@ function taxProductToCard(p: TaxProduct, fallbackImage?: string | null) {
   }
 }
 
-/** Sidebar filter sections from LIVE-catalog facets. */
-function taxonomyFilterSections(f: Awaited<ReturnType<typeof getTaxFacets>>): SidebarData["filterSections"] {
+/** Sidebar filter sections: the owner's DB-driven per-node facets FIRST
+ *  (node_filters → attributes → node_filter_values — Material, Color,
+ *  Flavor, … whatever that node maps to), then the live-computed
+ *  Brand / Price / Rating / Availability sections after. */
+function taxonomyFilterSections(
+  f: Awaited<ReturnType<typeof getTaxFacets>>,
+  dbSections: Awaited<ReturnType<typeof getNodeFacetSections>>,
+): SidebarData["filterSections"] {
   const sections: SidebarData["filterSections"] = []
+  for (const s of dbSections) {
+    sections.push({
+      kind: "check",
+      key: s.key,
+      label: s.label,
+      options: s.options.map((o) => ({ value: o.value, label: o.label, count: 0 })),
+      searchable: s.searchable,
+      collapsible: s.collapsible,
+      defaultVisible: s.defaultVisible,
+    })
+  }
   if (f.priceBuckets.length > 0) {
     sections.push({ kind: "price", label: "Price Range", buckets: f.priceBuckets })
   }

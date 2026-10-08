@@ -651,6 +651,102 @@ export async function getTaxFacets(nodeIds: string[]): Promise<TaxFacets> {
   }
 }
 
+// ----------------------- Node facet sections (owner translation layer) ------
+//
+// The owner built the attribute→frontend translation IN THE DATABASE:
+//   • node_filters     — WHICH attribute facets apply to WHICH node
+//                        (+ per-filter UI contract: is_searchable,
+//                         is_expanded_default, ui_toggle, sort_order)
+//   • node_filter_values — the canonical filter OPTIONS per node filter
+//   • attributes / attribute_values — the canonical attribute + value names
+//
+// This is the source of truth for the PLP sidebar. Do NOT substitute a
+// generic computed facet rail for it — that was the mistake this function
+// exists to undo. Brand / Price / Customer Rating are excluded here because
+// the PLP renders those as live-computed sections (real product-backed
+// counts); every other attribute renders straight from these rows.
+
+export type NodeFacetSection = {
+  /** URL facet key — attribute slug (e.g. "material", "food-form"). */
+  key: string
+  /** Customer-facing section label (e.g. "Material", "Food Form"). */
+  label: string
+  options: { value: string; label: string }[]
+  /** Render the search-within-facet input (owner flag from node_filters). */
+  searchable: boolean
+  /** Collapse options past defaultVisible behind a "Show all" toggle. */
+  collapsible: boolean
+  defaultVisible: number
+}
+
+const GENERIC_ATTR_SLUGS = new Set(["brand", "price", "customer-rating"])
+
+export async function getNodeFacetSections(rootId: string): Promise<NodeFacetSection[]> {
+  if (!rootId) return []
+  // Walk UP the ancestor chain from the resolved node (L3 → its L2 → …).
+  // The owner's facet mappings live on department (depth-2) nodes; L3 nodes
+  // may add their own on top. Nearest node wins ordering; generic
+  // Brand / Price / Customer Rating stay in the live-computed sections.
+  const rows = await pgQuery<{
+    attribute_slug: string
+    attribute_name: string
+    filter_sort: number
+    is_searchable: boolean | null
+    is_expanded_default: boolean | null
+    value_slug: string
+    value_label: string
+  }>(
+    `WITH RECURSIVE up AS (
+       SELECT id, parent_id, depth FROM taxonomy_nodes WHERE id = $1::uuid
+       UNION ALL
+       SELECT tn.id, tn.parent_id, tn.depth
+         FROM taxonomy_nodes tn
+         JOIN up u ON tn.id = u.parent_id
+        WHERE tn.depth >= 2
+     )
+     SELECT a.slug AS attribute_slug, a.name AS attribute_name,
+            nf.sort_order AS filter_sort,
+            nf.is_searchable, nf.is_expanded_default,
+            av.slug AS value_slug, av.value AS value_label
+       FROM node_filters nf
+       JOIN up ON up.id = nf.node_id
+       JOIN attributes a ON a.id = nf.attribute_id
+       JOIN node_filter_values nfv ON nfv.node_filter_id = nf.id AND nfv.is_visible
+       JOIN attribute_values av ON av.id = nfv.attribute_value_id
+      ORDER BY up.depth DESC, nf.sort_order, nfv.sort_order, av.value`,
+    [rootId],
+  )
+
+  const bySlug = new Map<string, NodeFacetSection & { order: number; expanded: boolean }>()
+  for (const r of rows) {
+    if (GENERIC_ATTR_SLUGS.has(r.attribute_slug)) continue
+    let sec = bySlug.get(r.attribute_slug)
+    if (!sec) {
+      sec = {
+        key: r.attribute_slug,
+        label: r.attribute_name,
+        options: [],
+        searchable: r.is_searchable ?? false,
+        order: r.filter_sort,
+        expanded: r.is_expanded_default ?? false,
+        collapsible: false,
+        defaultVisible: 6,
+      }
+      bySlug.set(r.attribute_slug, sec)
+    }
+    if (!sec.options.some((o) => o.value === r.value_slug)) {
+      sec.options.push({ value: r.value_slug, label: r.value_label })
+    }
+  }
+
+  const sections = [...bySlug.values()].sort((a, b) => a.order - b.order)
+  for (const s of sections) {
+    s.collapsible = s.options.length > 6
+    s.defaultVisible = s.expanded ? s.options.length : 6
+  }
+  return sections.map(({ order: _order, expanded: _expanded, ...rest }) => rest)
+}
+
 // ----------------------------- Nav conversion ------------------------------
 
 /** NavCategory-shaped conversion for the sidebar (same contract as

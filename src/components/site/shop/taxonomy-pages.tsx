@@ -367,7 +367,7 @@ export async function AnimalLandingPage({
       <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp
-            scope={{ kind: "taxonomy", title: animal.name, path, nodeIds: [animal.id] }}
+            scope={{ kind: "taxonomy", title: animal.name, path, nodeIds: [animal.id], rootId: animal.id }}
             searchParams={searchParams || {}}
             perPage={10}
             fallbackImage={heroImage}
@@ -506,7 +506,7 @@ export async function DepartmentPage({
       <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp
-            scope={{ kind: "taxonomy", title: dept.name, path, nodeIds }}
+            scope={{ kind: "taxonomy", title: dept.name, path, nodeIds, rootId: dept.id }}
             searchParams={searchParams || {}}
             perPage={10}
             fallbackImage={parentImage}
@@ -624,7 +624,7 @@ export async function SubcategoryPage({
       <section className="px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp
-            scope={{ kind: "taxonomy", title: sub.name, path, nodeIds }}
+            scope={{ kind: "taxonomy", title: sub.name, path, nodeIds, rootId: sub.id }}
             searchParams={searchParams || {}}
             perPage={10}
             fallbackImage={parentImage}
