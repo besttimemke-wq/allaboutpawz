@@ -1,9 +1,10 @@
 import Link from "next/link"
 import { ChevronRight, ArrowRight, PawPrint, Plus } from "lucide-react"
-import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath, type ShopNavAnimal, type ShopNavDepartment } from "@/lib/shop-nav"
+import { departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { BUSINESS } from "@/lib/business"
 import { SITE_URL } from "@/lib/site-url"
 import { breadcrumbSchema } from "@/lib/business"
+import { subtreeNodeIds, type TaxAnimal, type TaxGroup, type TaxSub } from "@/lib/shop/taxonomy-db"
 import { Plp } from "./plp"
 import { CategoryCarousel } from "./category-carousel"
 import { ShopPromoBanner } from "./shop-promo-banner"
@@ -37,42 +38,48 @@ import { findSeoCopy } from "@/lib/shop/seo-copy"
 //
 // Per-department card descriptions — ONE sentence explaining what this
 // category IS (the explanatory narrative lives ON the card, not as a hero
-// wall of text above it). Pulled/condensed from the SEO copy blocks in
-// src/lib/shop/seo-copy.ts. The card description tells the shopper "this
-// is the cat food department — dry, wet, raw for every life stage" so they
-// know what's behind the click without a wall of text on the landing page.
+// wall of text above it). KEYED BY LIVE taxonomy slugs:
+// `${animal}/${group}` per taxonomy_nodes.
 const DEPARTMENT_DESCRIPTION: Record<string, string> = {
-  // ---- cat ----
+  // ---- cat (live slugs) ----
   "cat/beds-bedding": "Bolster, cave, heated, and orthopedic beds for the 16 hours a day a cat sleeps.",
-  "cat/bowls-feeders": "Whisker-friendly shallow bowls, elevated stands, and running water fountains.",
+  "cat/bowls-feeding": "Whisker-friendly shallow bowls, elevated stands, and running water fountains.",
   "cat/carriers-containment": "Soft carriers, hard crates, and strollers for vet trips and travel.",
-  "cat/cleaners-waste-disposal": "Enzyme cleaners, disposal systems, and potty supplies for clean floors.",
+  "cat/cleanup-potty": "Enzyme cleaners, litter systems, and potty supplies for clean floors.",
   "cat/clothing-accessories": "Collars, harnesses, bandanas, and seasonal costumes for the well-dressed cat.",
   "cat/food": "Dry kibble, wet pate, raw, and freeze-dried formulas for every life stage.",
   "cat/furniture-scratchers": "Cat trees, scratching posts, window perches, and condos for vertical territory.",
-  "cat/grooming-bathing": "Feline-safe shampoos, brushes, nail tools, and waterless grooming wipes.",
+  "cat/grooming": "Feline-safe shampoos, brushes, nail tools, and waterless grooming wipes.",
   "cat/health-wellness": "Calming aids, dental care, supplements, and flea prevention for indoor cats.",
-  "cat/litter-litter-boxes-accessories": "Clumping, crystal, natural, and lightweight litter plus every box style.",
+  "cat/litter": "Clumping, crystal, natural, and lightweight litter plus every box style.",
   "cat/steps-ramps": "Steps and ramps so senior or small cats can reach the couch, bed, or window.",
   "cat/toys": "Wands, mice, catnip toys, and electronic chasers for hunters and zoomies.",
   "cat/training-behavior": "Clickers, scratching posts, and deterrents to channel natural behaviors.",
   "cat/treats": "Crunchy, soft, freeze-dried, and lickable treats for training or just because.",
   "cat/flea-tick": "Topical drops, collars, chews, and yard sprays to keep fleas and ticks off cats.",
-  // ---- dog ----
+  // ---- dog (live slugs) ----
   "dog/beds-bedding": "Bolster, orthopedic, cooling, and crate mats sized from teacup to giant breeds.",
   "dog/bowls-feeding": "Stainless, ceramic, slow-feeders, and auto feeders for every dining style.",
-  "dog/crates-containment": "Crates, kennels, gates, and pens for safe containment at home and on the road.",
-  "dog/cleaning-potty-supplies": "Potty pads, poop bags, diapers, and enzyme cleaners for accidents and pickup.",
-  "dog/apparel-accessories": "Coats, sweaters, booties, and bandanas for cold, heat, and dress-up.",
-  "dog/collars-harnesses-leashes": "Collars, no-pull harnesses, leashes, and ID tags for every walk.",
+  "dog/travel-crates": "Crates, kennels, gates, and pens for safe containment at home and on the road.",
+  "dog/cleanup-potty": "Potty pads, poop bags, diapers, and enzyme cleaners for accidents and pickup.",
+  "dog/clothes-accessories": "Coats, sweaters, booties, and bandanas for cold, heat, and dress-up.",
+  "dog/collars-leashes-harnesses": "Collars, no-pull harnesses, leashes, and ID tags for every walk.",
   "dog/food": "Dry, wet, raw, freeze-dried, and air-dried food for every breed size and life stage.",
-  "dog/grooming-bathing": "Coat-safe shampoos, slicker brushes, nail tools, and deshedding gear.",
+  "dog/grooming": "Coat-safe shampoos, slicker brushes, nail tools, and deshedding gear.",
   "dog/health-wellness": "Calming aids, dental care, joint supplements, and dewormers for healthy dogs.",
   "dog/outdoor-travel-gear": "Cooling mats, paw balm, travel bowls, and life jackets for Memphis summers.",
   "dog/toys": "Chew, fetch, puzzle, and plush toys built for chewers, fetchers, and pullers.",
-  "dog/training-behavior-supplies": "Treat pouches, clickers, and long lines for training that sticks.",
-  "dog/treats-chews": "Biscuits, jerky, bully sticks, and dental chews for training and quiet evenings.",
+  "dog/training-behavior": "Treat pouches, clickers, and long lines for training that sticks.",
+  "dog/treats": "Biscuits, jerky, bully sticks, and dental chews for training and quiet evenings.",
   "dog/flea-tick": "Topicals, collars, chews, and yard sprays to keep fleas and ticks off dogs.",
+  // ---- fish & aquatics (live slugs) ----
+  "fish/aquatics": "Everything for the tank: filtration, lighting, water care, decor, and food.",
+  // ---- bird (live slugs) ----
+  "bird/bird": "Cages, perches, toys, and species-appropriate food for companion birds.",
+  // ---- reptile (live slugs) ----
+  "reptile/reptile": "Habitats, heating, lighting, substrates, and feeders for herps of every kind.",
+  // ---- small animal (live slugs) ----
+  "small-animal/small-animal": "Habitats, bedding, hay, and chew toys for hamsters, rabbits, ferrets, and more.",
 }
 
 function descriptionFor(deptPath: string): string {
@@ -80,48 +87,76 @@ function descriptionFor(deptPath: string): string {
 }
 
 // Per-department image lookup — generated with z-ai image CLI, lives at
-// /public/Shop/departments/{animal}-{department-slug}.jpeg. Keyed by the
-// full dept path segment "{animal}/{dept}" so it works for both the
-// animal landing pages (which list departments) and the department pages
-// (which list subcategories — the subcategory cards inherit their parent
-// department's image as a sensible fallback).
+// /public/Shop/departments/{animal}-{department-slug}.jpeg. KEYED BY LIVE
+// taxonomy slugs `${animal}/${group}` per taxonomy_nodes.
 const DEPARTMENT_IMAGE: Record<string, string> = {
   // cat departments
   "cat/beds-bedding": "/Shop/departments/cat-beds-bedding.jpeg",
-  "cat/bowls-feeders": "/Shop/departments/cat-bowls-feeders.jpeg",
+  "cat/bowls-feeding": "/Shop/departments/cat-bowls-feeders.jpeg",
   "cat/carriers-containment": "/Shop/departments/cat-carriers-containment.jpeg",
-  "cat/cleaners-waste-disposal": "/Shop/departments/cat-cleaners-waste-disposal.jpeg",
+  "cat/cleanup-potty": "/Shop/departments/cat-cleaners-waste-disposal.jpeg",
   "cat/clothing-accessories": "/Shop/departments/cat-clothing-accessories.jpeg",
   "cat/food": "/Shop/departments/cat-food.jpeg",
   "cat/flea-tick": "/Shop/departments/cat-flea-tick.jpeg",
   "cat/furniture-scratchers": "/Shop/departments/cat-furniture-scratchers.jpeg",
-  "cat/grooming-bathing": "/Shop/departments/cat-grooming-bathing.jpeg",
+  "cat/grooming": "/Shop/departments/cat-grooming-bathing.jpeg",
   "cat/health-wellness": "/Shop/departments/cat-health-wellness-extra.jpeg",
-  "cat/litter-litter-boxes-accessories": "/Shop/departments/cat-litter.jpeg",
+  "cat/litter": "/Shop/departments/cat-litter.jpeg",
   "cat/steps-ramps": "/Shop/departments/cat-steps-ramps.jpeg",
   "cat/toys": "/Shop/departments/cat-toys.jpeg",
   "cat/training-behavior": "/Shop/departments/cat-training-behavior.jpeg",
   "cat/treats": "/Shop/departments/cat-treats.jpeg",
   // dog departments
-  "dog/apparel-accessories": "/Shop/departments/dog-apparel-accessories.jpeg",
+  "dog/clothes-accessories": "/Shop/departments/dog-apparel-accessories.jpeg",
   "dog/beds-bedding": "/Shop/departments/dog-beds-bedding.jpeg",
   "dog/bowls-feeding": "/Shop/departments/dog-bowls-feeding.jpeg",
-  "dog/cleaning-potty-supplies": "/Shop/departments/dog-cleaning-potty-supplies.jpeg",
-  "dog/collars-harnesses-leashes": "/Shop/departments/dog-collars-harnesses-leashes.jpeg",
-  "dog/crates-containment": "/Shop/departments/dog-crates-containment.jpeg",
+  "dog/cleanup-potty": "/Shop/departments/dog-cleaning-potty-supplies.jpeg",
+  "dog/collars-leashes-harnesses": "/Shop/departments/dog-collars-harnesses-leashes.jpeg",
+  "dog/travel-crates": "/Shop/departments/dog-crates-containment.jpeg",
   "dog/flea-tick": "/Shop/departments/dog-flea-tick.jpeg",
   "dog/food": "/Shop/departments/dog-food.jpeg",
-  "dog/grooming-bathing": "/Shop/departments/dog-grooming-bathing.jpeg",
+  "dog/grooming": "/Shop/departments/dog-grooming-bathing.jpeg",
   "dog/health-wellness": "/Shop/departments/dog-health-wellness.jpeg",
   "dog/outdoor-travel-gear": "/Shop/departments/dog-outdoor-travel-gear.jpeg",
   "dog/toys": "/Shop/departments/dog-toys.jpeg",
-  "dog/treats-chews": "/Shop/departments/dog-treats-chews.jpeg",
+  "dog/treats": "/Shop/departments/dog-treats-chews.jpeg",
+}
+
+// Real per-subcategory photography (imported from Wikimedia Commons via
+// scripts/import-shop-images.mjs). Files follow the LIVE taxonomy naming
+// convention `${animal}-${group}-${sub}.jpg` — e.g. fish/aquatics/food →
+// fish-aquatics-food.jpg. Only files that actually exist are listed.
+const CATEGORY_IMAGES = new Set([
+  "fish-aquatics-accessories",
+  "fish-aquatics-aquarium-cleaning",
+  "fish-aquatics-aquariums",
+  "fish-aquatics-decor",
+  "fish-aquatics-filters-pumps",
+  "fish-aquatics-food",
+  "fish-aquatics-heaters-gauges",
+  "fish-aquatics-light-fixtures-bulbs",
+  "fish-aquatics-supplements",
+  "fish-aquatics-water-care",
+  "bird-bird-cage",
+  "bird-bird-cage-accessory",
+  "bird-bird-food",
+  "bird-bird-mineral-block",
+  "bird-bird-perches",
+  "bird-bird-supplements",
+  "bird-bird-toys",
+])
+
+// Animal-level portraits for the non-cat/dog animals.
+const ANIMAL_IMAGE: Record<string, string> = {
+  fish: "/Shop/categories/fish.jpg",
+  bird: "/Shop/categories/bird.jpg",
+  reptile: "/Shop/categories/reptile.jpg",
+  "small-animal": "/Shop/categories/small-pet.jpg",
 }
 
 // Fallback breed portraits for departments WITHOUT a generated image.
 // Applied per-card index when DEPARTMENT_IMAGE has no entry for the
-// card's dept path. (Cat carriers, cat cleaners, cat clothing, cat health,
-// cat steps, cat training, flea & tick — and the dog equivalents.)
+// card's dept path.
 const FALLBACK_IMAGES = [
   "/Shop/heroes/beagle.jpeg",
   "/Shop/heroes/cocker-spaniel.jpeg",
@@ -134,10 +169,30 @@ const FALLBACK_IMAGES = [
   "/Shop/heroes/border-collie.jpeg",
 ]
 
-function imageForCard(deptPath: string | undefined, fallbackIndex: number): string | undefined {
-  if (deptPath && DEPARTMENT_IMAGE[deptPath]) return DEPARTMENT_IMAGE[deptPath]
-  if (deptPath && !deptPath.startsWith("cat/") && !deptPath.startsWith("dog/")) return undefined
-  return FALLBACK_IMAGES[fallbackIndex % FALLBACK_IMAGES.length]
+/**
+ * Image resolution chain for a card, keyed by LIVE taxonomy slugs:
+ *   1. per-subcategory photo    /Shop/categories/{a}-{g}-{s}.jpg
+ *   2. per-department portrait  /Shop/departments/{a}-{g}.jpeg
+ *   3. animal-level portrait    /Shop/categories/{animal}.jpg
+ *   4. breed fallback (dog/cat only)
+ */
+function taxImage(
+  animalSlug: string,
+  groupSlug: string,
+  subSlug?: string,
+  fallbackIndex = 0,
+): string | undefined {
+  if (subSlug && CATEGORY_IMAGES.has(`${animalSlug}-${groupSlug}-${subSlug}`)) {
+    return `/Shop/categories/${animalSlug}-${groupSlug}-${subSlug}.jpg`
+  }
+  if (DEPARTMENT_IMAGE[`${animalSlug}/${groupSlug}`]) {
+    return DEPARTMENT_IMAGE[`${animalSlug}/${groupSlug}`]
+  }
+  if (ANIMAL_IMAGE[animalSlug]) return ANIMAL_IMAGE[animalSlug]
+  if (animalSlug === "dog" || animalSlug === "cat") {
+    return FALLBACK_IMAGES[fallbackIndex % FALLBACK_IMAGES.length]
+  }
+  return undefined
 }
 
 function TaxonomyHero({
@@ -197,18 +252,19 @@ function TaxonomyHero({
   )
 }
 
-// --- Animal Landing Page (/shop/dog, /shop/cat) ---
+// --- Animal Landing Page (/shop/dog, /shop/cat, /shop/fish, ...) ---
 // H1 + promo banner + horizontal department card carousel. NO sidebar.
 // NO narrative. The customer picks a department to drill in.
 export async function AnimalLandingPage({
   animal,
   searchParams,
 }: {
-  animal: ShopNavAnimal
+  animal: TaxAnimal
   searchParams?: Record<string, string | string[] | undefined>
 }) {
   const path = `/shop/${animal.slug}`
   const seo = findSeoCopy(path)
+  const tagline = `Everything for ${animal.name.replace(/ supplies$/i, "").toLowerCase()} — hand-picked by our Memphis team.`
   const breadcrumb = breadcrumbSchema([
     { name: "Home", url: "/" },
     { name: "Shop", url: "/shop" },
@@ -219,7 +275,7 @@ export async function AnimalLandingPage({
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: animal.name,
-    itemListElement: animal.departments.map((d, i) => ({
+    itemListElement: animal.groups.map((d, i) => ({
       "@type": "ListItem",
       position: i + 1,
       name: d.name,
@@ -227,13 +283,14 @@ export async function AnimalLandingPage({
     })),
   }
 
-  const departmentCards = animal.departments.map((d, i) => ({
+  const departmentCards = animal.groups.map((d, i) => ({
     name: d.name,
     description: descriptionFor(`${animal.slug}/${d.slug}`),
     href: departmentPath(animal.slug, d.slug),
-    image: imageForCard(`${animal.slug}/${d.slug}`, i),
+    image: taxImage(animal.slug, d.slug, undefined, i),
     imageAlt: `${d.name} — All About Pawz Memphis`,
   }))
+  const heroImage = taxImage(animal.slug, animal.groups[0]?.slug ?? "", undefined, 0)
 
   return (
     <article className="bg-white">
@@ -255,13 +312,13 @@ export async function AnimalLandingPage({
       <TaxonomyHero
         eyebrow="SHOP BY ANIMAL"
         title={seo?.h1 || animal.name}
-        description={animal.tagline}
-        image={imageForCard(`${animal.slug}/${animal.departments[0]?.slug}`, 0)}
+        description={tagline}
+        image={heroImage}
         imageAlt={`${animal.name} collection at All About Pawz`}
         quickLinks={departmentCards.slice(0, 3)}
       />
       <ShopPromoBanner
-        image={imageForCard(`${animal.slug}/${animal.departments[0]?.slug}`, 0)}
+        image={heroImage}
         imageAlt={`${animal.name} shop offer`}
         href={path}
       />
@@ -272,10 +329,14 @@ export async function AnimalLandingPage({
           EVERY shop page has BOTH: the carousel above for browse-by-image,
           AND the sidebar+grid here for actual shopping. The sidebar's
           Categories section shows ONLY this animal's departments (the
-          Plp filters by current path). */}
+          Plp filters by current path). The grid resolves from the LIVE
+          Supabase catalog scoped to this animal's whole taxonomy subtree. */}
       <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
-          <Plp scope={{ kind: "all" }} searchParams={searchParams || {}} path={path} categoryFilter={animal.departments.flatMap(d => d.subcategories.map(s => s.name))} />
+          <Plp
+            scope={{ kind: "taxonomy", title: animal.name, path, nodeIds: [animal.id] }}
+            searchParams={searchParams || {}}
+          />
         </div>
       </section>
 

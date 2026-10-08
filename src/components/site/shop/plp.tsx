@@ -5,10 +5,12 @@ import {
   getFilterSections,
   queryProducts,
   parseSearchParams,
+  formatCents,
   type NavCategory,
   type MerchKey,
   type SortKey,
 } from "@/lib/shop/catalog"
+import { queryTaxProducts, getTaxFacets, buildNavFromTaxonomyDb, type TaxProduct } from "@/lib/shop/taxonomy-db"
 import { buildNavTreeFromTaxonomy } from "@/lib/shop-nav"
 import { ShopSidebar, type SidebarData } from "./shop-sidebar"
 import { PlpToolbar } from "./plp-toolbar"
@@ -31,6 +33,15 @@ export type PlpScope =
   | { kind: "all" }
   | { kind: "category"; node: NavCategory }
   | { kind: "merch"; merch: MerchKey; title: string; blurb: string }
+  // LIVE taxonomy scope — products resolve from the Supabase catalog
+  // (products / product_nodes / taxonomy_nodes) instead of the legacy
+  // mini-catalog. The sidebar tree is built from the LIVE taxonomy.
+  | {
+      kind: "taxonomy"
+      title: string
+      path: string
+      nodeIds: string[]
+    }
 
 export async function Plp({
   scope,
@@ -50,10 +61,19 @@ export async function Plp({
    *  This is what makes the bedding page show ONLY bedding products. */
   categoryFilter?: string[]
 }) {
+  const isTax = scope.kind === "taxonomy"
   const scopeIds =
     scope.kind === "category" ? scope.node.rawIds : scope.kind === "merch" ? null : null
 
-  const currentPath = path || (scope.kind === "category" ? scope.node.path : scope.kind === "merch" ? `/shop/${scope.merch}` : "/shop")
+  const currentPath =
+    path ||
+    (isTax
+      ? scope.path
+      : scope.kind === "category"
+        ? scope.node.path
+        : scope.kind === "merch"
+          ? `/shop/${scope.merch}`
+          : "/shop")
 
   // Old taxonomy slugs → new canonical slugs (same map as taxonomy-pages.tsx).
   // Inline here so plp.tsx doesn't need a cross-import.
@@ -80,7 +100,12 @@ export async function Plp({
   //   /shop/cat        → cat's departments (Food, Toys, Beds...)
   //   /shop/cat/food   → food's subcategories (Broths, Dry Food, Wet Food...)
   //   /shop/cat/food/dry-cat-food → same subcategories (siblings, current highlighted)
-  const fullTree = buildNavTreeFromTaxonomy() as unknown as NavCategory[]
+  //
+  // For the LIVE taxonomy scope the tree is built from Supabase (cached);
+  // the same pathSegments logic below picks the active node.
+  const fullTree = (
+    isTax ? await buildNavFromTaxonomyDb() : buildNavTreeFromTaxonomy()
+  ) as unknown as NavCategory[]
   const pathSegments = currentPath.split("/").filter(Boolean)
 
   let navTree: NavCategory[]
@@ -115,21 +140,56 @@ export async function Plp({
     }
   }
 
-  const [merch, filterSections, state] = await Promise.all([
-    getMerchCollections(),
-    getFilterSections(scopeIds, currentPath),
-    Promise.resolve(parseSearchParams(searchParams)),
-  ])
+  const state = parseSearchParams(searchParams)
 
-  const result = await queryProducts({
-    scopeIds,
-    merch: scope.kind === "merch" ? scope.merch : null,
-    filters: state.filters,
-    sort: state.sort,
-    page: state.page,
-    perPage,
-    categoryFilter,
-  })
+  let filterSections: SidebarData["filterSections"]
+  let merchCollections: Awaited<ReturnType<typeof getMerchCollections>> = []
+  let result: { items: Array<Record<string, unknown>>; total: number; page: number; pages: number }
+  let gridItems: Array<Record<string, unknown>>
+
+  if (isTax) {
+    // ---- LIVE catalog: facets + products straight from Supabase ----
+    const [facets, taxResult] = await Promise.all([
+      getTaxFacets(scope.nodeIds),
+      Promise.resolve(state),
+    ])
+    filterSections = taxonomyFilterSections(facets)
+    const tax = await queryTaxProducts({
+      nodeIds: scope.nodeIds,
+      sort: state.sort,
+      page: state.page,
+      perPage,
+      filters: {
+        minPrice: state.filters.minPrice,
+        maxPrice: state.filters.maxPrice,
+        priceBucket: state.filters.priceBucket ?? null,
+        rating: state.filters.rating ?? null,
+        availability: state.filters.availability,
+        q: state.q,
+        brands: state.facets?.brand,
+      },
+    })
+    result = tax
+    gridItems = tax.items.map(taxProductToCard) as unknown as Array<Record<string, unknown>>
+  } else {
+    const [merch, sections] = await Promise.all([
+      getMerchCollections(),
+      getFilterSections(scopeIds, currentPath),
+    ])
+    filterSections = sections
+    const legacy = await queryProducts({
+      scopeIds,
+      merch: scope.kind === "merch" ? scope.merch : null,
+      filters: state.filters,
+      sort: state.sort,
+      page: state.page,
+      perPage,
+      categoryFilter,
+    })
+    result = legacy as unknown as { items: Array<Record<string, unknown>>; total: number; page: number; pages: number }
+    gridItems = legacy.items as unknown as Array<Record<string, unknown>>
+    merchCollections = merch
+  }
 
   // Applied URL state for the rail + chips (kept as display strings).
   const one = (k: string) => (typeof searchParams[k] === "string" ? (searchParams[k] as string) : null)
@@ -145,7 +205,7 @@ export async function Plp({
 
   const sidebar: SidebarData = {
     categories: navTree,
-    merch,
+    merch: merchCollections,
     ancestors,
     current: currentNode,
     currentMerch: scope.kind === "merch" ? scope.merch : null,
@@ -153,17 +213,17 @@ export async function Plp({
     applied,
   }
 
-  const basePath = scope.kind === "category" ? scope.node.path : scope.kind === "merch" ? `/shop/${scope.merch}` : "/shop"
+  const basePath = currentPath
 
   // GA4 view_item_list — the server knows the exact rendered list, so it
   // hands the page's items to a null-rendering tracking island.
-  const listId = scope.kind === "category" ? `category-${scope.node.path}` : scope.kind === "merch" ? `merch-${scope.merch}` : "shop-all"
-  const listName = scope.kind === "category" ? scope.node.displayName : scope.kind === "merch" ? scope.title || scope.merch : "All Products"
-  const analyticsItems = result.items.map((p) => ({
-    item_id: p.id,
-    item_name: p.name,
-    item_category: p.category ?? undefined,
-    price: p.priceCents != null ? p.priceCents / 100 : undefined,
+  const listId = isTax ? `taxonomy-${scope.path}` : scope.kind === "category" ? `category-${scope.node.path}` : scope.kind === "merch" ? `merch-${scope.merch}` : "shop-all"
+  const listName = isTax ? scope.title : scope.kind === "category" ? scope.node.displayName : scope.kind === "merch" ? scope.title || scope.merch : "All Products"
+  const analyticsItems = gridItems.map((p) => ({
+    item_id: String(p.id),
+    item_name: String(p.name),
+    item_category: (p.category as string | null) ?? undefined,
+    price: p.priceCents != null ? Number(p.priceCents) / 100 : undefined,
   }))
 
   return (
@@ -235,10 +295,10 @@ export async function Plp({
         )}
 
         {/* Product grid */}
-        {result.items.length > 0 ? (
+        {gridItems.length > 0 ? (
           <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 xl:grid-cols-4">
-            {result.items.map((p, i) => (
-              <ProductCard key={p.id} product={p} priority={i < 4 && state.page === 1} />
+            {gridItems.map((p, i) => (
+              <ProductCard key={String(p.id)} product={p as never} priority={i < 4 && state.page === 1} />
             ))}
           </div>
         ) : (
@@ -286,6 +346,55 @@ export async function Plp({
 // ---------------------------------------------------------------------------
 // Pieces
 // ---------------------------------------------------------------------------
+
+/** Map a LIVE-catalog product (taxonomy-db) to the ProductCard contract. */
+function taxProductToCard(p: TaxProduct) {
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    price: formatCents(p.priceCents ?? 0),
+    priceCents: p.priceCents,
+    basePriceCents: p.priceCents,
+    compareAtPriceCents: p.compareAtPriceCents,
+    image: p.image,
+    alt: p.name,
+    category: p.brand,
+    isOnSale: p.isOnSale,
+    isNew: p.isNew,
+    isBestseller: p.isBestseller,
+    rating: { avg: p.ratingAvg ?? 0, count: p.ratingCount },
+  }
+}
+
+/** Sidebar filter sections from LIVE-catalog facets. */
+function taxonomyFilterSections(f: Awaited<ReturnType<typeof getTaxFacets>>): SidebarData["filterSections"] {
+  const sections: SidebarData["filterSections"] = []
+  if (f.priceBuckets.length > 0) {
+    sections.push({ kind: "price", label: "Price Range", buckets: f.priceBuckets })
+  }
+  if (f.ratingRows.length > 0) {
+    sections.push({ kind: "rating", label: "Rating", rows: f.ratingRows })
+  }
+  const availability: { value: string; label: string; count: number }[] = []
+  if (f.inStock > 0) availability.push({ value: "in-stock", label: "In Stock", count: f.inStock })
+  if (f.outStock > 0) availability.push({ value: "out-of-stock", label: "Out of Stock", count: f.outStock })
+  if (availability.length > 0) {
+    sections.push({ kind: "check", key: "availability", label: "Availability", options: availability, defaultVisible: 99 })
+  }
+  if (f.brands.length > 0) {
+    sections.push({
+      kind: "check",
+      key: "brand",
+      label: "Brand",
+      options: f.brands.map((b) => ({ value: b.name, label: b.name, count: b.count })),
+      searchable: true,
+      collapsible: true,
+      defaultVisible: 8,
+    })
+  }
+  return sections
+}
 
 function bucketLabel(bucket: string): string {
   if (bucket === "under-10") return "Under $10"
