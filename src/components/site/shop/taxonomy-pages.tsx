@@ -8,7 +8,6 @@ import { Plp } from "./plp"
 import { CategoryCarousel } from "./category-carousel"
 import { ShopPromoBanner } from "./shop-promo-banner"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
-import { categoryImage } from "@/lib/shop/category-images"
 
 // ---------------------------------------------------------------------------
 // Taxonomy page templates — Petco-style. NO narrative. NO sidebar on
@@ -136,10 +135,6 @@ const FALLBACK_IMAGES = [
 ]
 
 function imageForCard(deptPath: string | undefined, fallbackIndex: number): string | undefined {
-  // Fish/bird/reptile/small-pet imagery from Wikimedia (category-images.json);
-  // walk-up resolves dept-level paths to the species image automatically.
-  const category = deptPath ? categoryImage(deptPath) : undefined
-  if (category) return category
   if (deptPath && DEPARTMENT_IMAGE[deptPath]) return DEPARTMENT_IMAGE[deptPath]
   if (deptPath && !deptPath.startsWith("cat/") && !deptPath.startsWith("dog/")) return undefined
   return FALLBACK_IMAGES[fallbackIndex % FALLBACK_IMAGES.length]

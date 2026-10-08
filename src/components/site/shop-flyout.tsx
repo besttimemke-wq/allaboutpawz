@@ -5,7 +5,6 @@ import Link from "next/link"
 import Image from "next/image"
 import { Minus, PawPrint, Plus, X } from "lucide-react"
 import { SHOP_ANIMALS, SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { categoryImage } from "@/lib/shop/category-images"
 
 // ---------------------------------------------------------------------------
 // ShopFlyout — full-screen category menu with image-led department cards.
@@ -160,26 +159,20 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
                 {animal.departments.map(dept => {
                   const departmentKey = `${animal.slug}/${dept.slug}`
                   const imageName = DEPARTMENT_IMAGES[departmentKey]
-                  // Wikimedia species/department imagery as fallback for
-                  // departments without a generated image (fish, bird, reptile,
-                  // small-pet). categoryImage already walks up to the species.
-                  const departmentSrc = imageName
-                    ? `/Shop/departments/${imageName}.jpeg`
-                    : categoryImage(departmentKey)
                   const expanded = expandedDepartment === departmentKey
                   return (
                     <article key={dept.slug} className="min-w-0 border border-neutral-200 bg-white">
                       <Link href={departmentPath(animal.slug, dept.slug)} onClick={onClose} className="relative block aspect-[16/9] overflow-hidden bg-neutral-100">
-                        {departmentSrc && (
+                        {imageName && (
                           <Image
-                            src={departmentSrc}
+                            src={`/Shop/departments/${imageName}.jpeg`}
                             alt={dept.name}
                             fill
                             sizes="(min-width: 1280px) 24vw, (min-width: 1024px) 32vw, 48vw"
                             className="object-cover transition-transform duration-300 hover:scale-[1.03]"
                           />
                         )}
-                        {!departmentSrc && <PawPrint className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/40" strokeWidth={1.1} aria-hidden="true" />}
+                        {!imageName && <PawPrint className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/40" strokeWidth={1.1} aria-hidden="true" />}
                       </Link>
                       <Link href={departmentPath(animal.slug, dept.slug)} onClick={onClose} className="flex min-h-12 items-center px-3 text-[16px] font-semibold leading-snug text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
                         {dept.name}

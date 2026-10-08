@@ -6,7 +6,6 @@ import { findSeoCopy } from "@/lib/shop/seo-copy"
 import { BUSINESS } from "@/lib/business"
 import { SHOP_ANIMALS, SHOP_NAV_TAXONOMY, departmentPath } from "@/lib/shop-nav"
 import { ShopPromoBanner } from "@/components/site/shop/shop-promo-banner"
-import { categoryImage } from "@/lib/shop/category-images"
 
 export const metadata: Metadata = {
   title: "Dog & Cat Supplies, grooming & shopping in Memphis, TN | All About Pawz",
@@ -35,12 +34,11 @@ export default async function ShopPage({ searchParams }: PageProps) {
       ...animal,
       description: taxonomy?.tagline || "Browse the full collection.",
       departments: taxonomy?.departments || [],
-      image: categoryImage(animal.slug)
-        ?? (animal.slug === "cat"
-          ? "/Shop/departments/cat-food.jpeg"
-          : animal.slug === "dog"
-            ? "/Shop/departments/dog-food.jpeg"
-            : null),
+      image: animal.slug === "cat"
+        ? "/Shop/departments/cat-food.jpeg"
+        : animal.slug === "dog"
+          ? "/Shop/departments/dog-food.jpeg"
+          : null,
     }
   })
 
