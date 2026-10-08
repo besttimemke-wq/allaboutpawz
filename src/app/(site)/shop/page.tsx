@@ -111,7 +111,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
           </p>
           <Link
             href="/book/appointment"
-            className="inline-flex items-center gap-2 rounded-md bg-gold-deep px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-cream uppercase transition-colors hover:bg-gold"
+            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-600"
           >
             Book a Groom →
           </Link>

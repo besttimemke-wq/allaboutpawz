@@ -103,9 +103,9 @@ export function CheckoutIsland() {
 
   if (view === "success") {
     return (
-      <div className="border border-gold/30 bg-card p-10 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gold-deep">
-          <Check size={32} weight="bold" className="text-cream" />
+      <div className="border border-neutral-200/30 bg-card p-10 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-600">
+          <Check size={32} weight="bold" className="text-white" />
         </div>
         <h2 className="mt-4 font-display text-[28px] text-ink">Order Received</h2>
         <p className="script mt-2 text-[24px]">From Pawz to PAWfection</p>
@@ -117,7 +117,7 @@ export function CheckoutIsland() {
               : "We've received your order and are confirming your payment. You'll get a receipt by email shortly."}
         </p>
         <div className="mt-6 flex justify-center gap-3">
-          <a href="/shop" className="btn-gold" onClick={() => { s.reset(); setView("catalog") }}>CONTINUE SHOPPING</a>
+          <a href="/shop" className="inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700" onClick={() => { s.reset(); setView("catalog") }}>CONTINUE SHOPPING</a>
           <a href="/book" className="btn-ghost">BOOK A GROOM</a>
         </div>
       </div>
@@ -128,7 +128,7 @@ export function CheckoutIsland() {
     return (
       <div>
         {notice && (
-          <p className="mb-4 border border-gold/30 bg-cream-deep px-4 py-2 text-[12px] text-gold-deep">{notice}</p>
+          <p className="mb-4 border border-neutral-200/30 bg-white-deep px-4 py-2 text-[12px] text-blue-600">{notice}</p>
         )}
         <CheckoutWizard onExit={() => { s.setStep(0); setView("catalog") }} />
       </div>
@@ -136,7 +136,7 @@ export function CheckoutIsland() {
   }
 
   return notice ? (
-    <p className="mb-4 border border-gold/30 bg-cream-deep px-4 py-2 text-[12px] text-gold-deep">{notice}</p>
+    <p className="mb-4 border border-neutral-200/30 bg-white-deep px-4 py-2 text-[12px] text-blue-600">{notice}</p>
   ) : null
 }
 
@@ -338,7 +338,7 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
       </div>
 
       {/* Nav */}
-      <div className="flex items-center justify-between border-t border-gold/25 pt-5">
+      <div className="flex items-center justify-between border-t border-neutral-200/25 pt-5">
         <button type="button" onClick={goBack} className="btn-ghost">
           <ArrowLeft size={14} weight="bold" /> {s.step === 1 ? "Keep Shopping" : "Back"}
         </button>
@@ -347,7 +347,7 @@ function CheckoutWizard({ onExit }: { onExit: () => void }) {
             type="button"
             onClick={onContinue}
             disabled={!canNext || submitting}
-            className={`btn-gold ${!canNext || submitting ? "cursor-not-allowed opacity-40" : ""}`}
+            className={`inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 ${!canNext || submitting ? "cursor-not-allowed opacity-40" : ""}`}
           >
             {submitting ? "Saving…" : "Continue"} <ArrowRight size={14} weight="bold" />
           </button>
@@ -366,7 +366,7 @@ function StepBag() {
   if (s.items.length === 0) {
     return (
       <div className={`${stepWrapCls} space-y-4 text-center`}>
-        <ShoppingBag size={40} className="mx-auto text-gold/50" />
+        <ShoppingBag size={40} className="mx-auto text-blue-600/50" />
         <h2 className="font-display text-[22px] text-ink">Your bag is empty</h2>
         <p className="text-[12px] text-ink-soft">Add a few pawfection favorites to continue.</p>
       </div>
@@ -380,20 +380,20 @@ function StepBag() {
         <p className="mt-1 text-[12px] text-ink-soft">Adjust quantities or remove items before continuing.</p>
       </div>
 
-      <ul className="divide-y divide-gold/20 border-y border-gold/20">
+      <ul className="divide-y divide-gold/20 border-y border-neutral-200/20">
         {s.items.map((i) => (
           <li key={i.productId} className="flex items-center gap-4 py-4">
-            <div className="flex h-20 w-16 shrink-0 items-center justify-center overflow-hidden border border-gold/25 bg-cream-deep">
+            <div className="flex h-20 w-16 shrink-0 items-center justify-center overflow-hidden border border-neutral-200/25 bg-white-deep">
               {i.image ? (
                 <img src={i.image} alt={i.alt || i.name} width={128} height={160} className="h-full w-full object-contain p-1" />
               ) : (
-                <PawPrint size={20} className="text-gold/40" />
+                <PawPrint size={20} className="text-blue-600/40" />
               )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-bold text-ink">{i.name}</p>
-              <p className="mt-0.5 text-[12px] text-gold-deep">{i.price}</p>
-              <div className="mt-2 inline-flex items-center border border-gold/35 bg-cream">
+              <p className="mt-0.5 text-[12px] text-blue-600">{i.price}</p>
+              <div className="mt-2 inline-flex items-center border border-neutral-200/35 bg-white">
                 <QtyBtn onClick={() => s.setQty(i.productId, i.quantity - 1)} label="Decrease quantity">
                   {i.quantity <= 1 ? <Trash size={12} /> : <Minus size={12} weight="bold" />}
                 </QtyBtn>
@@ -421,11 +421,11 @@ function StepBag() {
 
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-ink-soft">
-          <Truck size={12} weight="fill" className="mr-1 inline text-gold-deep" />
+          <Truck size={12} weight="fill" className="mr-1 inline text-blue-600" />
           Complimentary standard shipping on every order.
         </p>
         <p className="text-[14px] font-bold text-ink">
-          Subtotal <span className="text-gold-deep">{formatCents(s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0))}</span>
+          Subtotal <span className="text-blue-600">{formatCents(s.items.reduce((sum, i) => sum + (parsePriceToCents(i.price) || 0) * i.quantity, 0))}</span>
         </p>
       </div>
     </div>
@@ -439,7 +439,7 @@ function QtyBtn({ children, onClick, label, disabled }: { children: React.ReactN
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-9 w-9 items-center justify-center text-ink transition-colors hover:bg-cream-deep hover:text-gold-deep disabled:opacity-30"
+      className="flex h-9 w-9 items-center justify-center text-ink transition-colors hover:bg-white-deep hover:text-blue-600 disabled:opacity-30"
     >
       {children}
     </button>
@@ -460,8 +460,8 @@ function StepContact({ sessionUser }: { sessionUser: SessionUser }) {
         <p className="mt-1 text-[12px] text-ink-soft">We&apos;ll use this for your order confirmation and receipt.</p>
       </div>
       {sessionUser && (
-        <div className="flex items-center gap-2.5 border border-gold/30 bg-cream-deep px-4 py-3">
-          <Check size={14} weight="bold" className="shrink-0 text-gold-deep" />
+        <div className="flex items-center gap-2.5 border border-neutral-200/30 bg-white-deep px-4 py-3">
+          <Check size={14} weight="bold" className="shrink-0 text-blue-600" />
           <p className="min-w-0 truncate text-[12px] text-ink-soft">
             Signed in as{" "}
             <span className="font-bold text-ink">{sessionUser.name || sessionUser.email}</span>
@@ -511,14 +511,14 @@ function StepDelivery() {
             key={value}
             type="button"
             onClick={() => s.patch({ deliveryMethod: value })}
-            className={`flex items-start gap-4 border px-5 py-4 text-left transition-colors ${s.deliveryMethod === value ? "border-gold-deep bg-cream-deep" : "border-gold/35 bg-cream hover:border-gold-deep"}`}
+            className={`flex items-start gap-4 border px-5 py-4 text-left transition-colors ${s.deliveryMethod === value ? "border-blue-600 bg-white-deep" : "border-neutral-200/35 bg-white hover:border-blue-600"}`}
           >
-            <Icon size={24} weight="fill" className="mt-0.5 shrink-0 text-gold-deep" />
+            <Icon size={24} weight="fill" className="mt-0.5 shrink-0 text-blue-600" />
             <div>
               <p className="text-[13px] font-bold text-ink">{title}</p>
               <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">{body}</p>
             </div>
-            {s.deliveryMethod === value && <Check size={16} weight="bold" className="ml-auto shrink-0 text-gold-deep" />}
+            {s.deliveryMethod === value && <Check size={16} weight="bold" className="ml-auto shrink-0 text-blue-600" />}
           </button>
         ))}
       </div>
@@ -553,13 +553,13 @@ function StepDelivery() {
       ) : (
         <section className="space-y-4">
           <h3 className={sectionHeaderCls}>Pickup Details</h3>
-          <div className="border border-gold/30 bg-cream-deep p-5">
+          <div className="border border-neutral-200/30 bg-white-deep p-5">
             <p className="text-[13px] font-bold text-ink">All About Pawz — Memphis Salon</p>
             <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">
               5515 Quince Rd, Memphis, TN 38119 · Open Tue–Sat 9am–6pm, Sun 10am–4pm
             </p>
             <p className="mt-3 text-[11.5px] text-ink-soft">
-              <PawPrint size={12} weight="fill" className="mr-1 inline text-gold-deep" />
+              <PawPrint size={12} weight="fill" className="mr-1 inline text-blue-600" />
               No payment needed now for pickup scheduling — just complete checkout and we&apos;ll have it bagged within one business day.
             </p>
           </div>
@@ -597,10 +597,10 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
         {/* Items */}
         <section className="space-y-3">
           <h3 className={sectionHeaderCls}>Your Items</h3>
-          <ul className="divide-y divide-gold/20 border-y border-gold/20">
+          <ul className="divide-y divide-gold/20 border-y border-neutral-200/20">
             {s.items.map((i) => (
               <li key={i.productId} className="flex items-center gap-3 py-3">
-                <div className="h-14 w-12 shrink-0 overflow-hidden border border-gold/25 bg-cream-deep">
+                <div className="h-14 w-12 shrink-0 overflow-hidden border border-neutral-200/25 bg-white-deep">
                   {i.image ? (
                     <img src={i.image} alt={i.alt || i.name} width={96} height={112} className="h-full w-full object-contain p-0.5" />
                   ) : null}
@@ -609,20 +609,20 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
                   <p className="truncate text-[12.5px] font-bold text-ink">{i.name}</p>
                   <p className="text-[11px] text-ink-soft">Qty {i.quantity} × {i.price}</p>
                 </div>
-                <p className="text-[12.5px] font-bold text-gold-deep">
+                <p className="text-[12.5px] font-bold text-blue-600">
                   {formatCents((parsePriceToCents(i.price) || 0) * i.quantity)}
                 </p>
               </li>
             ))}
           </ul>
-          <div className="space-y-1.5 border-b border-gold/20 pb-3 text-[12px]">
+          <div className="space-y-1.5 border-b border-neutral-200/20 pb-3 text-[12px]">
             <div className="flex justify-between text-ink-soft"><span>Subtotal</span><span className="text-ink">{formatCents(subtotalCents)}</span></div>
             <div className="flex justify-between text-ink-soft">
               <span>{s.deliveryMethod === "ship" ? "Standard shipping" : "Pickup in salon"}</span>
-              <span className="text-gold-deep">{s.deliveryMethod === "ship" ? "FREE" : "—"}</span>
+              <span className="text-blue-600">{s.deliveryMethod === "ship" ? "FREE" : "—"}</span>
             </div>
-            <div className="flex justify-between border-t border-gold/20 pt-2 text-[14px] font-bold text-ink">
-              <span>Total</span><span className="text-gold-deep">{formatCents(total)}</span>
+            <div className="flex justify-between border-t border-neutral-200/20 pt-2 text-[14px] font-bold text-ink">
+              <span>Total</span><span className="text-blue-600">{formatCents(total)}</span>
             </div>
           </div>
         </section>
@@ -630,7 +630,7 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
         {/* Details */}
         <section className="space-y-3">
           <h3 className={sectionHeaderCls}>Your Details</h3>
-          <div className="space-y-2 border border-gold/20 bg-cream-deep p-4 text-[12px]">
+          <div className="space-y-2 border border-neutral-200/20 bg-white-deep p-4 text-[12px]">
             <p className="text-ink-soft"><span className="font-bold text-ink">Name:</span> {s.firstName} {s.lastName}</p>
             <p className="text-ink-soft"><span className="font-bold text-ink">Email:</span> {s.email}</p>
             <p className="text-ink-soft"><span className="font-bold text-ink">Phone:</span> {s.phone}</p>
@@ -642,8 +642,8 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
             </p>
             {s.notes && <p className="text-ink-soft"><span className="font-bold text-ink">Notes:</span> {s.notes}</p>}
           </div>
-          <div className="flex items-center gap-2 border border-gold/25 bg-cream p-4 text-[11px] text-ink-soft">
-            <LockKey size={16} weight="fill" className="shrink-0 text-gold-deep" />
+          <div className="flex items-center gap-2 border border-neutral-200/25 bg-white p-4 text-[11px] text-ink-soft">
+            <LockKey size={16} weight="fill" className="shrink-0 text-blue-600" />
             <p>Payments are processed securely by Stripe. Your card details never touch our servers.</p>
           </div>
         </section>
@@ -653,13 +653,13 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
         type="button"
         onClick={onSubmit}
         disabled={submitting || redirecting}
-        className={`btn-gold w-full text-[11px] ${submitting || redirecting ? "cursor-wait opacity-70" : ""}`}
+        className={`inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 w-full text-[11px] ${submitting || redirecting ? "cursor-wait opacity-70" : ""}`}
       >
         <CreditCard size={14} weight="fill" />
         {redirecting ? "REDIRECTING TO STRIPE…" : submitting ? "CREATING SECURE ORDER…" : `PAY SECURELY — ${formatCents(total)}`}
       </button>
       <p className="text-center text-[10.5px] text-ink-soft">
-        <Sparkle size={10} weight="fill" className="mr-1 inline text-gold-deep" />
+        <Sparkle size={10} weight="fill" className="mr-1 inline text-blue-600" />
         By completing checkout you&apos;ll receive an email receipt for this order.
       </p>
     </div>
@@ -672,7 +672,7 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
 
 function Stepper({ step, labels, onJump }: { step: number; labels: string[]; onJump: (i: number) => void }) {
   return (
-    <div className="flex items-center justify-between border-b border-gold/25 pb-5">
+    <div className="flex items-center justify-between border-b border-neutral-200/25 pb-5">
       {labels.map((label, idx) => {
         const stepNumber = idx + 1
         const isActive = step === stepNumber
@@ -686,15 +686,15 @@ function Stepper({ step, labels, onJump }: { step: number; labels: string[]; onJ
               disabled={!canJump}
               className={`flex flex-col items-center gap-1.5 ${canJump ? "cursor-pointer" : "cursor-default"}`}
             >
-              <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-colors ${isActive ? "border-gold-deep bg-gold-deep text-cream" : isDone ? "border-gold-deep bg-gold-deep text-cream" : "border-gold/30 bg-cream text-gold-deep"}`}>
+              <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-colors ${isActive ? "border-blue-600 bg-blue-600 text-white" : isDone ? "border-blue-600 bg-blue-600 text-white" : "border-neutral-200/30 bg-white text-blue-600"}`}>
                 {isDone ? <Check size={14} weight="bold" /> : stepNumber}
               </span>
-              <span className={`hidden text-[8px] font-bold tracking-[0.08em] sm:block ${isActive ? "text-gold-deep" : "text-ink-soft"}`}>
+              <span className={`hidden text-[8px] font-bold tracking-[0.08em] sm:block ${isActive ? "text-blue-600" : "text-ink-soft"}`}>
                 {label.toUpperCase()}
               </span>
             </button>
             {idx < labels.length - 1 && (
-              <span className={`mx-1 h-px flex-1 ${step > stepNumber ? "bg-gold-deep" : "bg-gold/25"}`} />
+              <span className={`mx-1 h-px flex-1 ${step > stepNumber ? "bg-blue-600" : "bg-blue-600/25"}`} />
             )}
           </div>
         )
@@ -707,16 +707,16 @@ function Stepper({ step, labels, onJump }: { step: number; labels: string[]; onJ
 // Shared field primitives (same design as the booking wizard)
 // ===========================================================================
 
-const inputCls = "w-full border border-gold/35 bg-cream px-3.5 py-3 text-[14px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold-deep"
-const sectionHeaderCls = "text-[10px] font-bold tracking-[0.18em] text-gold-deep uppercase"
-const stepWrapCls = "border border-gold/30 bg-card p-7 lg:p-10"
+const inputCls = "w-full border border-neutral-200/35 bg-white px-3.5 py-3 text-[14px] text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-600"
+const sectionHeaderCls = "text-[10px] font-bold tracking-[0.18em] text-blue-600 uppercase"
+const stepWrapCls = "border border-neutral-200/30 bg-card p-7 lg:p-10"
 
 function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div>
-      <label className={labelCls}>{label}{required && <span className="text-gold-deep"> *</span>}</label>
+      <label className={labelCls}>{label}{required && <span className="text-blue-600"> *</span>}</label>
       {children}
     </div>
   )
 }
-const labelCls = "mb-1.5 block text-[9px] font-bold tracking-[0.16em] text-gold-deep"
+const labelCls = "mb-1.5 block text-[9px] font-bold tracking-[0.16em] text-blue-600"

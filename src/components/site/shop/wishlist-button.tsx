@@ -33,7 +33,7 @@ export function WishlistButton({ productId, name }: { productId: string; name: s
       className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-ink/10 bg-white/95 shadow-sm transition-all hover:border-gold-deep/50 hover:shadow"
     >
       <Heart
-        className={`h-4 w-4 transition-colors ${active ? "fill-gold-deep text-gold-deep" : "text-ink-soft"}`}
+        className={`h-4 w-4 transition-colors ${active ? "fill-blue-600 text-blue-600" : "text-ink-soft"}`}
         strokeWidth={1.8}
         aria-hidden="true"
       />

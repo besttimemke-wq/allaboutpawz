@@ -63,12 +63,12 @@ export function PlpToolbar({
           type="button"
           onClick={() => setDrawerOpen(true)}
           aria-expanded={drawerOpen}
-          className="inline-flex min-h-[44px] items-center gap-2 border border-ink/15 bg-cream px-4 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-gold-deep hover:text-gold-deep lg:hidden"
+          className="inline-flex min-h-[44px] items-center gap-2 border border-ink/15 bg-white px-4 text-[9.5px] font-bold tracking-[0.14em] text-ink transition-colors hover:border-blue-600 hover:text-blue-600 lg:hidden"
         >
           <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={2} />
           FILTERS
           {appliedCount > 0 && (
-            <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-gold-deep px-1 text-[8.5px] font-bold leading-none text-cream">
+            <span className="flex h-[16px] min-w-[16px] items-center justify-center bg-blue-600 px-1 text-[8.5px] font-bold leading-none text-white">
               {appliedCount}
             </span>
           )}
@@ -88,7 +88,7 @@ export function PlpToolbar({
             id="plp-sort"
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            className="min-h-[36px] cursor-pointer border border-ink/15 bg-cream px-3 py-1.5 text-[11px] font-semibold text-ink focus:border-gold-deep focus:outline-none"
+            className="min-h-[36px] cursor-pointer border border-ink/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-ink focus:border-blue-600 focus:outline-none"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -107,7 +107,7 @@ export function PlpToolbar({
             onClick={() => setDrawerOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute inset-y-0 left-0 flex w-[88%] max-w-[340px] flex-col border-r border-ink/10 bg-cream-deep/50 shadow-2xl animate-in slide-in-from-left duration-300">
+          <div className="absolute inset-y-0 left-0 flex w-[88%] max-w-[340px] flex-col border-r border-ink/10 bg-white-deep/50 shadow-2xl animate-in slide-in-from-left duration-300">
             <ShopSidebar
               key={JSON.stringify(sidebar.applied)}
               data={sidebar}

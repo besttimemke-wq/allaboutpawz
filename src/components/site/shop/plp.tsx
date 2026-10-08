@@ -50,18 +50,63 @@ export async function Plp({
 
   const currentPath = path || (scope.kind === "category" ? scope.node.path : scope.kind === "merch" ? `/shop/${scope.merch}` : "/shop")
 
-  // Context-aware nav tree — the sidebar's CATEGORIES section shows ONLY the
-  // animal the visitor is shopping (on /shop/dog/* → just Dog Supplies + its
-  // departments; on /shop/cat/* → just Cat Supplies + its departments;
-  // on /shop-all → both). This is the bifurcation the owner requires:
-  // clicking Dog Supplies should never show Cat categories in the rail.
-  const animalSlug = currentPath.startsWith("/shop/cat") ? "cat"
-    : currentPath.startsWith("/shop/dog") ? "dog"
-    : null
+  // Old taxonomy slugs → new canonical slugs (same map as taxonomy-pages.tsx).
+  // Inline here so plp.tsx doesn't need a cross-import.
+  const DEPT_ALIASES: Record<string, string> = {
+    "dog/wellness": "dog/health-wellness",
+    "dog/treats": "dog/treats-chews",
+    "dog/chew-toys": "dog/toys",
+    "dog/feeding-watering": "dog/bowls-feeding",
+    "dog/grooming": "dog/grooming-bathing",
+    "dog/grooming-essentials": "dog/grooming-bathing",
+    "dog/travel": "dog/outdoor-travel-gear",
+    "dog/beds-furniture": "dog/beds-bedding",
+    "cat/feeding-watering": "cat/bowls-feeders",
+    "cat/grooming": "cat/grooming-bathing",
+    "cat/health": "cat/health-wellness",
+  }
+
+  // Context-aware nav tree — the sidebar's CATEGORIES section shows the
+  // CHILDREN of wherever the visitor is (per the owner's pasted-content spec:
+  // every page starts with "Categories" = the children of the current node,
+  // then the filters below).
+  //
+  //   /shop            → all animals (Cat, Dog as top-level)
+  //   /shop/cat        → cat's departments (Food, Toys, Beds...)
+  //   /shop/cat/food   → food's subcategories (Broths, Dry Food, Wet Food...)
+  //   /shop/cat/food/dry-cat-food → same subcategories (siblings, current highlighted)
   const fullTree = buildNavTreeFromTaxonomy() as unknown as NavCategory[]
-  const navTree = animalSlug
-    ? fullTree.filter((node) => node.key === animalSlug)
-    : fullTree
+  const pathSegments = currentPath.split("/").filter(Boolean)
+
+  let navTree: NavCategory[]
+  let currentNode: NavCategory | null = null
+
+  if (pathSegments.length <= 1) {
+    // /shop → all animals
+    navTree = fullTree
+  } else {
+    const animalSlug = pathSegments[1] // "cat" or "dog"
+    const animalNode = fullTree.find(n => n.key === animalSlug)
+    if (!animalNode) {
+      navTree = fullTree
+    } else if (pathSegments.length === 2) {
+      // /shop/cat → cat's departments
+      navTree = [animalNode]
+      currentNode = animalNode
+    } else {
+      // /shop/cat/food or deeper → find the department, show ONLY its subcategories
+      const rawDeptSlug = pathSegments[2]
+      const canonicalDeptSlug = DEPT_ALIASES[`${animalSlug}/${rawDeptSlug}`] || rawDeptSlug
+      const deptNode = animalNode.children.find(c => c.key === `${animalSlug}/${canonicalDeptSlug}`)
+      if (deptNode) {
+        navTree = [deptNode]
+        currentNode = deptNode
+      } else {
+        navTree = [animalNode]
+        currentNode = animalNode
+      }
+    }
+  }
 
   const [merch, filterSections, state] = await Promise.all([
     getMerchCollections(),
@@ -93,7 +138,7 @@ export async function Plp({
   const sidebar: SidebarData = {
     categories: navTree,
     merch,
-    current: scope.kind === "category" ? scope.node : null,
+    current: currentNode,
     currentMerch: scope.kind === "merch" ? scope.merch : null,
     filterSections,
     applied,
@@ -173,7 +218,7 @@ export async function Plp({
             )}
             <Link
               href={basePath}
-              className="ml-1 text-[9px] font-bold tracking-[0.1em] text-gold-deep uppercase underline-offset-2 hover:underline"
+              className="ml-1 text-[9px] font-bold tracking-[0.1em] text-blue-600 uppercase underline-offset-2 hover:underline"
             >
               Clear all
             </Link>
@@ -302,7 +347,7 @@ function FilterChip({
   return (
     <Link
       href={qs ? `${basePath}?${qs}` : basePath}
-      className="inline-flex items-center gap-1.5 border border-ink/15 bg-cream px-2.5 py-1 text-[10px] font-semibold text-ink transition-colors hover:border-gold-deep hover:text-gold-deep"
+      className="inline-flex items-center gap-1.5 border border-ink/15 bg-white px-2.5 py-1 text-[10px] font-semibold text-ink transition-colors hover:border-blue-600 hover:text-blue-600"
       aria-label={`Remove filter ${label}`}
     >
       {label}
@@ -339,8 +384,8 @@ function PageLink({
       aria-current={active ? "page" : undefined}
       className={`flex h-8 min-w-8 items-center justify-center px-2 text-[11px] font-bold transition-colors ${
         active
-          ? "bg-gold-deep text-cream"
-          : "border border-ink/15 bg-cream text-ink hover:border-gold-deep hover:text-gold-deep"
+          ? "bg-blue-600 text-white"
+          : "border border-ink/15 bg-white text-ink hover:border-blue-600 hover:text-blue-600"
       }`}
     >
       {children}
@@ -356,8 +401,8 @@ function EmptyState({
   hasFilters: boolean
 }) {
   return (
-    <div className="mt-7 flex flex-col items-center border border-ink/10 bg-cream-deep/40 px-6 py-14 text-center">
-      <PawPrint className="h-8 w-8 text-gold/50" strokeWidth={1.2} aria-hidden="true" />
+    <div className="mt-7 flex flex-col items-center border border-ink/10 bg-white-deep/40 px-6 py-14 text-center">
+      <PawPrint className="h-8 w-8 text-blue-600/50" strokeWidth={1.2} aria-hidden="true" />
       <p className="mt-4 text-[13px] font-semibold text-ink">
         {hasFilters ? "No products match these filters." : "No products here yet."}
       </p>
@@ -368,11 +413,11 @@ function EmptyState({
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {hasFilters && (
-          <Link href={basePath} className="btn-gold text-[9px]">
+          <Link href={basePath} className="inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 text-[9px]">
             CLEAR ALL FILTERS
           </Link>
         )}
-        <Link href="/shop" className={hasFilters ? "btn-ghost text-[9px]" : "btn-gold text-[9px]"}>
+        <Link href="/shop" className={hasFilters ? "btn-ghost text-[9px]" : "inline-flex items-center justify-center rounded-md bg-blue-600 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-white uppercase transition-colors hover:bg-blue-700 text-[9px]"}>
           {hasFilters ? "VIEW ALL PRODUCTS" : "BROWSE THE COLLECTION"}
         </Link>
       </div>

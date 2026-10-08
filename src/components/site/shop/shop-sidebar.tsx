@@ -296,7 +296,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
                 <button
                   type="button"
                   onClick={clearAll}
-                  className="text-[11px] font-semibold text-gold-deep underline-offset-2 hover:underline"
+                  className="text-[11px] font-semibold text-blue-600 underline-offset-2 hover:underline"
                 >
                   Clear all
                 </button>
@@ -356,7 +356,7 @@ export function ShopSidebar({ data, onClose }: { data: SidebarData; onClose?: ()
                                       key={i}
                                       className={`h-[11px] w-[11px] ${
                                         i < Number.parseInt(r.value, 10)
-                                          ? "fill-gold-deep text-gold-deep"
+                                          ? "fill-blue-600 text-blue-600"
                                           : "fill-none text-ink-soft/40"
                                       }`}
                                       strokeWidth={1.5}
@@ -489,7 +489,7 @@ function PriceInput({
         }}
         placeholder={placeholder}
         aria-label={`${label} price in dollars`}
-        className="w-full border border-neutral-300 bg-white py-1.5 pl-5 pr-2 text-[11px] text-ink placeholder:font-semibold placeholder:text-neutral-400 focus:border-gold-deep focus:outline-none"
+        className="w-full border border-neutral-300 bg-white py-1.5 pl-5 pr-2 text-[11px] text-ink placeholder:font-semibold placeholder:text-neutral-400 focus:border-blue-600 focus:outline-none"
       />
     </label>
   )
@@ -516,11 +516,11 @@ function CheckRow({
           checked={checked}
           onChange={() => onToggle()}
           name={name}
-          className="peer h-[15px] w-[15px] cursor-pointer appearance-none border border-neutral-400 bg-white checked:border-gold-deep checked:bg-gold-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep/40"
+          className="peer h-[15px] w-[15px] cursor-pointer appearance-none border border-neutral-400 bg-white checked:border-blue-600 checked:bg-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/40"
         />
         <svg
           viewBox="0 0 12 12"
-          className="pointer-events-none absolute h-[9px] w-[9px] text-cream opacity-0 peer-checked:opacity-100"
+          className="pointer-events-none absolute h-[9px] w-[9px] text-white opacity-0 peer-checked:opacity-100"
           fill="none"
           aria-hidden="true"
         >
@@ -609,7 +609,7 @@ function FacetCheckList({
             }
             placeholder={`Search ${section.label.toLowerCase()}…`}
             aria-label={`Search ${section.label}`}
-            className="w-full border border-neutral-300 bg-white py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-neutral-400 focus:border-gold-deep focus:outline-none"
+            className="w-full border border-neutral-300 bg-white py-1.5 pl-7 pr-2 text-[11px] text-ink placeholder:text-neutral-400 focus:border-blue-600 focus:outline-none"
           />
         </div>
       )}
@@ -643,7 +643,7 @@ function FacetCheckList({
               onClick={() =>
                 setExpandedSections((s) => ({ ...s, [key]: !expanded }))
               }
-              className="flex w-full items-center justify-center gap-1 py-1 text-[11px] font-semibold text-gold-deep hover:underline"
+              className="flex w-full items-center justify-center gap-1 py-1 text-[11px] font-semibold text-blue-600 hover:underline"
               aria-expanded={expanded}
               aria-label={`${expanded ? "Show less" : "Show all"} ${section.label}`}
             >
