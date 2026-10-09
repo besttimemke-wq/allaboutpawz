@@ -20,7 +20,7 @@ const NAVY = "#002B5C"
 //   7. ADD TO CART (full-width, always visible)
 // ---------------------------------------------------------------------------
 
-type ProductData = {
+export type ProductCardData = {
   id: string
   name: string
   slug: string
@@ -40,11 +40,15 @@ type ProductData = {
   rating?: { avg: number; count: number }
 }
 
-export function ProductCard({ product, priority = false }: { product: ProductData; priority?: boolean }) {
+export function ProductCard({ product, priority = false }: { product: ProductCardData; priority?: boolean }) {
   const href = `/products/${product.slug}`
   const add = useCart((s) => s.add)
   const [added, setAdded] = useState(false)
+  // Broken image URLs (feed catalog items with dead hosts) fall back to the
+  // paw placeholder instead of a grey box.
+  const [imgOk, setImgOk] = useState(true)
   const imageSrc = product.image || product.fallbackImage || null
+  const showImage = imageSrc != null && imgOk
 
   // Badge priority per spec: SALE → NEW → BEST SELLER (one max)
   const badge = product.isOnSale ? "SALE"
@@ -88,13 +92,14 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
           </span>
         )}
         <Link href={href} aria-label={`View ${product.name}`} className="block h-full w-full">
-          {imageSrc ? (
+          {showImage ? (
             <img
-              src={imageSrc}
+              src={imageSrc as string}
               alt={product.alt || product.name}
               width={512}
               height={512}
               loading={priority ? "eager" : "lazy"}
+              onError={() => setImgOk(false)}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (

@@ -243,11 +243,15 @@ function PdpSection({
         tone === "muted" ? "bg-neutral-50" : "bg-white"
       }`}
     >
-      <p className="eyebrow">{eyebrow}</p>
-      <h2 className="mt-1.5 font-display text-[22px] leading-tight text-neutral-900 lg:text-[26px]">
-        {title}
-      </h2>
-      <div className="mt-5">{children}</div>
+      {/* Centered container — every PDP section aligns to the same column
+          (owner ruling: nothing hangs to the far right on wide screens). */}
+      <div className="mx-auto max-w-7xl">
+        <p className="eyebrow">{eyebrow}</p>
+        <h2 className="mt-1.5 font-display text-[22px] leading-tight text-neutral-900 lg:text-[26px]">
+          {title}
+        </h2>
+        <div className="mt-5">{children}</div>
+      </div>
     </section>
   )
 }
@@ -459,7 +463,7 @@ export default async function ProductPage({ params }: Params) {
     <>
       {/* 1 — Breadcrumb: Home / Shop / … / product */}
       <nav aria-label="Breadcrumb" className="border-b border-neutral-200 bg-white px-4 py-3 sm:px-6 lg:px-10">
-        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+        <ol className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
           <li>
             <Link href="/" className="text-neutral-500 hover:text-[#002B5C] hover:underline">
               Home
@@ -482,8 +486,10 @@ export default async function ProductPage({ params }: Params) {
         </ol>
       </nav>
 
-      {/* 2-6 — TOP: gallery | center info + pickers | buy column */}
-      <section className="grid grid-cols-1 gap-8 bg-white px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(0,0.74fr)] lg:gap-9 lg:px-10 lg:py-8">
+      {/* 2-6 — TOP: gallery | center info + pickers | buy column. Content is
+          centered in the same max-w-7xl column as every section below. */}
+      <section className="bg-white px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(0,0.74fr)] lg:gap-9">
         {/* 2 — Gallery */}
         <div>
           <ProductGallery images={product.media.slice(0, 8)} name={product.name} badge={badgeChip} />
@@ -634,6 +640,7 @@ export default async function ProductPage({ params }: Params) {
         <div className="min-w-0 lg:border-l lg:border-neutral-200 lg:pl-9">
           {/* key remounts the island on variant navigation → qty/added state reset */}
           <ProductBuyBox key={product.id} product={buyBoxProduct} />
+        </div>
         </div>
       </section>
 

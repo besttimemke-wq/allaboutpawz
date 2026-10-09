@@ -5,9 +5,9 @@ import { getSalonFavorites } from "@/lib/shop/salon-favorites"
 // ---------------------------------------------------------------------------
 // HomeAaPicks — the homepage's "AA Picks · Salon Favorites" trust band.
 //
-// Owner ruling: this band sits ABOVE THE FOOTER as the homepage's LAST
-// section (not mid-page), and the banner runs FULL-BLEED — edge to edge,
-// no side gutters — with every slide the SAME fixed size.
+// Owner ruling: part of the shop-visuals zone (right after the pet-type
+// bento), running FULL-BLEED — edge to edge, no side gutters — as a DENSE
+// rail of uniform pick banners (several visible at once, no navy panel).
 // ---------------------------------------------------------------------------
 
 export async function HomeAaPicks() {
@@ -18,8 +18,8 @@ export async function HomeAaPicks() {
 
   return (
     <section aria-labelledby="home-aa-picks-heading" className="marble bg-cream">
-      {/* Band header — homepage language, inside the standard container */}
-      <div className="mx-auto max-w-7xl px-8 pb-8 pt-12 lg:px-12">
+      {/* Band header — homepage language, same container as the bento band */}
+      <div className="mx-auto max-w-[1600px] px-6 pb-8 pt-12 lg:px-12">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-[560px]">
             <p className="eyebrow">AA PICKS · SALON FAVORITES</p>
@@ -38,8 +38,8 @@ export async function HomeAaPicks() {
         </div>
       </div>
 
-      {/* Full-bleed rotating banner — edge to edge, no side gutters */}
-      <div className="pb-14">
+      {/* Full-bleed dense rail — uniform pick banners, edge to edge */}
+      <div className="pb-12">
         <SalonFavoritesScroller products={favorites} />
       </div>
     </section>

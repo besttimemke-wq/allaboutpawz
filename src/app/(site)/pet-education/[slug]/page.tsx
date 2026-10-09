@@ -65,7 +65,6 @@ const TAKEAWAY_ICONS: Record<TakeawayItem["icon"], LucideIcon> = {
   scissors: Scissors,
   shield: ShieldCheck,
   heart: Heart,
-  sparkles: PawPrint,
   check: Check,
   award: Award,
   clock: Clock,

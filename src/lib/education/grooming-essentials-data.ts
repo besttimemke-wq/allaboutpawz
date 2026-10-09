@@ -18,7 +18,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Dermatological Balance',
         items: [
           { highlight: 'pH-calibrated formulations', text: 'protect the natural 6.5 to 7.5 canine epidermal acid mantle against bacterial invasion.' },
@@ -118,7 +118,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Application Precision',
         items: [
           { highlight: 'Direct powder press', text: 'dip the bleeding nail directly into the powder cap or apply via cotton applicator.' },
@@ -217,7 +217,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Efficient Lather Penetration',
         items: [
           { highlight: 'Curved massage scrubbers', text: 'distribute shampoo evenly down to the skin barrier with half the water consumption.' },
@@ -316,7 +316,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Undercoat Extraction Efficiency',
         items: [
           { highlight: 'Dual-depth staggered pins', text: 'target both medium and deep undercoat layers in a single methodical pass.' },
@@ -415,7 +415,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Conditioning & Sebum Restoration',
         items: [
           { highlight: 'Ceramide-3 infusion', text: 'repairs microscopic fissures between epidermal skin cells.' },
@@ -514,7 +514,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Japanese 440C Steel Metallurgy',
         items: [
           { highlight: 'Cryogenically tempered steel', text: 'holds a razor-sharp convex edge through thousands of cutting cycles.' },
@@ -613,7 +613,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Dual Grooming & De-Hairing Mitts',
         items: [
           { highlight: 'Textured silicone palm nodules', text: 'massages your pet while simultaneously lifting loose shedding directly off their coat.' },
@@ -712,7 +712,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Durable Textured Cloth Matrix',
         items: [
           { highlight: 'Extra-thick plant-based viscose', text: 'resists tearing against rough paw pads and thick canine claws.' },
@@ -811,7 +811,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Motor Engineering & Low Noise',
         items: [
           { highlight: 'Brushless rotary motor', text: 'delivers continuous torque without loud high-pitched whines that terrify pets.' },
@@ -911,7 +911,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Microbiome-Safe Formulation',
         items: [
           { highlight: 'Probiotic bio-enzymes', text: 'outcompetes odor-producing bacteria on the skin surface naturally.' },
@@ -1009,7 +1009,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Mat Anatomy & Split Mechanics',
         items: [
           { highlight: 'Splits rather than rips', text: 'preserves the majority of coat length while untangling dense cores.' },
@@ -1108,7 +1108,7 @@ export const GROOMING_ESSENTIALS_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'scissors',
         title: 'Pruritus Interruption',
         items: [
           { highlight: 'Pramoxine hydrochloride (1%)', text: 'stabilizes neuronal membranes to block the itch-scratch-damage cycle.' },

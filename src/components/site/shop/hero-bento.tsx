@@ -41,7 +41,18 @@ function tileSpan(index: number, total: number): string {
   return k % 3 === 2 ? "col-span-2" : "col-span-1"
 }
 
-function BentoCard({ tile, index, total }: { tile: BentoTile; index: number; total: number }) {
+function BentoCard({
+  tile,
+  index,
+  total,
+  eager = false,
+}: {
+  tile: BentoTile
+  index: number
+  total: number
+  /** Force eager loading (homepage shop band renders fully on first paint). */
+  eager?: boolean
+}) {
   const span = tileSpan(index, total)
   const isFeature = index === 0 || total <= 2
   const isWide = isFeature || span.includes("col-span-2")
@@ -57,7 +68,7 @@ function BentoCard({ tile, index, total }: { tile: BentoTile; index: number; tot
         <img
           src={tile.image}
           alt={tile.imageAlt}
-          loading={index <= 1 ? "eager" : "lazy"}
+          loading={eager || index <= 1 ? "eager" : "lazy"}
           decoding="async"
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
         />
@@ -156,12 +167,26 @@ export function ShopHeroBento({
  * language) reuse the EXACT same bento tiles as /shop without inheriting the
  * shop landing's open header.
  */
-export function BentoGrid({ tiles }: { tiles: BentoTile[] }) {
+export function BentoGrid({
+  tiles,
+  eager = false,
+  autoRows,
+}: {
+  tiles: BentoTile[]
+  eager?: boolean
+  /** Override the row heights, e.g. the homepage's larger tiles. */
+  autoRows?: string
+}) {
   if (tiles.length === 0) return null
+  const rows =
+    autoRows ??
+    "auto-rows-[108px] sm:auto-rows-[130px] lg:auto-rows-[152px]"
   return (
-    <div className="grid grid-flow-dense grid-cols-2 auto-rows-[108px] gap-2 sm:auto-rows-[130px] sm:gap-2.5 lg:grid-cols-4 lg:auto-rows-[152px] lg:gap-3">
+    <div
+      className={`grid grid-flow-dense grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4 lg:gap-3 ${rows}`}
+    >
       {tiles.map((tile, i) => (
-        <BentoCard key={tile.href} tile={tile} index={i} total={tiles.length} />
+        <BentoCard key={tile.href} tile={tile} index={i} total={tiles.length} eager={eager} />
       ))}
     </div>
   )

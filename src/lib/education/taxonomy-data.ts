@@ -410,7 +410,7 @@ export const SAMPLE_PAGES: Record<string, GuidePageData> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'check',
         title: 'Mid-South moisture defense',
         items: [
           { highlight: 'Sulfate-free hydrating botanicals', text: 'that protect natural lipid skin barriers in humid Tennessee summers.' },
@@ -716,7 +716,7 @@ export function getGuideDataBySlug(slug: string): GuidePageData {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'check',
         title: 'Mid-South Climate Defense',
         items: [
           { highlight: 'Pollen & humidity formulas', text: 'counteracting intense southern summer mold, grass allergies, and red clay staining.' },

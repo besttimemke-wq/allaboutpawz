@@ -7,7 +7,7 @@ export type TemplateArchetype =
   | 'health_wellness';
 
 export interface TakeawayItem {
-  icon: 'scissors' | 'shield' | 'heart' | 'sparkles' | 'check' | 'award' | 'clock' | 'map-pin';
+  icon: 'scissors' | 'shield' | 'heart' | 'check' | 'award' | 'clock' | 'map-pin';
   title: string;
   items: {
     highlight: string;

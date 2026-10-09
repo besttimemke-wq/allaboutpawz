@@ -40,7 +40,7 @@ export const DOMAIN_PROFILES: Record<string, Partial<DomainProfile>> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'shield',
         title: 'Bathing Cadence',
         items: [
           { highlight: '6 to 8-week salon bath', text: 'protects natural hydrophobic skin oils from stripping detergent depletion.' },
@@ -165,7 +165,7 @@ export const DOMAIN_PROFILES: Record<string, Partial<DomainProfile>> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'shield',
         title: 'Popular Salon Clips',
         items: [
           { highlight: 'Teddy Bear / Puppy Cut', text: 'uniform fluffy length over body with rounded face and soft ears.' },
@@ -222,7 +222,7 @@ export const DOMAIN_PROFILES: Record<string, Partial<DomainProfile>> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'shield',
         title: 'Mid-South Heat Care',
         items: [
           { highlight: 'Clean air circulation', text: 'a thoroughly deshedded coat allows breeze to cool the skin surface.' },
@@ -266,7 +266,7 @@ export const DOMAIN_PROFILES: Record<string, Partial<DomainProfile>> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'shield',
         title: 'When to Pause & Reset',
         items: [
           { highlight: 'Loose stool indicator', text: 'if stool becomes soft, hold current ratio for 48 hours before progressing.' },
@@ -323,7 +323,7 @@ export const DOMAIN_PROFILES: Record<string, Partial<DomainProfile>> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'shield',
         title: 'Breed-Size Customization',
         items: [
           { highlight: 'Small breed kibble', text: 'nutrient-dense mini bites supporting fast resting metabolic rates.' },
@@ -358,7 +358,7 @@ export const DOMAIN_PROFILES: Record<string, Partial<DomainProfile>> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'shield',
         title: 'Mid-South Specific Vectors',
         items: [
           { highlight: 'Lone Star Tick prevalence', text: 'transmits Ehrlichiosis and causes acute allergic swelling.' },
@@ -410,7 +410,7 @@ export const DOMAIN_PROFILES: Record<string, Partial<DomainProfile>> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'shield',
         title: 'Crate Construction Types',
         items: [
           { highlight: 'Wire collapsible crates', text: 'best for maximum ventilation in warm Mid-South home environments.' },
@@ -455,7 +455,7 @@ export const DOMAIN_PROFILES: Record<string, Partial<DomainProfile>> = {
         ],
       },
       {
-        icon: 'sparkles',
+        icon: 'shield',
         title: 'Mid-South Climate Formulas',
         items: [
           { highlight: 'Red clay & pollen cleansers', text: 'deep-cleansing washes remove stubborn Memphis soil and allergens.' },
