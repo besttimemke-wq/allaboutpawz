@@ -181,6 +181,80 @@ async function fetchTree(): Promise<TaxAnimal[]> {
   return animals
 }
 
+/**
+ * Collapse twin departments into ONE card per aisle for the animal landing
+ * bento. The feed seeded the same concept twice under dog/cat (supplier-tree
+ * node + curated seed), so the raw group list renders "Toys" AND "Dog Toys"
+ * as two tiles with the same photo. Aisle identity = GROUP_ALIASES /
+ * ANIMAL_GROUP_ALIASES canonical target + DEPT_TWINS edges; the
+ * product-rich twin represents the aisle (both routes resolve to the same
+ * unioned scope, so the choice only affects the label/href).
+ */
+export function dedupeAisleGroups(animal: TaxAnimal): TaxGroup[] {
+  if (animal.groups.length <= 1) return animal.groups
+  const bySlug = new Map(animal.groups.map((g) => [g.slug, g]))
+  const canonicalOf = (slug: string): string =>
+    ANIMAL_GROUP_ALIASES[`${animal.slug}/${slug}`] || GROUP_ALIASES[slug] || slug
+
+  // Union-find over twin edges.
+  const parent = new Map<string, string>()
+  for (const g of animal.groups) parent.set(g.slug, g.slug)
+  const find = (s: string): string => {
+    let r = s
+    while ((parent.get(r) ?? r) !== r) r = parent.get(r)!
+    // path compress
+    let c = s
+    while (c !== r) {
+      const next = parent.get(c) ?? r
+      parent.set(c, r)
+      c = next
+    }
+    return r
+  }
+  const union = (a: string, b: string) => {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra !== rb) parent.set(ra, rb)
+  }
+  for (const g of animal.groups) {
+    const canonical = canonicalOf(g.slug)
+    if (canonical !== g.slug && bySlug.has(canonical)) union(g.slug, canonical)
+    for (const t of DEPT_TWINS[`${animal.slug}/${canonical}`] ?? []) {
+      if (bySlug.has(t)) union(g.slug, t)
+    }
+  }
+
+  // Best representative per aisle: most products; tie → shorter (curated) slug.
+  const best = new Map<string, TaxGroup>()
+  for (const g of animal.groups) {
+    const root = find(g.slug)
+    const cur = best.get(root)
+    if (!cur || g.productCount > cur.productCount || (g.productCount === cur.productCount && g.slug.length < cur.slug.length)) {
+      best.set(root, g)
+    }
+  }
+
+  // Preserve original order, emit one tile per aisle (its representative).
+  const emitted = new Set<string>()
+  const out: TaxGroup[] = []
+  for (const g of animal.groups) {
+    const root = find(g.slug)
+    if (emitted.has(root)) continue
+    emitted.add(root)
+    out.push(best.get(root)!)
+  }
+  return out
+}
+
+/**
+ * Canonical LIVE department slug for a raw/static slug (resolves the static
+ * nav slugs and archived curated seeds to the live taxonomy_nodes slug the
+ * routes and image maps key on). Unknown slugs pass through unchanged.
+ */
+export function canonicalDeptSlug(animalSlug: string, groupSlug: string): string {
+  return ANIMAL_GROUP_ALIASES[`${animalSlug}/${groupSlug}`] || GROUP_ALIASES[groupSlug] || groupSlug
+}
+
 /** Cached live taxonomy tree (TTL + per-process). */
 export async function getTaxonomyTree(): Promise<TaxAnimal[]> {
   if (treeCache && Date.now() - treeCacheAt < TREE_TTL_MS) return treeCache

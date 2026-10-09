@@ -1,12 +1,12 @@
 import Link from "next/link"
-import { ChevronRight, ArrowRight, PawPrint, Plus } from "lucide-react"
+import { ChevronRight, ArrowRight, PawPrint } from "lucide-react"
 import { departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { BUSINESS } from "@/lib/business"
 import { SITE_URL } from "@/lib/site-url"
 import { breadcrumbSchema } from "@/lib/business"
-import { deptScopeNodeIds, type TaxAnimal, type TaxGroup, type TaxSub } from "@/lib/shop/taxonomy-db"
+import { deptScopeNodeIds, dedupeAisleGroups, canonicalDeptSlug, type TaxAnimal, type TaxGroup, type TaxSub } from "@/lib/shop/taxonomy-db"
 import { Plp } from "./plp"
-import { CategoryCarousel } from "./category-carousel"
+import { ShopHeroBento, type BentoTile } from "./hero-bento"
 import { ShopPromoBanner } from "./shop-promo-banner"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 
@@ -80,6 +80,32 @@ const DEPARTMENT_DESCRIPTION: Record<string, string> = {
   "reptile/reptile": "Habitats, heating, lighting, substrates, and feeders for herps of every kind.",
   // ---- small animal (live slugs) ----
   "small-animal/small-animal": "Habitats, bedding, hay, and chew toys for hamsters, rabbits, ferrets, and more.",
+  // ---- supplier-tree twin slugs (feed nodes CANONICAL for their aisle —
+  // e.g. /shop/dog/dog-beds is the master route for beds-bedding). Mirror
+  // the canonical descriptions so twin pages never show the fallback line.
+  "dog/dog-beds": "Bolster, orthopedic, cooling, and crate mats sized from teacup to giant breeds.",
+  "dog/dog-bowls-feeding": "Stainless, ceramic, slow-feeders, and auto feeders for every dining style.",
+  "dog/dog-cleanup": "Potty pads, poop bags, diapers, and enzyme cleaners for accidents and pickup.",
+  "dog/dog-dog-food": "Dry, wet, raw, freeze-dried, and air-dried food for every breed size and life stage.",
+  "dog/dog-dog-health-wellness": "Calming aids, dental care, joint supplements, and dewormers for healthy dogs.",
+  "dog/dog-dog-toys": "Chew, fetch, puzzle, and plush toys built for chewers, fetchers, and pullers.",
+  "dog/dog-flea-tick-solutions-for-dogs": "Topicals, collars, chews, and yard sprays to keep fleas and ticks off dogs.",
+  "dog/dog-grooming-supplies": "Coat-safe shampoos, slicker brushes, nail tools, and deshedding gear.",
+  "dog/dog-treats": "Biscuits, jerky, bully sticks, and dental chews for training and quiet evenings.",
+  "dog/collars-harnesses-leashes": "Collars, no-pull harnesses, leashes, and ID tags for every walk.",
+  "dog/crates-containment": "Crates, kennels, gates, and pens for safe containment at home and on the road.",
+  "cat/cat-beds": "Bolster, cave, heated, and orthopedic beds for the 16 hours a day a cat sleeps.",
+  "cat/bowls-feeders": "Whisker-friendly shallow bowls, elevated stands, and running water fountains.",
+  "cat/carriers-travel": "Soft carriers, hard crates, and strollers for vet trips and travel.",
+  "cat/cat-cat-food": "Dry kibble, wet pate, raw, and freeze-dried formulas for every life stage.",
+  "cat/cat-cat-furniture-scratchers": "Cat trees, scratching posts, window perches, and condos for vertical territory.",
+  "cat/cat-cat-health-wellness": "Calming aids, dental care, supplements, and flea prevention for indoor cats.",
+  "cat/cat-cat-toys": "Wands, mice, catnip toys, and electronic chasers for hunters and zoomies.",
+  "cat/cat-cat-treats": "Crunchy, soft, freeze-dried, and lickable treats for training or just because.",
+  "cat/cat-cleaners-waste-disposal": "Enzyme cleaners, litter systems, and potty supplies for clean floors.",
+  "cat/cat-grooming-bathing": "Feline-safe shampoos, brushes, nail tools, and waterless grooming wipes.",
+  "cat/cat-litter": "Clumping, crystal, natural, and lightweight litter plus every box style.",
+  "cat/flea-tick-solutions-for-cats": "Topical drops, collars, chews, and yard sprays to keep fleas and ticks off cats.",
 }
 
 function descriptionFor(deptPath: string): string {
@@ -102,8 +128,13 @@ const DEPARTMENT_IMAGE: Record<string, string> = {
   "dog/dog-flea-tick-solutions-for-dogs": "/Shop/departments/dog-flea-tick.jpeg",
   "dog/dog-grooming-supplies": "/Shop/departments/dog-grooming-bathing.jpeg",
   "dog/dog-cleaning-potty-supplies": "/Shop/departments/dog-cleaning-potty-supplies.jpeg",
-  "dog/dog-beds-bedding": "/Shop/departments/dog-beds-bedding.jpeg",
-  "dog/dog-training-behavior-supplies": "/Shop/departments/dog-training-behavior.png",
+  "dog/beds-bedding": "/Shop/departments/dog-beds-bedding.jpeg",
+  "dog/dog-beds": "/Shop/departments/dog-beds-bedding.jpeg",
+  "dog/dog-treats": "/Shop/departments/dog-treats-chews.jpeg",
+  "cat/cat-beds": "/Shop/departments/cat-beds-bedding.jpeg",
+  "cat/bowls-feeders": "/Shop/departments/cat-bowls-feeders.jpeg",
+  "cat/carriers-travel": "/Shop/departments/cat-carriers-containment.jpeg",
+  "dog/training-behavior-supplies": "/Shop/departments/dog-training-behavior.png",
   "cat/cat-cat-toys": "/Shop/departments/cat-toys.jpeg",
   "cat/cat-cat-food": "/Shop/departments/cat-food.jpeg",
   "cat/cat-cat-treats": "/Shop/departments/cat-treats.jpeg",
@@ -268,11 +299,14 @@ const FALLBACK_IMAGES = [
  */
 function taxImage(
   animalSlug: string,
-  groupSlug: string,
+  rawGroupSlug: string,
   subSlug?: string,
   fallbackIndex = 0,
   variant: "card" | "hero" = "card",
 ): string | undefined {
+  // Resolve static/archived/twin slugs to the LIVE canonical department slug
+  // the maps key on (e.g. dog-treats → dog-treats, dog-beds stays dog-beds).
+  const groupSlug = canonicalDeptSlug(animalSlug, rawGroupSlug)
   if (variant === "hero") {
     if (subSlug && CATEGORY_IMAGES.has(`${animalSlug}-${groupSlug}-${subSlug}`)) {
       return `/Shop/categories/${animalSlug}-${groupSlug}-${subSlug}-hero.jpg`
@@ -299,20 +333,21 @@ function taxImage(
   return undefined
 }
 
+// Leaf-page hero (SubcategoryPage only) — split title/image, NO quick links.
+// Category navigation lives in the sidebar Categories accordion on leaf
+// pages; a second card surface here duplicated it (owner dedup directive).
 function TaxonomyHero({
   eyebrow,
   title,
   description,
   image,
   imageAlt,
-  quickLinks,
 }: {
   eyebrow: string
   title: string
   description: string
   image?: string
   imageAlt: string
-  quickLinks: { name: string; href: string; image?: string; imageAlt: string }[]
 }) {
   return (
     <section className="px-6 pb-7 pt-5 lg:px-12">
@@ -322,8 +357,8 @@ function TaxonomyHero({
             <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-[#002B5C]/70">{eyebrow}</p>
             <h1 className="mt-2 font-display text-[34px] font-bold leading-tight text-[#002B5C] sm:text-[44px]">{title}</h1>
             <p className="mt-3 max-w-lg text-[16px] leading-relaxed text-neutral-700">{description}</p>
-            <Link href="#shop-category-carousel" className="mt-5 inline-flex min-h-12 w-fit items-center gap-2 bg-[#002B5C] px-5 text-[14px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">
-              Browse categories <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            <Link href="#shop-grid" className="mt-5 inline-flex min-h-12 w-fit items-center gap-2 bg-[#002B5C] px-5 text-[14px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#F2C500] hover:text-[#002B5C]">
+              Shop all <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
           <div className={`relative flex min-h-[220px] items-center justify-center overflow-hidden sm:min-h-[280px] ${image ? "bg-neutral-100" : "bg-[#002B5C]"}`}>
@@ -334,23 +369,6 @@ function TaxonomyHero({
             )}
           </div>
         </div>
-        {quickLinks.length > 0 && (
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {quickLinks.slice(0, 3).map((item) => (
-              <Link key={item.href} href={item.href} className="group grid grid-cols-[96px_1fr_auto] items-center gap-3 border border-neutral-200 bg-white p-2 transition-colors hover:border-[#F2C500]">
-                {item.image ? (
-                  <img src={item.image} alt={item.imageAlt} className="aspect-[4/3] h-full w-full object-cover" />
-                ) : (
-                  <div className="flex aspect-[4/3] items-center justify-center bg-[#002B5C] text-white/45">
-                    <PawPrint className="h-6 w-6" strokeWidth={1.2} aria-hidden="true" />
-                  </div>
-                )}
-                <span className="text-[15px] font-semibold leading-snug text-[#002B5C] underline-offset-4 decoration-[#F2C500] decoration-2 group-hover:underline">{item.name}</span>
-                <Plus className="mr-1 h-4 w-4 text-[#002B5C] transition-transform group-hover:rotate-90" aria-hidden="true" />
-              </Link>
-            ))}
-          </div>
-        )}
       </div>
     </section>
   )
@@ -368,7 +386,9 @@ export async function AnimalLandingPage({
 }) {
   const path = `/shop/${animal.slug}`
   const seo = findSeoCopy(path)
-  const tagline = `Everything for ${animal.name.replace(/ supplies$/i, "").toLowerCase()} — hand-picked by our Memphis team.`
+  const animalBase = animal.name.replace(/ supplies$/i, "").toLowerCase()
+  const animalPlural = animalBase.endsWith("s") || animalBase.includes("&") ? animalBase : `${animalBase}s`
+  const tagline = `Everything for ${animalPlural} — hand-picked by our Memphis team.`
   const breadcrumb = breadcrumbSchema([
     { name: "Home", url: "/" },
     { name: "Shop", url: "/shop" },
@@ -387,19 +407,30 @@ export async function AnimalLandingPage({
     })),
   }
 
-  // Product-rich groups lead the carousel; feed sort_order breaks ties.
-  const sortedGroups = [...animal.groups].sort(
+  // Product-rich aisles lead the bento; feed sort_order breaks ties. Twin
+  // departments (supplier node + curated seed of the SAME aisle) collapse to
+  // one card — no "Toys" + "Dog Toys" duplicates in the grid.
+  const sortedGroups = dedupeAisleGroups(animal).sort(
     (x, y) => y.productCount - x.productCount,
   )
-  const departmentCards = sortedGroups.map((d, i) => ({
+  const departmentCards: BentoTile[] = sortedGroups.map((d) => ({
     name: d.name,
-    description: descriptionFor(`${animal.slug}/${d.slug}`),
+    note: descriptionFor(`${animal.slug}/${d.slug}`),
     href: departmentPath(animal.slug, d.slug),
-    image: taxImage(animal.slug, d.slug, undefined, i),
+    image: d.heroImageUrl || taxImage(animal.slug, d.slug),
     imageAlt: `${d.name} — All About Pawz Memphis`,
   }))
   const heroImage = taxImage(animal.slug, sortedGroups[0]?.slug ?? "", undefined, 0, "hero")
   const plpFallbackImage = taxImage(animal.slug, sortedGroups[0]?.slug ?? "", undefined, 0)
+  // The FEATURE tile is the page's hero visual — prefer the curated wide
+  // department portrait over the pipeline's product packshot (a bag's back
+  // panel with a QR code must not be the biggest image on the page).
+  if (departmentCards[0]) {
+    departmentCards[0] = {
+      ...departmentCards[0],
+      image: taxImage(animal.slug, sortedGroups[0].slug) || departmentCards[0].image,
+    }
+  }
 
   return (
     <article className="bg-white">
@@ -418,13 +449,14 @@ export async function AnimalLandingPage({
         </div>
       </section>
 
-      <TaxonomyHero
+      {/* Bento hero — the SINGLE department-navigation surface. Was: hero
+          with 3 flat "+" cards + a full carousel of the same departments. */}
+      <ShopHeroBento
         eyebrow="SHOP BY ANIMAL"
         title={seo?.h1 || animal.name}
         description={tagline}
-        image={heroImage}
-        imageAlt={`${animal.name} collection at All About Pawz`}
-        quickLinks={departmentCards.slice(0, 3)}
+        tiles={departmentCards}
+        cta={{ label: `Shop all ${animal.name}`, href: "#shop-grid" }}
       />
       <ShopPromoBanner
         image={heroImage}
@@ -432,16 +464,13 @@ export async function AnimalLandingPage({
         href={path}
       />
 
-      <CategoryCarousel id="shop-category-carousel" title={`Shop ${animal.name.replace(" Supplies", "")} by Department`} cards={departmentCards} />
-
       {/* The PLP — sidebar (categories + filters) + product grid.
-          EVERY shop page has BOTH: the carousel above for browse-by-image,
+          EVERY shop page has BOTH: the bento above for browse-by-image,
           AND the sidebar+grid here for actual shopping. The sidebar's
           Categories section shows ONLY this animal's departments (the
           Plp filters by current path). The grid resolves from the LIVE
-          Supabase catalog scoped to this animal's whole taxonomy subtree.
-          Page size is capped at 10 with a See More control per spec. */}
-      <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
+          Supabase catalog scoped to this animal's whole taxonomy subtree. */}
+      <section id="shop-grid" className="scroll-mt-16 border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp
             scope={{ kind: "taxonomy", title: animal.name, path, nodeIds: [animal.id], rootId: animal.id }}
@@ -523,21 +552,22 @@ export async function DepartmentPage({
     })),
   }
 
-  // Subcategory cards: per-subcategory photo when one exists
-  // (CATEGORY_IMAGES), otherwise the department image — the "category page
-  // image duplicated onto every card" so nothing renders empty.
-  const parentDeptPath = `${animal.slug}/${dept.slug}`
-  // Card image (4:3) for the carousel/quick-links/PLP fallback; the wide 16:9
-  // crop feeds the full-bleed TaxonomyHero + ShopPromoBanner wells.
+  // Subcategory tiles: the imagery pipeline's product-derived hero first
+  // (taxonomy_nodes.hero_image_url — a DISTINCT photo per category), then the
+  // static per-subcategory set, then the department portrait. This is what
+  // killed the "same photo on every card" bug for dog/cat.
+  // Card image for the PLP fallback; the wide 16:9 crop feeds the promo well.
   const parentImage = taxImage(animal.slug, dept.slug, undefined, 0)
   const deptHeroImage = taxImage(animal.slug, dept.slug, undefined, 0, "hero")
-  const parentDescription = descriptionFor(parentDeptPath)
   const subcategoryCards = dept.subcategories.map((s, i) => ({
     name: s.name,
-    description: parentDescription,
     href: subcategoryPath(animal.slug, dept.slug, s.slug),
-    image: taxImage(animal.slug, dept.slug, s.slug, i) || parentImage,
+    image: s.heroImageUrl || taxImage(animal.slug, dept.slug, s.slug, i) || parentImage,
     imageAlt: `${s.name} — All About Pawz Memphis`,
+    note:
+      s.productCount > 0
+        ? `${s.productCount} product${s.productCount === 1 ? "" : "s"}`
+        : undefined,
   }))
   // LIVE product scope — the whole subtree of THIS department node UNION
   // its twin departments (feed + curated seeds of the same aisle).
@@ -562,29 +592,23 @@ export async function DepartmentPage({
         </div>
       </section>
 
-      <TaxonomyHero
+      {/* Bento hero — the SINGLE subcategory-navigation surface. Was: hero
+          with 3 flat "+" cards + a "Shop by Category" carousel duplicating
+          the same categories right below (owner dedup directive). */}
+      <ShopHeroBento
         eyebrow={animal.name}
         title={seo?.h1 || dept.name}
         description={descriptionFor(`${animal.slug}/${dept.slug}`)}
-        image={deptHeroImage}
-        imageAlt={`${dept.name} at All About Pawz`}
-        quickLinks={subcategoryCards.slice(0, 3)}
+        tiles={subcategoryCards}
+        cta={{ label: `Shop all ${dept.name}`, href: "#shop-grid" }}
       />
       <ShopPromoBanner image={deptHeroImage} imageAlt={`${dept.name} shop offer`} href={path} />
 
-      {subcategoryCards.length > 0 && (
-        <CategoryCarousel
-          id="shop-category-carousel"
-          title="Shop by Category"
-          cards={subcategoryCards}
-        />
-      )}
-
       {/* The PLP — sidebar (categories + filters) + product grid.
-          EVERY shop page has BOTH: the carousel above for browse-by-image,
+          EVERY shop page has BOTH: the bento above for browse-by-image,
           AND the sidebar+grid here for actual shopping. Scoped to the LIVE
-          department node (product_nodes + category_id), 10 per page. */}
-      <section className="border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
+          department node (product_nodes + category_id). */}
+      <section id="shop-grid" className="scroll-mt-16 border-t border-neutral-200 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp
             scope={{ kind: "taxonomy", title: dept.name, path, nodeIds, rootId: dept.id }}
@@ -659,16 +683,8 @@ export async function SubcategoryPage({
   ])
   const parentImage = taxImage(animal.slug, dept.slug, sub.slug, 0) || taxImage(animal.slug, dept.slug, undefined, 0)
   // Wide 16:9 crop for the hero/promo wells; the sub's own photo when one
-  // exists, otherwise the department's wide crop.
-  const subHeroImage = taxImage(animal.slug, dept.slug, sub.slug, 0, "hero") || taxImage(animal.slug, dept.slug, undefined, 0, "hero")
-  const siblingCards = dept.subcategories.map((s, i) => ({
-    name: s.name,
-    description: descriptionFor(`${animal.slug}/${dept.slug}`),
-    href: subcategoryPath(animal.slug, dept.slug, s.slug),
-    image: taxImage(animal.slug, dept.slug, s.slug, i) || parentImage,
-    imageAlt: `${s.name} at All About Pawz`,
-  }))
-  const quickLinks = siblingCards.filter((card) => card.href !== path)
+  // exists (pipeline hero first), otherwise the department's wide crop.
+  const subHeroImage = sub.heroImageUrl || taxImage(animal.slug, dept.slug, sub.slug, 0, "hero") || taxImage(animal.slug, dept.slug, undefined, 0, "hero")
   // LIVE product scope — the whole subtree of THIS sub node UNION its
   // department's twins (a sub can live in either seed of the department).
   const nodeIds = await deptScopeNodeIds(animal.slug, dept.slug, sub.id)
@@ -693,20 +709,18 @@ export async function SubcategoryPage({
         </div>
       </section>
 
+      {/* Leaf hero — no category cards here: sibling navigation lives in the
+          sidebar Categories accordion (single surface, owner dedup directive). */}
       <TaxonomyHero
         eyebrow={dept.name}
         title={seo?.h1 || subName}
         description={`Shop ${subName.toLowerCase()} at All About Pawz Memphis, selected for quality and everyday use.`}
         image={subHeroImage}
         imageAlt={`${subName} at All About Pawz`}
-        quickLinks={quickLinks.length > 0 ? quickLinks : [{ name: `All ${dept.name}`, href: departmentPath(animal.slug, dept.slug), image: parentImage, imageAlt: dept.name }]}
       />
       <ShopPromoBanner image={subHeroImage} imageAlt={`${subName} shop offer`} href={path} />
-      {siblingCards.length > 0 && (
-        <CategoryCarousel id="shop-category-carousel" title={`More in ${dept.name}`} cards={siblingCards} />
-      )}
 
-      <section className="px-6 pb-14 pt-6 lg:px-12">
+      <section id="shop-grid" className="scroll-mt-16 px-6 pb-14 pt-6 lg:px-12">
         <div className="mx-auto max-w-7xl">
           <Plp
             scope={{ kind: "taxonomy", title: sub.name, path, nodeIds, rootId: sub.id }}
