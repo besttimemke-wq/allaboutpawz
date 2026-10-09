@@ -1,4 +1,5 @@
 import pg from "pg"
+import { pgConnectionString } from "@/lib/pg"
 
 // ---------------------------------------------------------------------------
 // Simple messaging on the owner's Supabase table: user_notifications
@@ -28,11 +29,12 @@ export async function sendUserNotification(opts: {
   actionUrl?: string
   metadata?: Record<string, any>
 }): Promise<boolean> {
-  const cs = process.env.SUPABASE_SESSION_POOLER || process.env.SUPABASE_DIRECT_CONNECTION
+  // Shared, correctly-scoped pooler URI (transaction pooler — see lib/pg).
+  const cs = pgConnectionString
   if (!cs) return false
   const client = new pg.Client({ connectionString: cs, ssl: { rejectUnauthorized: false } })
-  await client.connect()
   try {
+    await client.connect()
     await client.query(
       `INSERT INTO public.user_notifications
          (tenant_id, user_id, notification_type, title, body, action_url, metadata)
@@ -57,11 +59,12 @@ export async function sendUserNotification(opts: {
 }
 
 export async function listUserNotifications(userId: string, limit = 100): Promise<UserNotificationRow[]> {
-  const cs = process.env.SUPABASE_SESSION_POOLER || process.env.SUPABASE_DIRECT_CONNECTION
+  // Shared, correctly-scoped pooler URI (transaction pooler — see lib/pg).
+  const cs = pgConnectionString
   if (!cs) return []
   const client = new pg.Client({ connectionString: cs, ssl: { rejectUnauthorized: false } })
-  await client.connect()
   try {
+    await client.connect()
     const res = await client.query(
       `SELECT id::text, notification_type, title, body, is_read, action_url, metadata, created_at::text
        FROM public.user_notifications

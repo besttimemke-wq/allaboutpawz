@@ -13,22 +13,51 @@
 
 import { Pool, PoolClient } from "pg";
 
-const connectionString = process.env.SUPABASE_SESSION_POOLER ?? "";
+// ---------------------------------------------------------------------------
+// SERVERLESS CONNECTION BUDGET (root-cause fix for EMAXCONNSESSION).
+// The SESSION pooler (:5432) gives every client a DEDICATED server session
+// and caps concurrent clients at pool_size: 15 per project. Production is
+// serverless (Vercel): each warm lambda instance parks its pool connections
+// with keepAlive + a 5-min idle timeout, so a handful of instances
+// permanently consume all 15 slots — the project answers every new dial with
+// (EMAXCONNSESSION), production pages 500 ("Application error: a server-side
+// exception"), and local dev + scripts starve.
+// The TRANSACTION pooler (:6543 — same pooler host, same credentials)
+// multiplexes each query over a shared server pool: clients do not own
+// sessions, so many concurrent workers coexist under the same server budget.
+// This app's pg usage is plain single-statement reads/writes (no SET, no
+// LISTEN, no advisory locks, no temp tables, no named prepared statements),
+// which is exactly the surface transaction mode supports.
+// SUPABASE_TX_POOLER overrides; session URIs are auto-upgraded by port swap.
+// ---------------------------------------------------------------------------
+const rawConnectionString =
+  process.env.SUPABASE_TX_POOLER ||
+  process.env.SUPABASE_SESSION_POOLER ||
+  process.env.SUPABASE_DIRECT_CONNECTION ||
+  "";
+
+function toTransactionPooler(cs: string): string {
+  // Only Supavisor pooler hosts have a transaction endpoint; a DIRECT
+  // (db.<ref>.supabase.co) connection must be passed through untouched.
+  if (!cs.includes("pooler.supabase.com")) return cs;
+  return cs.replace(/:5432(?=\/)/, ":6543");
+}
+
+const connectionString = toTransactionPooler(rawConnectionString);
+
+/** Resolved pooler URI for consumers that need a one-off client (notifications). */
+export const pgConnectionString = connectionString;
 
 if (!connectionString && process.env.NODE_ENV !== "production") {
   console.error(
     "[pg] Missing SUPABASE_SESSION_POOLER env var — DB queries will return empty results.",
   );
 }
-
 // ---------------------------------------------------------------------------
-// SESSION-POOLER BUDGET — Supabase's session pooler allows pool_size: 15
-// clients PER PROJECT. The previous per-module pool could be instantiated
-// once per Turbopack chunk graph (dev) and each opened up to 10 clients —
-// two module instances + a script = EMAXCONNSESSION, which 500s every SSR
-// page touching pg. The pool MUST be a process-wide singleton on globalThis
-// and its `max` must leave headroom under 15 (this process is not the only
-// consumer of the project's pooler budget).
+// POOL SHAPE — still a process-wide singleton on globalThis (Turbopack-safe)
+// with modest headroom. On the transaction pooler, client connections are
+// cheap (they don't own server sessions), so POOL_MAX sizes local concurrency
+// rather than a shared project budget.
 // ---------------------------------------------------------------------------
 const POOL_MAX = 5;
 
@@ -79,15 +108,23 @@ export async function pgQuery<T = Record<string, unknown>>(
   params: unknown[] = [],
 ): Promise<T[]> {
   if (!connectionString) return [];
-  const client = await getPool().connect();
+  // NOTE: pool.connect() is INSIDE the try — when the remote Supavisor is at
+  // its pool_size ceiling (15 slots are shared with the production deploy),
+  // connect() rejects. An uncaught rejection here was surfacing as
+  // "unhandledRejection" + "Application error: a server-side exception"
+  // on every SSR page in the request burst; the never-throws contract
+  // requires the connect attempt to be guarded too.
   try {
-    const { rows } = await client.query(text, params);
-    return rows as T[];
+    const client = await getPool().connect();
+    try {
+      const { rows } = await client.query(text, params);
+      return rows as T[];
+    } finally {
+      client.release();
+    }
   } catch (e) {
     console.error("[pg] query failed:", e instanceof Error ? e.message : String(e));
     return [];
-  } finally {
-    client.release();
   }
 }
 
@@ -97,14 +134,17 @@ export async function pgExec(
   params: unknown[] = [],
 ): Promise<number> {
   if (!connectionString) return 0;
-  const client = await getPool().connect();
+  // Same guard as pgQuery: connect() failures must not escape as rejections.
   try {
-    const { rowCount } = await client.query(text, params);
-    return rowCount ?? 0;
+    const client = await getPool().connect();
+    try {
+      const { rowCount } = await client.query(text, params);
+      return rowCount ?? 0;
+    } finally {
+      client.release();
+    }
   } catch (e) {
     console.error("[pg] exec failed:", e instanceof Error ? e.message : String(e));
     return 0;
-  } finally {
-    client.release();
   }
 }

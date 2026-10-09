@@ -1,15 +1,12 @@
 import { AuthShell, DoorDivider, DoorHint } from '@/components/pawz/auth/AuthShell';
 import { GoogleButton } from '@/components/pawz/auth/GoogleButton';
 import { EmailPasswordForm } from '@/components/pawz/auth/EmailPasswordForm';
-import { ShopEmailSignup } from '@/components/pawz/auth/ShopEmailSignup';
 
 // ============================================================================
 // /access-customer — THE CUSTOMER DOOR. Its own identity: CUSTOMER PORTAL.
 // Clients are created at checkout, booking, or walk-in — there is no public
-// registration desk. Registration is FLOW-SCOPED: Google signs up new
-// clients automatically, and the email path creates the client record the
-// moment they start checking out (shop-signup → one-tap magic link back to
-// the bag) — the same mechanic the booking flow has always had.
+// registration. Google sign-in links to the existing customer record by
+// exact email; unknown emails are rejected by the salon gate.
 // ============================================================================
 
 export const metadata = { title: 'Customer Portal — All About Pawz' };
@@ -49,9 +46,6 @@ export default async function AccessCustomerPage({
         redirectTo={redirect}
         initialError={initialError}
       />
-      <div className="pt-6">
-        <ShopEmailSignup redirect={redirect} />
-      </div>
     </AuthShell>
   );
 }
