@@ -6,6 +6,7 @@ import { LandingAppointmentModal } from "@/components/site/islands/landing-appoi
 import { HomeHeroCopy, HomeHeroSubtitle, HomeTestimonial } from "@/components/site/islands/home-islands"
 import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
+import { HomeShopBento } from "@/components/site/islands/home-shop-bento"
 import { SITE_URL } from "@/lib/site-url"
 
 const STEPS = [
@@ -72,6 +73,11 @@ export default function HomePage() {
           <FeaturedServicesGrid />
         </div>
       </section>
+
+      {/* SHOP ALL PET TYPES + AA PICKS · SALON FAVORITES — the owner's
+          directive: a Bento card for every pet type, then the salon-favorites
+          curation as the homepage trust signal instead of a reviews wall. */}
+      <HomeShopBento />
 
       {/* PAWZITIVE DIFFERENCE — original constraint: text left, image right
           FILLING the full column height (object-cover, absolute inset) — no

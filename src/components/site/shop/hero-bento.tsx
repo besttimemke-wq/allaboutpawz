@@ -103,6 +103,7 @@ export function ShopHeroBento({
   description,
   tiles,
   cta,
+  headingTag = "h1",
 }: {
   eyebrow: string
   title: string
@@ -110,16 +111,19 @@ export function ShopHeroBento({
   tiles: BentoTile[]
   /** Optional right-aligned header link (e.g. "Shop all Dog Supplies" → grid anchor). */
   cta?: { label: string; href: string }
+  /** Heading level — h2 when the bento sits on a page that already has an h1 (homepage). */
+  headingTag?: "h1" | "h2"
 }) {
+  const Heading = headingTag
   return (
     <section className="px-6 pb-8 pt-5 lg:px-12">
       <div className="mx-auto max-w-7xl">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 lg:mb-5">
           <div className="max-w-2xl">
             <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-[#002B5C]/70">{eyebrow}</p>
-            <h1 className="mt-1.5 font-display text-[32px] font-bold leading-tight text-[#002B5C] sm:text-[42px]">
+            <Heading className="mt-1.5 font-display text-[32px] font-bold leading-tight text-[#002B5C] sm:text-[42px]">
               {title}
-            </h1>
+            </Heading>
             <p className="mt-2 text-[15px] leading-relaxed text-neutral-700 lg:text-[16px]">{description}</p>
           </div>
           {cta && tiles.length > 0 && (
