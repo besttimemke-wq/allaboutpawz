@@ -172,6 +172,37 @@ const CATEGORY_IMAGES = new Set([
   "bird-bird-perches",
   "bird-bird-supplements",
   "bird-bird-toys",
+  // small-animal (stock library — scripts/fetch-category-stock.mjs)
+  "small-animal-small-animal-accessories",
+  "small-animal-small-animal-bedding",
+  "small-animal-small-animal-dishes-waterers",
+  "small-animal-small-animal-feeders-waterers",
+  "small-animal-small-animal-food",
+  "small-animal-small-animal-food-ferret",
+  "small-animal-small-animal-food-hamster",
+  "small-animal-small-animal-food-hamster-gerbil",
+  "small-animal-small-animal-food-rabbit",
+  "small-animal-small-animal-grooming",
+  "small-animal-small-animal-habitats",
+  "small-animal-small-animal-litter",
+  "small-animal-small-animal-supplements",
+  "small-animal-small-animal-toys",
+  "small-animal-small-animal-treats",
+  "small-animal-small-animal-treats-ferret",
+  // reptile (stock library — scripts/fetch-category-stock.mjs)
+  "reptile-reptile-bedding-substrates",
+  "reptile-reptile-cleaning",
+  "reptile-reptile-decor",
+  "reptile-reptile-dishes",
+  "reptile-reptile-filter-pumps",
+  "reptile-reptile-food",
+  "reptile-reptile-habitat-accessory",
+  "reptile-reptile-habitats",
+  "reptile-reptile-heaters-gauges",
+  "reptile-reptile-light-fixtures-bulbs",
+  "reptile-reptile-liners",
+  "reptile-reptile-supplements",
+  "reptile-reptile-treats",
 ])
 
 // Animal-level portraits for the non-cat/dog animals.
@@ -179,7 +210,33 @@ const ANIMAL_IMAGE: Record<string, string> = {
   fish: "/Shop/categories/fish.jpg",
   bird: "/Shop/categories/bird.jpg",
   reptile: "/Shop/categories/reptile.jpg",
-  "small-animal": "/Shop/categories/small-pet.jpg",
+  "small-animal": "/Shop/categories/small-animal.jpg",
+}
+
+// Department-level card images for the species whose single department
+// previously fell through to the animal portrait (the "same photo on every
+// slot" bug). Stock library — scripts/fetch-category-stock.mjs.
+const DEPARTMENT_IMAGE_EXTRA: Record<string, string> = {
+  "small-animal/small-animal": "/Shop/categories/small-animal-small-animal.jpg",
+  "reptile/reptile": "/Shop/categories/reptile-reptile.jpg",
+}
+
+// Wide 16:9 crops for the full-bleed slots (TaxonomyHero image well is ~2:1,
+// ShopPromoBanner is 16:9 on mobile) — a 4:3 card crop blown into those slots
+// is what made the old hero look soft and over-cropped. Fish/bird crops are
+// derived locally from the imported Wikimedia files (scripts/recrop-heroes.mjs);
+// small-animal/reptile come from the stock pipeline at 1600x900.
+const DEPARTMENT_HERO_IMAGE: Record<string, string> = {
+  "fish/aquatics": "/Shop/categories/fish-aquatics-hero.jpg",
+  "bird/bird": "/Shop/categories/bird-bird-hero.jpg",
+  "small-animal/small-animal": "/Shop/categories/small-animal-small-animal-hero.jpg",
+  "reptile/reptile": "/Shop/categories/reptile-reptile-hero.jpg",
+}
+const ANIMAL_HERO_IMAGE: Record<string, string> = {
+  fish: "/Shop/categories/fish-hero.jpg",
+  bird: "/Shop/categories/bird-hero.jpg",
+  reptile: "/Shop/categories/reptile-hero.jpg",
+  "small-animal": "/Shop/categories/small-animal-hero.jpg",
 }
 
 // Fallback breed portraits for departments WITHOUT a generated image.
@@ -200,21 +257,40 @@ const FALLBACK_IMAGES = [
 /**
  * Image resolution chain for a card, keyed by LIVE taxonomy slugs:
  *   1. per-subcategory photo    /Shop/categories/{a}-{g}-{s}.jpg
- *   2. per-department portrait  /Shop/departments/{a}-{g}.jpeg
+ *   2. per-department portrait  /Shop/departments/{a}-{g}.jpeg (+ stock extras)
  *   3. animal-level portrait    /Shop/categories/{animal}.jpg
  *   4. breed fallback (dog/cat only)
+ *
+ * variant="hero" swaps in the 16:9 wide crops for the full-bleed slots
+ * (TaxonomyHero / ShopPromoBanner): {a}-{g}-{s}-hero.jpg → {a}-{g}-hero.jpg
+ * → {a}-hero.jpg, falling through to the card chain for dog/cat so their
+ * generated department portraits keep working.
  */
 function taxImage(
   animalSlug: string,
   groupSlug: string,
   subSlug?: string,
   fallbackIndex = 0,
+  variant: "card" | "hero" = "card",
 ): string | undefined {
+  if (variant === "hero") {
+    if (subSlug && CATEGORY_IMAGES.has(`${animalSlug}-${groupSlug}-${subSlug}`)) {
+      return `/Shop/categories/${animalSlug}-${groupSlug}-${subSlug}-hero.jpg`
+    }
+    if (DEPARTMENT_HERO_IMAGE[`${animalSlug}/${groupSlug}`]) {
+      return DEPARTMENT_HERO_IMAGE[`${animalSlug}/${groupSlug}`]
+    }
+    if (ANIMAL_HERO_IMAGE[animalSlug]) return ANIMAL_HERO_IMAGE[animalSlug]
+    // else fall through — dog/cat heroes stay on the generated portraits
+  }
   if (subSlug && CATEGORY_IMAGES.has(`${animalSlug}-${groupSlug}-${subSlug}`)) {
     return `/Shop/categories/${animalSlug}-${groupSlug}-${subSlug}.jpg`
   }
   if (DEPARTMENT_IMAGE[`${animalSlug}/${groupSlug}`]) {
     return DEPARTMENT_IMAGE[`${animalSlug}/${groupSlug}`]
+  }
+  if (DEPARTMENT_IMAGE_EXTRA[`${animalSlug}/${groupSlug}`]) {
+    return DEPARTMENT_IMAGE_EXTRA[`${animalSlug}/${groupSlug}`]
   }
   if (ANIMAL_IMAGE[animalSlug]) return ANIMAL_IMAGE[animalSlug]
   if (animalSlug === "dog" || animalSlug === "cat") {
@@ -322,7 +398,8 @@ export async function AnimalLandingPage({
     image: taxImage(animal.slug, d.slug, undefined, i),
     imageAlt: `${d.name} — All About Pawz Memphis`,
   }))
-  const heroImage = taxImage(animal.slug, sortedGroups[0]?.slug ?? "", undefined, 0)
+  const heroImage = taxImage(animal.slug, sortedGroups[0]?.slug ?? "", undefined, 0, "hero")
+  const plpFallbackImage = taxImage(animal.slug, sortedGroups[0]?.slug ?? "", undefined, 0)
 
   return (
     <article className="bg-white">
@@ -370,7 +447,7 @@ export async function AnimalLandingPage({
             scope={{ kind: "taxonomy", title: animal.name, path, nodeIds: [animal.id], rootId: animal.id }}
             searchParams={searchParams || {}}
             perPage={48}
-            fallbackImage={heroImage}
+            fallbackImage={plpFallbackImage}
           />
         </div>
       </section>
@@ -450,7 +527,10 @@ export async function DepartmentPage({
   // (CATEGORY_IMAGES), otherwise the department image — the "category page
   // image duplicated onto every card" so nothing renders empty.
   const parentDeptPath = `${animal.slug}/${dept.slug}`
+  // Card image (4:3) for the carousel/quick-links/PLP fallback; the wide 16:9
+  // crop feeds the full-bleed TaxonomyHero + ShopPromoBanner wells.
   const parentImage = taxImage(animal.slug, dept.slug, undefined, 0)
+  const deptHeroImage = taxImage(animal.slug, dept.slug, undefined, 0, "hero")
   const parentDescription = descriptionFor(parentDeptPath)
   const subcategoryCards = dept.subcategories.map((s, i) => ({
     name: s.name,
@@ -486,11 +566,11 @@ export async function DepartmentPage({
         eyebrow={animal.name}
         title={seo?.h1 || dept.name}
         description={descriptionFor(`${animal.slug}/${dept.slug}`)}
-        image={parentImage}
+        image={deptHeroImage}
         imageAlt={`${dept.name} at All About Pawz`}
         quickLinks={subcategoryCards.slice(0, 3)}
       />
-      <ShopPromoBanner image={parentImage} imageAlt={`${dept.name} shop offer`} href={path} />
+      <ShopPromoBanner image={deptHeroImage} imageAlt={`${dept.name} shop offer`} href={path} />
 
       {subcategoryCards.length > 0 && (
         <CategoryCarousel
@@ -578,6 +658,9 @@ export async function SubcategoryPage({
     { name: subName, url: path },
   ])
   const parentImage = taxImage(animal.slug, dept.slug, sub.slug, 0) || taxImage(animal.slug, dept.slug, undefined, 0)
+  // Wide 16:9 crop for the hero/promo wells; the sub's own photo when one
+  // exists, otherwise the department's wide crop.
+  const subHeroImage = taxImage(animal.slug, dept.slug, sub.slug, 0, "hero") || taxImage(animal.slug, dept.slug, undefined, 0, "hero")
   const siblingCards = dept.subcategories.map((s, i) => ({
     name: s.name,
     description: descriptionFor(`${animal.slug}/${dept.slug}`),
@@ -614,11 +697,11 @@ export async function SubcategoryPage({
         eyebrow={dept.name}
         title={seo?.h1 || subName}
         description={`Shop ${subName.toLowerCase()} at All About Pawz Memphis, selected for quality and everyday use.`}
-        image={parentImage}
+        image={subHeroImage}
         imageAlt={`${subName} at All About Pawz`}
         quickLinks={quickLinks.length > 0 ? quickLinks : [{ name: `All ${dept.name}`, href: departmentPath(animal.slug, dept.slug), image: parentImage, imageAlt: dept.name }]}
       />
-      <ShopPromoBanner image={parentImage} imageAlt={`${subName} shop offer`} href={path} />
+      <ShopPromoBanner image={subHeroImage} imageAlt={`${subName} shop offer`} href={path} />
       {siblingCards.length > 0 && (
         <CategoryCarousel id="shop-category-carousel" title={`More in ${dept.name}`} cards={siblingCards} />
       )}

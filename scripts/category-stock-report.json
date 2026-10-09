@@ -1,0 +1,22 @@
+[
+  {
+    "key": "fish",
+    "query": "colorful tropical fish swimming in aquarium photo",
+    "status": "ok",
+    "picked": {
+      "index": 0,
+      "url": "https://z-cdn.chatglm.cn/image-search-mcp/images-ppt/9b76ba24f5c2.jpeg",
+      "verdict": {
+        "best": 1,
+        "reasons": {
+          "1": "ok",
+          "2": "rejected: contains watermarks and overlaid text (Shutterstock)",
+          "3": "rejected: illustration/AI-generated image, not a real photograph",
+          "4": "ok"
+        }
+      }
+    },
+    "cardBytes": 103101,
+    "heroBytes": 122664
+  }
+]
