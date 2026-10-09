@@ -194,7 +194,7 @@ const COLLECTION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/shop/collections/new/new-for-cats",               label: "New for Cats",                   pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
   { path: "/shop/collections/new/new-for-dogs",               label: "New for Dogs",                    pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
   { path: "/shop/collections/new/new-for-pet-parents",        label: "New for Pet Parents",              pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
-  { path: "/shop/collections/all-about-pawz-picks",          label: "All About Pawz Picks",           pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/salon-favorites",               label: "AA Picks — Salon Favorites",     pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
   { path: "/shop/collections/pride-for-pets",                 label: "Pride for Pets",                  pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
   { path: "/shop/collections/pride-for-pets/dog-pride",       label: "Dog Pride",                      pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
   { path: "/shop/collections/spring",                          label: "Spring",                          pageType: "collection", changeFrequency: "monthly", priority: 0.4 },

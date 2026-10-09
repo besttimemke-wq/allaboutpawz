@@ -148,3 +148,20 @@ export function ShopHeroBento({
     </section>
   )
 }
+
+/**
+ * BentoGrid — just the tile grid, no header. Lets pages that render their own
+ * band header in the local page design (e.g. the homepage's marble/cream
+ * language) reuse the EXACT same bento tiles as /shop without inheriting the
+ * shop landing's open header.
+ */
+export function BentoGrid({ tiles }: { tiles: BentoTile[] }) {
+  if (tiles.length === 0) return null
+  return (
+    <div className="grid grid-flow-dense grid-cols-2 auto-rows-[108px] gap-2 sm:auto-rows-[130px] sm:gap-2.5 lg:grid-cols-4 lg:auto-rows-[152px] lg:gap-3">
+      {tiles.map((tile, i) => (
+        <BentoCard key={tile.href} tile={tile} index={i} total={tiles.length} />
+      ))}
+    </div>
+  )
+}

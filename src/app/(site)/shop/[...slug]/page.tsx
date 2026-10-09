@@ -25,6 +25,7 @@ import {
   type MerchKey,
 } from "@/lib/shop/catalog"
 import { resolveTaxPath } from "@/lib/shop/taxonomy-db"
+import { SalonFavoritesCollection } from "@/components/site/shop/salon-favorites-collection"
 import { departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { SITE_URL } from "@/lib/site-url"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
@@ -94,6 +95,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: `${MERCH_META[merch].displayName} — All About Pawz Shop`,
       description: MERCH_META[merch].blurb,
       alternates: { canonical: `${SITE_URL}/shop/${merch}` },
+    }
+  }
+  // AA Picks · Salon Favorites — the owner-curated trust collection.
+  if (slug[0] === "collections" && slug[1] === "salon-favorites") {
+    return {
+      title: "AA Picks — Salon Favorites | All About Pawz",
+      description:
+        "The products our groomers keep on the shelf and use on the table — hand-picked in Memphis. Shop the AA Picks salon-favorites curation.",
+      alternates: { canonical: `${SITE_URL}/shop/collections/salon-favorites` },
     }
   }
   const resolvedLegacy = await resolveCategory(slug || [])
@@ -185,6 +195,27 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
         />
       </>
     )
+  }
+
+  // ---- AA Picks · Salon Favorites collection (owner-curated trust surface) ----
+  if (segments[0] === "collections") {
+    // The original picks slug follows the products to the canonical page.
+    if (segments[1] === "all-about-pawz-picks") {
+      permanentRedirect("/shop/collections/salon-favorites")
+    }
+    if (segments[1] === "salon-favorites" && segments.length === 2) {
+      const favTrail = [{ name: "AA Picks — Salon Favorites", path: "/shop/collections/salon-favorites" }]
+      return (
+        <>
+          <PageHeader n="06" label="SHOP / AA PICKS — SALON FAVORITES" />
+          <SalonFavoritesCollection />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(favTrail)) }}
+          />
+        </>
+      )
+    }
   }
 
   // ---- Category resolution (server, per request) — legacy mini-catalog ----

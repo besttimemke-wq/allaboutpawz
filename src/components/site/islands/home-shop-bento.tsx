@@ -1,20 +1,22 @@
 import Link from "next/link"
-import { ShopHeroBento, type BentoTile } from "@/components/site/shop/hero-bento"
+import { BentoGrid, type BentoTile } from "@/components/site/shop/hero-bento"
 import { SalonFavoritesScroller } from "@/components/site/islands/salon-favorites-scroller"
 import { getSalonFavorites } from "@/lib/shop/salon-favorites"
 
 // ---------------------------------------------------------------------------
 // HomeShopBento — the homepage's shop surface, per the owner's directive:
 //   1. ONE Bento card grid that shops ALL the pet types (dog, cat, fish,
-//      bird, reptile, small animal) — same Chewy-style bento the /shop
-//      landing uses, so the storefront reads as one system.
-//   2. Directly beneath it, the "AA Picks · Salon Favorites" scroller —
-//      the owner-curated curation (products.is_salon_favorite in Supabase)
-//      standing in as the trust signal INSTEAD of a reviews wall: every
-//      pick is one the salon team actually uses, and every card is
-//      shoppable.
-// Server component; the favorites query is TTL-cached (5 min, SWR) so the
-// homepage render only ever pays it once.
+//      bird, reptile, small animal) — the same bento tiles as /shop.
+//   2. Beneath it, the "AA Picks · Salon Favorites" scroller — the
+//      owner-curated curation (products.is_salon_favorite) as the trust
+//      signal INSTEAD of a reviews wall: light pick cards, no add-to-cart.
+//
+// Owner ruling: a section added to the HOMEPAGE must match the HOMEPAGE's
+// design — so both bands live in the front page's marble/cream language
+// (eyebrow + display serif heading + gold/navy accents), NOT the shop
+// page's open-header styling. Nothing that was on the homepage was removed;
+// this section is purely additive between the Services band and the
+// Pawzitive Difference band.
 // ---------------------------------------------------------------------------
 
 const PET_TYPE_TILES: BentoTile[] = [
@@ -70,43 +72,50 @@ export async function HomeShopBento() {
   const favorites = await getSalonFavorites(12)
 
   return (
-    <section aria-labelledby="home-shop-heading" className="border-t border-neutral-200 bg-white">
-      {/* 1. Shop-all-pet-types bento */}
-      <div className="pt-8">
-        <ShopHeroBento
-          eyebrow="THE PAWZ SHOP"
-          headingTag="h2"
-          title="Shop every kind of pet"
-          description="One local shop for the whole crew — dogs, cats, fish, birds, reptiles, and small animals. Curated in Memphis, backed by our salon."
-          tiles={PET_TYPE_TILES}
-        />
-      </div>
-
-      {/* 2. AA Picks · Salon Favorites — the trust signal (instead of reviews) */}
-      <div className="border-t border-neutral-200 px-6 py-10 lg:px-12">
-        <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="eyebrow">AA PICKS · SALON FAVORITES</p>
-            <h2
-              id="home-shop-heading"
-              className="mt-2 font-display text-[26px] leading-[1.15] text-ink lg:text-[32px]"
-            >
-              Hand-picked by our groomers.
+    <section aria-labelledby="home-shop-heading" className="marble bg-cream">
+      {/* 1. Shop-all-pet-types bento — homepage band language */}
+      <div className="mx-auto max-w-7xl px-8 pb-10 pt-12 lg:px-12">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-[560px]">
+            <p className="eyebrow">THE PAWZ SHOP</p>
+            <h2 className="mt-2 font-display text-[30px] leading-[1.15] text-ink">
+              Shop every kind of pet.
             </h2>
-            <p className="mt-3 max-w-[560px] text-[13px] leading-[1.7] text-ink-soft">
-              No pay-to-play review walls here — these are the products our salon team
-              keeps on the shelf and uses on the table every week. If it made the
-              AA&nbsp;Picks curation, we stand behind it.
+            <p className="mt-3 text-[12.5px] leading-[1.75] text-ink-soft">
+              One local shop for the whole crew — dogs, cats, fish, birds, reptiles,
+              and small animals. Curated in Memphis, backed by our salon.
             </p>
           </div>
-          <Link
-            href="/shop/collections/salon-favorites"
-            className="inline-flex shrink-0 items-center gap-2 self-start rounded-md bg-[#002B5C] px-4 py-2.5 text-[12px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#0A3D7C] sm:self-auto"
-          >
-            Shop all picks →
+          <Link href="/shop" className="btn-ghost shrink-0 self-start sm:self-auto">
+            VISIT THE SHOP
           </Link>
         </div>
-        <SalonFavoritesScroller products={favorites} />
+        <div className="mt-7">
+          <BentoGrid tiles={PET_TYPE_TILES} />
+        </div>
+      </div>
+
+      {/* 2. AA Picks · Salon Favorites — trust signal (instead of reviews) */}
+      <div className="border-t border-gold/25">
+        <div className="mx-auto max-w-7xl px-8 py-11 lg:px-12">
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-[560px]">
+              <p className="eyebrow">AA PICKS · SALON FAVORITES</p>
+              <h3 className="mt-2 font-display text-[26px] leading-[1.15] text-ink lg:text-[28px]">
+                Hand-picked by our groomers.
+              </h3>
+              <p className="mt-3 text-[12.5px] leading-[1.75] text-ink-soft">
+                No pay-to-play review walls — these are the products our salon team
+                keeps on the shelf and uses on the table every week. If it made the
+                AA&nbsp;Picks curation, we stand behind it.
+              </p>
+            </div>
+            <Link href="/shop/collections/salon-favorites" className="btn-gold shrink-0 self-start sm:self-auto">
+              SHOP ALL PICKS
+            </Link>
+          </div>
+          <SalonFavoritesScroller products={favorites} />
+        </div>
       </div>
     </section>
   )

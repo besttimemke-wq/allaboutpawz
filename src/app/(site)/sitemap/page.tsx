@@ -146,7 +146,7 @@ export default function SitemapPage() {
     { label: "New for Cats", href: "/shop/collections/new/new-for-cats" },
     { label: "New for Dogs", href: "/shop/collections/new/new-for-dogs" },
     { label: "New for Pet Parents", href: "/shop/collections/new/new-for-pet-parents" },
-    { label: "All About Pawz Picks", href: "/shop/collections/all-about-pawz-picks" },
+    { label: "AA Picks — Salon Favorites", href: "/shop/collections/salon-favorites" },
     { label: "Pride for Pets", href: "/shop/collections/pride-for-pets" },
     { label: "Spring", href: "/shop/collections/spring" },
     { label: "St. Patrick's Day", href: "/shop/collections/st-patricks-day" },
