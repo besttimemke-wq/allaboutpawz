@@ -1,15 +1,26 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { Fragment, useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Minus, PawPrint, Plus, X } from "lucide-react"
 import { SHOP_ANIMALS, SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { categoryImage } from "@/lib/shop/category-images"
+import { cachedLiveNav, loadLiveShopNav } from "@/lib/shop/nav-client"
 
 // ---------------------------------------------------------------------------
 // ShopFlyout — full-screen category menu with image-led department cards.
+//
+// SYMMETRY PATCH (data-only, design untouched): the static tree gives fish /
+// bird / reptile / small-animal a SINGLE department each, so those panels had
+// one route while dog / cat had 12-15 cards. When the live nav is available,
+// a single-department animal's L3 categories render as extra cards INSIDE the
+// same grid, using the exact same card markup and image rules. Dog / cat
+// panels and every visual class are untouched.
 // ---------------------------------------------------------------------------
+
+/** Hydrated L3 card (live nav only — never rendered from the static fallback). */
+type LiveSubCard = { name: string; path: string; image: string | null }
 
 const ANIMALS = SHOP_ANIMALS
 const DEPARTMENT_IMAGES: Record<string, string> = {
@@ -63,6 +74,32 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
   const [selectedAnimal, setSelectedAnimal] = useState(SHOP_NAV_TAXONOMY[0]?.slug || "cat")
   const [view, setView] = useState<PanelView>("animal")
   const [expandedDepartment, setExpandedDepartment] = useState<string | null>(null)
+  // "<animal>/<dept>" → L3 cards for single-department animals (live nav only)
+  const [liveSubCards, setLiveSubCards] = useState<Record<string, LiveSubCard[]>>({})
+
+  useEffect(() => {
+    let alive = true
+    loadLiveShopNav().then(() => {
+      const nav = cachedLiveNav()
+      if (!alive || !nav) return // API unavailable — keep the static design
+      const next: Record<string, LiveSubCard[]> = {}
+      for (const a of nav) {
+        if (a.departments.length !== 1) continue
+        const dept = a.departments[0]
+        if (dept.subcategories.length === 0) continue
+        const key = `${a.slug}/${dept.slug}`
+        next[key] = dept.subcategories.map((s) => ({
+          name: s.name,
+          path: s.path,
+          image: s.image,
+        }))
+        // Static-nav alias: SHOP_NAV_TAXONOMY calls this animal "small-pet".
+        if (a.slug === "small-animal") next[`small-pet/${dept.slug}`] = next[key]
+      }
+      setLiveSubCards(next)
+    })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -167,8 +204,12 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
                     ? `/Shop/departments/${imageName}.jpeg`
                     : categoryImage(departmentKey)
                   const expanded = expandedDepartment === departmentKey
+                  // Live L3 cards for single-department animals (fish / bird /
+                  // reptile / small-animal). Same card markup, same image rules.
+                  const hydratedCards = liveSubCards[departmentKey]
                   return (
-                    <article key={dept.slug} className="min-w-0 border border-neutral-200 bg-white">
+                    <Fragment key={dept.slug}>
+                    <article className="min-w-0 border border-neutral-200 bg-white">
                       <Link href={departmentPath(animal.slug, dept.slug)} onClick={onClose} className="relative block aspect-[16/9] overflow-hidden bg-neutral-100">
                         {departmentSrc && (
                           <Image
@@ -210,6 +251,27 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
                         </>
                       )}
                     </article>
+                    {hydratedCards?.map(card => (
+                      <article key={card.path} className="min-w-0 border border-neutral-200 bg-white">
+                        <Link href={card.path} onClick={onClose} className="relative block aspect-[16/9] overflow-hidden bg-neutral-100">
+                          {card.image ? (
+                            <Image
+                              src={card.image}
+                              alt={card.name}
+                              fill
+                              sizes="(min-width: 1280px) 24vw, (min-width: 1024px) 32vw, 48vw"
+                              className="object-cover transition-transform duration-300 hover:scale-[1.03]"
+                            />
+                          ) : (
+                            <PawPrint className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/40" strokeWidth={1.1} aria-hidden="true" />
+                          )}
+                        </Link>
+                        <Link href={card.path} onClick={onClose} className="flex min-h-12 items-center px-3 text-[16px] font-semibold leading-snug text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
+                          {card.name}
+                        </Link>
+                      </article>
+                    ))}
+                    </Fragment>
                   )
                 })}
               </div>

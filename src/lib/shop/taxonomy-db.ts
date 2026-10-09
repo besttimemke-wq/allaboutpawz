@@ -39,6 +39,8 @@ export type TaxSub = {
   /** Live product count for this node's whole subtree. */
   productCount: number
   hasChildren: boolean
+  /** Selection-function hero (category-imagery pipeline); null until run. */
+  heroImageUrl: string | null
 }
 
 export type TaxGroup = {
@@ -48,6 +50,7 @@ export type TaxGroup = {
   nodeType: string
   subcategories: TaxSub[]
   productCount: number
+  heroImageUrl: string | null
 }
 
 export type TaxAnimal = {
@@ -60,7 +63,7 @@ export type TaxAnimal = {
 
 // ----------------------------- Tree ----------------------------------------
 
-type NodeRec = TaxNodeRow & { productCount: number; childCount: number; children: NodeRec[] }
+type NodeRec = TaxNodeRow & { productCount: number; childCount: number; heroImageUrl: string | null; children: NodeRec[] }
 
 const TREE_TTL_MS = 5 * 60 * 1000
 let treeCacheAt = 0
@@ -70,8 +73,9 @@ async function fetchTree(): Promise<TaxAnimal[]> {
   const nodeRows = await pgQuery<{
     id: string; parent_id: string | null; node_type: string; name: string;
     display_name: string | null; slug: string; depth: number; sort_order: number;
+    hero_image_url: string | null;
   }>(
-    `SELECT id, parent_id, node_type, name, display_name, slug, depth, sort_order
+    `SELECT id, parent_id, node_type, name, display_name, slug, depth, sort_order, hero_image_url
        FROM taxonomy_nodes
       WHERE status = 'published'
       ORDER BY sort_order, name`,
@@ -106,6 +110,7 @@ async function fetchTree(): Promise<TaxAnimal[]> {
       sortOrder: r.sort_order,
       productCount: countByNode.get(r.id) ?? 0,
       childCount: 0,
+      heroImageUrl: r.hero_image_url,
       children: [],
     })
   }
@@ -139,12 +144,14 @@ async function fetchTree(): Promise<TaxAnimal[]> {
       name: g.displayName,
       nodeType: g.nodeType,
       productCount: g.productCount,
+      heroImageUrl: g.heroImageUrl,
       subcategories: g.children.map((s) => ({
         id: s.id,
         slug: s.slug,
         name: s.displayName,
         productCount: s.productCount,
         hasChildren: s.children.length > 0,
+        heroImageUrl: s.heroImageUrl,
       })),
     }))
     animals.push({
@@ -309,6 +316,7 @@ export async function resolveTaxPath(segments: string[]): Promise<ResolvedTaxPat
           name: rec.name,
           productCount: Number(cnt[0]?.n) || 0,
           hasChildren: childCount > 0,
+          heroImageUrl: rec.heroImageUrl,
         }
         break
       }

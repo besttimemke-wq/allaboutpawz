@@ -22,9 +22,13 @@ import { getTaxonomyTree } from "@/lib/shop/taxonomy-db"
 //
 // Image resolution happens server-side (no client 404 guessing):
 //   • L2 department: /Shop/departments/<animal>-<dept>.jpeg|png, else
-//     /Shop/categories/<animal>-<dept>.jpg, else null (client paw tile)
+//     /Shop/categories/<animal>-<dept>.jpg, else the node's hero_image_url
+//     (category-imagery selection function), else null (client paw tile)
 //   • L3 subcategory: /Shop/categories/<animal>-<dept>-<sub>.jpg, else the
-//     animal hero /Shop/categories/<animal>.jpg, else null
+//     node's hero_image_url, else the department image
+//
+// Curated static assets always win for dog/cat (owner-designed imagery);
+// hero_image_url only fills the gaps (reptile / small-animal / new nodes).
 // ---------------------------------------------------------------------------
 
 export const revalidate = 300
@@ -98,11 +102,12 @@ export async function GET() {
       ])
 
       const departments = a.groups.map((g) => {
-        const deptImage = pickImage(files, [
-          { dir: "departments", file: `${imgAnimal}-${g.slug}.jpeg` },
-          { dir: "departments", file: `${imgAnimal}-${g.slug}.png` },
-          { dir: "categories", file: `${imgAnimal}-${g.slug}.jpg` },
-        ]) ?? heroImage
+        const deptImage =
+          pickImage(files, [
+            { dir: "departments", file: `${imgAnimal}-${g.slug}.jpeg` },
+            { dir: "departments", file: `${imgAnimal}-${g.slug}.png` },
+            { dir: "categories", file: `${imgAnimal}-${g.slug}.jpg` },
+          ]) ?? g.heroImageUrl ?? heroImage
 
         const subcategories = g.subcategories.map((s) => ({
           slug: s.slug,
@@ -112,7 +117,7 @@ export async function GET() {
           image:
             pickImage(files, [
               { dir: "categories", file: `${imgAnimal}-${g.slug}-${s.slug}.jpg` },
-            ]) ?? deptImage,
+            ]) ?? s.heroImageUrl ?? deptImage,
         }))
 
         return {
