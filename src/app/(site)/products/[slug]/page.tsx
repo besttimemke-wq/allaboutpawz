@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { loadPdpData } from "@/lib/shop/pdp"
 import type { MiniRec, PdpData } from "@/lib/shop/taxonomy-db"
+import { cleanText } from "@/lib/shop/clean-text"
 import { getStockSettings } from "@/lib/app-settings"
 import { GROOMING_GUIDES } from "@/lib/guides-data"
 import {
@@ -58,7 +59,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!product) return { title: "Product — All About Pawz Shop" }
   return {
     title: `${product.name} — All About Pawz Shop`,
-    description: product.shortDescription || product.description?.slice(0, 160) || product.name,
+    description: cleanText(product.shortDescription) || cleanText(product.description?.slice(0, 160)) || product.name,
     alternates: { canonical: `${SITE_URL}/products/${slug}` },
   }
 }
@@ -193,6 +194,7 @@ function recToCard(mp: MiniRec) {
     price: mp.priceCents != null ? fmt(mp.priceCents) : "",
     image: mp.image,
     category: mp.brand,
+    shortDescription: mp.shortDescription,
     isOnSale: mp.isOnSale,
     isNew: mp.isNew,
     isBestseller: mp.isBestseller,
@@ -384,10 +386,11 @@ export default async function ProductPage({ params }: Params) {
     reship: product.reship,
   }
 
-  // ---- Detail content ----
-  const specs = hasText(product.specifications) ? specRows(product.specifications) : []
-  const glance = glanceChips(product.specifications)
-  const freeOf = hasText(product.ingredients) ? parseFreeOf(product.ingredients) : null
+  // ---- Detail content — all feed copy runs through cleanText() (entity
+  //      decode + tag strip) so the page renders plain text, never "&amp;".
+  const specs = hasText(product.specifications) ? specRows(cleanText(product.specifications)) : []
+  const glance = glanceChips(hasText(product.specifications) ? cleanText(product.specifications) : null)
+  const freeOf = hasText(product.ingredients) ? parseFreeOf(cleanText(product.ingredients)) : null
   const articles = articlePicks(product.petKind)
   const fbtTotal =
     product.priceCents != null
@@ -399,6 +402,7 @@ export default async function ProductPage({ params }: Params) {
     name: product.name,
     brand: product.brand,
     image: product.media[0]?.url ?? null,
+    shortDescription: product.shortDescription,
     priceCents: product.priceCents,
     isBestseller: product.isBestseller,
     isOnSale: product.isOnSale,
@@ -417,7 +421,7 @@ export default async function ProductPage({ params }: Params) {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
-    description: product.shortDescription || product.description || product.name,
+    description: cleanText(product.shortDescription) || cleanText(product.description) || product.name,
     url: canonicalUrl,
     sku: product.id,
   }
@@ -555,10 +559,10 @@ export default async function ProductPage({ params }: Params) {
             </div>
           )}
 
-          {/* Short description */}
+          {/* Short description — clean plain text, no entities, no tags */}
           {hasText(product.shortDescription) && (
             <p className="mt-3.5 max-w-[520px] text-[13.5px] leading-[1.75] text-neutral-600">
-              {product.shortDescription}
+              {cleanText(product.shortDescription)}
             </p>
           )}
 
@@ -703,7 +707,7 @@ export default async function ProductPage({ params }: Params) {
               </p>
               <p className="mt-1.5 flex gap-2 text-[13.5px] leading-[1.75] text-neutral-700">
                 <span aria-hidden className="font-bold text-neutral-400">A.</span>
-                <span>{q.answer}</span>
+                <span>{cleanText(q.answer)}</span>
               </p>
             </li>
           ))}
@@ -812,7 +816,7 @@ export default async function ProductPage({ params }: Params) {
       {hasText(product.ingredients) && (
         <PdpSection eyebrow="INSIDE THE PRODUCT" title="Ingredients">
           <Prose>
-            <p>{freeOf?.main ?? product.ingredients}</p>
+            <p>{freeOf?.main ?? cleanText(product.ingredients)}</p>
           </Prose>
           {freeOf?.freeOf && (
             <div className="mt-4">
@@ -838,7 +842,7 @@ export default async function ProductPage({ params }: Params) {
       {hasText(product.directions) && (
         <PdpSection eyebrow="HOW TO USE" title="Product Directions">
           <Prose>
-            <p>{product.directions}</p>
+            <p>{cleanText(product.directions)}</p>
           </Prose>
         </PdpSection>
       )}
@@ -847,16 +851,16 @@ export default async function ProductPage({ params }: Params) {
       {hasText(product.warranty) && (
         <PdpSection eyebrow="PEACE OF MIND" title="Warranty">
           <Prose>
-            <p className="border-l-2 border-[#002B5C] pl-4">{product.warranty}</p>
+            <p className="border-l-2 border-[#002B5C] pl-4">{cleanText(product.warranty)}</p>
           </Prose>
         </PdpSection>
       )}
 
-      {/* 15 — The details */}
+      {/* 15 — The details — product.details, the trigger-written plain text */}
       {hasText(product.description) && (
         <PdpSection eyebrow="OVERVIEW" title="The Details">
           <Prose>
-            <p className="whitespace-pre-line">{product.description}</p>
+            <p className="whitespace-pre-line">{cleanText(product.description)}</p>
           </Prose>
         </PdpSection>
       )}

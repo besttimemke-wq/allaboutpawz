@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { repo } from "@/lib/repo"
 import { callbackBase } from "@/lib/site-url"
-import { listCatalogProducts, type CatalogProduct } from "@/lib/enterprise/catalog"
+import { pgQuery } from "@/lib/pg"
+import { getCatalogProductById, type CatalogProduct } from "@/lib/enterprise/catalog"
 import { sendOrderPlacedAlert } from "@/lib/email"
 import { sessionForSiteFlow } from "@/lib/portal-session-scope"
 
@@ -90,33 +91,79 @@ export async function POST(req: NextRequest) {
 
   try {
     // ------------------------------------------------------------------
-    // 1. Server-side product + price verification (NORMALIZED schema).
-    //    Reads from commerce_catalog_items + erp_products + erp_product_skus
-    //    + commerce_prices + commerce_product_media via listCatalogProducts().
-    //    Client prices are NEVER trusted.
+    // 1. Server-side product + price verification (client prices are NEVER
+    //    trusted). The storefront sells the LIVE feed catalog (products +
+    //    product_variants — the same uuid ids every card and PDP links to),
+    //    so every bag item is resolved there FIRST in one batched query.
+    //    Legacy enterprise ids fall back to getCatalogProductById (per-item,
+    //    indexed — never listCatalogProducts(), whose full-catalog memory
+    //    load exhausted the session pooler once already).
+    //
+    //    THE BUG THIS FIXES: checkout used to verify against the normalized
+    //    enterprise catalog ONLY (commerce_catalog_items), whose ids have
+    //    ZERO overlap with the feed catalog — every feed product in the bag
+    //    404'd at checkout ("no longer available") and the entire
+    //    signup → bag → checkout → Stripe flow was dead.
     // ------------------------------------------------------------------
-    const products = await listCatalogProducts()
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const itemIds = items.map((it: { productId?: unknown; id?: unknown }) =>
+      String(it.productId || it.id || ""),
+    )
+    const feedIds = [...new Set(itemIds.filter((id: string) => isUuid.test(id)))]
+    const feedRows = feedIds.length
+      ? await pgQuery<Record<string, unknown>>(
+          `SELECT p.id::text AS id, COALESCE(p.title, p.name) AS name,
+                  (SELECT mm.url FROM product_media mm
+                    WHERE mm.product_id = p.id AND mm.media_type = 'image'
+                    ORDER BY mm.sort_order ASC LIMIT 1) AS image,
+                  (SELECT MIN(v.price) FROM product_variants v
+                    WHERE v.product_id = p.id AND v.status = 'active' AND v.price IS NOT NULL) AS price
+             FROM products p
+            WHERE p.id = ANY($1::uuid[]) AND p.status = 'published'`,
+          [feedIds],
+        )
+      : []
+    const feedById = new Map(feedRows.map((r) => [String(r.id), r]))
+
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
     const orderItems: { productId: string; name: string; quantity: number; unitPrice: string }[] = []
     let subtotalCents = 0
 
     for (const it of items) {
       const pid = String(it.productId || it.id || "")
-      const p = products.find((x) => x.id === pid)
-      if (!p || !p.visible) {
-        return NextResponse.json({ error: "One of the products in your bag is no longer available." }, { status: 404 })
-      }
       const qty = Math.max(1, Math.min(20, Number(it.quantity ?? it.qty) || 1))
-      const cents = activePriceCents(p)
-      const stripePriceId = p.stripePriceId
+
+      // Feed catalog first — the universe the storefront actually sells.
+      let name: string
+      let cents: number | null
+      let stripePriceId: string | null
+      let image: string | null
+      const feed = feedById.get(pid)
+      if (feed) {
+        name = String(feed.name ?? "")
+        const fp = Number(feed.price)
+        cents = Number.isFinite(fp) && fp > 0 ? Math.round(fp * 100) : null
+        stripePriceId = null
+        image = (feed.image as string) || null
+      } else {
+        // Legacy enterprise fallback (hand-curated items).
+        const legacy: CatalogProduct | null = await getCatalogProductById(pid)
+        if (!legacy || !legacy.visible) {
+          return NextResponse.json({ error: "One of the products in your bag is no longer available." }, { status: 404 })
+        }
+        name = legacy.name
+        cents = activePriceCents(legacy)
+        stripePriceId = legacy.stripePriceId
+        image = typeof legacy.image === "string" ? legacy.image : null
+      }
 
       if (stripePriceId) {
-        // Product has a managed Stripe price — use it.
+        // Managed Stripe price — use it.
         lineItems.push({ price: stripePriceId, quantity: qty })
       } else {
         if (cents == null) {
           return NextResponse.json(
-            { error: `"${p.name}" is not available for online purchase yet.` },
+            { error: `"${name}" is not available for online purchase yet.` },
             { status: 400 },
           )
         }
@@ -127,9 +174,9 @@ export async function POST(req: NextRequest) {
             currency: "usd",
             unit_amount: cents,
             product_data: {
-              name: p.name,
-              ...(typeof p.image === "string" && p.image.startsWith("/")
-                ? { images: [`${origin}${p.image}`] }
+              name,
+              ...(typeof image === "string" && image.startsWith("/")
+                ? { images: [`${origin}${image}`] }
                 : {}),
             },
           },
@@ -137,8 +184,7 @@ export async function POST(req: NextRequest) {
       }
 
       subtotalCents += (cents || 0) * qty
-      const unitPriceStr = cents != null ? fmt(cents) : "$0.00"
-      orderItems.push({ productId: p.id, name: p.name, quantity: qty, unitPrice: unitPriceStr })
+      orderItems.push({ productId: pid, name, quantity: qty, unitPrice: cents != null ? fmt(cents) : "$0.00" })
     }
 
     // ------------------------------------------------------------------

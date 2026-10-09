@@ -1,11 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Suspense } from "react"
 import { ChevronRight } from "lucide-react"
 import { SITE_URL } from "@/lib/site-url"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 import { BUSINESS } from "@/lib/business"
 import { ShopPromoBanner } from "@/components/site/shop/shop-promo-banner"
 import { ShopHeroBento, type BentoTile } from "@/components/site/shop/hero-bento"
+import { CheckoutIsland } from "@/components/site/shop/checkout-island"
 
 export const metadata: Metadata = {
   title: "Dog & Cat Supplies, grooming & shopping in Memphis, TN | All About Pawz",

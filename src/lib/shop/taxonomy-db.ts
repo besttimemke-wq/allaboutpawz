@@ -630,6 +630,9 @@ export type TaxProduct = {
   slug: string
   brand: string | null
   image: string | null
+  /** Clean plain-text blurb (products.short_description — trigger-written).
+   *  Raw source entities are decoded at render time via cleanText(). */
+  shortDescription: string | null
   priceCents: number | null
   compareAtPriceCents: number | null
   isOnSale: boolean
@@ -667,6 +670,7 @@ const PLP_ROWS_SQL = `
   ),
   filtered AS (
     SELECT p.id, p.slug, COALESCE(p.title, p.name) AS name, p.brand,
+           p.short_description,
            p.is_sale, p.is_new, p.is_best_seller, p.created_at,
            v.price, v.compare_at, v.in_stock,
            m.url AS image,
@@ -744,6 +748,7 @@ function mapProduct(r: Record<string, unknown>): TaxProduct {
     slug: String(r.slug ?? ""),
     brand: (r.brand as string) || null,
     image: (r.image as string) || null,
+    shortDescription: ((r.short_description as string) || null),
     priceCents,
     compareAtPriceCents: isOnSale ? compareAtCents : null,
     isOnSale,
@@ -922,7 +927,8 @@ export async function queryTaxProducts(opts: {
     const [rows, countRows] = await Promise.all([
       pgQuery<Record<string, unknown>>(
         PLP_ROWS_SQL +
-        ` SELECT id, slug, name, brand, is_sale, is_new, is_best_seller, created_at,
+        ` SELECT id, slug, name, brand, short_description,
+               is_sale, is_new, is_best_seller, created_at,
                price, compare_at, in_stock, image, review_n, review_avg
           FROM ranked
          WHERE rn = 1` +
@@ -1251,6 +1257,7 @@ export type MiniRec = {
   name: string
   brand: string | null
   image: string | null
+  shortDescription: string | null
   priceCents: number | null
   isBestseller: boolean
   isOnSale: boolean
@@ -1401,6 +1408,7 @@ function composeQa(p: {
 
 const RAIL_SELECT = `
   SELECT p2.id::text AS id, p2.slug, COALESCE(p2.title, p2.name) AS name,
+         p2.short_description,
          p2.brand, p2.is_best_seller, p2.is_sale, p2.is_new,
          (SELECT url FROM product_media mm WHERE mm.product_id = p2.id AND mm.media_type = 'image' ORDER BY mm.sort_order ASC LIMIT 1) AS image,
          (SELECT MIN(v.price) FROM product_variants v WHERE v.product_id = p2.id AND v.status = 'active' AND v.price IS NOT NULL) AS price
@@ -1414,6 +1422,7 @@ function toMini(r: Record<string, unknown>): MiniRec {
     name: String(r.name ?? ""),
     brand: (r.brand as string) || null,
     image: (r.image as string) || null,
+    shortDescription: ((r.short_description as string) || null),
     priceCents: Number.isFinite(price) && price > 0 ? Math.round(price * 100) : null,
     isBestseller: r.is_best_seller === true,
     isOnSale: r.is_sale === true,

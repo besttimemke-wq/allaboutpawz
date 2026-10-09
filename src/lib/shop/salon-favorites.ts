@@ -22,6 +22,8 @@ export type SalonFavorite = {
   name: string
   brand: string | null
   image: string | null
+  /** Clean plain-text blurb (products.short_description — trigger-written). */
+  shortDescription: string | null
   priceCents: number | null
   compareAtPriceCents: number | null
   isOnSale: boolean
@@ -35,6 +37,7 @@ export type SalonFavorite = {
 const FAVORITES_SQL = `
   WITH fav AS (
     SELECT p.id, p.slug, COALESCE(p.title, p.name) AS name, p.brand,
+           p.short_description,
            p.is_sale, p.is_new, p.is_best_seller, p.created_at,
            v.price, v.compare_at, v.in_stock,
            m.url AS image,
@@ -69,7 +72,8 @@ const FAVORITES_SQL = `
     ) AS rn
       FROM fav
   )
-  SELECT id, slug, name, brand, is_sale, is_new, is_best_seller,
+  SELECT id, slug, name, brand, short_description,
+         is_sale, is_new, is_best_seller,
          price, compare_at, in_stock, image, review_n, review_avg
     FROM ranked
    WHERE rn = 1
@@ -92,6 +96,7 @@ function mapFavorite(r: Record<string, unknown>): SalonFavorite {
     name: String(r.name ?? ""),
     brand: (r.brand as string) || null,
     image: (r.image as string) || null,
+    shortDescription: ((r.short_description as string) || null),
     priceCents,
     compareAtPriceCents: isOnSale ? compareAtCents : null,
     isOnSale,

@@ -2,16 +2,18 @@ import { PageHeader } from "@/components/site/site-chrome"
 import { ShopNavBar } from "@/components/site/islands/shop-nav-bar"
 import { BagClient, type BagProduct, type BagRating } from "@/components/site/islands/bag-client"
 import { repo } from "@/lib/repo"
-import { listCatalogProducts } from "@/lib/enterprise/catalog"
 
 // ---------------------------------------------------------------------------
 // ViewBag — /shop/bag
 //   The pre-checkout bag view: line items, compare table, subtotal.
-//   Server loads the visible catalog product records (for the compare data)
-//   from the NORMALIZED enterprise schema (erp_products + erp_product_skus +
-//   commerce_catalog_items + commerce_prices + commerce_product_media) and
-//   the visible review rollup; the island reads the persisted cart from
-//   localStorage, so a saved bag survives visits and abandonment.
+//   The island renders every line from the PERSISTED CART (localStorage);
+//   the server supplies only optional per-product enrichment (compare
+//   data). The storefront is the LIVE feed catalog (products, uuid ids) and
+//   the cart ids are feed uuids — the old listCatalogProducts() load here
+//   (whole normalized enterprise catalog, 1.4k rows per bag view) could
+//   NEVER match a single cart id (zero id overlap) and was pure
+//   session-pooler risk on the checkout path, so it's gone. Enrichment for
+//   feed items is a future instruction, not a silent rebuild.
 // ---------------------------------------------------------------------------
 
 export const metadata = {
@@ -21,38 +23,13 @@ export const metadata = {
 }
 
 export default async function BagPage() {
-  const [catalogProducts, reviews] = await Promise.all([
-    listCatalogProducts(),
-    repo.list("product_reviews"),
-  ])
+  const reviews = await repo.list("product_reviews")
 
-  // Map the enterprise CatalogProduct → BagProduct shape the island consumes.
-  // Price is the active display price (sale when on sale, else base).
-  const visible: BagProduct[] = catalogProducts
-    .filter((p) => p.visible)
-    .sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99))
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      price: `$${(p.priceCents / 100).toFixed(2)}`,
-      image: p.image,
-      alt: p.alt,
-      badge: p.badge,
-      category: p.category,
-      categoryId: p.categoryId,
-      stock: p.stock,
-      shortDescription: p.shortDescription,
-      description: p.description,
-      specs: p.specs,
-      materials: p.materials,
-      ingredients: p.ingredients,
-      directions: p.directions,
-      warranty: p.warranty,
-      visible: p.visible,
-      featured: p.featured,
-      order: p.sortOrder,
-    }) as unknown as BagProduct)
+  // No server-side product enrichment: every add-to-cart path on the site
+  // sells the feed catalog, whose uuid ids never existed in the normalized
+  // enterprise catalog this page used to load in full. Empty map keeps the
+  // BagProduct contract; the island renders lines from the cart itself.
+  const visible: BagProduct[] = []
 
   const ratings: Record<string, BagRating> = {}
   for (const r of reviews as any[]) {

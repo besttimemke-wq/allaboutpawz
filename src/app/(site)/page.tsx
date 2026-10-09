@@ -8,6 +8,7 @@ import { FeaturedServicesGrid } from "@/components/site/islands/featured-service
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
 import { HomeShopBento } from "@/components/site/islands/home-shop-bento"
 import { HomeAaPicks } from "@/components/site/islands/home-aa-picks"
+import { HomeFinalCta } from "@/components/site/islands/home-final-cta"
 import { SITE_URL } from "@/lib/site-url"
 
 const STEPS = [
@@ -141,6 +142,11 @@ export default function HomePage() {
           <NewsletterForm />
         </div>
       </section>
+
+      {/* 10% OFF — the owner's final offer banner for new customers. Banner
+          ONLY — the product-card rail was banned (owner ruling) and is not
+          coming back. */}
+      <HomeFinalCta />
 
     </>
   )

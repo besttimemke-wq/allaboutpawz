@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { Star, ShoppingBag, PawPrint } from "lucide-react"
 import { useCart } from "@/lib/wizard/cart-store"
+import { cleanText } from "@/lib/shop/clean-text"
 
 const NAVY = "#002B5C"
 
@@ -31,6 +32,9 @@ export type ProductCardData = {
   alt?: string | null
   badge?: string | null
   category?: string | null
+  /** Clean plain-text blurb (products.short_description) — decoded for
+   *  display via cleanText(); never HTML. */
+  shortDescription?: string | null
   isOnSale?: boolean
   isNew?: boolean
   isBestseller?: boolean
@@ -130,6 +134,15 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
           {product.name}
         </Link>
 
+        {/* 4b. Short description — the trigger-written clean blurb. 2-line
+            clamp so long copy can never change the card's dimensions; the
+            grid stays uniform (every card same height at every breakpoint). */}
+        {product.shortDescription && (
+          <p className="mt-1.5 line-clamp-2 text-[13px] leading-[1.5] text-neutral-600">
+            {cleanText(product.shortDescription)}
+          </p>
+        )}
+
         {/* 5. Stars + count — empty state: unfilled stars */}
         <div className="mt-2 flex items-center gap-1.5">
           <span className="flex items-center gap-[2px]" aria-label={`Rated ${product.rating?.avg?.toFixed(1) || 0} out of 5`}>
@@ -151,7 +164,7 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
         </div>
 
         {/* 6. Price row */}
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mb-3 mt-2 flex items-center gap-2">
           <span className="text-[19px] font-bold text-neutral-900">{product.price}</span>
           {strikePrice && (
             <span className="text-[14px] text-neutral-500 line-through">{strikePrice}</span>
@@ -161,11 +174,13 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
           )}
         </div>
 
-        {/* 7. ADD TO CART — full-width, always visible */}
+        {/* 7. ADD TO CART — full-width, always visible. mt-auto pins it to
+            the card bottom so every card in a grid row is the same height
+            (the description block varies; the button never moves). */}
         <button
           onClick={handleAddToCart}
           disabled={added}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-md py-3 text-[14px] font-bold tracking-[0.06em] uppercase transition-colors"
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-md py-3 text-[14px] font-bold tracking-[0.06em] uppercase transition-colors"
           style={{
             backgroundColor: added ? "#16a34a" : NAVY,
             color: "#fff",

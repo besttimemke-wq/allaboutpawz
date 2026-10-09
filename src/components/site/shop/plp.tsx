@@ -398,6 +398,7 @@ function taxProductToCard(p: TaxProduct, fallbackImage?: string | null) {
     image: p.image ?? fallbackImage ?? null,
     alt: p.name,
     category: p.brand,
+    shortDescription: p.shortDescription,
     isOnSale: p.isOnSale,
     isNew: p.isNew,
     isBestseller: p.isBestseller,

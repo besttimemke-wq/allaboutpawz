@@ -38,6 +38,7 @@ export async function SalonFavoritesCollection() {
     alt: f.brand ? `${f.brand} — ${f.name}` : f.name,
     badge: f.isBestseller ? "SALON PICK" : null,
     category: f.brand,
+    shortDescription: f.shortDescription,
     isOnSale: f.isOnSale,
     isNew: f.isNew,
     isBestseller: f.isBestseller,
