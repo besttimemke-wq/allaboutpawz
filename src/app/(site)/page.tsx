@@ -8,7 +8,7 @@ import { FeaturedServicesGrid } from "@/components/site/islands/featured-service
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
 import { HomeShopBento } from "@/components/site/islands/home-shop-bento"
 import { HomeAaPicks } from "@/components/site/islands/home-aa-picks"
-import { HomeFinalCta } from "@/components/site/islands/home-final-cta"
+import { HomePawzly } from "@/components/site/islands/home-pawzly"
 import { SITE_URL } from "@/lib/site-url"
 
 const STEPS = [
@@ -143,10 +143,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 10% OFF — the owner's final offer banner for new customers. Banner
-          ONLY — the product-card rail was banned (owner ruling) and is not
-          coming back. */}
-      <HomeFinalCta />
+      {/* PAWZLY — the AI triage section (owner directive: create a section
+          for the triage AI and wire it). The floating 🐾 widget itself is
+          mounted site-wide from the site layout. */}
+      <HomePawzly />
 
     </>
   )

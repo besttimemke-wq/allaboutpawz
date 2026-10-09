@@ -582,6 +582,40 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
 }) {
   const s = useCart()
   const total = subtotalCents
+  // ----------------------------------------------------------------------
+  // TAX BREAKDOWN (owner directive — "wire the tax to the checkout page"):
+  // prices are TAX-INCLUSIVE (Stripe Tax account default, TN head office),
+  // so the customer's total never changes. The owner's `calculate-tax`
+  // edge function backs the tax portion OUT of the displayed total for the
+  // ZIP on file, so the review step can show it honestly as a line item.
+  // Failure-safe: no ZIP / edge blip → the row simply stays hidden
+  // (the result is keyed to zip+subtotal, so stale figures never show).
+  // ----------------------------------------------------------------------
+  const [taxResult, setTaxResult] = useState<{ key: string; amount: number; rate: number; source: string } | null>(null)
+  const zip = (s.postalCode || "").replace(/\D/g, "").slice(0, 5)
+  const taxKeyStr = `${zip}:${subtotalCents}`
+  const tax = taxResult && taxResult.key === taxKeyStr ? taxResult : null
+  const taxUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const taxKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  useEffect(() => {
+    if (!/^\d{5}$/.test(zip) || subtotalCents <= 0 || !taxUrl || !taxKey) return
+    let alive = true
+    fetch(`${taxUrl}/functions/v1/calculate-tax`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: taxKey },
+      body: JSON.stringify({ zip, subtotal: subtotalCents / 100 }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d && typeof d.tax_amount === "number" && d.tax_amount > 0) {
+          setTaxResult({ key: `${zip}:${subtotalCents}`, amount: d.tax_amount, rate: d.tax_rate, source: d.source })
+        }
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [taxKeyStr, taxUrl, taxKey, zip, subtotalCents])
   return (
     <div className={`${stepWrapCls} space-y-6`}>
       <div>
@@ -618,9 +652,18 @@ function StepReview({ subtotalCents, submitting, redirecting, onSubmit }: {
               <span>{s.deliveryMethod === "ship" ? "Standard shipping" : "Pickup in salon"}</span>
               <span className="text-[#002B5C]">{s.deliveryMethod === "ship" ? "FREE" : "—"}</span>
             </div>
+            {tax && (
+              <div className="flex justify-between text-ink-soft">
+                <span>Sales tax <span className="text-[10.5px]">({tax.source === "taxjar" ? "by ZIP" : "est."}, included in prices)</span></span>
+                <span className="text-ink">{formatCents(Math.round(tax.amount * 100))}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-neutral-200/20 pt-2 text-[14px] font-bold text-ink">
               <span>Total</span><span className="text-[#002B5C]">{formatCents(total)}</span>
             </div>
+            <p className="pt-0.5 text-[10.5px] text-ink-soft">
+              {tax ? "Your total never changes — sales tax is already included in our prices." : "Sales tax is already included in our prices."}
+            </p>
           </div>
         </section>
 

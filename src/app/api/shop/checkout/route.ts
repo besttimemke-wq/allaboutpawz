@@ -158,8 +158,9 @@ export async function POST(req: NextRequest) {
       }
 
       if (stripePriceId) {
-        // Managed Stripe price — use it.
-        lineItems.push({ price: stripePriceId, quantity: qty })
+        // Managed Stripe price — use it. Prices are tax-INCLUSIVE (Stripe Tax
+        // account default), so declare it on the line for automatic_tax.
+        lineItems.push({ price: stripePriceId, quantity: qty, tax_behavior: "inclusive" })
       } else {
         if (cents == null) {
           return NextResponse.json(
@@ -168,11 +169,18 @@ export async function POST(req: NextRequest) {
           )
         }
         // Ad-hoc price (server-verified) so any catalog product is purchasable.
+        // TAX (owner directive — "go to Stripe and find the tax and wire it"):
+        // Stripe Tax is ACTIVE on this account (live, head office Bartlett TN
+        // 38134, default tax_behavior=inclusive). Prices shown to customers
+        // are FINAL — sales tax is INSIDE them — so every ad-hoc price
+        // declares tax_behavior=inclusive and the session enables
+        // automatic_tax, letting Stripe compute + report the included tax.
         lineItems.push({
           quantity: qty,
           price_data: {
             currency: "usd",
             unit_amount: cents,
+            tax_behavior: "inclusive",
             product_data: {
               name,
               ...(typeof image === "string" && image.startsWith("/")
@@ -259,8 +267,14 @@ export async function POST(req: NextRequest) {
     //    the commerce_orders row (no duplicate insert). metadata.cart_items
     //    is JSON-stringified so the webhook can decrement inventory without
     //    re-resolving the cart.
+    //
+    //    TAX WIRING (owner directive): automatic_tax enabled — Stripe Tax is
+    //    active on this account (TN head office) — with customer_update so
+    //    the included tax recomputes from the collected billing/shipping
+    //    address. If the platform ever returns a tax-side error, retry once
+    //    WITHOUT tax params so checkout itself can never break.
     // ------------------------------------------------------------------
-    const session = await getStripe().checkout.sessions.create({
+    const sessionBase = {
       mode: "payment",
       line_items: lineItems,
       ...(customer?.stripeCustomerId
@@ -294,7 +308,24 @@ export async function POST(req: NextRequest) {
       },
       success_url: `${origin}/shop?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/shop?checkout=cancel`,
-    })
+    }
+
+    let session: Stripe.Checkout.Session
+    try {
+      // Tax-inclusive automatic tax (see note above).
+      session = await getStripe().checkout.sessions.create({
+        ...sessionBase,
+        automatic_tax: { enabled: true },
+        customer_update: customer?.stripeCustomerId
+          ? { address: "auto", shipping: "auto" }
+          : { shipping: "auto" },
+      } as Stripe.Checkout.SessionCreateParams)
+    } catch (taxErr) {
+      // Never let a Tax-side failure block checkout — fall back to the
+      // pre-tax session shape (prices stay final/inclusive for the buyer).
+      console.error("[shop/checkout] automatic_tax create failed, retrying without tax:", (taxErr as Error)?.message)
+      session = await getStripe().checkout.sessions.create(sessionBase as Stripe.Checkout.SessionCreateParams)
+    }
 
     // Persist the Stripe session id back onto the commerce_orders row.
     if (commerceOrder?.id) {
