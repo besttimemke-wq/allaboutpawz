@@ -1287,7 +1287,7 @@ export type PdpBreadcrumb = { name: string; path: string }
 /**
  * Everything the dense PDP renders, in ONE resolved object:
  * identity + copy (description / ingredients / directions / warranty /
- * specifications), pricing, variant pickers, purchase programs (autoship /
+ * specifications), pricing, variant pickers, purchase programs (reship /
  * one-time / pickup / delivery), reviews, Q&A, associated articles and the
  * four recommendation rails. Built in ≤7 indexed queries and cached 60s so a
  * burst of product views costs the pool one query per slug per minute.
@@ -1341,11 +1341,11 @@ export type PdpData = {
   articles: PdpArticle[]
   /** Q&A composed from the product's own published copy. */
   qa: PdpQa[]
-  /** Autoship program (site-wide policy, consistent with the PLP banners). */
-  autoship: { firstOrderPct: number; firstOrderCapCents: number; ongoingPct: number }
+  /** Reship program (site-wide policy, consistent with the PLP banners). */
+  reship: { firstOrderPct: number; firstOrderCapCents: number; ongoingPct: number }
 }
 
-const AUTOSHIP = { firstOrderPct: 35, firstOrderCapCents: 2000, ongoingPct: 5 }
+const RESHIP = { firstOrderPct: 35, firstOrderCapCents: 2000, ongoingPct: 5 }
 
 // ----------------------------- PDP cache -----------------------------------
 
@@ -1391,7 +1391,7 @@ function composeQa(p: {
   if (!p.inStock) {
     qa.push({
       question: `When will this be back in stock?`,
-      answer: `This item is currently on backorder with our supplier. Autoship customers get priority when stock arrives — sign up and we'll ship it as soon as it lands.`,
+      answer: `This item is currently on backorder with our supplier. Reship customers get priority when stock arrives — sign up and we'll ship it as soon as it lands.`,
     })
   }
   return qa.slice(0, 4)
@@ -1688,7 +1688,7 @@ async function buildTaxPdpData(slug: string): Promise<PdpData | null> {
       shortDescription: (p.short_description as string) || null,
       inStock: inStockByPrice,
     }),
-    autoship: AUTOSHIP,
+    reship: RESHIP,
   }
   return data
 }

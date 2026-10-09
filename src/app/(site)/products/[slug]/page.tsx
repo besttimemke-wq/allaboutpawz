@@ -377,7 +377,7 @@ export default async function ProductPage({ params }: Params) {
     category: product.brand,
     inStock: product.inStock,
     urgency,
-    autoship: product.autoship,
+    reship: product.reship,
   }
 
   // ---- Detail content ----

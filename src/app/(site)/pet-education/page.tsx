@@ -4,7 +4,7 @@ import Image from "next/image"
 import {
   ArrowRight, BedDouble, Bone, BookOpen, Car, ClipboardList, Clock,
   Droplets, HeartPulse, MapPin, Puzzle, Scissors, ShieldCheck, Shirt,
-  Sparkles, Star, Tag,
+  Star, Tag,
 } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
 import { Divider } from "@/components/site/brand"
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "feeding-and-watering": Droplets,
   "grooming-at-home": Scissors,
-  "grooming-essentials": Sparkles,
+  "grooming-essentials": Scissors,
   "beds-and-furniture": BedDouble,
   treats: Bone,
   "apparel-and-accessories": Shirt,

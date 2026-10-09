@@ -129,7 +129,7 @@ const ACCOUNT_NAV: { category?: string; items: { label: string; icon: React.Elem
       { label: "Order History", icon: Receipt, href: "/customer/orders" },
       { label: "Buy Again", icon: RotateCcw, href: "/customer/orders/buy-again" },
       { label: "Wish List", icon: Heart, href: "/customer/orders/wish-list" },
-      { label: "Autoship", icon: Repeat, href: "/customer/orders/autoship" },
+      { label: "Reship", icon: Repeat, href: "/customer/orders/reship" },
       { label: "Subscriptions", icon: CalendarClock, href: "/customer/orders/subscriptions" },
       { label: "Perks Dashboard", icon: Gift, href: "/customer/orders/perks" },
     ],

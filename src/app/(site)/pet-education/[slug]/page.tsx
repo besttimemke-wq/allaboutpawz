@@ -4,7 +4,7 @@ import Image from "next/image"
 import { notFound } from "next/navigation"
 import {
   ArrowRight, Award, BookOpen, CalendarDays, Check, Clock, Heart, MapPin,
-  Medal, Scissors, ShieldCheck, ShoppingBag, Sparkles, Star, Wrench,
+  Medal, PawPrint, Scissors, ShieldCheck, ShoppingBag, Star, Wrench,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
@@ -65,7 +65,7 @@ const TAKEAWAY_ICONS: Record<TakeawayItem["icon"], LucideIcon> = {
   scissors: Scissors,
   shield: ShieldCheck,
   heart: Heart,
-  sparkles: Sparkles,
+  sparkles: PawPrint,
   check: Check,
   award: Award,
   clock: Clock,
@@ -75,7 +75,7 @@ const TAKEAWAY_ICONS: Record<TakeawayItem["icon"], LucideIcon> = {
 const WHY_ICONS: Record<WhyFeatureItem["icon"], LucideIcon> = {
   trust: ShieldCheck,
   tools: Wrench,
-  services: Sparkles,
+  services: PawPrint,
   heart: Heart,
   medal: Medal,
 }

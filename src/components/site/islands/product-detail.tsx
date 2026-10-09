@@ -19,9 +19,9 @@ import { track, priceToDollars } from "@/lib/analytics"
 // Product page islands (used ONLY by /products/[slug] — internals may change,
 // export names are the public contract).
 //
-//   <ProductBuyBox /> — the whole right buy column: price header, Autoship /
+//   <ProductBuyBox /> — the whole right buy column: price header, Reship /
 //                       Buy-once purchase options (Chewy-style radios), qty
-//                       stepper + ADD TO BAG / START AUTOSHIP, stock +
+//                       stepper + ADD TO BAG / START RESHIP, stock +
 //                       delivery lines, and the pickup block.
 //   <ReviewForm />    — "WRITE A REVIEW" form → POST /api/shop/reviews
 //                       (reviews land with visible:false, pending moderation).
@@ -53,11 +53,11 @@ export type BuyBoxProduct = {
    *  keys (stock.low_threshold / stock.show_exact_count /
    *  stock.allow_backorder). null hides the strip. */
   urgency?: { message: string; tone: "urgent" | "backorder" } | null
-  /** Site-wide Autoship program; null hides the Autoship option. */
-  autoship?: { firstOrderPct: number; firstOrderCapCents: number; ongoingPct: number } | null
+  /** Site-wide Reship program; null hides the Reship option. */
+  reship?: { firstOrderPct: number; firstOrderCapCents: number; ongoingPct: number } | null
 }
 
-type PurchasePlan = "autoship" | "once"
+type PurchasePlan = "reship" | "once"
 
 const MAX_PER_ITEM = 10
 
@@ -75,21 +75,21 @@ export function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
   const [added, setAdded] = useState(false)
 
   const unitCents = product.priceCents ?? parsePriceToCents(product.price) ?? 0
-  const a = product.autoship ?? null
-  const autoshipAvailable = a != null && unitCents > 0
-  const [plan, setPlan] = useState<PurchasePlan>("autoship")
+  const a = product.reship ?? null
+  const reshipAvailable = a != null && unitCents > 0
+  const [plan, setPlan] = useState<PurchasePlan>("reship")
   // NOTE: when navigating between sibling variants the page keys this island
   // with key={product.id}, which remounts it and resets qty/added state.
 
-  // Autoship math: first-order discount = pct off, capped; ongoing = pct off.
+  // Reship math: first-order discount = pct off, capped; ongoing = pct off.
   const firstDiscount =
     a != null ? Math.min(Math.round((unitCents * a.firstOrderPct) / 100), a.firstOrderCapCents) : 0
   const firstOrderCents = a != null ? Math.max(0, unitCents - firstDiscount) : unitCents
   const ongoingCents =
     a != null ? Math.max(0, Math.round((unitCents * (100 - a.ongoingPct)) / 100)) : unitCents
 
-  const autoshipSelected = plan === "autoship" && autoshipAvailable
-  const finalCents = autoshipSelected ? firstOrderCents : unitCents
+  const reshipSelected = plan === "reship" && reshipAvailable
+  const finalCents = reshipSelected ? firstOrderCents : unitCents
   const finalPriceStr = finalCents > 0 ? formatCents(finalCents) : product.price
 
   // GA4 view_item — once per product id.
@@ -167,24 +167,24 @@ export function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
         )}
       </div>
 
-      {/* Purchase options — Autoship (Chewy-style) vs Buy once */}
+      {/* Purchase options — Reship (Chewy-style) vs Buy once */}
       {a != null && unitCents > 0 && (
         <div role="radiogroup" aria-label="Purchase options" className="mt-5 space-y-2.5">
           <button
             type="button"
             role="radio"
-            aria-checked={plan === "autoship"}
-            onClick={() => setPlan("autoship")}
+            aria-checked={plan === "reship"}
+            onClick={() => setPlan("reship")}
             className={`block w-full cursor-pointer rounded-lg border bg-white p-4 text-left transition-colors ${
-              plan === "autoship"
+              plan === "reship"
                 ? "border-[#002B5C] ring-1 ring-[#002B5C]"
                 : "border-neutral-300 hover:border-[#002B5C]/50"
             }`}
           >
             <span className="flex items-start justify-between gap-3">
               <span className="flex items-start gap-2.5">
-                {radioCircle(plan === "autoship")}
-                <span className="text-[14px] font-bold text-neutral-900">Save with Autoship</span>
+                {radioCircle(plan === "reship")}
+                <span className="text-[14px] font-bold text-neutral-900">Save with Reship</span>
               </span>
               <span className="text-[18px] font-bold text-[#002B5C]">
                 {formatCents(firstOrderCents)}
@@ -196,7 +196,7 @@ export function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
             <span className="mt-2.5 ml-8 block space-y-1.5">
               <span className={bullet}>
                 <Check size={13} weight="bold" className="mt-1 shrink-0 text-[#002B5C]" />
-                Save {a.ongoingPct}% on all future Autoship orders
+                Save {a.ongoingPct}% on all future Reship orders
               </span>
               <span className={bullet}>
                 <Check size={13} weight="bold" className="mt-1 shrink-0 text-[#002B5C]" />
@@ -265,8 +265,8 @@ export function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
           onClick={addToBag}
           disabled={!canBuy}
           aria-label={
-            autoshipSelected
-              ? `Start Autoship for ${product.name} at ${finalPriceStr}`
+            reshipSelected
+              ? `Start Reship for ${product.name} at ${finalPriceStr}`
               : `Add ${qty} ${qty === 1 ? "unit" : "units"} of ${product.name} to bag`
           }
           className={`flex min-h-[50px] w-full items-center justify-center gap-2 rounded-md px-4 text-[14px] font-bold uppercase tracking-[0.08em] transition-colors ${
@@ -279,10 +279,10 @@ export function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
             <span className="inline-flex items-center gap-1.5">
               <Check size={15} weight="bold" /> Added to bag
             </span>
-          ) : autoshipSelected ? (
+          ) : reshipSelected ? (
             <span className="inline-flex items-center gap-1.5">
               <ShoppingBag size={15} weight="fill" />
-              Start Autoship{finalCents > 0 ? ` — ${formatCents(finalCents * qty)}` : ""}
+              Start Reship{finalCents > 0 ? ` — ${formatCents(finalCents * qty)}` : ""}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5">

@@ -32,12 +32,13 @@ function BannerSlide({ f, active }: { f: SalonFavorite; active: boolean }) {
       aria-roledescription="slide"
       aria-hidden={!active}
       tabIndex={active ? 0 : -1}
-      className={`flex flex-col border-2 border-[#002B5C] bg-[#002B5C] sm:flex-row sm:items-stretch ${
+      className={`flex h-full flex-col border-2 border-[#002B5C] bg-[#002B5C] sm:flex-row sm:items-stretch ${
         active ? "relative" : "pointer-events-none absolute inset-0"
       }`}
     >
-      {/* Product shot — white plate, gold AA PICK badge (same as the PLP banner) */}
-      <div className="relative h-44 w-full shrink-0 bg-white sm:h-auto sm:w-56 lg:w-80">
+      {/* Product shot — white plate, gold AA PICK badge (same as the PLP banner).
+          FIXED width so every slide shares the same geometry. */}
+      <div className="relative h-36 w-full shrink-0 bg-white sm:h-full sm:w-64 lg:w-96">
         {f.image ? (
           <img
             src={f.image}
@@ -56,17 +57,18 @@ function BannerSlide({ f, active }: { f: SalonFavorite; active: boolean }) {
         </span>
       </div>
 
-      {/* Navy panel — brand eyebrow, name, price, GET THIS NOW */}
-      <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-2 px-6 py-6 sm:px-8">
+      {/* Navy panel — brand eyebrow, name, price, GET THIS NOW. Name clamps
+          to 2 lines so long titles can't grow the slide. */}
+      <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-2 overflow-hidden px-6 py-5 sm:px-8">
         <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#F2C500]">
           {f.brand || "All About Pawz"}
         </p>
-        <h4 className="text-[22px] font-extrabold leading-[1.15] text-white lg:text-[26px]">{f.name}</h4>
+        <h4 className="line-clamp-2 text-[20px] font-extrabold leading-[1.15] text-white lg:text-[24px]">{f.name}</h4>
         <p className="flex items-baseline gap-2.5">
           {price && <span className="text-[20px] font-extrabold text-white">{price}</span>}
           {compareAt && <span className="text-[14px] font-semibold text-white/60 line-through">{compareAt}</span>}
         </p>
-        <span className="mt-2 inline-flex items-center gap-2 bg-[#F2C500] px-6 py-3 text-[14px] font-extrabold uppercase tracking-[0.1em] text-[#002B5C] transition-colors group-hover:bg-white">
+        <span className="mt-1 inline-flex items-center gap-2 bg-[#F2C500] px-6 py-3 text-[13px] font-extrabold uppercase tracking-[0.1em] text-[#002B5C] transition-colors group-hover/carousel:bg-white">
           Get This Now
           <ChevronRight className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
         </span>
@@ -103,7 +105,8 @@ export function SalonFavoritesScroller({ products }: { products: SalonFavorite[]
       onFocusCapture={() => (hover.current = true)}
       onBlurCapture={() => (hover.current = false)}
     >
-      <div className="relative">
+      {/* FIXED height — every slide is the exact same size, no jumping */}
+      <div className="relative h-[300px] sm:h-[240px] lg:h-[260px]">
         {products.map((f, i) => (
           <BannerSlide key={f.id} f={f} active={i === index} />
         ))}

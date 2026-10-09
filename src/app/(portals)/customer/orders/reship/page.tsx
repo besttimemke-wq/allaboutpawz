@@ -1,6 +1,6 @@
 'use client';
 
-// Autoship — My Orders tree (spec §7.3: benefit cards + SHOP NOW).
+// Reship — My Orders tree (spec §7.3: benefit cards + SHOP NOW).
 import { Repeat, Percent, Truck, CalendarClock, Star } from 'lucide-react';
 import { PortalEmptyState } from '@/components/pawz/PortalEmptyState';
 
@@ -11,11 +11,11 @@ const BENEFITS = [
   { icon: Star, title: 'Priority Access' },
 ];
 
-export default function AutoshipPage() {
+export default function ReshipPage() {
   return (
     <PortalEmptyState
       icon={Repeat}
-      title="No Autoship Orders Yet!"
+      title="No Reship Orders Yet!"
       description="Never run out of your pet's food or supplies again — schedule repeat deliveries and save."
       cta={{ label: 'Shop Now', href: '/shop' }}
     >

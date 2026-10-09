@@ -51,7 +51,7 @@ function composeLegacyQa(p: {
     qa.push({
       question: "When will this be back in stock?",
       answer:
-        "This item is currently on backorder with our supplier. Autoship customers get priority when stock arrives — sign up and we'll ship it as soon as it lands.",
+        "This item is currently on backorder with our supplier. Reship customers get priority when stock arrives — sign up and we'll ship it as soon as it lands.",
     })
   }
   return qa.slice(0, 4)
@@ -136,6 +136,6 @@ async function loadPdpDataUncached(slug: string): Promise<PdpData | null> {
       warranty: (legacy.warranty as string) ?? null,
       inStock: (legacy.stock ?? 0) > 0,
     }),
-    autoship: { firstOrderPct: 35, firstOrderCapCents: 2000, ongoingPct: 5 },
+    reship: { firstOrderPct: 35, firstOrderCapCents: 2000, ongoingPct: 5 },
   }
 }

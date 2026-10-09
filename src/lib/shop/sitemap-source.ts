@@ -117,7 +117,7 @@ const CUSTOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/customer/appointments/vet",              label: "Vet Appointments",             pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
   { path: "/customer/pets",                          label: "My Pets",                     pageType: "portal", changeFrequency: "weekly",  priority: 0.4 },
   { path: "/customer/orders",                        label: "My Orders",                    pageType: "portal", changeFrequency: "weekly",  priority: 0.4 },
-  { path: "/customer/orders/autoship",               label: "Autoship Orders",              pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
+  { path: "/customer/orders/reship",               label: "Reship Orders",              pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
   { path: "/customer/orders/buy-again",              label: "Buy Again",                   pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
   { path: "/customer/orders/perks",                  label: "Perks",                        pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
   { path: "/customer/orders/subscriptions",         label: "Subscriptions",                pageType: "portal", changeFrequency: "monthly", priority: 0.3 },

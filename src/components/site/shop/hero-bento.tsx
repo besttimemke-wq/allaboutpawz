@@ -7,7 +7,8 @@
 // Layout reference: Chewy's department landing — clean open header (eyebrow,
 // H1, one-liner), then an asymmetric image grid where one feature tile
 // anchors the composition and smaller tiles fill the field. Sharp corners,
-// navy #002B5C + gold #F2C500, full-bleed imagery, labels on a navy gradient.
+// navy #002B5C + gold #F2C500, full-bleed imagery, labels on a neutral
+// black scrim (owner ruling: NO blue tint over the tile photos).
 //
 // Tile spans (grid-flow-dense packs holes automatically):
 //   N=1        → one full-width banner
@@ -65,7 +66,7 @@ function BentoCard({ tile, index, total }: { tile: BentoTile; index: number; tot
       )}
       {!tile.accent && (
         <div
-          className="absolute inset-0 bg-gradient-to-t from-[#002B5C]/90 via-[#002B5C]/25 to-transparent"
+          className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"
           aria-hidden="true"
         />
       )}
