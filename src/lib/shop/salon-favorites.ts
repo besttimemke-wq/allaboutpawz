@@ -59,6 +59,7 @@ const FAVORITES_SQL = `
          WHERE rr."productId" = p.id::text AND rr.visible = true
       ) review ON true
      WHERE p.status = 'published' AND p.is_salon_favorite = true
+       AND v.price IS NOT NULL
   ),
   ranked AS (
     SELECT *, row_number() OVER (

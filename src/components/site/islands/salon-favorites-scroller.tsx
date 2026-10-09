@@ -1,132 +1,155 @@
 "use client"
 
-import { useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, PawPrint } from "lucide-react"
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react"
 import type { SalonFavorite } from "@/lib/shop/salon-favorites"
 
 // ---------------------------------------------------------------------------
-// SalonFavoritesScroller — the homepage trust surface ("AA Picks · Salon
-// Favorites", owner-curated via products.is_salon_favorite).
+// SalonFavoritesScroller — the homepage "AA Picks · Salon Favorites" trust
+// surface, owner-curated via products.is_salon_favorite.
 //
-// Owner ruling after v1: this rail is a TRUST SIGNAL, not a checkout surface.
-// Cards are light picks — image, name, price, link to the product page —
-// NO add-to-cart buttons. It scrolls ONE card per arrow click, about five
-// picks visible on desktop, matching the front page's calm salon feel.
+// Owner ruling after v2: the scroller is the SAME AA Pick banner that runs on
+// every listing page (plp.tsx PromoBanner — product shot left on white with
+// the gold AA PICK badge, navy panel right with brand / name / price and the
+// gold GET THIS NOW CTA), rotating Chewy-hero style: auto-advance, dots, and
+// a pause control. One pick per slide. NOT a rail of add-to-cart cards.
 // ---------------------------------------------------------------------------
 
-function PickCard({ f, priority = false }: { f: SalonFavorite; priority?: boolean }) {
+const ROTATE_MS = 6000
+
+function BannerSlide({ f, active }: { f: SalonFavorite; active: boolean }) {
+  const price = f.priceCents != null ? `$${(f.priceCents / 100).toFixed(2)}` : null
+  const compareAt =
+    f.isOnSale && f.compareAtPriceCents != null && f.priceCents != null
+      ? `$${(f.compareAtPriceCents / 100).toFixed(2)}`
+      : null
+
   return (
     <Link
       href={`/products/${f.slug}`}
-      aria-label={`View ${f.name}`}
-      className="group block w-[168px] shrink-0 snap-start sm:w-[196px] lg:w-[212px]"
+      aria-label={`Get ${f.name}${price ? ` — ${price}` : ""}`}
+      aria-roledescription="slide"
+      aria-hidden={!active}
+      tabIndex={active ? 0 : -1}
+      className={`flex flex-col border-2 border-[#002B5C] bg-[#002B5C] sm:flex-row sm:items-stretch ${
+        active ? "relative" : "pointer-events-none absolute inset-0"
+      }`}
     >
-      <div className="relative aspect-square overflow-hidden rounded-md border border-neutral-200 bg-white transition-colors group-hover:border-[#F2C500]">
-        <span className="absolute left-0 top-0 z-10 bg-[#F2C500] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#002B5C]">
-          AA Pick
-        </span>
-        {f.isOnSale && (
-          <span className="absolute right-0 top-0 z-10 bg-[#002B5C] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-white">
-            Sale
-          </span>
-        )}
+      {/* Product shot — white plate, gold AA PICK badge (same as the PLP banner) */}
+      <div className="relative h-44 w-full shrink-0 bg-white sm:h-auto sm:w-56 lg:w-80">
         {f.image ? (
           <img
             src={f.image}
             alt={f.brand ? `${f.brand} — ${f.name}` : f.name}
-            width={424}
-            height={424}
-            loading={priority ? "eager" : "lazy"}
+            className="h-full w-full object-cover"
+            loading={active ? "eager" : "lazy"}
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="flex h-full items-center justify-center" aria-hidden="true">
-            <PawPrint className="h-9 w-9 text-neutral-300" strokeWidth={1.2} />
+            <span className="font-display text-4xl text-neutral-300">AA</span>
           </div>
         )}
+        <span className="absolute left-4 top-4 bg-[#F2C500] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#002B5C]">
+          AA Pick
+        </span>
       </div>
 
-      {f.brand && (
-        <p className="mt-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500">
-          {f.brand}
+      {/* Navy panel — brand eyebrow, name, price, GET THIS NOW */}
+      <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-2 px-6 py-6 sm:px-8">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#F2C500]">
+          {f.brand || "All About Pawz"}
         </p>
-      )}
-      <p className="mt-1 line-clamp-2 text-[14px] font-semibold leading-[1.35] text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 group-hover:underline">
-        {f.name}
-      </p>
-      <p className="mt-1.5 text-[15px] font-bold text-[#002B5C]">
-        {f.priceCents != null ? `$${(f.priceCents / 100).toFixed(2)}` : "—"}
-      </p>
+        <h4 className="text-[22px] font-extrabold leading-[1.15] text-white lg:text-[26px]">{f.name}</h4>
+        <p className="flex items-baseline gap-2.5">
+          {price && <span className="text-[20px] font-extrabold text-white">{price}</span>}
+          {compareAt && <span className="text-[14px] font-semibold text-white/60 line-through">{compareAt}</span>}
+        </p>
+        <span className="mt-2 inline-flex items-center gap-2 bg-[#F2C500] px-6 py-3 text-[14px] font-extrabold uppercase tracking-[0.1em] text-[#002B5C] transition-colors group-hover:bg-white">
+          Get This Now
+          <ChevronRight className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+        </span>
+      </div>
     </Link>
   )
 }
 
 export function SalonFavoritesScroller({ products }: { products: SalonFavorite[] }) {
-  const rail = useRef<HTMLDivElement>(null)
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const hover = useRef(false)
 
-  // One card per click — calm, predictable scrolling.
-  const nudge = (dir: 1 | -1) => {
-    const el = rail.current
-    if (!el) return
-    const card = el.querySelector<HTMLElement>("[data-card]")
-    const step = card ? card.offsetWidth + 20 : 212
-    el.scrollBy({ left: dir * step, behavior: "smooth" })
-  }
+  const count = products.length
+  const go = useCallback((i: number) => setIndex(((i % count) + count) % count), [count])
 
-  if (products.length === 0) return null
+  useEffect(() => {
+    if (paused || hover.current || count < 2) return
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    const t = setInterval(() => setIndex((i) => (i + 1) % count), ROTATE_MS)
+    return () => clearInterval(t)
+  }, [paused, count])
+
+  if (count === 0) return null
 
   return (
-    <div className="relative">
-      {/* Arrows — 44px+ targets, vertically centered over the rail, above the
-          cards (z-10) so card overlays never swallow the click; hidden on
-          touch widths where the rail swipes */}
-      <div className="absolute top-1/2 right-6 z-10 hidden -translate-y-1/2 gap-2 lg:right-10 sm:flex">
+    <div
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="AA Picks — Salon Favorites"
+      className="group/carousel"
+      onMouseEnter={() => (hover.current = true)}
+      onMouseLeave={() => (hover.current = false)}
+      onFocusCapture={() => (hover.current = true)}
+      onBlurCapture={() => (hover.current = false)}
+    >
+      <div className="relative">
+        {products.map((f, i) => (
+          <BannerSlide key={f.id} f={f} active={i === index} />
+        ))}
+
+        {/* Prev / next — desktop chrome, 44px targets */}
         <button
           type="button"
-          onClick={() => nudge(-1)}
-          aria-label="Scroll salon favorites left"
-          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-sm transition-colors hover:border-[#002B5C] hover:text-[#002B5C]"
+          onClick={() => go(index - 1)}
+          aria-label="Previous pick"
+          className="absolute top-1/2 left-3 z-10 hidden h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-[#002B5C] shadow-md transition-colors hover:bg-white sm:flex"
         >
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
         <button
           type="button"
-          onClick={() => nudge(1)}
-          aria-label="Scroll salon favorites right"
-          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-sm transition-colors hover:border-[#002B5C] hover:text-[#002B5C]"
+          onClick={() => go(index + 1)}
+          aria-label="Next pick"
+          className="absolute top-1/2 right-3 z-10 hidden h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/90 text-[#002B5C] shadow-md transition-colors hover:bg-white sm:flex"
         >
           <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
-      </div>
 
-      <div
-        ref={rail}
-        role="region"
-        aria-label="AA Picks — Salon Favorites products"
-        className="shop-nav-scroll -mx-8 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-8 pb-2 lg:-mx-12 lg:px-12"
-      >
-        {products.map((f, i) => (
-          <div key={f.id} data-card>
-            <PickCard f={f} priority={i < 3} />
-          </div>
-        ))}
-
-        {/* End card — routes into the full curation */}
-        <Link
-          href="/shop/collections/salon-favorites"
-          className="group flex w-[168px] shrink-0 snap-start flex-col items-start justify-between rounded-md border border-[#002B5C]/25 bg-[#002B5C] p-4 transition-colors hover:border-[#002B5C] sm:w-[196px] lg:w-[212px]"
-          aria-label="Shop all AA Picks salon favorites"
+        {/* Carousel chrome — dots + pause, Chewy-hero pattern */}
+        <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2.5">
+          {products.map((f, i) => (
+            <button
+              key={`dot-${f.id}`}
+              type="button"
+              onClick={() => go(i)}
+              aria-label={`Go to pick ${i + 1} of ${count}`}
+              aria-current={i === index}
+              className={`h-2.5 w-2.5 cursor-pointer rounded-full transition-colors ${
+                i === index ? "bg-[#F2C500]" : "bg-white/45 hover:bg-white/80"
+              }`}
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setPaused((p) => !p)}
+          aria-label={paused ? "Play picks rotation" : "Pause picks rotation"}
+          aria-pressed={paused}
+          className="absolute right-3 bottom-2.5 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/30"
         >
-          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">
-            The full curation
-          </span>
-          <span className="font-display text-[19px] leading-[1.25] text-white">
-            Shop all<br />AA Picks
-            <span className="ml-1.5 inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
-          </span>
-        </Link>
+          {paused ? <Play className="h-3.5 w-3.5" aria-hidden="true" /> : <Pause className="h-3.5 w-3.5" aria-hidden="true" />}
+        </button>
       </div>
     </div>
   )
