@@ -4,7 +4,7 @@ import { departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { BUSINESS } from "@/lib/business"
 import { SITE_URL } from "@/lib/site-url"
 import { breadcrumbSchema } from "@/lib/business"
-import { subtreeNodeIds, type TaxAnimal, type TaxGroup, type TaxSub } from "@/lib/shop/taxonomy-db"
+import { deptScopeNodeIds, type TaxAnimal, type TaxGroup, type TaxSub } from "@/lib/shop/taxonomy-db"
 import { Plp } from "./plp"
 import { CategoryCarousel } from "./category-carousel"
 import { ShopPromoBanner } from "./shop-promo-banner"
@@ -459,8 +459,9 @@ export async function DepartmentPage({
     image: taxImage(animal.slug, dept.slug, s.slug, i) || parentImage,
     imageAlt: `${s.name} — All About Pawz Memphis`,
   }))
-  // LIVE product scope — the whole subtree of THIS department node.
-  const nodeIds = await subtreeNodeIds(dept.id)
+  // LIVE product scope — the whole subtree of THIS department node UNION
+  // its twin departments (feed + curated seeds of the same aisle).
+  const nodeIds = await deptScopeNodeIds(animal.slug, dept.slug, dept.id)
 
   return (
     <article className="bg-white">
@@ -585,8 +586,9 @@ export async function SubcategoryPage({
     imageAlt: `${s.name} at All About Pawz`,
   }))
   const quickLinks = siblingCards.filter((card) => card.href !== path)
-  // LIVE product scope — the whole subtree of THIS sub node.
-  const nodeIds = await subtreeNodeIds(sub.id)
+  // LIVE product scope — the whole subtree of THIS sub node UNION its
+  // department's twins (a sub can live in either seed of the department).
+  const nodeIds = await deptScopeNodeIds(animal.slug, dept.slug, sub.id)
 
   return (
     <article className="bg-white">

@@ -76,6 +76,10 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
   const [expandedDepartment, setExpandedDepartment] = useState<string | null>(null)
   // "<animal>/<dept>" → L3 cards for single-department animals (live nav only)
   const [liveSubCards, setLiveSubCards] = useState<Record<string, LiveSubCard[]>>({})
+  // "<animal>/<dept>" → live subcategory links for EVERY department. The
+  // static tree's L3 slugs predate the feed import; the LIVE sub slugs are
+  // what the server actually routes. Same markup — only hrefs/names upgrade.
+  const [liveSubLinks, setLiveSubLinks] = useState<Record<string, { slug: string; name: string; href: string }[]>>({})
 
   useEffect(() => {
     let alive = true
@@ -83,7 +87,19 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
       const nav = cachedLiveNav()
       if (!alive || !nav) return // API unavailable — keep the static design
       const next: Record<string, LiveSubCard[]> = {}
+      const links: Record<string, { slug: string; name: string; href: string }[]> = {}
       for (const a of nav) {
+        for (const dept of a.departments) {
+          if (dept.subcategories.length === 0) continue
+          const entry = dept.subcategories.map((s) => ({ slug: s.slug, name: s.name, href: s.path }))
+          links[`${a.slug}/${dept.slug}`] = entry
+          // Also join the STATIC panel key ("cat/food" → cat-cat-food's live
+          // subs) so the owner-designed static tree links live routes.
+          const sk = dept.staticKey
+          if (sk && sk !== dept.slug && !links[`${a.slug}/${sk}`]) {
+            links[`${a.slug}/${sk}`] = entry
+          }
+        }
         if (a.departments.length !== 1) continue
         const dept = a.departments[0]
         if (dept.subcategories.length === 0) continue
@@ -97,6 +113,7 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
         if (a.slug === "small-animal") next[`small-pet/${dept.slug}`] = next[key]
       }
       setLiveSubCards(next)
+      setLiveSubLinks(links)
     })
     return () => { alive = false }
   }, [])
@@ -237,17 +254,22 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
                             Browse categories
                             {expanded ? <Minus size={16} /> : <Plus size={16} />}
                           </button>
-                          {expanded && (
+                          {expanded && (() => {
+                            // Live sub slugs when the nav has them (they are
+                            // what the server routes); static list otherwise.
+                            const subs = liveSubLinks[departmentKey] ?? dept.subcategories.map(s => ({ slug: s.slug, name: s.name, href: subcategoryPath(animal.slug, dept.slug, s.slug) }))
+                            return (
                             <ul className="border-t border-neutral-200 px-3 py-2">
-                              {dept.subcategories.map(sub => (
+                              {subs.map(sub => (
                                 <li key={sub.slug}>
-                                  <Link href={subcategoryPath(animal.slug, dept.slug, sub.slug)} onClick={onClose} className="block py-1.5 text-[15px] leading-snug text-neutral-800 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
+                                  <Link href={sub.href} onClick={onClose} className="block py-1.5 text-[15px] leading-snug text-neutral-800 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
                                     {sub.name}
                                   </Link>
                                 </li>
                               ))}
                             </ul>
-                          )}
+                            )
+                          })()}
                         </>
                       )}
                     </article>

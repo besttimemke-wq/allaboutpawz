@@ -31,6 +31,10 @@ export type NavDepartment = {
   path: string
   productCount: number
   image: string | null
+  /** The static-nav key (`<animal>/<staticDept>` split) this live department
+   *  answers to — server-computed via staticDeptKeyForLive. Client islands
+   *  join static panels to live links by this. Falls back to `slug`. */
+  staticKey?: string
   subcategories: NavSub[]
 }
 

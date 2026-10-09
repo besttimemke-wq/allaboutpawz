@@ -180,6 +180,11 @@ export async function Plp({
         availability: state.filters.availability,
         q: state.q,
         brands: state.facets?.brand,
+        // Every URL facet key (attribute slugs come from the owner's
+        // node_filters in Supabase) narrows the grid — no hardcoded list.
+        facets: Object.fromEntries(
+          Object.entries(state.facets ?? {}).filter(([k]) => k !== "brand" && k !== "availability"),
+        ),
       },
     })
     result = tax
@@ -244,12 +249,12 @@ export async function Plp({
 
   return (
     <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[280px_1fr]">
-      {/* Desktop rail — sticky. NO outer border + NO internal scrollbar:
-          the sidebar is white background that blends into the page. When
-          a filter section expands, the PAGE gets longer (the rail pushes
-          the page down with it). The owner is explicit: "no scroller
-          anywhere — make the page long enough to fit when it expands." */}
-      <aside className="hidden w-[280px] shrink-0 self-start lg:sticky lg:top-6 lg:block">
+      {/* Desktop rail — sticky AND internally scrollable. Sticky alone made
+          the bottom of a tall rail unreachable (the + expanders sat below
+          the viewport with no way to reach them). max-height + its own
+          scrollbar keeps the rail visible while every section, expander and
+          plus button stays on screen and clickable. */}
+      <aside className="shop-rail-scroll hidden w-[280px] shrink-0 self-start lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-1.5rem)] lg:overflow-y-auto lg:pr-2">
         <div className="bg-white">
           <ShopSidebar key={JSON.stringify(applied)} data={sidebar} />
         </div>

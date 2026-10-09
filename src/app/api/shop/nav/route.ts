@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import fs from "node:fs"
 import path from "node:path"
-import { getTaxonomyTree } from "@/lib/shop/taxonomy-db"
+import { getTaxonomyTree, staticDeptKeyForLive } from "@/lib/shop/taxonomy-db"
 
 // ---------------------------------------------------------------------------
 // GET /api/shop/nav — the LIVE taxonomy tree shaped for the shop flyout and
@@ -124,6 +124,10 @@ export async function GET() {
           slug: g.slug,
           name: g.name,
           path: `/shop/${a.slug}/${g.slug}`,
+          // The static-nav key this live department answers to ("food" for
+          // cat-cat-food, "treats-chews" for dog-treats) — client islands
+          // join their static panels to these live links by this key.
+          staticKey: staticDeptKeyForLive(a.slug, g.slug),
           productCount: g.productCount,
           image: deptImage,
           subcategories,

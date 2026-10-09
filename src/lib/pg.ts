@@ -21,15 +21,26 @@ if (!connectionString && process.env.NODE_ENV !== "production") {
   );
 }
 
-// Lazy-init the pool on first use so the module loads even when the env
-// var isn't present (e.g. unit tests, build-time lint).
-let _pool: Pool | null = null;
+// ---------------------------------------------------------------------------
+// SESSION-POOLER BUDGET — Supabase's session pooler allows pool_size: 15
+// clients PER PROJECT. The previous per-module pool could be instantiated
+// once per Turbopack chunk graph (dev) and each opened up to 10 clients —
+// two module instances + a script = EMAXCONNSESSION, which 500s every SSR
+// page touching pg. The pool MUST be a process-wide singleton on globalThis
+// and its `max` must leave headroom under 15 (this process is not the only
+// consumer of the project's pooler budget).
+// ---------------------------------------------------------------------------
+const POOL_MAX = 5;
+
+// globalThis survives Turbopack chunk duplication; a plain module-level
+// `let` does not (each chunk gets its own copy of the module state).
+const globalStore = globalThis as unknown as { __aapawzPgPool?: Pool };
 
 function getPool(): Pool {
-  if (_pool) return _pool;
-  _pool = new Pool({
+  if (globalStore.__aapawzPgPool) return globalStore.__aapawzPgPool;
+  const pool = new Pool({
     connectionString,
-    max: 10,                        // up to 10 concurrent queries
+    max: POOL_MAX,
     idleTimeoutMillis: 30_000,      // close idle conns after 30s
     connectionTimeoutMillis: 5_000, // wait up to 5s for a free conn
     // Statement-level timeout — a single bad query can't lock the pool.
@@ -40,10 +51,11 @@ function getPool(): Pool {
   });
   // Pool errors can surface as 'idle client timeout' / 'connection ended'
   // events — log them so we see flakiness in dev.
-  _pool.on("error", (err) => {
+  pool.on("error", (err) => {
     console.error("[pg] pool error:", err.message);
   });
-  return _pool;
+  globalStore.__aapawzPgPool = pool;
+  return pool;
 }
 
 // Backwards-compat: returns a checked-out client for callers that still

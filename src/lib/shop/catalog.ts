@@ -812,28 +812,24 @@ export function parseSearchParams(sp: Record<string, string | string[] | undefin
     }
   }
 
-  // ---- Multi-select facet values from URL (?brand=a,b&flavor=c) ----
-  // The known facet keys are the ones in FACETS plus availability.
-  const FACET_KEYS = [
-    "brand",
-    "foodForm",
-    "lifeStage",
-    "flavor",
-    "healthFeature",
-    "color",
-    "material",
-    "breedSize",
-    "productWeight",
-    "frameMaterial",
-    "apparelType",
-    "size",
-  ]
+  // ---- Multi-select facet values from URL (?brand=a,b&food-form=c) ----
+  // Keys are NOT hardcoded: any reserved-word-free query param is a facet
+  // key. The attribute slugs come from the owner's node_filters /
+  // v_node_filter_spec view in Supabase, and new facets must start working
+  // the moment they're added there — a static key list is how facets ended
+  // up silently dead. Values are comma-separated; caps keep URLs sane.
+  const RESERVED = new Set([
+    "sort", "page", "minPrice", "maxPrice", "priceBucket", "rating",
+    "availability", "q", "XTransformPort",
+  ])
   const facets: Record<string, string[]> = {}
-  for (const key of FACET_KEYS) {
-    const raw = one(key)
-    if (raw) {
-      facets[key] = raw.split(",").map((s) => s.trim()).filter(Boolean)
-    }
+  for (const [rawKey, rawVal] of Object.entries(sp)) {
+    if (rawKey.startsWith("_") || RESERVED.has(rawKey)) continue
+    if (typeof rawVal !== "string" || rawVal.trim() === "") continue
+    const key = rawKey.toLowerCase()
+    if (!/^[a-z][a-z0-9-]{1,40}$/.test(key)) continue
+    const values = rawVal.split(",").map((s) => s.trim().slice(0, 80)).filter(Boolean).slice(0, 20)
+    if (values.length > 0) facets[key] = values
   }
 
   // ---- Free-text query (?q=) from the header search bar ----

@@ -5,19 +5,20 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Star } from "lucide-react"
 import { SHOP_NAV_CATEGORIES, type ShopCategory } from "@/lib/shop-nav"
-import { loadShopDepartments, type ShopDepartment } from "@/lib/shop-departments"
 
 // ---------------------------------------------------------------------------
 // ShopNavBar — the shared global shop navigation, rendered on EVERY /shop
 // route directly below the PageHeader breadcrumb bar.
 //
-// LIVE TAXONOMY FIRST, STATIC CONFIG AS THE FLOOR. The bar reads
-// /api/shop/categories (the admin-managed tree: new categories appear,
-// sort_order reorders, featured_in_mega_menu / promo_blurb surface) — but it
-// NEVER depends on that fetch: while it loads, on failure, or when the
-// taxonomy is empty, the curated nine-department config renders instead.
-// The department bar is always on the page (this is what production lost
-// when it was swapped for a click-to-open dropdown — never again).
+// ONE MASTER SOURCE: the owner-curated static taxonomy (SHOP_NAV_TAXONOMY —
+// the same tree the flyout and mega menu render). The bar used to fetch
+// /api/shop/categories (the admin categories table) and fall back to legacy
+// /shop/category/<slug> redirect routes — a second, drifting set of category
+// names and URLs sitting next to the master routes. That's gone: every link
+// below is a canonical /shop/<animal>/<department>[/<subcategory>] master
+// route and every name is the curated customer-facing one. The department
+// bar is always on the page (this is what production lost when it was
+// swapped for a click-to-open dropdown — never again).
 //
 //   Desktop: the department destinations in one row. Hovering a category
 //   opens ITS mega menu below the bar (no chevrons, no product counts —
@@ -27,10 +28,6 @@ import { loadShopDepartments, type ShopDepartment } from "@/lib/shop-departments
 //   │ Subcategories (narrow) │ WHAT'S NEW (prominent) │ 3 × 1:1 images │
 //   └────────────────────────────────────────────────────────────────┘
 //
-//   For departments the admin added after the static config was written
-//   (no curated What's-New/images yet), the panel renders the live
-//   subcategories in two columns plus the admin's promo blurb.
-//
 //   Behavior: moving between categories switches the open menu; moving the
 //   pointer from the bar INTO the panel keeps it open; leaving the nav +
 //   panel region closes it (180ms delay, no flicker). Keyboard: focusing a
@@ -39,8 +36,7 @@ import { loadShopDepartments, type ShopDepartment } from "@/lib/shop-departments
 //   Touch/mobile: the row becomes a horizontal scroll rail of the
 //   categories — tap navigates (no hover dependency).
 //
-// Data: live tree from src/lib/shop-departments.ts (one memoized fetch) +
-// curated panels from src/lib/shop-nav.ts.
+// Data: the master static taxonomy from src/lib/shop-nav.ts — no fetch.
 // ---------------------------------------------------------------------------
 
 // Close delay so diagonal pointer moves bar → panel never flicker closed.
@@ -48,12 +44,11 @@ const CLOSE_DELAY_MS = 180
 // Live panels cap their subcategory column the same way the curated ones do.
 const MAX_SUBS_PER_DEPT = 10
 
-/** One bar/panel entry — live taxonomy overlaid on the curated config. */
+/** One bar/panel entry — straight from the master static taxonomy. */
 type BarCategory = {
   slug: string
   name: string
-  /** Canonical route (/shop/dog/grooming) when the live join resolved it;
-   *  legacy /shop/category/<slug> otherwise (still redirects correctly). */
+  /** Canonical master route (/shop/dog/grooming). */
   href: string
   subcategories: { slug: string; name: string; href: string }[]
   whatsNew?: ShopCategory["whatsNew"]
@@ -62,81 +57,24 @@ type BarCategory = {
   blurb?: string | null
 }
 
-/** The link for a raw taxonomy node: canonical path when the join resolved
- *  it, the legacy redirect route otherwise. */
-const linkFor = (node: { slug: string; navPath?: string | null }): string =>
-  node.navPath || `/shop/category/${node.slug}`
-
-/** A live department's navigable leaves: wrapper children are flattened. */
-function liveLeaves(dept: ShopDepartment): ShopDepartment[] {
-  const out: ShopDepartment[] = []
-  for (const c of dept.children) {
-    if (c.children.length > 0) out.push(...c.children)
-    else out.push(c)
-  }
-  return out
-}
-
-/** Build the bar: live tree (admin order/flags) with curated panels where
- *  the config knows the department. Empty/absent live data → static config.
- *
- *  Naming: a department the curated config knows keeps its CUSTOMER-FACING
- *  name ("Grooming", never "Dog Grooming Supplies"); admin-added departments
- *  keep the name the admin wrote. Ordering: an admin-set sort_order wins;
- *  otherwise known departments follow the curated order and new departments
- *  append alphabetically after them. */
-function buildCategories(live: ShopDepartment[] | null): BarCategory[] {
-  if (!live || live.length === 0) {
-    return SHOP_NAV_CATEGORIES.map((c) => ({
-      slug: c.slug,
-      name: c.name,
-      href: `/shop/category/${c.slug}`,
-      subcategories: c.subcategories.map((s) => ({
-        slug: s.slug,
-        name: s.name,
-        href: `/shop/category/${s.slug}`,
-      })),
-      whatsNew: c.whatsNew,
-      images: c.images,
-    }))
-  }
-  const curatedIndexOf = new Map(SHOP_NAV_CATEGORIES.map((c, i) => [c.slug, i]))
-  // Sort the LIVE list first. sort_order semantics: an explicit admin value
-  // (> 0) positions the department exactly there; 0/null means unset — the
-  // migration's default — so known departments fall back to the curated
-  // order and brand-new admin departments append alphabetically after them.
-  const keyOf = (d: ShopDepartment): number => {
-    if (d.sortOrder != null && d.sortOrder > 0) return d.sortOrder
-    const ci = curatedIndexOf.get(d.slug)
-    return ci != null ? ci : 500
-  }
-  const sorted = [...live].sort((a, b) => {
-    const oa = keyOf(a)
-    const ob = keyOf(b)
-    if (oa !== ob) return oa - ob
-    return a.name.localeCompare(b.name)
-  })
-  const built = sorted.map((dept) => {
-    const curated = SHOP_NAV_CATEGORIES.find((c) => c.slug === dept.slug)
-    const leaves = liveLeaves(dept)
-    return {
-      slug: dept.slug,
-      name: curated?.name ?? dept.name,
-      href: linkFor(dept),
-      subcategories: (leaves.length > 0 ? leaves : curated?.subcategories || []).map((s) => ({
-        slug: s.slug,
-        name: curated && curated.subcategories.some((cs) => cs.slug === s.slug)
-          ? curated.subcategories.find((cs) => cs.slug === s.slug)!.name
-          : s.name,
-        href: "navPath" in s ? linkFor(s as { slug: string; navPath?: string | null }) : `/shop/category/${s.slug}`,
-      })),
-      whatsNew: curated?.whatsNew,
-      images: curated?.images || [],
-      featured: !!dept.featuredInMegaMenu,
-      blurb: dept.promoBlurb || null,
-    }
-  })
-  return built
+/**
+ * Build the bar from SHOP_NAV_CATEGORIES (the owner-curated tree, keyed
+ * `animal/dept`). Every href is a master route — no legacy redirects, no
+ * second taxonomy.
+ */
+function buildCategories(): BarCategory[] {
+  return SHOP_NAV_CATEGORIES.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    href: `/shop/${c.slug}`,
+    subcategories: c.subcategories.map((s) => ({
+      slug: s.slug,
+      name: s.name,
+      href: `/shop/${c.slug}/${s.slug}`,
+    })),
+    whatsNew: c.whatsNew,
+    images: c.images,
+  }))
 }
 
 function MegaPanel({ category }: { category: BarCategory }) {
@@ -294,23 +232,10 @@ function MegaPanel({ category }: { category: BarCategory }) {
 export function ShopNavBar() {
   const pathname = usePathname()
   const [active, setActive] = useState<string | null>(null)
-  const [live, setLive] = useState<ShopDepartment[] | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // One memoized fetch per session (src/lib/shop-departments.ts) — the live
-  // admin-managed taxonomy. Failure/empty falls back to the curated config.
-  useEffect(() => {
-    let alive = true
-    loadShopDepartments().then((d) => {
-      if (alive) setLive(d)
-    })
-    return () => {
-      alive = false
-    }
-  }, [])
-
-  const categories = useMemo(() => buildCategories(live), [live])
+  const categories = useMemo(() => buildCategories(), [])
 
   // Never leak a pending close timer.
   useEffect(() => {

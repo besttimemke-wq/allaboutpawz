@@ -1,114 +1,98 @@
-import { Fragment } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { PawPrint } from "lucide-react"
-import { repo } from "@/lib/repo"
-import { getNavTree, flattenNav, findByRawIdNav, formatCents, type NavCategory } from "@/lib/shop/catalog"
 import {
-  getCatalogProductBySlug,
-  listCatalogProducts,
-  type CatalogProduct,
-} from "@/lib/enterprise/catalog"
-import { getTaxProductDetailBySlug } from "@/lib/shop/taxonomy-db"
-import { ProductBuyBox, ReviewForm, ProductGallery, type BuyBoxProduct } from "@/components/site/islands/product-detail"
+  ArrowRight,
+  Bone,
+  Dog,
+  Factory,
+  HeartPulse,
+  Layers,
+  Palette,
+  PawPrint,
+  Plus,
+  Ruler,
+  Scale,
+  ShieldCheck,
+  Star,
+  Tag,
+  type LucideIcon,
+} from "lucide-react"
+import { loadPdpData } from "@/lib/shop/pdp"
+import type { MiniRec, PdpData } from "@/lib/shop/taxonomy-db"
+import { GROOMING_GUIDES } from "@/lib/guides-data"
+import {
+  ProductBuyBox,
+  ProductGallery,
+  ReviewForm,
+  type BuyBoxProduct,
+} from "@/components/site/islands/product-detail"
 import { ProductCard } from "@/components/site/shop/product-card"
 import { SITE_URL } from "@/lib/site-url"
 
 // ---------------------------------------------------------------------------
 // Product detail — /products/[slug]
-//   Everything a pet parent needs before buying: what it's made of, the full
-//   ingredient list (the chemicals, in plain words), how to use it, the
-//   warranty, the specs, and verified reviews. Breadcrumbs follow the
-//   customer-facing category hierarchy (Dog → Grooming → …), each ancestor
-//   linking to its server-rendered category page.
 //
-//   Data source: the NORMALIZED enterprise schema (erp_products +
-//   erp_product_skus + commerce_catalog_items + commerce_prices +
-//   commerce_product_media + erp_inventory_movements) via
-//   getCatalogProductBySlug(). The flat commerce_products table is no longer
-//   the source of truth.
+// Dense national-chain-style PDP (Chewy/Petco pattern), one page, per the
+// owner's section list:
+//   TOP   breadcrumb · gallery | center info + variant pickers | buy column
+//   BELOW at-a-glance · frequently-bought-together · Q&A · reviews ·
+//         attributes · ingredients · directions · warranty · the details ·
+//         3 recommendation rails · associated articles
+//
+// Data: loadPdpData() ONLY (feed catalog first, legacy fallback) — cached 60s
+// and pool-budgeted. Never imports listCatalogProducts / getNavTree (those
+// exhausted the Supabase session pooler once already).
+//
+// Palette: explicit navy #002B5C / gold #F2C500 on white/neutral. The oklch
+// cream/gold-deep utility tokens are BANNED here (they render brown; owner
+// rejected brown on product pages).
 // ---------------------------------------------------------------------------
 
 type Params = { params: Promise<{ slug: string }> }
 
-async function loadProduct(slug: string): Promise<CatalogProduct | null> {
-  // 1) The normalized legacy enterprise catalog.
-  const legacy = await getCatalogProductBySlug(slug)
-  if (legacy) return legacy
-  // 2) LIVE feed catalog (products / product_variants / product_media in
-  //    Supabase) — the 10k+ feed-synced items the PLP cards link to.
-  return getTaxProductDetailBySlug(slug)
-}
-
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
-  const product = await loadProduct(slug)
+  const product = await loadPdpData(slug)
   if (!product) return { title: "Product — All About Pawz Shop" }
   return {
     title: `${product.name} — All About Pawz Shop`,
-    description: product.shortDescription || product.description || product.name,
+    description: product.shortDescription || product.description?.slice(0, 160) || product.name,
     alternates: { canonical: `${SITE_URL}/products/${slug}` },
   }
 }
 
-// Rating rendered as text — no star glyphs, matches the site's type-driven
-// design language.
-function Rating({ value, className = "" }: { value: number; className?: string }) {
-  return (
-    <span className={`font-display text-[15px] leading-none text-[#002B5C] ${className}`}>
-      {value.toFixed(1)}
-    </span>
-  )
-}
+// ------------------------------ helpers ------------------------------------
 
-function fmtDate(iso: string | null | undefined) {
+const fmt = (cents: number): string =>
+  (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })
+
+const hasText = (v: string | null | undefined): v is string =>
+  typeof v === "string" && v.trim().length > 0
+
+function fmtDate(iso: string | null): string {
   if (!iso) return ""
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ""
   return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 }
 
-const hasText = (v: any) => typeof v === "string" && v.trim().length > 0
-
-/** Mini recommendation card shape attached by getTaxProductDetailBySlug. */
-type MiniRec = {
-  id: string
-  slug: string
-  name: string
-  brand: string | null
-  image: string | null
-  priceCents: number | null
-  isBestseller: boolean
-  isOnSale: boolean
-  isNew: boolean
-}
-
-/** Map a MiniRec to the global ProductCard contract. */
-function recToCard(mp: MiniRec) {
-  return {
-    id: mp.id,
-    name: mp.name,
-    slug: mp.slug,
-    price: mp.priceCents != null ? `$${(mp.priceCents / 100).toFixed(2)}` : "",
-    image: mp.image,
-    category: mp.brand,
-    isOnSale: mp.isOnSale,
-    isNew: mp.isNew,
-    isBestseller: mp.isBestseller,
-    priceCents: mp.priceCents,
-  }
-}
-
-// Split a "·"-separated spec string into definition-list rows.
-function specRows(specs: string) {
+/** Split a "·"-separated spec string into attribute/value rows. */
+function specRows(specs: string): { attr: string; value: string }[] {
   return specs
     .split("·")
     .map((s) => s.trim())
     .filter(Boolean)
+    .map((row) => {
+      const idx = row.indexOf(":")
+      if (idx === -1) return { attr: "Detail", value: row }
+      const attr = row.slice(0, idx).trim()
+      const value = row.slice(idx + 1).trim()
+      return { attr: attr || "Detail", value: value || row }
+    })
 }
 
-// Parse "Free of: a, b, c" out of an ingredient string.
+/** Parse "Free of: a, b, c" out of an ingredient string. */
 function parseFreeOf(ingredients: string): { main: string; freeOf: string[] | null } {
   const idx = ingredients.indexOf("Free of:")
   if (idx === -1) return { main: ingredients, freeOf: null }
@@ -122,94 +106,287 @@ function parseFreeOf(ingredients: string): { main: string; freeOf: string[] | nu
   return { main, freeOf: list.length ? list : null }
 }
 
-export default async function ProductPage({ params }: Params) {
-  const { slug } = await params
-  const product = await loadProduct(slug)
-  if (!product) notFound()
+// ---- "At a glance" — pick 3-5 spec rows that read as quick facts ----------
 
-  const [allReviews, allProducts, tree] = await Promise.all([
-    repo.list("product_reviews"),
-    listCatalogProducts(),
-    getNavTree(),
-  ])
-  const reviews = (allReviews as any[])
-    .filter((r) => r.productId === product.id && r.visible)
-    .sort(
-      (a: any, b: any) =>
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
-    )
-  const avg =
-    reviews.length > 0
-      ? reviews.reduce((sum: number, r: any) => sum + (r.rating || 0), 0) / reviews.length
-      : 0
+const GLANCE_RULES: { re: RegExp; Icon: LucideIcon }[] = [
+  { re: /life\s*stage/i, Icon: Dog },
+  { re: /breed\s*size/i, Icon: Ruler },
+  { re: /veterinarian|\bvet\b/i, Icon: ShieldCheck },
+  { re: /flavor/i, Icon: Bone },
+  { re: /health\s*feature|\bhealth\b/i, Icon: HeartPulse },
+  { re: /made\s*in|country\s*of\s*origin/i, Icon: Factory },
+  { re: /material/i, Icon: Layers },
+  { re: /weight|capacity/i, Icon: Scale },
+  { re: /color|colour/i, Icon: Palette },
+]
 
-  // Related products: same category first, then fill to 4 total.
-  const others = (allProducts as CatalogProduct[]).filter(
-    (p) => p.id !== product.id && p.visible && p.slug,
-  )
-  const inCategory = others.filter((p) => p.category === product.category)
-  const outCategory = others.filter((p) => p.category !== product.category)
-  const related = [...inCategory, ...outCategory].slice(0, 4)
-
-  const category = product.category || "Shop"
-
-  // Also-bought / also-viewed rails (live feed products only — the legacy
-  // enterprise path renders its own `related` grid lower on the page).
-  const alsoBought = ((product as { alsoBought?: MiniRec[] }).alsoBought ?? []) as MiniRec[]
-  const alsoViewed = ((product as { alsoViewed?: MiniRec[] }).alsoViewed ?? []) as MiniRec[]
-
-  // Customer-facing breadcrumb chain: find the presentation node for the
-  // product's raw categoryId, then walk up through its chain.
-  const navFlat = flattenNav(tree)
-  const catNode =
-    product.categoryId != null ? findByRawIdNav(navFlat, product.categoryId) : null
-  const chain: { name: string; path: string }[] = []
-  if (catNode) {
-    let cursor: NavCategory | null = catNode
-    while (cursor) {
-      chain.unshift({ name: cursor.displayName, path: cursor.path })
-      const parentKey = cursor.parentKey
-      const lvl = cursor.level
-      cursor =
-        parentKey != null
-          ? navFlat.find((n) => n.key === parentKey && n.level === lvl - 1) || null
-          : null
+function glanceChips(specs: string | null): { label: string; Icon: LucideIcon }[] {
+  if (!hasText(specs)) return []
+  const rows = specs.split("·").map((s) => s.trim()).filter(Boolean)
+  const chips: { label: string; Icon: LucideIcon }[] = []
+  const seen = new Set<string>()
+  for (const row of rows) {
+    if (chips.length >= 4) break
+    const rule = GLANCE_RULES.find((r) => r.re.test(row))
+    if (rule && !seen.has(row.toLowerCase())) {
+      seen.add(row.toLowerCase())
+      chips.push({ label: row.length > 42 ? `${row.slice(0, 40).trimEnd()}…` : row, Icon: rule.Icon })
     }
   }
+  // Keyword misses but specs exist → fall back to the first rows.
+  if (chips.length === 0) {
+    for (const row of rows.slice(0, 4)) {
+      chips.push({ label: row.length > 42 ? `${row.slice(0, 40).trimEnd()}…` : row, Icon: Tag })
+    }
+  }
+  return chips.slice(0, 4)
+}
 
-  const freeOf = hasText(product.ingredients) ? parseFreeOf(product.ingredients as string) : null
-  const specs = hasText(product.specs) ? specRows(product.specs as string) : []
+// ---- Variant-picker heading heuristic -------------------------------------
 
-  // ---- Pricing (from the enterprise layer — commerce_prices) ----
-  // The enterprise CatalogProduct already reconciled pricing:
-  //   priceCents          = the active storefront price (sale when on sale)
-  //   compareAtPriceCents = the struck-through reference (nullable)
-  //   isOnSale            = true when compareAtPriceCents > priceCents
-  const basePriceCents = product.priceCents
-  const compareAtPriceCents = product.compareAtPriceCents
-  const isOnSale = product.isOnSale
-  const displayPriceCents = product.priceCents
-  const displayPrice = formatCents(product.priceCents)
-  // Strikethrough reference — prefer compare-at (the marketing reference);
-  // fall back to null when not on sale.
-  const strikeCents = isOnSale && compareAtPriceCents != null ? compareAtPriceCents : null
+const COLOR_WORDS = new Set([
+  "black", "white", "blue", "red", "green", "pink", "purple", "orange", "yellow",
+  "brown", "gray", "grey", "beige", "tan", "navy", "teal", "charcoal", "silver",
+  "gold", "cream", "turquoise", "lavender", "burgundy", "mint", "coral", "multi",
+])
 
-  // The buybox reads `price` to seed the cart unit price; pass the active
-  // display price so a Sale flows through to checkout without touching the
-  // buybox component contract.
+const SIZE_WORD_RE =
+  /\b\d+(\.\d+)?\s?(oz|ounce|lb|lbs|pound|pounds|kg|g|ml|l)\b|\b(count|pack|packs|small|medium|large|x-small|extra-small|xs|sm|md|lg|xl|xxl|2xl|3xl|giant|jumbo|mini|petite|tall|short)\b/i
+
+/**
+ * "Color" when every name carries a color word and stripping them leaves the
+ * same string; "Size" when every name carries a size/count word; else "Option".
+ */
+function optionHeading(names: string[]): string {
+  if (names.length < 2) return "Option"
+  const wordLists = names.map((n) =>
+    n.toLowerCase().split(/[^a-z0-9.]+/).filter(Boolean),
+  )
+  const allHaveColor = wordLists.every((ws) => ws.some((w) => COLOR_WORDS.has(w)))
+  if (allHaveColor) {
+    const stripped = new Set(
+      wordLists.map((ws) => ws.filter((w) => !COLOR_WORDS.has(w)).join(" ")),
+    )
+    if (stripped.size === 1) return "Color"
+  }
+  if (names.every((n) => SIZE_WORD_RE.test(n))) return "Size"
+  return "Option"
+}
+
+// ---- Associated articles (guides) ------------------------------------------
+
+function articlePicks(petKind: string | null): { slug: string; title: string; animal: "dog" | "cat" }[] {
+  const kind = petKind?.toLowerCase() ?? ""
+  const want = kind.startsWith("dog") ? "dog" : kind.startsWith("cat") ? "cat" : null
+  const pool = want ? GROOMING_GUIDES.filter((g) => g.animal === want) : GROOMING_GUIDES
+  return pool.slice(0, 3)
+}
+
+// ---- Recommendation card mapping (global ProductCard contract) -------------
+
+function recToCard(mp: MiniRec) {
+  return {
+    id: mp.id,
+    name: mp.name,
+    slug: mp.slug,
+    price: mp.priceCents != null ? fmt(mp.priceCents) : "",
+    image: mp.image,
+    category: mp.brand,
+    isOnSale: mp.isOnSale,
+    isNew: mp.isNew,
+    isBestseller: mp.isBestseller,
+    priceCents: mp.priceCents,
+  }
+}
+
+// ------------------------------ small pieces --------------------------------
+
+function Stars({ value, size = 16 }: { value: number; size?: number }) {
+  const rounded = Math.max(0, Math.min(5, Math.round(value)))
+  return (
+    <span
+      className="inline-flex items-center gap-[2px]"
+      role="img"
+      aria-label={`Rated ${value.toFixed(1)} out of 5`}
+    >
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          aria-hidden
+          style={{ width: size, height: size }}
+          strokeWidth={1.5}
+          className={i <= rounded ? "fill-[#F2C500] text-[#F2C500]" : "fill-none text-neutral-300"}
+        />
+      ))}
+    </span>
+  )
+}
+
+function PdpSection({
+  id,
+  eyebrow,
+  title,
+  children,
+  tone = "white",
+}: {
+  id?: string
+  eyebrow: string
+  title: string
+  children: React.ReactNode
+  tone?: "white" | "muted"
+}) {
+  return (
+    <section
+      id={id}
+      className={`scroll-mt-24 border-t border-neutral-200 px-4 py-9 sm:px-6 lg:px-10 lg:py-10 ${
+        tone === "muted" ? "bg-neutral-50" : "bg-white"
+      }`}
+    >
+      <p className="eyebrow">{eyebrow}</p>
+      <h2 className="mt-1.5 font-display text-[22px] leading-tight text-neutral-900 lg:text-[26px]">
+        {title}
+      </h2>
+      <div className="mt-5">{children}</div>
+    </section>
+  )
+}
+
+function Prose({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="max-w-3xl space-y-3 text-[13.5px] leading-[1.85] text-neutral-700">
+      {children}
+    </div>
+  )
+}
+
+function Rail({ items, priorityFirst = false }: { items: MiniRec[]; priorityFirst?: boolean }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 xl:grid-cols-6">
+      {items.slice(0, 6).map((mp, i) => (
+        <ProductCard key={mp.id} product={recToCard(mp)} priority={priorityFirst && i === 0} />
+      ))}
+    </div>
+  )
+}
+
+function FbtCard({ item, isMain = false }: { item: MiniRec; isMain?: boolean }) {
+  const cls =
+    "flex min-w-0 flex-1 items-center gap-3.5 rounded-lg border border-neutral-200 bg-white p-3.5 lg:max-w-[300px]"
+  const body = (
+    <>
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-neutral-200 bg-neutral-50">
+        {item.image ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            width={160}
+            height={160}
+            loading="lazy"
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <PawPrint className="absolute inset-0 m-auto h-7 w-7 text-neutral-300" strokeWidth={1.2} aria-hidden />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        {isMain && (
+          <span className="mb-1 inline-block rounded bg-[#F2C500] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-[#002B5C]">
+            This item
+          </span>
+        )}
+        <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-neutral-900">
+          {item.name}
+        </p>
+        <p className="mt-1 text-[14px] font-bold text-[#002B5C]">
+          {item.priceCents != null ? fmt(item.priceCents) : "—"}
+        </p>
+      </div>
+    </>
+  )
+  return isMain ? (
+    <div className={cls}>{body}</div>
+  ) : (
+    <Link href={`/products/${item.slug}`} className={`${cls} transition-colors hover:border-[#002B5C]`}>
+      {body}
+    </Link>
+  )
+}
+
+// ------------------------------ the page ------------------------------------
+
+export default async function ProductPage({ params }: Params) {
+  const { slug } = await params
+  const product = await loadPdpData(slug)
+  if (!product) notFound()
+
+  const badgeChip =
+    product.isOnSale ? "SALE" : product.isNew ? "NEW" : product.isBestseller ? "BEST SELLER" : null
+
+  // ---- Variant pickers ----
+  const optionCards: { label: string; price: string | null; slug: string; inStock: boolean; isCurrent: boolean }[] = [
+    { label: product.name, price: product.priceCents != null ? fmt(product.priceCents) : null, slug: product.slug, inStock: product.inStock, isCurrent: true },
+    ...product.siblingOptions.map((o) => ({
+      label: o.label,
+      price: o.priceCents != null ? fmt(o.priceCents) : null,
+      slug: o.slug,
+      inStock: o.inStock,
+      isCurrent: false,
+    })),
+  ]
+  const siblingHeading = optionHeading(optionCards.map((o) => o.label))
+  const allOptionsOos = optionCards.every((o) => !o.inStock)
+  const variantHeading = optionHeading(product.ownVariants.map((v) => v.label))
+
+  const variantPrices = product.ownVariants
+    .map((v) => v.priceCents)
+    .filter((n): n is number => n != null)
+  const showFromPrice = variantPrices.length > 1 && Math.max(...variantPrices) > (product.priceCents ?? 0)
+
+  // ---- Buy box payload ----
   const buyBoxProduct: BuyBoxProduct = {
-    ...(product as any),
-    price: displayPrice,
-  } as BuyBoxProduct
+    id: product.id,
+    name: product.name,
+    price: product.priceCents != null ? fmt(product.priceCents) : "",
+    priceCents: product.priceCents,
+    compareAtPriceCents: product.compareAtPriceCents,
+    isOnSale: product.isOnSale,
+    showFromPrice,
+    image: product.media[0]?.url ?? null,
+    alt: product.media[0]?.alt ?? null,
+    badge: badgeChip,
+    category: product.brand,
+    inStock: product.inStock,
+    autoship: product.autoship,
+  }
 
-  // ---- Structured data (server-rendered) ----
+  // ---- Detail content ----
+  const specs = hasText(product.specifications) ? specRows(product.specifications) : []
+  const glance = glanceChips(product.specifications)
+  const freeOf = hasText(product.ingredients) ? parseFreeOf(product.ingredients) : null
+  const articles = articlePicks(product.petKind)
+  const fbtTotal =
+    product.priceCents != null
+      ? product.frequentlyBoughtTogether.reduce((sum, m) => sum + (m.priceCents ?? 0), product.priceCents)
+      : null
+  const mainFbtItem: MiniRec = {
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    brand: product.brand,
+    image: product.media[0]?.url ?? null,
+    priceCents: product.priceCents,
+    isBestseller: product.isBestseller,
+    isOnSale: product.isOnSale,
+    isNew: product.isNew,
+  }
+
+  // ---- Structured data ----
   const canonicalUrl = `${SITE_URL}/products/${slug}`
-  // Absolute image URL (product images are usually absolute CDN/storage
-  // URLs; relative paths resolve against the site domain).
-  const productImage = hasText(product.image)
-    ? String(product.image).startsWith("/")
-      ? `${SITE_URL}${product.image}`
-      : String(product.image)
+  const firstImage = product.media[0]?.url
+  const productImage = firstImage
+    ? firstImage.startsWith("/")
+      ? `${SITE_URL}${firstImage}`
+      : firstImage
     : undefined
   const productJsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -217,41 +394,40 @@ export default async function ProductPage({ params }: Params) {
     name: product.name,
     description: product.shortDescription || product.description || product.name,
     url: canonicalUrl,
+    sku: product.id,
   }
   if (productImage) productJsonLd.image = productImage
-  if (displayPriceCents != null) {
+  if (product.brand) productJsonLd.brand = { "@type": "Brand", name: product.brand }
+  if (product.priceCents != null) {
     productJsonLd.offers = {
       "@type": "Offer",
-      price: displayPriceCents / 100,
+      price: product.priceCents / 100,
       priceCurrency: "USD",
-      availability: "https://schema.org/InStock",
+      availability: product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       url: canonicalUrl,
     }
   }
-  if (reviews.length > 0) {
+  if (product.ratingCount > 0 && product.ratingAvg != null) {
     productJsonLd.aggregateRating = {
       "@type": "AggregateRating",
-      ratingValue: Math.round(avg * 10) / 10,
-      reviewCount: reviews.length,
+      ratingValue: product.ratingAvg,
+      reviewCount: product.ratingCount,
     }
   }
-  // Breadcrumb trail mirrors the visible breadcrumb: Home → Shop → category
-  // chain (when known) → product.
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
-      { "@type": "ListItem", position: 2, name: "Shop", item: `${SITE_URL}/shop` },
-      ...chain.map((c, i) => ({
+      ...product.breadcrumb.map((b, i) => ({
         "@type": "ListItem",
-        position: i + 3,
-        name: c.name,
-        item: c.path.startsWith("/") ? `${SITE_URL}${c.path}` : c.path,
+        position: i + 2,
+        name: b.name,
+        item: b.path.startsWith("/") ? `${SITE_URL}${b.path}` : b.path,
       })),
       {
         "@type": "ListItem",
-        position: chain.length + 3,
+        position: product.breadcrumb.length + 2,
         name: product.name,
         item: canonicalUrl,
       },
@@ -260,333 +436,455 @@ export default async function ProductPage({ params }: Params) {
 
   return (
     <>
-      {/* Breadcrumb */}
-      <nav
-        aria-label="Breadcrumb"
-        className="flex flex-wrap items-center gap-2.5 border-b border-neutral-200 bg-white px-8 py-3.5 lg:px-12"
-      >
-        <span className="text-[10.5px] font-bold tracking-[0.2em] text-[#002B5C]">06</span>
-        <Link
-          href="/shop"
-          className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-[#002B5C]"
-        >
-          SHOP
-        </Link>
-        {chain.length > 0 ? (
-          chain.map((c) => (
-            <Fragment key={c.path}>
-              <span className="text-[10px] text-[#002B5C]/50">/</span>
-              <Link
-                href={c.path}
-                className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-[#002B5C]"
-              >
-                {c.name.toUpperCase()}
-              </Link>
-            </Fragment>
-          ))
-        ) : (
-          <>
-            <span className="text-[10px] text-[#002B5C]/50">/</span>
-            <Link
-              href="/shop"
-              className="text-[10.5px] font-bold tracking-[0.2em] text-ink-soft transition-colors hover:text-[#002B5C]"
-            >
-              {String(category).toUpperCase()}
+      {/* 1 — Breadcrumb: Home / Shop / … / product */}
+      <nav aria-label="Breadcrumb" className="border-b border-neutral-200 bg-white px-4 py-3 sm:px-6 lg:px-10">
+        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+          <li>
+            <Link href="/" className="text-neutral-500 hover:text-[#002B5C] hover:underline">
+              Home
             </Link>
-          </>
-        )}
-        <span className="text-[10px] text-[#002B5C]/50">/</span>
-        <span className="text-[10.5px] font-bold tracking-[0.2em] text-ink">{product.name}</span>
+          </li>
+          {product.breadcrumb.map((b) => (
+            <li key={b.path} className="flex items-center gap-2">
+              <span aria-hidden className="text-neutral-300">/</span>
+              <Link href={b.path} className="text-neutral-500 hover:text-[#002B5C] hover:underline">
+                {b.name}
+              </Link>
+            </li>
+          ))}
+          <li className="flex items-center gap-2">
+            <span aria-hidden className="text-neutral-300">/</span>
+            <span aria-current="page" className="max-w-[240px] truncate font-semibold text-neutral-900 sm:max-w-[340px]">
+              {product.name}
+            </span>
+          </li>
+        </ol>
       </nav>
 
-      {/* Two-column hero */}
-      <section className="grid grid-cols-1 gap-10 bg-white px-8 py-12 lg:grid-cols-[0.85fr_1fr] lg:gap-14 lg:px-12 lg:py-16">
-        <div className="relative">
-          <ProductGallery
-            images={(product.media ?? []).slice(0, 8).map((m) => ({ url: String(m.url), alt: (m as { altText?: string | null }).altText ?? null }))}
-            name={product.name}
-            badge={product.badge ? String(product.badge).toUpperCase() : null}
-          />
+      {/* 2-6 — TOP: gallery | center info + pickers | buy column */}
+      <section className="grid grid-cols-1 gap-8 bg-white px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_minmax(0,0.74fr)] lg:gap-9 lg:px-10 lg:py-8">
+        {/* 2 — Gallery */}
+        <div>
+          <ProductGallery images={product.media.slice(0, 8)} name={product.name} badge={badgeChip} />
         </div>
 
-        <div className="flex flex-col justify-center">
-          <p className="eyebrow">{String(category).toUpperCase()}</p>
-          <h1 className="mt-3 font-display text-[34px] leading-[1.12] text-ink lg:text-[38px]">
+        {/* 3+4 — Center info + variant pickers */}
+        <div className="min-w-0">
+          {hasText(product.brand) && (
+            <Link
+              href={`/shop?brand=${encodeURIComponent(product.brand)}`}
+              className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#002B5C] underline-offset-4 hover:underline"
+            >
+              {product.brand}
+            </Link>
+          )}
+          <h1 className="mt-2 font-display text-[26px] leading-[1.15] text-neutral-900 lg:text-[30px]">
             {product.name}
           </h1>
 
-          {reviews.length > 0 && (
-            <a href="#reviews" className="mt-3 inline-flex items-baseline gap-2.5">
-              <Rating value={avg} />
-              <span className="text-[11.5px] font-bold text-ink">
-                <span className="font-normal text-ink-soft">· {reviews.length} {reviews.length === 1 ? "review" : "reviews"}</span>
-              </span>
+          {/* Star row: rating + N Ratings + N Answered Questions (#qa) */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
+            <Stars value={product.ratingAvg ?? 0} />
+            {product.ratingCount > 0 && product.ratingAvg != null ? (
+              <>
+                <span className="font-bold text-neutral-900">{product.ratingAvg.toFixed(1)}</span>
+                <a
+                  href="#reviews"
+                  className="text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-2 hover:text-[#0A3D7C]"
+                >
+                  {product.ratingCount} {product.ratingCount === 1 ? "Rating" : "Ratings"}
+                </a>
+              </>
+            ) : (
+              <span className="text-neutral-500">Not yet rated</span>
+            )}
+            <span aria-hidden className="text-neutral-300">|</span>
+            <a
+              href="#qa"
+              className="text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-2 hover:text-[#0A3D7C]"
+            >
+              {product.qa.length} Answered {product.qa.length === 1 ? "Question" : "Questions"}
             </a>
+          </div>
+
+          {/* Badge chips */}
+          {badgeChip && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {product.isOnSale && (
+                <span className="rounded bg-[#F2C500] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#002B5C]">
+                  Sale
+                </span>
+              )}
+              {product.isNew && (
+                <span className="rounded bg-[#002B5C] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-white">
+                  New
+                </span>
+              )}
+              {product.isBestseller && (
+                <span className="rounded border border-[#002B5C] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#002B5C]">
+                  Best Seller
+                </span>
+              )}
+            </div>
           )}
 
-          <p className="mt-4 flex flex-wrap items-baseline gap-3">
-            <span className="text-[24px] font-bold text-ink">
-              {displayPrice}
-            </span>
-            {strikeCents != null && (
-              <span className="text-[15px] font-medium text-ink-soft/70 line-through">
-                {formatCents(strikeCents)}
-              </span>
-            )}
-            {isOnSale && (
-              <span className="border border-[#002B5C]/40 bg-[#002B5C]/5 px-2.5 py-1 text-[9px] font-bold tracking-[0.16em] text-[#002B5C]">
-                SALE
-              </span>
-            )}
-          </p>
+          {/* Short description */}
           {hasText(product.shortDescription) && (
-            <p className="mt-4 max-w-[440px] text-[12.5px] leading-[1.85] text-ink-soft">
+            <p className="mt-3.5 max-w-[520px] text-[13.5px] leading-[1.75] text-neutral-600">
               {product.shortDescription}
             </p>
           )}
 
-          <ProductBuyBox product={buyBoxProduct} />
-        </div>
-      </section>
-
-      {/* Detail sections */}
-      {(hasText(product.description) ||
-        hasText(product.materials) ||
-        hasText(product.ingredients) ||
-        hasText(product.directions) ||
-        hasText(product.warranty) ||
-        specs.length > 0) && (
-        <section className="border-t border-neutral-200 bg-white px-8 pb-14 lg:px-12">
-          <div className="divide-y divide-neutral-200/20">
-            {hasText(product.description) && (
-              <DetailBlock label="THE DETAILS">
-                <p className="max-w-2xl text-[12.5px] leading-[1.9] text-ink-soft">{product.description}</p>
-              </DetailBlock>
-            )}
-
-            {hasText(product.materials) && (
-              <DetailBlock label="MATERIALS & BUILD">
-                <p className="max-w-2xl text-[12.5px] leading-[1.9] text-ink-soft">{product.materials}</p>
-              </DetailBlock>
-            )}
-
-            {freeOf && (
-              <DetailBlock label="INGREDIENTS & SAFETY">
-                <div className="max-w-2xl border border-neutral-200/30 bg-neutral-50 p-5 lg:p-6">
-                  <p className="text-[12.5px] leading-[1.9] text-ink-soft">{freeOf.main}</p>
-                  {freeOf.freeOf && (
-                    <div className="mt-4 border-t border-neutral-200/20 pt-4">
-                      <p className="text-[9px] font-bold tracking-[0.18em] text-[#002B5C]">FREE FROM</p>
-                      <div className="mt-2.5 flex flex-wrap gap-2">
-                        {freeOf.freeOf.map((f) => (
-                          <span
-                            key={f}
-                            className="border border-neutral-200/40 bg-white px-2.5 py-1 text-[9.5px] font-bold tracking-[0.08em] text-ink-soft"
-                          >
-                            {f.toUpperCase()}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </DetailBlock>
-            )}
-
-            {hasText(product.directions) && (
-              <DetailBlock label="HOW TO USE">
-                <p className="max-w-2xl text-[12.5px] leading-[1.9] text-ink-soft">{product.directions}</p>
-              </DetailBlock>
-            )}
-
-            {hasText(product.warranty) && (
-              <DetailBlock label="WARRANTY & CARE">
-                <p className="max-w-2xl border-l-2 border-[#002B5C]/60 pl-4 text-[12.5px] leading-[1.9] text-ink-soft">
-                  {product.warranty}
-                </p>
-              </DetailBlock>
-            )}
-
-            {specs.length > 0 && (
-              <DetailBlock label="SPECS">
-                <dl className="max-w-2xl">
-                  {specs.map((s, i) => (
-                    <div
-                      key={s}
-                      className={`flex items-baseline gap-4 py-2.5 ${i > 0 ? "border-t border-neutral-200/15" : ""}`}
-                    >
-                      <dt className="w-7 shrink-0 text-[10px] font-bold tracking-[0.1em] text-[#002B5C]">
-                        {String(i + 1).padStart(2, "0")}
-                      </dt>
-                      <dd className="text-[12.5px] leading-[1.7] text-ink-soft">{s}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </DetailBlock>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Customers Also Bought / You May Also Like — server-rendered rails
-          (same contract as the api-recommendations edge function). */}
-      {(alsoBought.length > 0 || alsoViewed.length > 0) && (
-        <section className="border-t border-neutral-200 bg-white px-8 pb-14 lg:px-12">
-          <div className="pt-10">
-            {alsoBought.length > 0 && (
-              <>
-                <p className="eyebrow">CUSTOMERS ALSO BOUGHT</p>
-                <h2 className="mt-2 font-display text-[26px] text-ink">Pairs well with this pick</h2>
-                <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 xl:grid-cols-6">
-                  {alsoBought.slice(0, 6).map((mp) => (
-                    <ProductCard key={mp.id} product={recToCard(mp)} />
-                  ))}
-                </div>
-              </>
-            )}
-            {alsoViewed.length > 0 && (
-              <div className={alsoBought.length > 0 ? "mt-12" : ""}>
-                <p className="eyebrow">MORE FROM {String(product.brand ?? "THE BRAND").toUpperCase()}</p>
-                <h2 className="mt-2 font-display text-[26px] text-ink">You may also like</h2>
-                <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 xl:grid-cols-6">
-                  {alsoViewed.slice(0, 6).map((mp) => (
-                    <ProductCard key={mp.id} product={recToCard(mp)} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Reviews */}
-      <section id="reviews" className="scroll-mt-24 border-t border-neutral-200 bg-white px-8 pb-14 lg:px-12">
-        <div className="pt-10">
-          <p className="eyebrow">REVIEWS</p>
-          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="font-display text-[26px] text-ink">What pet parents say</h2>
-            {reviews.length > 0 ? (
-              <p className="flex items-baseline gap-2 text-[11.5px] text-ink-soft">
-                <Rating value={avg} />
-                <span className="font-bold text-ink">{avg.toFixed(1)}</span>
-                {" · "}
-                {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+          {/* 4a — Sibling listing picker (server-side variant switching) */}
+          {optionCards.length > 1 && (
+            <div className="mt-6 border-t border-neutral-200 pt-5">
+              <p className="text-[13.5px] text-neutral-900">
+                <span className="font-bold">{siblingHeading}:</span>{" "}
+                <span className="text-neutral-600">{product.name}</span>
               </p>
-            ) : (
-              <p className="text-[11.5px] text-ink-soft">Be the first to review this product.</p>
-            )}
-          </div>
-
-          {reviews.length > 0 && (
-            <ul className="mt-7 divide-y divide-neutral-200/20 border-y border-neutral-200/20">
-              {reviews.map((r: any) => (
-                <li key={r.id} className="py-6">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <Rating value={r.rating || 0} className="text-[14px]" />
-                    <p className="text-[10.5px] text-ink-soft">{fmtDate(r.createdAt)}</p>
-                  </div>
-                  {hasText(r.title) && (
-                    <h3 className="mt-2.5 text-[12.5px] font-bold tracking-[0.04em] text-ink">{r.title}</h3>
-                  )}
-                  <p className="mt-2 max-w-2xl text-[12px] leading-[1.8] text-ink-soft">{r.body}</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                    <p className="text-[11px] font-bold text-ink">{r.author}</p>
-                    {r.verified && (
-                      <span className="border border-neutral-200/40 px-2 py-0.5 text-[8.5px] font-bold tracking-[0.14em] text-[#002B5C]">
-                        VERIFIED BUYER
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-9">
-            <ReviewForm productId={product.id} />
-          </div>
-        </div>
-      </section>
-
-      {/* Related products */}
-      {related.length > 0 && (
-        <section className="border-t border-neutral-200 bg-neutral-50 px-8 py-12 lg:px-12">
-          <h2 className="border-t border-neutral-200 pt-8 text-center text-[10.5px] font-bold tracking-[0.2em] text-ink">
-            YOU MAY ALSO LIKE
-          </h2>
-          <div className="mt-8 grid grid-cols-2 gap-8 lg:grid-cols-4">
-            {related.map((p: CatalogProduct) => {
-              const rOnSale = p.isOnSale
-              const rDisplay = formatCents(p.priceCents)
-              const rStrikeCents =
-                rOnSale && p.compareAtPriceCents != null ? p.compareAtPriceCents : null
-              return (
-              <article key={p.id} className="group flex flex-col">
-                <Link
-                  href={`/products/${p.slug}`}
-                  className="relative block overflow-hidden border border-neutral-200 bg-white p-4 transition-colors group-hover:border-[#002B5C]/50"
-                  aria-label={`View ${p.name}`}
-                >
-                  {(rOnSale ? "Sale" : p.badge) && (
-                    <span className="absolute left-0 top-0 z-10 bg-ink px-2.5 py-1 text-[8px] font-bold tracking-[0.14em] text-[#002B5C]">
-                      {(rOnSale ? "SALE" : String(p.badge).toUpperCase())}
-                    </span>
-                  )}
-                  {p.image ? (
-                                        <img
-                      src={p.image}
-                      alt={p.alt || p.name}
-                      width={512}
-                      height={640}
-                      loading="lazy"
-                      className="mx-auto h-[170px] w-full object-contain transition-transform duration-300 group-hover:scale-[1.04]"
-                    />
-                  ) : (
-                    <div className="flex h-[170px] items-center justify-center">
-                      <PawPrint className="h-9 w-9 text-[#002B5C]/40" strokeWidth={1.2} />
+              {allOptionsOos && (
+                <p className="mt-1.5 text-[12px] font-semibold text-neutral-500">
+                  Out of stock here — see available options below.
+                </p>
+              )}
+              <div className="shop-nav-scroll mt-3 grid max-h-96 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                {optionCards.map((o) =>
+                  o.isCurrent ? (
+                    <div
+                      key="current-option"
+                      aria-current="true"
+                      className="rounded-lg border border-[#002B5C] bg-[#002B5C]/[0.04] p-3 ring-1 ring-[#002B5C]"
+                    >
+                      <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-neutral-900">
+                        {o.label}
+                      </p>
+                      {o.price && <p className="mt-1 text-[13.5px] font-bold text-[#002B5C]">{o.price}</p>}
                     </div>
-                  )}
-                </Link>
-                <div className="flex flex-1 flex-col pt-4 text-center">
-                  {p.category && (
-                    <p className="text-[8.5px] font-bold tracking-[0.18em] text-[#002B5C]/80">
-                      {String(p.category).toUpperCase()}
-                    </p>
-                  )}
-                  <Link
-                    href={`/products/${p.slug}`}
-                    className="mt-1 text-[12.5px] leading-[1.5] text-ink transition-colors hover:text-[#002B5C]"
-                  >
-                    {p.name}
-                  </Link>
-                  <p className="mt-2 flex items-center justify-center gap-2">
-                    {rStrikeCents != null && (
-                      <span className="text-[12px] font-medium text-ink-soft/70 line-through">
-                        {formatCents(rStrikeCents)}
-                      </span>
-                    )}
-                    <span
-                      className={`text-[13px] font-bold ${
-                        rOnSale ? "text-ink" : "text-[#002B5C]"
+                  ) : (
+                    <Link
+                      key={o.slug}
+                      href={`/products/${o.slug}`}
+                      className={`block rounded-lg border p-3 transition-colors ${
+                        o.inStock
+                          ? "border-neutral-300 hover:border-[#002B5C]"
+                          : "border-neutral-200 opacity-50"
                       }`}
                     >
-                      {rDisplay}
-                    </span>
-                  </p>
-                </div>
-              </article>
-              )
-            })}
-          </div>
-          <div className="mt-10 text-center">
-            <Link href="/shop" className="inline-flex items-center justify-center rounded-md border border-neutral-300 px-5 py-2.5 text-[12px] font-bold tracking-[0.12em] text-neutral-700 uppercase transition-colors hover:border-[#002B5C] hover:text-[#002B5C]">BROWSE THE FULL COLLECTION</Link>
-          </div>
-        </section>
+                      <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-neutral-900">
+                        {o.label}
+                      </p>
+                      {o.price && <p className="mt-1 text-[13.5px] font-bold text-[#002B5C]">{o.price}</p>}
+                      {!o.inStock && (
+                        <p className="mt-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-neutral-500">
+                          Out of stock
+                        </p>
+                      )}
+                    </Link>
+                  ),
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 4b — Own-variant chips (informational, with prices) */}
+          {product.ownVariants.length > 1 && (
+            <div className="mt-5">
+              <p className="text-[13.5px] text-neutral-900">
+                <span className="font-bold">{variantHeading === "Option" ? "More options" : variantHeading}:</span>
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {product.ownVariants.map((v) => (
+                  <span
+                    key={`${v.productId}-${v.label}`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-3.5 py-2 text-[12.5px]"
+                  >
+                    <span className="font-semibold text-neutral-800">{v.label}</span>
+                    {v.priceCents != null && (
+                      <span className="font-bold text-[#002B5C]">{fmt(v.priceCents)}</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 5+6 — Buy column: price, purchase options, qty + ATC, stock, pickup */}
+        <div className="min-w-0 lg:border-l lg:border-neutral-200 lg:pl-9">
+          {/* key remounts the island on variant navigation → qty/added state reset */}
+          <ProductBuyBox key={product.id} product={buyBoxProduct} />
+        </div>
+      </section>
+
+      {/* 7 — At a glance */}
+      {glance.length > 0 && (
+        <PdpSection eyebrow="QUICK FACTS" title="At a glance">
+          <ul className="flex flex-wrap gap-2.5">
+            {glance.map(({ label, Icon }) => (
+              <li
+                key={label}
+                className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3.5 py-2 text-[12.5px] font-semibold text-neutral-800"
+              >
+                <Icon size={16} className="shrink-0 text-[#002B5C]" aria-hidden />
+                {label}
+              </li>
+            ))}
+          </ul>
+        </PdpSection>
       )}
 
-      {/* Structured data — Product (price, availability, rating rollup) and
-          the breadcrumb trail, server-rendered from the same records the page
-          displays. */}
+      {/* 8 — Frequently bought together */}
+      {product.frequentlyBoughtTogether.length > 0 && (
+        <PdpSection eyebrow="COMBO DEAL" title="Frequently bought together">
+          <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-center">
+            <FbtCard item={mainFbtItem} isMain />
+            {product.frequentlyBoughtTogether.slice(0, 2).map((item) => (
+              <div key={item.id} className="contents">
+                <Plus
+                  size={18}
+                  aria-hidden
+                  className="hidden shrink-0 self-center text-neutral-400 lg:block"
+                />
+                <FbtCard item={item} />
+              </div>
+            ))}
+          </div>
+          {fbtTotal != null && (
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-4">
+              <p className="text-[15px] text-neutral-900">
+                Total price: <span className="font-bold text-[#002B5C]">{fmt(fbtTotal)}</span>
+              </p>
+              <p className="text-[12px] text-neutral-500">
+                For this item + {product.frequentlyBoughtTogether.length}{" "}
+                {product.frequentlyBoughtTogether.length === 1 ? "companion" : "companions"} — add each
+                from its card
+              </p>
+            </div>
+          )}
+        </PdpSection>
+      )}
+
+      {/* 9 — Questions & Answers */}
+      <PdpSection id="qa" eyebrow="Q&A" title="Questions & Answers">
+        <ul className="divide-y divide-neutral-200 border-y border-neutral-200">
+          {product.qa.map((q) => (
+            <li key={q.question} className="py-4 first:border-t-0 first:pt-0">
+              <p className="flex gap-2 text-[14px] font-bold text-[#002B5C]">
+                <span aria-hidden>Q.</span>
+                <span>{q.question}</span>
+              </p>
+              <p className="mt-1.5 flex gap-2 text-[13.5px] leading-[1.75] text-neutral-700">
+                <span aria-hidden className="font-bold text-neutral-400">A.</span>
+                <span>{q.answer}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-5 text-[13px] text-neutral-600">
+          Have a question? Ask in store or call{" "}
+          <a href="tel:+19015550132" className="font-bold text-[#002B5C] hover:underline">
+            (901) 555-0132
+          </a>
+          .
+        </p>
+      </PdpSection>
+
+      {/* 10 — Reviews */}
+      <PdpSection
+        id="reviews"
+        eyebrow="WHAT PET PARENTS SAY"
+        title="Reviews"
+      >
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <Stars value={product.ratingAvg ?? 0} size={18} />
+          {product.ratingCount > 0 && product.ratingAvg != null ? (
+            <p className="text-[14px] text-neutral-700">
+              <span className="font-bold text-neutral-900">{product.ratingAvg.toFixed(1)}</span> ·{" "}
+              {product.ratingCount} {product.ratingCount === 1 ? "rating" : "ratings"}
+            </p>
+          ) : (
+            <p className="text-[13.5px] text-neutral-500">Be the first to review this product.</p>
+          )}
+        </div>
+
+        {product.reviews.length > 0 && (
+          <ul className="mt-5 divide-y divide-neutral-200 border-y border-neutral-200">
+            {product.reviews.map((r) => (
+              <li key={r.id} className="py-5">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Stars value={r.rating} size={14} />
+                  {hasText(r.title) && (
+                    <h3 className="text-[14px] font-bold text-neutral-900">{r.title}</h3>
+                  )}
+                </div>
+                {hasText(r.body) && (
+                  <p className="mt-1.5 max-w-3xl text-[13.5px] leading-[1.8] text-neutral-700">{r.body}</p>
+                )}
+                <p className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-neutral-500">
+                  <span className="font-bold text-neutral-800">{r.author}</span>
+                  {r.verified && (
+                    <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#002B5C]">
+                      Verified buyer
+                    </span>
+                  )}
+                  {r.createdAt && <span>{fmtDate(r.createdAt)}</span>}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-7">
+          <ReviewForm productId={product.id} />
+        </div>
+      </PdpSection>
+
+      {/* 11 — Attributes & specifications */}
+      {specs.length > 0 && (
+        <PdpSection eyebrow="FULL DETAILS" title="Attributes & Specifications">
+          <div className="max-w-3xl overflow-x-auto">
+            <table className="w-full border-collapse overflow-hidden rounded-lg border border-neutral-200 text-[13.5px]">
+              <thead>
+                <tr className="bg-[#002B5C] text-white">
+                  <th
+                    scope="col"
+                    className="w-2/5 rounded-tl-lg px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.12em]"
+                  >
+                    Attributes
+                  </th>
+                  <th
+                    scope="col"
+                    className="rounded-tr-lg px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.12em]"
+                  >
+                    Specifications
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {specs.map((row, i) => (
+                  <tr key={`${row.attr}-${i}`} className={i % 2 === 1 ? "bg-neutral-50" : "bg-white"}>
+                    <th
+                      scope="row"
+                      className="border-t border-neutral-200 px-4 py-2.5 text-left align-top font-semibold text-neutral-900"
+                    >
+                      {row.attr}
+                    </th>
+                    <td className="border-t border-neutral-200 px-4 py-2.5 align-top text-neutral-700">
+                      {row.value}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </PdpSection>
+      )}
+
+      {/* 12 — Ingredients */}
+      {hasText(product.ingredients) && (
+        <PdpSection eyebrow="INSIDE THE PRODUCT" title="Ingredients">
+          <Prose>
+            <p>{freeOf?.main ?? product.ingredients}</p>
+          </Prose>
+          {freeOf?.freeOf && (
+            <div className="mt-4">
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#002B5C]">
+                Free from
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {freeOf.freeOf.map((f) => (
+                  <span
+                    key={f}
+                    className="rounded border border-neutral-300 bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-neutral-700"
+                  >
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </PdpSection>
+      )}
+
+      {/* 13 — Product directions */}
+      {hasText(product.directions) && (
+        <PdpSection eyebrow="HOW TO USE" title="Product Directions">
+          <Prose>
+            <p>{product.directions}</p>
+          </Prose>
+        </PdpSection>
+      )}
+
+      {/* 14 — Warranty */}
+      {hasText(product.warranty) && (
+        <PdpSection eyebrow="PEACE OF MIND" title="Warranty">
+          <Prose>
+            <p className="border-l-2 border-[#002B5C] pl-4">{product.warranty}</p>
+          </Prose>
+        </PdpSection>
+      )}
+
+      {/* 15 — The details */}
+      {hasText(product.description) && (
+        <PdpSection eyebrow="OVERVIEW" title="The Details">
+          <Prose>
+            <p className="whitespace-pre-line">{product.description}</p>
+          </Prose>
+        </PdpSection>
+      )}
+
+      {/* 16 — Customers also bought */}
+      {product.alsoBought.length > 0 && (
+        <PdpSection eyebrow="COMPLETE THE ROUTINE" title="Customers Also Bought" tone="muted">
+          <Rail items={product.alsoBought} />
+        </PdpSection>
+      )}
+
+      {/* 17 — You may also like */}
+      {product.trending.length > 0 && (
+        <PdpSection eyebrow="TRENDING NOW" title="You May Also Like" tone="muted">
+          <Rail items={product.trending} />
+        </PdpSection>
+      )}
+
+      {/* 18 — Best sellers for your pet (only when non-empty) */}
+      {product.bestSellersForPet.length > 0 && (
+        <PdpSection eyebrow="TOP RATED" title={`Best Sellers for Your ${product.petKind ?? "Pet"}`} tone="muted">
+          <Rail items={product.bestSellersForPet} />
+        </PdpSection>
+      )}
+
+      {/* 19 — Associated articles */}
+      {articles.length > 0 && (
+        <PdpSection eyebrow="GUIDES & TIPS" title="Associated Articles">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {articles.map((g) => (
+              <Link
+                key={g.slug}
+                href={`/guides/grooming/${g.slug}`}
+                className="group flex flex-col rounded-lg border border-neutral-200 bg-white p-5 transition-colors hover:border-[#002B5C]"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#002B5C]">
+                  {g.animal === "dog" ? "Dog grooming guide" : "Cat grooming guide"}
+                </p>
+                <h3 className="mt-2 flex-1 font-display text-[17px] leading-snug text-neutral-900">
+                  {g.title}
+                </h3>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[#002B5C]">
+                  Read the guide
+                  <ArrowRight
+                    size={14}
+                    aria-hidden
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </PdpSection>
+      )}
+
+      {/* 20 — Structured data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
@@ -596,16 +894,5 @@ export default async function ProductPage({ params }: Params) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
     </>
-  )
-}
-
-function DetailBlock({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 gap-4 py-9 lg:grid-cols-[220px_1fr]">
-      {/* Section label is a real h2 — the .eyebrow utility fully specifies
-          font/size/tracking/color, so the rendering is unchanged. */}
-      <h2 className="eyebrow lg:pt-1">{label}</h2>
-      <div>{children}</div>
-    </div>
   )
 }
