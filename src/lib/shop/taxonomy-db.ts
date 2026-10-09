@@ -18,7 +18,22 @@
 // ---------------------------------------------------------------------------
 
 import { pgQuery } from "@/lib/pg"
+import { cached, invalidate } from "@/lib/cache"
 import { SHOP_NAV_TAXONOMY } from "@/lib/shop-nav"
+
+// FACET/Grid TTLs — these reads hit the REMOTE Supabase over the pooler, so
+// every uncached view costs a network round trip. Facet definitions and
+// counts change only when the owner edits the taxonomy or a feed sync lands,
+// so they cache 5 min; PLP grids (scope + filters + page) cache 60 s — long
+// enough that a shopper paging through a category pays the query once, short
+// enough that stock/price edits land within a minute. Feed-sync / admin
+// product writes call invalidateTaxonomyCache().
+const FACET_TTL_MS = 5 * 60 * 1000
+const GRID_TTL_MS = 60 * 1000
+
+export function invalidateTaxonomyCache(): void {
+  invalidate("tax:")
+}
 
 // ----------------------------- Types ---------------------------------------
 
@@ -796,32 +811,37 @@ export async function queryTaxProducts(opts: {
   const page = Math.max(1, opts.page ?? 1)
   const sort = SORT_SQL[opts.sort || "best-selling"] ? (opts.sort || "best-selling") : "best-selling"
 
-  const params: unknown[] = [opts.nodeIds]
+  // Grid cache — identical (scope, sort, page, filter) requests within the
+  // TTL reuse the same result. Key includes every filter dimension.
+  const cacheKey = `tax:grid:${[...opts.nodeIds].sort().join(",")}|${sort}|${page}|${perPage}|${JSON.stringify(opts.filters ?? {})}`
+  return cached(cacheKey, GRID_TTL_MS, async () => {
+    const params: unknown[] = [opts.nodeIds]
   const orderBy = SORT_SQL[sort]
   const offset = (page - 1) * perPage
 
-  const [rows, countRows] = await Promise.all([
-    pgQuery<Record<string, unknown>>(
-      PLP_ROWS_SQL +
-      ` SELECT id, slug, name, brand, is_sale, is_new, is_best_seller, created_at,
+    const [rows, countRows] = await Promise.all([
+      pgQuery<Record<string, unknown>>(
+        PLP_ROWS_SQL +
+        ` SELECT id, slug, name, brand, is_sale, is_new, is_best_seller, created_at,
                price, compare_at, in_stock, image, review_n, review_avg
           FROM ranked
          WHERE rn = 1` +
-      buildWhere(opts.filters ?? {}, params, WHERE_COLS_RANKED) +
-      ` ORDER BY ${orderBy} LIMIT ${perPage} OFFSET ${offset}`,
-      params,
-    ),
-    pgQuery<{ n: number }>(SCOPE_COUNT_SQL + buildWhere(opts.filters ?? {}, params), params),
-  ])
+        buildWhere(opts.filters ?? {}, params, WHERE_COLS_RANKED) +
+        ` ORDER BY ${orderBy} LIMIT ${perPage} OFFSET ${offset}`,
+        params,
+      ),
+      pgQuery<{ n: number }>(SCOPE_COUNT_SQL + buildWhere(opts.filters ?? {}, params), params),
+    ])
 
-  const total = Number(countRows[0]?.n) || 0
-  const pages = Math.max(1, Math.ceil(total / perPage))
-  return {
-    items: rows.map(mapProduct),
-    total,
-    page: Math.min(page, pages),
-    pages,
-  }
+    const total = Number(countRows[0]?.n) || 0
+    const pages = Math.max(1, Math.ceil(total / perPage))
+    return {
+      items: rows.map(mapProduct),
+      total,
+      page: Math.min(page, pages),
+      pages,
+    }
+  })
 }
 
 // ----------------------------- Facets --------------------------------------
@@ -835,6 +855,9 @@ export type TaxFacets = {
 }
 
 export async function getTaxFacets(nodeIds: string[]): Promise<TaxFacets> {
+  // Facet counts scope to the FULL node set — cache keyed on the sorted ids.
+  const key = `tax:facets:${[...nodeIds].sort().join(",")}`
+  return cached(key, FACET_TTL_MS, async () => {
   const rows = await pgQuery<{
     brand: string | null; price: number | null; in_stock: boolean | null;
     review_n: number; review_avg: number | null;
@@ -890,6 +913,7 @@ export async function getTaxFacets(nodeIds: string[]): Promise<TaxFacets> {
     inStock: products.filter((p) => p.inStock).length,
     outStock: products.filter((p) => !p.inStock).length,
   }
+  })
 }
 
 // ----------------------- Node facet sections (owner translation layer) ------
@@ -924,6 +948,8 @@ const GENERIC_ATTR_SLUGS = new Set(["brand", "price", "customer-rating"])
 
 export async function getNodeFacetSections(rootId: string): Promise<NodeFacetSection[]> {
   if (!rootId) return []
+  // The owner's node_filters view is edited rarely — 5 min TTL per root.
+  return cached(`tax:nodesections:${rootId}`, FACET_TTL_MS, async () => {
 
   // The owner builds the attribute→frontend translation IN THE DATABASE:
   //   • node_filters        — WHICH attribute applies WHERE (+ UI contract)
@@ -954,7 +980,7 @@ export async function getNodeFacetSections(rootId: string): Promise<NodeFacetSec
     [rootId],
   )
 
-  const sections: NodeFacetSection[] = []
+  const sections: NodeFacetSection[] = [] // (cached per rootId)
   for (const r of rows) {
     // Generic facets are computed live from the product set — skip the
     // scaffold rows here so they never render twice.
@@ -973,6 +999,7 @@ export async function getNodeFacetSections(rootId: string): Promise<NodeFacetSec
     })
   }
   return sections
+  })
 }
 
 // ----------------------------- Nav conversion ------------------------------

@@ -41,7 +41,15 @@ function getPool(): Pool {
   const pool = new Pool({
     connectionString,
     max: POOL_MAX,
-    idleTimeoutMillis: 30_000,      // close idle conns after 30s
+    // KEEP-ALIVE BUDGET — the pool used to close idle connections after 30s,
+    // so every request after a lull paid a full TLS handshake to the remote
+    // Supabase region (~400-800ms) before the first byte of the query. That
+    // handshake was the dominant "site is slow to render" cost on warm-browse
+    // paths. Connections now stay parked for 5 min with TCP keepalives, so a
+    // customer clicking through categories reuses a HOT socket instead of
+    // re-handshaking per request.
+    idleTimeoutMillis: 300_000,
+    keepAlive: true,
     connectionTimeoutMillis: 5_000, // wait up to 5s for a free conn
     // Statement-level timeout — a single bad query can't lock the pool.
     // Default 15s; if a query exceeds this, the pool reclaims the conn.

@@ -8,6 +8,8 @@
 //   to set the keys in .env.
 // ---------------------------------------------------------------------------
 
+import { cached, invalidate as invalidateCache } from "@/lib/cache"
+
 export type Row = Record<string, any>
 
 export type CmsResource =
@@ -162,6 +164,22 @@ export type Repo = {
   listNewsletter(): Promise<Row[]>
 }
 
+// ---- Chrome read cache -----------------------------------------------------
+// The site chrome fetches settings/testimonials/services on EVERY page view;
+// each PostgREST call is a REMOTE HTTPS round trip (~300-800ms cold) — that
+// was the 1s API responses in the logs. Public-facing reads now cache 60s in
+// process; every write to a resource (admin edit, settings save) invalidates
+// that resource's cache so the admin sees their own change immediately.
+const READ_CACHE_TTL_MS = 60 * 1000
+const CACHEABLE_LISTS = new Set<CmsResource>([
+  "services", "gallery", "packages", "addons", "faqs", "policies",
+  "testimonials", "serviceItems", "haircut_styles",
+])
+/** Drop a cms:* cache key (list or settings) after a write lands. */
+function invalidateCms(prefix: string): void {
+  invalidateCache(prefix)
+}
+
 // ===========================================================================
 // Supabase implementation (PostgREST via fetch) — the only backend
 // ===========================================================================
@@ -170,8 +188,10 @@ export const repo: Repo = {
     if (!supabaseReady) return []
     const t = TABLE[r]
     const order = CUSTOM_ORDER[r] ?? (ORDERED.has(r) ? "order.asc" : "createdAt.desc")
-    const rows = await sb<Row[]>(`${t}?order=${order}`)
-    return rows || []
+    const fetchRows = async () => (await sb<Row[]>(`${t}?order=${order}`)) || []
+    // Chrome/public lists render per page view — 60s TTL, invalidated on write.
+    if (CACHEABLE_LISTS.has(r)) return cached(`cms:list:${r}`, READ_CACHE_TTL_MS, fetchRows)
+    return fetchRows()
   },
   async get(r, id) {
     if (!supabaseReady) return null
@@ -180,6 +200,8 @@ export const repo: Repo = {
     return (rows && rows[0]) || null
   },
   async create(r, data) {
+    invalidateCms(`cms:list:${r}`)
+    invalidateCms("cms:settings")
     const t = TABLE[r]
     const rows = await sb<Row[]>(t, {
       method: "POST",
@@ -189,6 +211,8 @@ export const repo: Repo = {
     return (rows && rows[0]) || data
   },
   async update(r, id, data) {
+    invalidateCms(`cms:list:${r}`)
+    invalidateCms("cms:settings")
     const t = TABLE[r]
     const rows = await sb<Row[]>(`${t}?id=eq.${encodeURIComponent(id)}`, {
       method: "PATCH",
@@ -198,6 +222,8 @@ export const repo: Repo = {
     return (rows && rows[0]) || data
   },
   async remove(r, id) {
+    invalidateCms(`cms:list:${r}`)
+    invalidateCms("cms:settings")
     const t = TABLE[r]
     await sb(`${t}?id=eq.${encodeURIComponent(id)}`, { method: "DELETE" })
     return { ok: true }
@@ -241,11 +267,14 @@ export const repo: Repo = {
     if (!supabaseReady) return {}
     // Site settings live in the owner's cms_global_content table
     // (content_group general/contact/social/hours/footer). No parallel
-    // key-value table exists anymore.
-    const rows = await sb<Row[]>(`cms_global_content?select=content_key,value_text&tenant_id=eq.${TENANT_ID}&locale=eq.en-US`)
-    const obj: Record<string, string> = {}
-    for (const r of rows || []) obj[r.content_key] = r.value_text ?? ""
-    return obj
+    // key-value table exists anymore. Cached 60s — the chrome reads this on
+    // every page; invalidated on saveSettings.
+    return cached("cms:settings", READ_CACHE_TTL_MS, async () => {
+      const rows = await sb<Row[]>(`cms_global_content?select=content_key,value_text&tenant_id=eq.${TENANT_ID}&locale=eq.en-US`)
+      const obj: Record<string, string> = {}
+      for (const r of rows || []) obj[r.content_key] = r.value_text ?? ""
+      return obj
+    })
   },
   async saveSettings(obj) {
     for (const [key, value] of Object.entries(obj)) {
@@ -262,6 +291,7 @@ export const repo: Repo = {
         }),
       })
     }
+    invalidateCms("cms:settings")
   },
   async addNewsletter(email) {
     const rows = await sb<Row[]>("newsletter", {
