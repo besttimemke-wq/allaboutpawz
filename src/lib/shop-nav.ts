@@ -88,8 +88,6 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         slug: "clothing-accessories",
         name: "Cat Clothing & Accessories",
         subcategories: [
-          { slug: "cat-accessories", name: "Cat Accessories" },
-          { slug: "cat-clothing", name: "Cat Clothing" },
           { slug: "cat-collars-leashes-harnesses", name: "Cat Collars, Leashes & Harnesses", children: [
             { slug: "cat-collar-charms-accessories", name: "Cat Collar Charms & Accessories" },
             { slug: "cat-harnesses", name: "Cat Harnesses" },
@@ -127,10 +125,10 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         slug: "grooming-bathing",
         name: "Cat Grooming & Bathing",
         subcategories: [
-          { slug: "cat-brushes-combs-grooming-gloves", name: "Cat Brushes, Combs & Grooming Gloves" },
-          { slug: "cat-deodorizers", name: "Cat Deodorizers" },
-          { slug: "cat-nail-care", name: "Cat Nail Care" },
-          { slug: "cat-wipes-waterless-grooming", name: "Cat Wipes & Waterless Grooming" },
+          { slug: "grooming-tools", name: "Cat Brushes, Combs & Grooming Gloves" },
+          { slug: "sprays-deodorizers", name: "Cat Deodorizers" },
+          { slug: "nail-care", name: "Cat Nail Care" },
+          { slug: "wipes", name: "Cat Wipes & Waterless Grooming" },
         ],
       },
       {
@@ -151,7 +149,7 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         slug: "litter-litter-boxes-accessories",
         name: "Cat Litter, Litter Boxes & Accessories",
         subcategories: [
-          { slug: "cat-litter-boxes-accessories", name: "Cat Litter Boxes & Accessories" },
+          { slug: "litter-boxes-accessories", name: "Cat Litter Boxes & Accessories" },
           { slug: "cat-litter", name: "Cat Litter" },
         ],
       },
@@ -175,7 +173,6 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         slug: "training-behavior",
         name: "Cat Training & Behavior",
         subcategories: [
-          { slug: "cat-potty-training", name: "Cat Potty Training" },
           { slug: "cat-repellents-deterrents", name: "Cat Repellents & Deterrents" },
         ],
       },
@@ -262,12 +259,8 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         slug: "clothes-accessories",
         name: "Dog Clothes & Accessories",
         subcategories: [
-          { slug: "dog-apparel-accessories", name: "Dog Apparel Accessories" },
-          { slug: "dog-coats-jackets", name: "Dog Coats & Jackets" },
-          { slug: "dog-life-jackets-swimsuits", name: "Dog Life Jackets & Swimsuits" },
-          { slug: "dog-onesies-dog-pajamas", name: "Dog Onesies & Dog Pajamas" },
-          { slug: "dog-shirts-tank-tops", name: "Dog Shirts & Tank Tops" },
-          { slug: "dog-sweaters-hoodies", name: "Dog Sweaters & Hoodies" },
+          { slug: "dog-dog-apparel-accessories", name: "Dog Apparel Accessories" },
+          { slug: "coats-jackets", name: "Dog Coats & Jackets" },
         ],
       },
       {
@@ -312,12 +305,11 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         slug: "grooming-supplies",
         name: "Dog Grooming Supplies",
         subcategories: [
-          { slug: "dog-bathing-equipment-supplies", name: "Dog Bathing Equipment & Supplies" },
-          { slug: "dog-brushes-combs-deshedding-tools", name: "Dog Brushes, Combs, & Deshedding Tools" },
-          { slug: "dog-hair-clippers-shears-blades", name: "Dog Hair Clippers, Shears & Blades" },
-          { slug: "dog-paw-nail-care", name: "Dog Paw & Nail Care" },
-          { slug: "dog-shampoos-conditioners-sprays", name: "Dog Shampoos, Conditioners & Sprays" },
-          { slug: "dog-wipes-waterless-grooming", name: "Dog Wipes & Waterless Grooming" },
+          { slug: "dog-dog-bathing-equipment-supplies", name: "Dog Bathing Equipment & Supplies" },
+          { slug: "grooming-tools", name: "Dog Brushes, Combs, & Deshedding Tools" },
+          { slug: "dog-dog-paw-nail-care", name: "Dog Paw & Nail Care" },
+          { slug: "dog-dog-shampoos-conditioners-sprays", name: "Dog Shampoos, Conditioners & Sprays" },
+          { slug: "wipes", name: "Dog Wipes & Waterless Grooming" },
         ],
       },
       {
@@ -325,7 +317,7 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         name: "Dog Health & Wellness",
         subcategories: [
           { slug: "dog-allergy-medicine-itch-relief", name: "Dog Allergy Medicine & Itch Relief" },
-          { slug: "dog-calming-aids-supplements", name: "Dog Calming Aids and Supplements" },
+          { slug: "dog-calming-aids-and-supplements", name: "Dog Calming Aids and Supplements" },
           { slug: "dog-dental-care", name: "Dog Dental Care" },
           { slug: "dog-dewormers-worm-medicine", name: "Dog Dewormers & Worm Medicine" },
           { slug: "dog-ear-eye-care", name: "Dog Ear & Eye Care" },
@@ -338,11 +330,9 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         slug: "outdoor-travel-gear",
         name: "Dog Outdoor & Travel Gear",
         subcategories: [
-          { slug: "dog-car-accessories", name: "Dog Car Accessories" },
-          { slug: "dog-carriers-strollers-totes", name: "Dog Carriers, Strollers & Totes" },
+          { slug: "car-accessories", name: "Dog Car Accessories" },
+          { slug: "travel-gear-carriers", name: "Dog Carriers, Strollers & Totes" },
           { slug: "dog-stairs-ramps", name: "Dog Stairs & Ramps" },
-          { slug: "dog-travel-crates-carriers-kennels", name: "Dog Travel Crates, Carriers & Kennels" },
-          { slug: "outdoor-dog-gear", name: "Outdoor Dog Gear" },
         ],
       },
       {
@@ -362,11 +352,7 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
         slug: "training-behavior-supplies",
         name: "Dog Training & Behavior Supplies",
         subcategories: [
-          { slug: "bark-solutions-for-dog-training", name: "Bark Solutions for Dog Training" },
-          { slug: "dog-chewing-solutions", name: "Dog Chewing Solutions" },
-          { slug: "dog-harnesses-leashes-for-pulling", name: "Dog Harnesses and Leashes for Pulling" },
-          { slug: "dog-potty-training-cleanup", name: "Dog Potty Training & Cleanup" },
-          { slug: "dog-repellents-attractants", name: "Dog Repellents & Attractants" },
+          { slug: "dog-harnesses", name: "Dog Harnesses and Leashes for Pulling" },
         ],
       },
       {
@@ -397,7 +383,7 @@ export const SHOP_NAV_TAXONOMY: ShopNavAnimal[] = [
           { slug: "flea-tick-prevention-collars-for-dogs", name: "Flea & Tick Prevention Collars for Dogs" },
           { slug: "flea-tick-treatment-sprays-for-dogs", name: "Flea & Tick Treatment Sprays for Dogs" },
           { slug: "flea-bombs-foggers-for-dogs", name: "Flea Bombs & Foggers for Dogs" },
-          { slug: "topical-flea-tick-treatment", name: "Topical Flea & Tick Treatment" },
+          { slug: "topical-flea-tick-treatment-for-dogs", name: "Topical Flea & Tick Treatment" },
         ],
       },
     ],

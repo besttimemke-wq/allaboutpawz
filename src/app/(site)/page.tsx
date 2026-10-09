@@ -94,8 +94,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* SHOP VISUALS — the page's THIRD section (owner's structure): the
-          full-bleed pet-type bento, then the dense AA Picks rail. */}
+      {/* PAWZLY — the AI triage section (owner directive: create a section
+          for the triage AI and wire it; owner placement ruling: ABOVE the
+          shop bento, BELOW the Pawzitive Difference; background matches the
+          footer black). The floating 🐾 widget itself is mounted site-wide
+          from the site layout. */}
+      <HomePawzly />
+
+      {/* SHOP VISUALS — the full-bleed pet-type bento, then the dense AA
+          Picks rail (owner's structure). */}
       <HomeShopBento />
       <HomeAaPicks />
 
@@ -142,11 +149,6 @@ export default function HomePage() {
           <NewsletterForm />
         </div>
       </section>
-
-      {/* PAWZLY — the AI triage section (owner directive: create a section
-          for the triage AI and wire it). The floating 🐾 widget itself is
-          mounted site-wide from the site layout. */}
-      <HomePawzly />
 
     </>
   )

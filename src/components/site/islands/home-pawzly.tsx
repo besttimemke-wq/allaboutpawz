@@ -32,7 +32,7 @@ const PAWZLY_POINTS = [
 
 export function HomePawzly() {
   return (
-    <section aria-labelledby="home-pawzly-heading" className="border-y border-gold/25 bg-ink">
+    <section aria-labelledby="home-pawzly-heading" className="border-y border-gold/25 bg-black">
       <div className="mx-auto max-w-[1600px] px-6 py-14 lg:px-12">
         <div className="flex flex-col items-start gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-[640px]">

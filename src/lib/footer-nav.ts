@@ -75,7 +75,7 @@ export const FOOTER_NAV: FooterColumn[] = [
       { label: "Sellers", href: "/seller", children: [
         { label: "Seller Program", href: "/seller" },
       ]},
-      { label: "Gift Cards", href: "/shop/collections/gift-cards" },
+      { label: "Gift Cards", href: "/gift-cards" },
       { label: "Coupons and Promos", href: "/pricing" },
       { label: "Investors", href: "/contact" },
       { label: "Sustainability", href: "/sustainability" },

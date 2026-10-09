@@ -291,6 +291,57 @@ const GROUP_ALIASES: Record<string, string> = {
 }
 
 /**
+ * LEGACY SUB-ALIASES — subcategory slugs that no longer exist anywhere in
+ * the live feed tree (renamed or merged into a combined aisle). Keyed by
+ * "animal/rawGroup/rawSub" (the RAW requested segments, before any
+ * department aliasing); the value is the LIVE sub slug to land on. Every
+ * target was verified against taxonomy_nodes with its product count before
+ * being mapped. Resolution walks the whole animal tree for the target and
+ * 308s to its true home, so old links follow the products.
+ */
+const LEGACY_SUB_ALIASES: Record<string, string> = {
+  // Legacy "Wellness" department (old numeric tree) — concepts merged.
+  "dog/wellness/digestive-remedies": "probiotics-for-dogs",
+  "dog/wellness/dna-tests": "dog-dna-tests-test-kits",
+  "dog/wellness/ear-care": "dog-ear-eye-care-2",
+  "dog/wellness/eye-care": "dog-ear-eye-care-2",
+  "dog/wellness/hip-joint-care": "hip-joint-supplements-for-dog",
+  "dog/wellness/itch-remedies": "dog-allergy-medicine-itch-relief",
+  "dog/wellness/supplements-vitamins": "dog-vitamins-supplements",
+  // Legacy "Travel" department (old numeric tree).
+  "dog/travel/backpack-carriers": "travel-gear-carriers",
+  "dog/travel/bicycle-carriers": "travel-gear-carriers",
+  "dog/travel/bicycle-trailers": "travel-gear-carriers",
+  "dog/travel/car-travel-accessories": "car-accessories",
+  "dog/travel/carriers": "travel-gear-carriers",
+  "dog/travel/purses": "travel-gear-carriers",
+  "dog/travel/slings": "travel-gear-carriers",
+  "dog/travel/strollers": "travel-gear-carriers",
+  // Legacy "Treats" children (biscuits/cookies/snacks merged into one aisle).
+  "dog/treats/biscuits": "dog-biscuits-cookies-snacks",
+  "dog/treats/cookies": "dog-biscuits-cookies-snacks",
+  "dog/treats/snacks": "dog-biscuits-cookies-snacks",
+  // Stale static-nav sub slugs whose live twin sits in a sibling aisle.
+  "dog/clothes-accessories/dog-coats-jackets": "coats-jackets",
+  "dog/training-behavior-supplies/dog-harnesses-leashes-for-pulling": "dog-harnesses",
+  // Old static-nav sub slugs (pre-alignment) — renamed in place, old URLs
+  // follow the renamed aisle instead of 404ing.
+  "dog/health-wellness/dog-calming-aids-supplements": "dog-calming-aids-and-supplements",
+  "dog/outdoor-travel-gear/dog-car-accessories": "car-accessories",
+  "dog/outdoor-travel-gear/dog-carriers-strollers-totes": "travel-gear-carriers",
+  "dog/clothes-accessories/dog-apparel-accessories": "dog-dog-apparel-accessories",
+  "dog/grooming-supplies/dog-bathing-equipment-supplies": "dog-dog-bathing-equipment-supplies",
+  "dog/grooming-supplies/dog-brushes-combs-deshedding-tools": "grooming-tools",
+  "dog/grooming-supplies/dog-paw-nail-care": "dog-dog-paw-nail-care",
+  "dog/grooming-supplies/dog-shampoos-conditioners-sprays": "dog-dog-shampoos-conditioners-sprays",
+  "dog/grooming-supplies/dog-wipes-waterless-grooming": "wipes",
+  "cat/grooming-bathing/cat-brushes-combs-grooming-gloves": "grooming-tools",
+  "cat/grooming-bathing/cat-deodorizers": "sprays-deodorizers",
+  "cat/grooming-bathing/cat-nail-care": "nail-care",
+  "cat/grooming-bathing/cat-wipes-waterless-grooming": "wipes",
+}
+
+/**
  * ANIMAL-SCOPED department aliases — the static nav slugs whose canonical
  * live node differs per animal ("flea-tick-solutions" exists under BOTH cat
  * and dog with different live targets). Checked before GROUP_ALIASES.
@@ -301,6 +352,10 @@ const ANIMAL_GROUP_ALIASES: Record<string, string> = {
   "dog/beds-bedding": "dog-beds",
   "cat/beds-bedding": "cat-beds",
   "dog/treats": "dog-treats",
+  // Legacy numeric-category departments (the old DB nav tree advertised
+  // "Wellness" / "Travel"; their concepts live in these aisles).
+  "dog/wellness": "health-wellness",
+  "dog/travel": "outdoor-travel-gear",
   // Static-nav slugs whose canonical live node differs per animal.
   "dog/treats-chews": "dog-treats",
   "dog/bowls-feeding-supplies": "bowls-feeding",
@@ -525,6 +580,60 @@ async function resolveTaxPathUncached(segments: string[]): Promise<ResolvedTaxPa
   }
 
   if (!sub) {
+    // Last resort — legacy / stale sub slugs. Old URLs (the retired numeric
+    // category tree: wellness/travel/treats aisles) and stale static-nav
+    // slugs point at concepts that were RENAMED or MOVED, not deleted. The
+    // raw slug may also exist under a sibling department (the feed seeded
+    // twin subtrees). Walk the whole animal subtree for the target slug —
+    // the LEGACY_SUB_ALIASES mapping first, then the raw slug — and 308 to
+    // its true home so old links follow the products. Nothing to find →
+    // honest 404.
+    const targetSlug = LEGACY_SUB_ALIASES[`${animal.slug}/${rawGroupSlug}/${rawSubSlug}`] ?? rawSubSlug
+    if (targetSlug !== canonicalGroup) {
+      outer: for (const g of animal.groups) {
+        const seenGroups = new Set<string>([group.id, ...twinIds, g.id])
+        const stack = [...(nodes.childrenMap.get(g.id) ?? [])]
+        while (stack.length > 0) {
+          const cur = stack.pop()!
+          if (seenGroups.has(cur)) continue
+          seenGroups.add(cur)
+          const rec = nodes.byId.get(cur)
+          if (rec && rec.slug === targetSlug) {
+            const childCount = (nodes.childrenMap.get(rec.id) ?? []).length
+            const cnt = await pgQuery<{ n: number }>(
+              `SELECT count(*)::int AS n FROM (
+                 SELECT pn.product_id FROM product_nodes pn WHERE pn.node_id = ANY($1::uuid[])
+                 UNION
+                 SELECT p.id FROM products p
+                  WHERE p.category_id = ANY($1::uuid[]) AND p.status = 'published'
+               ) t`,
+              [[rec.id]],
+            )
+            return {
+              animal,
+              group: g,
+              sub: {
+                id: rec.id,
+                slug: rec.slug,
+                name: rec.name,
+                productCount: Number(cnt[0]?.n) || 0,
+                hasChildren: childCount > 0,
+                heroImageUrl: rec.heroImageUrl,
+              },
+              nodeIds: subtreeIds([rec.id], childrenOf),
+              deepestHasChildren: childCount > 0,
+              canonicalPath: `/${["shop", animal.slug, g.slug, rec.slug].join("/")}`,
+              notFound: false,
+            }
+          }
+          for (const c of nodes.childrenMap.get(cur) ?? []) {
+            stack.push(c)
+            if (stack.length > 2000) break outer // safety valve on runaway trees
+          }
+        }
+      }
+    }
+
     return {
       animal,
       group,

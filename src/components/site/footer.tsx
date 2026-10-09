@@ -166,7 +166,7 @@ export function SiteFooter() {
               <Expandable label="Sellers" href="/seller" subItems={[
                 { label: "Seller Program", href: "/seller" },
               ]} />
-              <Link href="/shop/collections/gift-cards" className="block text-base text-on-dark-muted hover:text-gold-deep">Gift Cards</Link>
+              <Link href="/gift-cards" className="block text-base text-on-dark-muted hover:text-gold-deep">Gift Cards</Link>
               <Link href="/pricing" className="block text-base text-on-dark-muted hover:text-gold-deep">Coupons and Promos</Link>
               <Link href="/contact" className="block text-base text-on-dark-muted hover:text-gold-deep">Investors</Link>
               <Link href="/sustainability" className="block text-base text-on-dark-muted hover:text-gold-deep">Sustainability</Link>
