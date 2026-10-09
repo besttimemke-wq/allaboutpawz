@@ -760,6 +760,13 @@ function mapProduct(r: Record<string, unknown>): TaxProduct {
  * shapes — the raw products join (default aliases) and the deduped `ranked`
  * CTE (bare columns). Column identifiers here are code constants, never
  * user input.
+ *
+ * facetId: the OUTER product-id reference used inside the facet EXISTS
+ * clauses. It must be qualified — a bare `id` inside `EXISTS (SELECT 1 FROM
+ * product_attribute_values pav JOIN attribute_values av … JOIN attributes fa…)`
+ * collides with pav.id/av.id/fa.id (Postgres resolves unqualified names in
+ * the subquery's own scope first) and the whole grid query dies with
+ * "column reference \"id\" is ambiguous".
  */
 const WHERE_COLS_DEFAULT = {
   price: "v.price",
@@ -769,6 +776,7 @@ const WHERE_COLS_DEFAULT = {
   name: "p.name",
   brand: "p.brand",
   id: "p.id",
+  facetId: "p.id",
 }
 const WHERE_COLS_RANKED = {
   price: "price",
@@ -778,6 +786,7 @@ const WHERE_COLS_RANKED = {
   name: "name",
   brand: "brand",
   id: "id",
+  facetId: "ranked.id",
 }
 
 type WhereCols = typeof WHERE_COLS_DEFAULT
@@ -850,7 +859,7 @@ function buildWhere(
         SELECT 1 FROM product_attribute_values pav
         JOIN attribute_values av ON av.id = pav.attribute_value_id
         JOIN attributes fa ON fa.id = pav.attribute_id
-       WHERE pav.product_id = ${cols.id} AND fa.slug = $${params.push(key)} AND av.slug = ANY($${pIdx}::text[]))`
+       WHERE pav.product_id = ${cols.facetId} AND fa.slug = $${params.push(key)} AND av.slug = ANY($${pIdx}::text[]))`
       const perValue: string[] = [pavClause]
       // Text fallback — one pattern per selected value (code-side, safe).
       for (const v of clean) {
@@ -858,7 +867,7 @@ function buildWhere(
         const like = `%${v.replace(/-/g, "%")}%`
         const lIdx = params.push(like)
         perValue.push(
-          `EXISTS (SELECT 1 FROM product_variants vvt WHERE vvt.product_id = ${cols.id} AND vvt.variant_title ILIKE $${lIdx})`,
+          `EXISTS (SELECT 1 FROM product_variants vvt WHERE vvt.product_id = ${cols.facetId} AND vvt.variant_title ILIKE $${lIdx})`,
           `(${cols.name} ILIKE $${lIdx})`,
         )
       }
@@ -869,7 +878,7 @@ function buildWhere(
         const nIdx = params.push(norm)
         perValue.push(`EXISTS (
         SELECT 1 FROM product_variants vv
-       WHERE vv.product_id = ${cols.id}
+       WHERE vv.product_id = ${cols.facetId}
          AND vv.${colName} IS NOT NULL
          AND lower(regexp_replace(vv.${colName}, '[^a-z0-9]', '', 'g')) = ANY($${nIdx}::text[]))`)
       }
@@ -901,7 +910,12 @@ export async function queryTaxProducts(opts: {
   // TTL reuse the same result. Key includes every filter dimension.
   const cacheKey = `tax:grid:${[...opts.nodeIds].sort().join(",")}|${sort}|${page}|${perPage}|${JSON.stringify(opts.filters ?? {})}`
   return cached(cacheKey, GRID_TTL_MS, async () => {
-    const params: unknown[] = [opts.nodeIds]
+    // SEPARATE param arrays — buildWhere appends its filter params to the
+    // array it receives. A shared array made the second (count) query bind
+    // duplicated params ("supplies 7 parameters, but requires 4") and every
+    // facet-filtered grid silently render empty.
+    const paramsRows: unknown[] = [opts.nodeIds]
+    const paramsCount: unknown[] = [opts.nodeIds]
   const orderBy = SORT_SQL[sort]
   const offset = (page - 1) * perPage
 
@@ -912,11 +926,11 @@ export async function queryTaxProducts(opts: {
                price, compare_at, in_stock, image, review_n, review_avg
           FROM ranked
          WHERE rn = 1` +
-        buildWhere(opts.filters ?? {}, params, WHERE_COLS_RANKED) +
+        buildWhere(opts.filters ?? {}, paramsRows, WHERE_COLS_RANKED) +
         ` ORDER BY ${orderBy} LIMIT ${perPage} OFFSET ${offset}`,
-        params,
+        paramsRows,
       ),
-      pgQuery<{ n: number }>(SCOPE_COUNT_SQL + buildWhere(opts.filters ?? {}, params), params),
+      pgQuery<{ n: number }>(SCOPE_COUNT_SQL + buildWhere(opts.filters ?? {}, paramsCount), paramsCount),
     ])
 
     const total = Number(countRows[0]?.n) || 0
@@ -1051,6 +1065,36 @@ export async function getNodeFacetSections(rootId: string): Promise<NodeFacetSec
   // pages like /shop/dog/dog-treats/* showed no attribute facets at all).
   // Brand / Price / Customer Rating stay live-computed (real product-backed
   // counts); every other attribute renders straight from these rows.
+  const own = await fetchNodeFacetSections(rootId)
+  if (own.length > 0) return own
+
+  // Inheritance fallback — the view's effective_filter_node() stops at the
+  // DEEPEST node owning ANY filter rows, even when those rows are only the
+  // generic Brand/Price/Rating scaffolding (or the node's attribute rows
+  // carry no values yet). Those pages would otherwise render NO attribute
+  // facets at all (all nine bird subcategories, /shop/cat/litter, …). Walk
+  // UP to the nearest ancestor whose spec yields a usable non-generic set —
+  // e.g. /shop/cat/litter falls through to the Cat root's 15-filter set.
+  const ancestors = await pgQuery<{ id: string }>(
+    `SELECT a.id
+       FROM taxonomy_nodes n
+       JOIN taxonomy_nodes a
+         ON (n.path = a.path OR n.path LIKE a.path || '/%') AND a.depth < n.depth
+      WHERE n.id = $1::uuid
+      ORDER BY a.depth DESC`,
+    [rootId],
+  )
+  for (const a of ancestors) {
+    const sections = await fetchNodeFacetSections(a.id)
+    if (sections.length > 0) return sections
+  }
+  return []
+  })
+}
+
+/** One node's attribute facet sections from v_node_filter_spec (generics
+ *  excluded — those render as live-computed sections in the PLP). */
+async function fetchNodeFacetSections(nodeId: string): Promise<NodeFacetSection[]> {
   const rows = await pgQuery<{
     query_param: string
     filter: string
@@ -1063,10 +1107,10 @@ export async function getNodeFacetSections(rootId: string): Promise<NodeFacetSec
        FROM v_node_filter_spec
       WHERE node_id = $1::uuid
       ORDER BY sort_order`,
-    [rootId],
+    [nodeId],
   )
 
-  const sections: NodeFacetSection[] = [] // (cached per rootId)
+  const sections: NodeFacetSection[] = []
   for (const r of rows) {
     // Generic facets are computed live from the product set — skip the
     // scaffold rows here so they never render twice.
@@ -1085,7 +1129,6 @@ export async function getNodeFacetSections(rootId: string): Promise<NodeFacetSec
     })
   }
   return sections
-  })
 }
 
 // ----------------------------- Nav conversion ------------------------------
@@ -1270,6 +1313,9 @@ export type PdpData = {
   isNew: boolean
   isBestseller: boolean
   inStock: boolean
+  /** Total sellable units across in-stock active variants (null = the feed
+   *  doesn't report quantities for this product — urgency hides). */
+  stockQuantity: number | null
   ratingAvg: number | null
   ratingCount: number
   reviews: PdpReview[]
@@ -1406,8 +1452,8 @@ async function buildTaxPdpData(slug: string): Promise<PdpData | null> {
   // serializes at most 5 at a time (session-pooler budget).
   const [variantRows, mediaRows, siblingRows, catRows, reviewAgg, reviewRows, railRows] =
     await Promise.all([
-      pgQuery<{ id: string; name_suffix: string | null; variant_title: string | null; option_size: string | null; option_color: string | null; price: unknown; compare_at_price: unknown; in_stock: boolean | null }>(
-        `SELECT id, name_suffix, variant_title, option_size, option_color, price, compare_at_price, in_stock
+      pgQuery<{ id: string; name_suffix: string | null; variant_title: string | null; option_size: string | null; option_color: string | null; price: unknown; compare_at_price: unknown; in_stock: boolean | null; stock_quantity: number | null }>(
+        `SELECT id, name_suffix, variant_title, option_size, option_color, price, compare_at_price, in_stock, stock_quantity
            FROM product_variants
           WHERE product_id = $1 AND status = 'active'
           ORDER BY price ASC NULLS LAST LIMIT 24`,
@@ -1552,6 +1598,14 @@ async function buildTaxPdpData(slug: string): Promise<PdpData | null> {
 
   // ---- Options ----
   const inStockByPrice = variantRows.some((v) => v.in_stock !== false)
+  // Sellable units across in-stock variants — the feed reports quantities on
+  // most listings; products whose variants carry all-NULL quantities get null
+  // (no urgency display, per the stock settings contract).
+  const stockQuantity = variantRows.reduce((sum, v) => {
+    if (v.in_stock === false || v.stock_quantity == null) return sum
+    const q = Number(v.stock_quantity)
+    return Number.isFinite(q) && q > 0 ? sum + q : sum
+  }, 0)
   const labelFor = (r: { name_suffix: string | null; variant_title: string | null; option_size: string | null; option_color: string | null; price: unknown }) =>
     (r.variant_title || r.name_suffix || [r.option_color, r.option_size].filter(Boolean).join(" · ") || "").trim() ||
     (r.price != null ? `$${Number(r.price).toFixed(2)}` : "Option")
@@ -1602,6 +1656,7 @@ async function buildTaxPdpData(slug: string): Promise<PdpData | null> {
     isNew: p.is_new === true,
     isBestseller: p.is_best_seller === true,
     inStock: inStockByPrice,
+    stockQuantity: variantRows.some((v) => v.in_stock !== false && v.stock_quantity != null) ? stockQuantity : null,
     ratingAvg: reviewAgg[0]?.avg != null ? Math.round(Number(reviewAgg[0].avg) * 10) / 10 : null,
     ratingCount: Number(reviewAgg[0]?.n) || 0,
     reviews: reviewRows.map((r) => ({

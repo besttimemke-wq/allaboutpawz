@@ -113,6 +113,7 @@ async function loadPdpDataUncached(slug: string): Promise<PdpData | null> {
     isNew: legacy.badge === "NEW",
     isBestseller: legacy.badge === "BEST SELLER",
     inStock: (legacy.stock ?? 0) > 0,
+    stockQuantity: legacy.stock ?? null,
     ratingAvg: avg != null ? Math.round(avg * 10) / 10 : null,
     ratingCount: reviews.length,
     reviews,

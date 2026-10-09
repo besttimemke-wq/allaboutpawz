@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { loadPdpData } from "@/lib/shop/pdp"
 import type { MiniRec, PdpData } from "@/lib/shop/taxonomy-db"
+import { getStockSettings } from "@/lib/app-settings"
 import { GROOMING_GUIDES } from "@/lib/guides-data"
 import {
   ProductBuyBox,
@@ -342,6 +343,25 @@ export default async function ProductPage({ params }: Params) {
     .filter((n): n is number => n != null)
   const showFromPrice = variantPrices.length > 1 && Math.max(...variantPrices) > (product.priceCents ?? 0)
 
+  // ---- Stock urgency — policy lives in app_settings (stock.* keys):
+  // stock.low_threshold shows the strip when sellable qty ≤ N,
+  // stock.show_exact_count switches "Only 3 left" vs "Low stock — order soon",
+  // stock.allow_backorder keeps out-of-stock items orderable.
+  const stockSettings = await getStockSettings()
+  const urgency: BuyBoxProduct["urgency"] = (() => {
+    if (product.inStock && product.stockQuantity != null && product.stockQuantity <= stockSettings.lowThreshold) {
+      const message =
+        stockSettings.showExactCount && product.stockQuantity > 0
+          ? `Only ${product.stockQuantity} left in stock — order soon`
+          : "Low stock — order soon"
+      return { message, tone: "urgent" as const }
+    }
+    if (!product.inStock && stockSettings.allowBackorder) {
+      return { message: "Out of stock — available on backorder", tone: "backorder" as const }
+    }
+    return null
+  })()
+
   // ---- Buy box payload ----
   const buyBoxProduct: BuyBoxProduct = {
     id: product.id,
@@ -356,6 +376,7 @@ export default async function ProductPage({ params }: Params) {
     badge: badgeChip,
     category: product.brand,
     inStock: product.inStock,
+    urgency,
     autoship: product.autoship,
   }
 

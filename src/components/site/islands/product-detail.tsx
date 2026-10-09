@@ -49,6 +49,10 @@ export type BuyBoxProduct = {
   badge?: string | null
   category?: string | null
   inStock: boolean
+  /** Stock urgency strip — computed SERVER-SIDE from app_settings stock.*
+   *  keys (stock.low_threshold / stock.show_exact_count /
+   *  stock.allow_backorder). null hides the strip. */
+  urgency?: { message: string; tone: "urgent" | "backorder" } | null
   /** Site-wide Autoship program; null hides the Autoship option. */
   autoship?: { firstOrderPct: number; firstOrderCapCents: number; ongoingPct: number } | null
 }
@@ -314,6 +318,18 @@ export function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
           </span>
           <span className="text-neutral-600">· FREE 1-3 day delivery</span>
         </p>
+        {product.urgency && (
+          <p
+            role="status"
+            className={`rounded-md border px-3 py-2 text-[12.5px] font-bold ${
+              product.urgency.tone === "urgent"
+                ? "border-[#F2C500]/60 bg-[#F2C500]/15 text-[#7A5A00]"
+                : "border-[#002B5C]/20 bg-[#002B5C]/5 text-[#002B5C]"
+            }`}
+          >
+            {product.urgency.message}
+          </p>
+        )}
         <p className="flex items-center gap-2 text-neutral-600">
           <ArrowsCounterClockwise size={15} className="shrink-0 text-[#002B5C]" />
           Free 365-day returns

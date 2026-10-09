@@ -142,7 +142,12 @@ serve(async (req: Request) => {
                 vendor: (pr.vendor || "").trim(), product_type: pr.product_type || "", tags,
                 variant_title: v.title || null, sku: v.sku != null && v.sku !== "" ? String(v.sku) : null,
                 price: toNum(v.price), compare_at_price: toNum(v.compare_at_price),
-                available: !!v.available, weight_grams: v.grams != null ? Number(v.grams) : null,
+                available: !!v.available,
+                // Supplier stock level — Shopify feeds expose inventory_quantity
+                // when the store publishes it; null otherwise. Feeds the PDP
+                // urgency display (app_settings stock.* policy).
+                inventory_quantity: toNum(v.inventory_quantity),
+                weight_grams: v.grams != null ? Number(v.grams) : null,
                 image_urls: images,
               });
             }
@@ -240,11 +245,21 @@ serve(async (req: Request) => {
             tags: r0.tags, status: "published", published_at: new Date().toISOString(),
             is_salon_favorite: salonFavorite(r0.supplier, r0.vendor, minPrice),
           };
-          const { data: pUp, error: pErr } = existingBySpid.has(String(r0.source_product_id))
+          const isNewProduct = !existingBySpid.has(String(r0.source_product_id));
+          const { data: pUp, error: pErr } = !isNewProduct
             ? await sb.from("products").update({ ...prodRow, slug: undefined }).eq("id", existingBySpid.get(String(r0.source_product_id))).select("id").maybeSingle()
             : await sb.from("products").insert(prodRow).select("id").maybeSingle();
           if (pErr) throw new Error("products: " + pErr.message);
           const pid = pUp.id;
+
+          // NEW ITEMS → product_page_queue — the storefront's automation
+          // drains this queue (revalidate PDP + IndexNow ping). Queue
+          // failure must never break the sync itself.
+          if (isNewProduct && pid) {
+            try {
+              await sb.from("product_page_queue").insert({ product_id: pid, slug, status: "pending" });
+            } catch { /* queue unavailable — processor's enqueue-missing run will catch up */ }
+          }
 
           await sb.from("product_nodes").upsert(
             { product_id: pid, node_id: nodeId, is_primary: true }, { onConflict: "product_id,node_id" }
@@ -257,7 +272,11 @@ serve(async (req: Request) => {
               return {
                 tenant_id: TENANT_ID, product_id: pid, sku: r.sku,
                 variant_title: r.variant_title, price: r.price, compare_at_price: r.compare_at_price,
-                in_stock: !!r.available, option_size: null, option_color: null,
+                in_stock: !!r.available,
+                // Supplier-reported units on hand (null when the feed doesn't
+                // publish quantities — urgency display hides for those).
+                stock_quantity: r.inventory_quantity != null ? Math.max(0, Math.round(r.inventory_quantity)) : null,
+                option_size: null, option_color: null,
                 weight_grams: r.weight_grams, status: "active",
               };
             });
