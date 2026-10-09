@@ -174,6 +174,9 @@ const READ_CACHE_TTL_MS = 60 * 1000
 const CACHEABLE_LISTS = new Set<CmsResource>([
   "services", "gallery", "packages", "addons", "faqs", "policies",
   "testimonials", "serviceItems", "haircut_styles",
+  // The legacy PDP fallback lists the WHOLE review table on every product
+  // view — remote round trip per view. Cache 60s; writes invalidate.
+  "product_reviews",
 ])
 /** Drop a cms:* cache key (list or settings) after a write lands. */
 function invalidateCms(prefix: string): void {

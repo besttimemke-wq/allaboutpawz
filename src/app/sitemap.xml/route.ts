@@ -1,4 +1,11 @@
 import { buildSitemap } from "@/lib/shop/sitemap-source"
+import { SITE_URL } from "@/lib/site-url"
+import { getAllSlugs, educationPath } from "@/lib/education/taxonomy-data"
+
+// PET EDUCATION ADDENDUM: the education library (hub + articles + care
+// sheets + every guide slug) is appended in GET() below, after buildSitemap()
+// returns. lib/shop/sitemap-source.ts stays untouched — the HTML /sitemap
+// page keeps rendering its own sections without the education URLs.
 
 // ---------------------------------------------------------------------------
 // /sitemap.xml — served by an explicit route handler (instead of the
@@ -39,10 +46,28 @@ function esc(s: string): string {
 
 export async function GET() {
   const entries = await buildSitemap()
+
+  // Pet Education Center — static library URLs (hub + sub-indexes + every
+  // guide slug from the education data layer). Appended here so the route
+  // stays self-contained and lib/shop/sitemap-source.ts is untouched.
+  const now = new Date()
+  const educationHubEntries = [
+    { loc: `${SITE_URL}/pet-education`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.7 },
+    { loc: `${SITE_URL}/pet-education/articles`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.6 },
+    { loc: `${SITE_URL}/pet-education/care-sheets`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.6 },
+  ]
+  const educationGuideEntries = getAllSlugs().map((slug) => ({
+    loc: `${SITE_URL}${educationPath(slug)}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }))
+  const allEntries = [...entries, ...educationHubEntries, ...educationGuideEntries]
+
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    entries
+    allEntries
       .map(
         (e) =>
           `  <url>\n` +

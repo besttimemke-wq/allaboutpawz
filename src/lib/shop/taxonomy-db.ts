@@ -335,7 +335,19 @@ function subtreeIds(ids: string[], childrenOf: (id: string) => string[]): string
  * Resolve /shop/<animal>[/<group>[/<sub>]] against the LIVE taxonomy.
  * Legacy slugs resolve too — with a canonicalPath for the 301.
  */
+/**
+ * Cached wrapper — each request resolves the SAME path twice (once for
+ * generateMetadata, once for the page component). Without this wrapper that
+ * doubled the per-view resolution cost and the deep-slug BFS count query ran
+ * per view. Cached 5 min under the tax:* invalidation namespace.
+ */
 export async function resolveTaxPath(segments: string[]): Promise<ResolvedTaxPath | null> {
+  if (segments.length === 0) return null
+  const key = `tax:path:${segments.map((s) => s.toLowerCase()).join("/")}`
+  return cached(key, TREE_TTL_MS, () => resolveTaxPathUncached(segments))
+}
+
+async function resolveTaxPathUncached(segments: string[]): Promise<ResolvedTaxPath | null> {
   if (segments.length === 0) return null
   const tree = await getTaxonomyTree()
 
@@ -1218,7 +1230,6 @@ const AUTOSHIP = { firstOrderPct: 35, firstOrderCapCents: 2000, ongoingPct: 5 }
 // ----------------------------- PDP cache -----------------------------------
 
 const PDP_TTL_MS = 60_000
-const pdpCache = new Map<string, { at: number; data: PdpData | null }>()
 
 // ----------------------------- QA composer ---------------------------------
 
@@ -1291,18 +1302,12 @@ function toMini(r: Record<string, unknown>): MiniRec {
 }
 
 export async function getTaxPdpData(slug: string): Promise<PdpData | null> {
-  const key = slug.toLowerCase()
-  const hit = pdpCache.get(key)
-  if (hit && Date.now() - hit.at < PDP_TTL_MS) return hit.data
-
-  const data = await buildTaxPdpData(slug)
-  pdpCache.set(key, { at: Date.now(), data })
-  if (pdpCache.size > 400) {
-    // Bound the cache — drop the oldest third.
-    const keys = [...pdpCache.keys()].slice(0, Math.floor(pdpCache.size / 3))
-    for (const k of keys) pdpCache.delete(k)
-  }
-  return data
+  // cached() gives the PDP the same SWR treatment as the PLP grid: the first
+  // build of a product pays its ≤8 indexed queries, every view after that —
+  // including the TTL-expiry view — renders instantly while a single
+  // background refresh runs. Concurrent cold views coalesce onto one build
+  // instead of stampeding the session pooler with 7 parallel queries each.
+  return cached(`tax:pdp:${slug.toLowerCase()}`, PDP_TTL_MS, () => buildTaxPdpData(slug))
 }
 
 async function buildTaxPdpData(slug: string): Promise<PdpData | null> {

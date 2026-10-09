@@ -19,6 +19,7 @@ import type { PdpData, MiniRec, PdpReview } from "@/lib/shop/taxonomy-db"
 import { getTaxPdpData } from "@/lib/shop/taxonomy-db"
 import { getCatalogProductBySlug } from "@/lib/enterprise/catalog"
 import { repo } from "@/lib/repo"
+import { cached } from "@/lib/cache"
 
 const hasText = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0
 
@@ -57,6 +58,15 @@ function composeLegacyQa(p: {
 }
 
 export async function loadPdpData(slug: string): Promise<PdpData | null> {
+  // The PDP route resolves the slug in BOTH generateMetadata and the page
+  // component — without this wrapper the legacy fallback (full-catalog +
+  // full-review-table reads) ran twice per view. Cached 60s with SWR:
+  // repeat views render instantly, one background refresh keeps stock and
+  // price current.
+  return cached(`pdp:${slug.toLowerCase()}`, 60_000, () => loadPdpDataUncached(slug))
+}
+
+async function loadPdpDataUncached(slug: string): Promise<PdpData | null> {
   // 1 — live feed catalog (cached; the fast path).
   const feed = await getTaxPdpData(slug)
   if (feed) return feed
