@@ -5,7 +5,7 @@ import { HeroCtas } from "@/components/site/hero-ctas"
 import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
 import { ServicesAccordion } from "@/components/site/islands/services-accordion"
 import { SITE_URL } from "@/lib/site-url"
-import { getGuideDataBySlug } from "@/lib/education/taxonomy-data"
+import { getGuideDataBySlug } from "@/lib/seopages/taxonomy-data"
 
 // Owner directive: surface a few of the imported SEO guides inside the
 // services page. Server-rendered from the static education library — no
@@ -83,7 +83,7 @@ export default function ServicesPage() {
             </p>
           </div>
           <Link
-            href="/pet-education"
+            href="/guides"
             className="inline-flex shrink-0 items-center gap-2 rounded border border-gold-deep/40 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wide text-ink transition-colors hover:border-gold-deep hover:bg-cream-deep"
           >
             Visit the Education Center
@@ -96,7 +96,7 @@ export default function ServicesPage() {
             return (
               <Link
                 key={slug}
-                href={`/pet-education/${slug}`}
+                href={`/guides/${slug}`}
                 className="group flex flex-col rounded border border-neutral-200 bg-white p-5 transition-colors hover:border-gold-deep hover:bg-cream/30"
               >
                 <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-soft">{guide.pillar}</p>

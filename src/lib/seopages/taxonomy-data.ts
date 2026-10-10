@@ -2,20 +2,6 @@ import { CategoryNode, GuidePageData } from './types';
 import { DOMAIN_PROFILES } from './domain-knowledge';
 import { FEEDING_WATERING_PROFILES } from './feeding-watering-data';
 import { GROOMING_ESSENTIALS_PROFILES } from './grooming-essentials-data';
-import { SITE_URL } from '@/lib/site-url';
-
-// ---------------------------------------------------------------------------
-// PORTED from github.com/allaboutpawz901-beep/seopages (owner-built SEO
-// library). All routes live under /pet-education — the education route the
-// footer already links. Every guide's path/canonical resolves HERE, not to
-// the hub's original root-level paths, so nothing collides with the live
-// /guides and /grooming route trees.
-// ---------------------------------------------------------------------------
-
-/** Canonical education path for any guide slug. */
-export function educationPath(slug: string): string {
-  return `/pet-education/${slug}`;
-}
 
 // Full product categories matching prompt
 export const PRODUCT_CATEGORIES: CategoryNode[] = [
@@ -137,6 +123,86 @@ export const PRODUCT_CATEGORIES: CategoryNode[] = [
       { name: 'DNA Tests', slug: 'dna-tests' },
       { name: 'Digestive Remedies', slug: 'digestive-remedies' },
       { name: 'Dental Care', slug: 'dental-care' },
+    ],
+  },
+  {
+    name: 'Fish & Aquatics',
+    slug: 'fish-and-aquatics',
+    children: [
+      {
+        name: 'Aquatics',
+        slug: 'aquatics',
+        children: [
+          { name: 'Accessories', slug: 'accessories' },
+          { name: 'Aquarium Cleaning', slug: 'aquarium-cleaning' },
+          { name: 'Aquariums', slug: 'aquariums' },
+          { name: 'Aquariums Parts', slug: 'aquarium-parts' },
+          { name: 'Decor', slug: 'aquarium-decor' },
+          { name: 'Filter Cartridges', slug: 'filter-cartridges' },
+          { name: 'Filters & Pumps', slug: 'filters-and-pumps' },
+          { name: 'Food', slug: 'aquatic-food' },
+          { name: 'Heaters & Gauges', slug: 'heaters-and-gauges' },
+          { name: 'Light Fixtures & Bulbs', slug: 'light-fixtures-and-bulbs' },
+          { name: 'Supplements', slug: 'aquatic-supplements' },
+          { name: 'Water Care', slug: 'water-care' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Bird',
+    slug: 'bird',
+    children: [
+      { name: 'Cage', slug: 'cage' },
+      { name: 'Cage Accessory', slug: 'cage-accessory' },
+      { name: 'Food', slug: 'bird-food' },
+      { name: 'Mineral Block', slug: 'mineral-block' },
+      { name: 'Perches', slug: 'perches' },
+      { name: 'Supplements', slug: 'bird-supplements' },
+      { name: 'Toys', slug: 'bird-toys' },
+      { name: 'Treats', slug: 'bird-treats' },
+      { name: 'Wild Bird Food', slug: 'wild-bird-food' },
+    ],
+  },
+  {
+    name: 'Reptile',
+    slug: 'reptile',
+    children: [
+      { name: 'Bedding and Substrates', slug: 'bedding-and-substrates' },
+      { name: 'Cleaning', slug: 'reptile-cleaning' },
+      { name: 'Decor', slug: 'reptile-decor' },
+      { name: 'Dishes', slug: 'reptile-dishes' },
+      { name: 'Filter & Pumps', slug: 'reptile-filters-and-pumps' },
+      { name: 'Food', slug: 'reptile-food' },
+      { name: 'Habitat Accessory', slug: 'habitat-accessory' },
+      { name: 'Habitats', slug: 'habitats' },
+      { name: 'Heaters & Gauges', slug: 'reptile-heaters-and-gauges' },
+      { name: 'Light Fixtures & Bulbs', slug: 'reptile-light-fixtures-and-bulbs' },
+      { name: 'Liners', slug: 'liners' },
+      { name: 'Supplements', slug: 'reptile-supplements' },
+      { name: 'Treats', slug: 'reptile-treats' },
+    ],
+  },
+  {
+    name: 'Small Animal',
+    slug: 'small-animal',
+    children: [
+      { name: 'Accessories', slug: 'small-animal-accessories' },
+      { name: 'Bedding', slug: 'bedding' },
+      { name: 'Dishes & Waterers', slug: 'dishes-and-waterers' },
+      { name: 'Feeders and Waterers', slug: 'feeders-and-waterers' },
+      { name: 'Food', slug: 'small-animal-food' },
+      { name: 'Food Ferret', slug: 'food-ferret' },
+      { name: 'Food Hamster', slug: 'food-hamster' },
+      { name: 'Food Hamster and Gerbil', slug: 'food-hamster-and-gerbil' },
+      { name: 'Food Rabbit', slug: 'food-rabbit' },
+      { name: 'Grooming', slug: 'small-animal-grooming' },
+      { name: 'Habitats', slug: 'small-animal-habitats' },
+      { name: 'Litter', slug: 'litter' },
+      { name: 'Supplements', slug: 'small-animal-supplements' },
+      { name: 'Toys', slug: 'small-animal-toys' },
+      { name: 'Treats', slug: 'small-animal-treats' },
+      { name: 'Treats Ferret', slug: 'treats-ferret' },
     ],
   },
 ];
@@ -376,26 +442,14 @@ export const SAMPLE_PAGES: Record<string, GuidePageData> = {
     secondaryKeywords: ['goldendoodle haircut', 'doodle matting prevention', 'line brushing doodle', 'memphis dog grooming'],
     readTime: '7 min read',
     lastUpdated: 'Updated October 2026',
-    author: {
-      name: 'Jessica Reynolds',
-      role: 'Master Groomer & Pet Stylist',
-      avatarUrl: '/images/avatar_sarah_pet_parent_1791411057259.jpg',
-    },
-    veterinaryReviewer: {
-      name: 'Dr. Michael Vance, DVM',
-      title: 'Mid-South Veterinary Consultant',
-    },
-    kickerBadge: 'Certified Salon Protocol',
+    author: { name: 'Brea Stewart', role: 'Certified Dog Groomer' },
     heroTitle: 'Start grooming your Doodle with All About Pawz',
     heroSubheadline: 'Gentle coat care, tangle prevention, and salon-grade styling designed for Mid-South pet parents. Keep your Doodle soft, mat-free, and comfortable in every season.',
     heroCtaText: 'Book Salon Appointment*',
     heroCtaSubtext: 'Save 15% on first puppy appointment',
     heroFootnote: '*All About Pawz professional grooming serves Memphis, Bartlett, Collierville, Germantown & Shelby County.',
-    heroImageUrl: '/images/hero_grooming_dog_1791411047518.jpg',
+    heroImageUrl: '/seopages/images/hero_grooming_dog_1791411047518.jpg',
     heroImageAlt: 'Fluffy groomed goldendoodle smiling in clean warm salon environment',
-    heroRatingText: '4.9 out of 5 stars',
-    heroRatingCount: '450+ Shelby County Doodles Groomed',
-    incentivesKicker: 'Verified Salon Standards',
     incentivesHeadline: 'Get started with salon-grade care for your Doodle',
     incentivesSubhead: 'Ready to give your Doodle the healthiest coat possible? Take advantage of our certified salon grooming protocols.',
     incentivesLinkText: 'See all grooming packages ↗',
@@ -410,7 +464,7 @@ export const SAMPLE_PAGES: Record<string, GuidePageData> = {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Mid-South moisture defense',
         items: [
           { highlight: 'Sulfate-free hydrating botanicals', text: 'that protect natural lipid skin barriers in humid Tennessee summers.' },
@@ -452,7 +506,7 @@ export const SAMPLE_PAGES: Record<string, GuidePageData> = {
         quote: '“Finding a groomer who truly understands doodle coats in Memphis was a lifesaver. Jessica took the time to show me how to line-brush at home, and Teddy has never had to be shaved down!”',
         authorName: 'Sarah Jenkins',
         authorRole: 'Pet Parent of Teddy (Mini Goldendoodle)',
-        avatarUrl: '/images/avatar_sarah_pet_parent_1791411057259.jpg',
+        avatarUrl: '/seopages/images/avatar_sarah_pet_parent_1791411057259.jpg',
         storyLinkText: 'See Teddy’s transformation ↗',
         petType: 'Goldendoodle',
       },
@@ -460,7 +514,7 @@ export const SAMPLE_PAGES: Record<string, GuidePageData> = {
         quote: '“Our rescue doodle was terrified of blow dryers. The team at All About Pawz used low-noise equipment and soothing treats. Now he wags his tail right through the front door.”',
         authorName: 'Marcus Bell',
         authorRole: 'Memphis Resident & Rescue Advocate',
-        avatarUrl: '/images/avatar_marcus_pet_parent_1791411068889.jpg',
+        avatarUrl: '/seopages/images/avatar_marcus_pet_parent_1791411068889.jpg',
         storyLinkText: 'See Marcus & Archie’s story ↗',
         petType: 'Labradoodle Mix',
       },
@@ -607,10 +661,9 @@ export const SAMPLE_PAGES: Record<string, GuidePageData> = {
 };
 
 // Helper generator to dynamically create rich, authentic data for ANY guide or category in the user's taxonomy
-export function getGuideDataBySlug(slug: string): GuidePageData {
-  if (SAMPLE_PAGES[slug]) {
-    const d = SAMPLE_PAGES[slug];
-    return { ...d, path: educationPath(d.slug), canonicalUrl: `${SITE_URL}${educationPath(d.slug)}` };
+export function getGuideDataBySlug(slug: string, routeSegments?: string[]): GuidePageData {
+  if ((!routeSegments || routeSegments.length === 1) && SAMPLE_PAGES[slug]) {
+    return SAMPLE_PAGES[slug];
   }
 
   // Find item in directory
@@ -631,26 +684,47 @@ export function getGuideDataBySlug(slug: string): GuidePageData {
     if (foundItem) break;
   }
 
-  // Check product categories if not in guides
+  // Resolve product categories recursively so nested paths retain their context.
+  let matchedProductCategory: { root: CategoryNode; node: CategoryNode; segments: string[] } | null = null;
   if (!foundItem) {
     if (slug === 'bowls-dishes') slug = 'bowls-and-dishes';
 
-    for (const cat of PRODUCT_CATEGORIES) {
-      if (cat.slug === slug) {
-        foundItem = { name: `${cat.name} Buying & Care Guide`, slug: cat.slug, path: `/${cat.slug}` };
-        foundPillar = cat.name;
+    const findBySegments = (root: CategoryNode, segments: string[]) => {
+      if (segments[0] !== root.slug) return null;
+      let node = root;
+      for (const segment of segments.slice(1)) {
+        const child = node.children?.find((candidate) => candidate.slug === segment);
+        if (!child) return null;
+        node = child;
+      }
+      return node;
+    };
+    const findBySlug = (node: CategoryNode, segments: string[]): { node: CategoryNode; segments: string[] } | null => {
+      if (node.slug === slug) return { node, segments };
+      for (const child of node.children || []) {
+        const match = findBySlug(child, [...segments, child.slug]);
+        if (match) return match;
+      }
+      return null;
+    };
+
+    for (const root of PRODUCT_CATEGORIES) {
+      const match = routeSegments?.length && PRODUCT_CATEGORIES.some((category) => category.slug === routeSegments[0])
+        ? (() => {
+            const node = findBySegments(root, routeSegments);
+            return node ? { node, segments: routeSegments } : null;
+          })()
+        : routeSegments?.length === 1
+          ? findBySlug(root, [root.slug])
+          : routeSegments?.length
+            ? null
+            : findBySlug(root, [root.slug]);
+      if (match) {
+        matchedProductCategory = { root, node: match.node, segments: match.segments };
+        foundItem = { name: match.node.name, slug: match.node.slug, path: `/${match.segments.join('/')}` };
+        foundPillar = root.name;
         break;
       }
-      if (cat.children) {
-        for (const sub of cat.children) {
-          if (sub.slug === slug) {
-            foundItem = { name: `${sub.name} Guide & Best Picks`, slug: sub.slug, path: `/${cat.slug}/${sub.slug}` };
-            foundPillar = cat.name;
-            break;
-          }
-        }
-      }
-      if (foundItem) break;
     }
   }
 
@@ -669,39 +743,115 @@ export function getGuideDataBySlug(slug: string): GuidePageData {
   const profile = GROOMING_ESSENTIALS_PROFILES[slug] || FEEDING_WATERING_PROFILES[slug] || DOMAIN_PROFILES[slug] || {};
   const pagePath = foundItem ? foundItem.path : `/${slug}`;
 
+  if (matchedProductCategory && ['fish-and-aquatics', 'bird', 'reptile', 'small-animal'].includes(matchedProductCategory.root.slug)) {
+    const { root, node, segments } = matchedProductCategory;
+    const parentSegments = segments.slice(0, -1);
+    const parent = parentSegments.length ? findCategoryAtPath(root, parentSegments.slice(1)) : null;
+    const relatedNodes = node.children?.length
+      ? node.children
+      : parent?.children?.filter((item) => item.slug !== node.slug) || [];
+    const relatedBaseSegments = node.children?.length ? segments : parentSegments;
+    const relatedArticles = relatedNodes.map((item) => ({
+      title: item.name,
+      path: `/${[...relatedBaseSegments, item.slug].join('/')}`,
+    }));
+    const title = node.slug === root.slug
+      ? `${root.name} Care & Supplies`
+      : `${node.name} ${root.name} Guide`;
+    const description = `Explore ${node.name.toLowerCase()} for ${root.name.toLowerCase()}. Compare key features, care considerations, and selection factors before choosing supplies for your pet.`;
+    const sections = [
+      {
+        id: 'category-overview',
+        title: `${node.name} for ${root.name}`,
+        content: `This guide covers the main types of ${node.name.toLowerCase()} available for ${root.name.toLowerCase()} pets. Product specifications and animal needs vary, so check manufacturer guidance and consult a qualified veterinarian when a product affects health, nutrition, or habitat conditions.`,
+      },
+      {
+        id: 'selection-checklist',
+        title: `How to choose ${node.name.toLowerCase()}`,
+        content: `Compare materials, dimensions, compatibility, cleaning requirements, and the manufacturer's recommended species and use. Match the item to your animal's size and environment, and avoid products with unclear safety or care instructions.`,
+        tips: [
+          'Confirm the product is labeled for the animal species and size you keep.',
+          'Check dimensions and compatibility with the existing habitat or equipment.',
+          'Review cleaning, replacement, and supervision guidance before use.',
+        ],
+      },
+      {
+        id: 'care-and-maintenance',
+        title: 'Care and maintenance',
+        content: `Follow the manufacturer's cleaning and replacement directions, inspect supplies regularly for damage, and keep products in a condition appropriate for your animal's daily environment. Ask a veterinarian about health or dietary questions rather than relying on product marketing claims.`,
+      },
+    ];
+
+    return {
+      id: segments.join('-'),
+      slug: node.slug,
+      path: pagePath,
+      pillar: root.name,
+      archetype: 'product_category',
+      metaTitle: node.slug === root.slug
+        ? `${root.name} Care & Supplies | All About Pawz`
+        : `${node.name} for ${root.name} | All About Pawz`,
+      metaDescription: description,
+      canonicalUrl: `https://www.aapawz.com${pagePath}`,
+      targetKeyword: `${node.name.toLowerCase()} ${root.name.toLowerCase()}`,
+      secondaryKeywords: [`${root.name.toLowerCase()} supplies`, `${node.name.toLowerCase()} care`, 'pet product guide'],
+      readTime: '4 min read',
+      lastUpdated: 'Updated October 2026',
+      author: { name: 'Brea Stewart', role: 'Certified Dog Groomer' },
+      heroTitle: title,
+      heroSubheadline: description,
+      heroCtaText: 'Explore related categories',
+      heroCtaSubtext: '',
+      heroFootnote: `Part of the ${root.name} care and supply guide.`,
+      heroImageUrl: '/seopages/images/hero_grooming_dog_1791411047518.jpg',
+      heroImageAlt: `${root.name} supplies guide`,
+      incentivesHeadline: `What to consider when choosing ${node.name.toLowerCase()}`,
+      incentivesSubhead: `Use these practical checks to compare options for ${root.name.toLowerCase()} pets.`,
+      incentivesLinkText: 'Read the complete guide',
+      takeawayCards: [
+        { icon: 'check', title: 'Check suitability', items: [{ highlight: 'Species and size', text: 'confirm the item matches your animal and setup.' }, { highlight: 'Clear instructions', text: 'look for practical use, cleaning, and replacement guidance.' }] },
+        { icon: 'shield', title: 'Prioritize safe use', items: [{ highlight: 'Inspect materials', text: 'check for damage, loose parts, or unclear construction.' }, { highlight: 'Follow directions', text: 'use products only as labeled and supervise when appropriate.' }] },
+        { icon: 'clock', title: 'Plan for upkeep', items: [{ highlight: 'Routine care', text: 'clean and replace items according to their instructions.' }, { highlight: 'Ask an expert', text: 'consult a veterinarian about health or nutrition decisions.' }] },
+      ],
+      whyHeadline: `More ${root.name} categories`,
+      whyFeatures: [],
+      whyCtaText: 'Browse related categories',
+      testimonials: [],
+      introSummary: description,
+      tableOfContents: sections.map((section, index) => ({ id: section.id, label: `${index + 1}. ${section.title}` })),
+      sections,
+      relatedProducts: [],
+      relatedArticles,
+      faqs: [
+        { question: `How do I choose ${node.name.toLowerCase()}?`, answer: 'Compare species suitability, size, materials, compatibility, cleaning needs, and manufacturer instructions before choosing.' },
+        { question: 'How often should supplies be cleaned or replaced?', answer: 'Follow product and manufacturer instructions, and inspect supplies regularly for damage or wear.' },
+        { question: 'Who should I ask about health or nutrition needs?', answer: 'A qualified veterinarian can advise on animal-specific health, nutrition, and habitat requirements.' },
+      ],
+      localServiceAreas: [],
+    };
+  }
+
   return {
     id: slug,
     slug,
-    path: educationPath(slug),
+    path: pagePath,
     pillar: foundPillar,
     archetype,
     metaTitle: profile.heroTitle ? `${profile.heroTitle} | All About Pawz` : `${title} | All About Pawz Guide & Mid-South Pet Care`,
     metaDescription: profile.heroSubheadline ? `${profile.heroSubheadline}` : `Comprehensive guide to ${title.toLowerCase()}. Master expert tips, veterinary-reviewed best practices, and salon recommendations in Memphis & Shelby County.`,
-    canonicalUrl: `${SITE_URL}${educationPath(slug)}`,
+    canonicalUrl: `https://www.aapawz.com${pagePath}`,
     targetKeyword: title.toLowerCase(),
     secondaryKeywords: [`${title.toLowerCase()} tips`, 'memphis pet care', 'all about pawz guide', 'shelby county dog care'],
     readTime: '6 min read',
     lastUpdated: 'Updated October 2026',
-    author: {
-      name: 'All About Pawz Care Team',
-      role: 'Master Groomers & Nutrition Specialists',
-      avatarUrl: '/images/avatar_sarah_pet_parent_1791411057259.jpg',
-    },
-    veterinaryReviewer: {
-      name: 'Dr. Michael Vance, DVM',
-      title: 'Mid-South Veterinary Consultant',
-    },
-    kickerBadge: profile.kicker || (isNutrition ? 'Holistic Nutrition Standard' : 'Professional Care Standard'),
+    author: { name: 'Brea Stewart', role: 'Certified Dog Groomer' },
     heroTitle: profile.heroTitle || `The Complete Guide to ${title}`,
     heroSubheadline: profile.heroSubheadline || `Veterinary-backed advice, salon-tested techniques, and curated pet supplies tailored specifically to long-term health and coat vitality.`,
     heroCtaText: isLocal ? 'Book Appointment*' : isNutrition ? 'Find Your Pet’s Diet*' : 'Explore Guide & Tools*',
     heroCtaSubtext: 'Certified fear-free handlers & master groomers',
     heroFootnote: '*Certified master groomers and fear-free handling protocols.',
-    heroImageUrl: '/images/hero_grooming_dog_1791411047518.jpg',
+    heroImageUrl: '/seopages/images/hero_grooming_dog_1791411047518.jpg',
     heroImageAlt: `${title} featured care guide`,
-    heroRatingText: '4.9 out of 5 stars',
-    heroRatingCount: '500+ Verified Pet Parents',
-    incentivesKicker: 'Clinical Care Standards',
     incentivesHeadline: `Essential principles for ${title.toLowerCase()}`,
     incentivesSubhead: `Take advantage of our veterinary-aligned protocols designed to keep your companion healthy, comfortable, and vibrant.`,
     incentivesLinkText: 'See all care protocols ↗',
@@ -716,7 +866,7 @@ export function getGuideDataBySlug(slug: string): GuidePageData {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Mid-South Climate Defense',
         items: [
           { highlight: 'Pollen & humidity formulas', text: 'counteracting intense southern summer mold, grass allergies, and red clay staining.' },
@@ -758,14 +908,14 @@ export function getGuideDataBySlug(slug: string): GuidePageData {
         quote: `“All About Pawz made our pet’s routine so easy. Their staff is knowledgeable, gentle, and the salon is spotless. We will never go anywhere else in Memphis!”`,
         authorName: 'Sarah Jenkins',
         authorRole: 'Pet Parent & Bartlett Resident',
-        avatarUrl: '/images/avatar_sarah_pet_parent_1791411057259.jpg',
+        avatarUrl: '/seopages/images/avatar_sarah_pet_parent_1791411057259.jpg',
         storyLinkText: 'Read full customer review ↗',
       },
       {
         quote: `“The attention to detail and genuine compassion they showed our nervous rescue dog was unmatched. The team explained everything thoroughly.”`,
         authorName: 'Marcus Bell',
         authorRole: 'Memphis Resident & Rescue Advocate',
-        avatarUrl: '/images/avatar_marcus_pet_parent_1791411068889.jpg',
+        avatarUrl: '/seopages/images/avatar_marcus_pet_parent_1791411068889.jpg',
         storyLinkText: 'Read Marcus’s story ↗',
       },
     ],
@@ -908,12 +1058,44 @@ export function getAllSlugs(): string[] {
 
   PRODUCT_CATEGORIES.forEach(cat => {
     slugs.add(cat.slug);
-    cat.children?.forEach(sub => {
-      slugs.add(sub.slug);
-    });
+    collectCategorySlugs(cat.children, slugs);
   });
 
   return Array.from(slugs);
+}
+
+export function getProductCategoryPaths(): string[] {
+  const paths: string[] = [];
+  const collectPaths = (nodes: CategoryNode[] | undefined, parentPath: string) => {
+    nodes?.forEach((node) => {
+      const path = `${parentPath}/${node.slug}`;
+      paths.push(path);
+      collectPaths(node.children, path);
+    });
+  };
+
+  PRODUCT_CATEGORIES.forEach((category) => {
+    paths.push(`/${category.slug}`);
+    collectPaths(category.children, `/${category.slug}`);
+  });
+  return paths;
+}
+
+function collectCategorySlugs(nodes: CategoryNode[] | undefined, slugs: Set<string>) {
+  nodes?.forEach((node) => {
+    slugs.add(node.slug);
+    collectCategorySlugs(node.children, slugs);
+  });
+}
+
+function findCategoryAtPath(root: CategoryNode, segments: string[]): CategoryNode | null {
+  let node = root;
+  for (const segment of segments) {
+    const child = node.children?.find((candidate) => candidate.slug === segment);
+    if (!child) return null;
+    node = child;
+  }
+  return node;
 }
 
 export function getLocalCitySlugs(): string[] {
@@ -935,13 +1117,20 @@ export interface GuideSearchItem {
 
 export function getAllSearchItems(): GuideSearchItem[] {
   const items: GuideSearchItem[] = [];
+  const addCategoryItems = (nodes: CategoryNode[] | undefined, parentPath: string, group: string) => {
+    nodes?.forEach((node) => {
+      const path = `${parentPath}/${node.slug}`;
+      items.push({ name: node.name, url: path, group });
+      addCategoryItems(node.children, path, group);
+    });
+  };
   
   GUIDES_DIRECTORY.forEach(pillar => {
     pillar.subcategories.forEach(sub => {
       sub.items.forEach(item => {
         items.push({
           name: item.name,
-          url: educationPath(item.slug),
+          url: item.path,
           group: pillar.pillar,
         });
       });
@@ -951,16 +1140,10 @@ export function getAllSearchItems(): GuideSearchItem[] {
   PRODUCT_CATEGORIES.forEach(cat => {
     items.push({
       name: `${cat.name} (Overview)`,
-      url: educationPath(cat.slug),
+      url: `/${cat.slug}`,
       group: 'Supplies',
     });
-    cat.children?.forEach(sub => {
-      items.push({
-        name: sub.name,
-        url: educationPath(sub.slug),
-        group: cat.name,
-      });
-    });
+    addCategoryItems(cat.children, `/${cat.slug}`, cat.name);
   });
 
   return items;

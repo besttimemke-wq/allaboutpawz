@@ -22,7 +22,7 @@ import { loadPdpData } from "@/lib/shop/pdp"
 import type { MiniRec, PdpData } from "@/lib/shop/taxonomy-db"
 import { cleanText } from "@/lib/shop/clean-text"
 import { getStockSettings } from "@/lib/app-settings"
-import { GROOMING_GUIDES } from "@/lib/guides-data"
+import { GUIDES_DIRECTORY } from "@/lib/seopages/taxonomy-data"
 import {
   ProductBuyBox,
   ProductGallery,
@@ -176,11 +176,25 @@ function optionHeading(names: string[]): string {
 }
 
 // ---- Associated articles (guides) ------------------------------------------
+// Sourced from the owner's seopages Education Center (his Grooming pillar,
+// split dog/cat by subcategory). hrefs use the owner's own canonical paths.
 
-function articlePicks(petKind: string | null): { slug: string; title: string; animal: "dog" | "cat" }[] {
+type ArticlePick = { slug: string; title: string; animal: "dog" | "cat"; href: string }
+
+const GROOMING_SUBCATS =
+  GUIDES_DIRECTORY.find((pillar) => pillar.pillar === "Grooming")?.subcategories ?? []
+const DOG_GROOMING_ITEMS = (GROOMING_SUBCATS.find((s) => s.name.startsWith("Dog Breed"))?.items ?? []).map(
+  (i): ArticlePick => ({ slug: i.slug, title: i.name, animal: "dog", href: i.path }),
+)
+const CAT_GROOMING_ITEMS = (GROOMING_SUBCATS.find((s) => s.name.startsWith("Cat Breed"))?.items ?? []).map(
+  (i): ArticlePick => ({ slug: i.slug, title: i.name, animal: "cat", href: i.path }),
+)
+const ALL_ARTICLE_PICKS = [...DOG_GROOMING_ITEMS, ...CAT_GROOMING_ITEMS]
+
+function articlePicks(petKind: string | null): ArticlePick[] {
   const kind = petKind?.toLowerCase() ?? ""
   const want = kind.startsWith("dog") ? "dog" : kind.startsWith("cat") ? "cat" : null
-  const pool = want ? GROOMING_GUIDES.filter((g) => g.animal === want) : GROOMING_GUIDES
+  const pool = want ? ALL_ARTICLE_PICKS.filter((g) => g.animal === want) : ALL_ARTICLE_PICKS
   return pool.slice(0, 3)
 }
 
@@ -578,7 +592,9 @@ export default async function ProductPage({ params }: Params) {
                   Out of stock here — see available options below.
                 </p>
               )}
-              <div className="shop-nav-scroll mt-3 grid max-h-96 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+              {/* Owner ruling: no inner scrollers — "only the page scrolls".
+                  The variant list renders full-height; the page scrolls. */}
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {optionCards.map((o) =>
                   o.isCurrent ? (
                     <div
@@ -640,8 +656,11 @@ export default async function ProductPage({ params }: Params) {
           )}
         </div>
 
-        {/* 5+6 — Buy column: price, purchase options, qty + ATC, stock, pickup */}
-        <div className="min-w-0 lg:border-l lg:border-neutral-200 lg:pl-9">
+        {/* 5+6 — Buy column: price, purchase options, qty + ATC, stock, pickup.
+            STICKY (owner ruling: "the sidebar on product pages are sticky —
+            only the page scrolls"): the buy box pins under the header while
+            the long content column scrolls. */}
+        <div className="min-w-0 self-start lg:sticky lg:top-20 lg:border-l lg:border-neutral-200 lg:pl-9">
           {/* key remounts the island on variant navigation → qty/added state reset */}
           <ProductBuyBox key={product.id} product={buyBoxProduct} />
         </div>
@@ -893,7 +912,7 @@ export default async function ProductPage({ params }: Params) {
             {articles.map((g) => (
               <Link
                 key={g.slug}
-                href={`/guides/grooming/${g.slug}`}
+                href={g.href}
                 className="group flex flex-col rounded-lg border border-neutral-200 bg-white p-5 transition-colors hover:border-[#002B5C]"
               >
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#002B5C]">

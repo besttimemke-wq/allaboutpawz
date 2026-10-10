@@ -55,9 +55,9 @@ export const FOOTER_NAV: FooterColumn[] = [
       { label: "Veterinary Partners", href: "/veterinary-partners" },
       { label: "Pet Insurance", href: "/pet-insurance" },
       { label: "Pet Adoption", href: "/pet-adoption" },
-      { label: "Pet Education Center", href: "/pet-education", children: [
-        { label: "Articles By Pets", href: "/pet-education/articles" },
-        { label: "Pet Care Sheets", href: "/pet-education/care-sheets" },
+      { label: "Pet Education Center", href: "/guides", children: [
+        { label: "SEO Pet Care Library", href: "/guides" },
+        { label: "Dog Breed Grooming Guides", href: "/dog-breeds" },
       ]},
       { label: "Product Collections", href: "/shop/collections", children: [
         { label: "Pets in the Classroom", href: "/shop/collections/pets-in-the-classroom" },

@@ -34,7 +34,7 @@ import { getResource } from "@/lib/site-data"
 import { pgQuery } from "@/lib/pg"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
 import { resolveTaxPath } from "@/lib/shop/taxonomy-db"
-import { getAllGroomingSlugs, findGroomingGuide } from "@/lib/guides-data"
+import { GUIDES_DIRECTORY, getProductCategoryPaths } from "@/lib/seopages/taxonomy-data"
 
 // GATE: Tier 1 (v_sitemap) is disabled until Wave 1 pages have real content.
 // Flip to true per-wave when pages pass §11a (products + unique copy).
@@ -545,22 +545,48 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
   const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES
     .filter((r) => r.path === "/shop/collections/salon-favorites")
     .map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  // Guide routes — 58 grooming guides from guides-data.ts
-  const guideEntries: SitemapEntry[] = getAllGroomingSlugs().map(({ slug }) => {
-    const guide = findGroomingGuide(slug)
-    return {
-      loc: `${BASE}/guides/grooming/${slug}`,
-      path: `/guides/grooming/${slug}`,
-      lastModified: now,
-      changeFrequency: "monthly" as const,
-      priority: 0.6,
-      pageType: "guide",
-      label: guide?.title || slug.replace(/-/g, " "),
-    }
-  })
+  // Education Center — the owner's seopages design (his standalone repo's
+  // app/sitemap.ts inventory, ported): /guides hub, /dog-breeds index, every
+  // product-category hub/subcategory path (getProductCategoryPaths) and every
+  // guide-directory article path (GUIDES_DIRECTORY). Replaces the retired
+  // /pet-education + /guides/grooming/* entries. Guide paths are the owner's
+  // own root-level URLs (e.g. /labrador-retriever-grooming, /grooming/memphis-tn)
+  // served by the (education) route group.
+  // Local item '/grooming/shelby-county' maps onto the live city-hub slug
+  // '/grooming/shelby-county-tn' (next.config 308s the short slug there) so
+  // every advertised URL renders 200 directly.
+  const educationHubEntries: SitemapEntry[] = [
+    { loc: `${BASE}/guides`, path: "/guides", lastModified: now, changeFrequency: "weekly" as const, priority: 0.95, pageType: "guide", label: "Pet Care Guides" },
+    { loc: `${BASE}/dog-breeds`, path: "/dog-breeds", lastModified: now, changeFrequency: "monthly" as const, priority: 0.85, pageType: "guide", label: "Dog Breed Grooming Guides" },
+  ]
+  const educationCategoryEntries: SitemapEntry[] = getProductCategoryPaths().map((p) => ({
+    loc: `${BASE}${p}`,
+    path: p,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: p.split("/").length <= 2 ? 0.9 : 0.85,
+    pageType: "guide",
+    label: p.replace(/\//g, " ").trim().replace(/-/g, " "),
+  }))
+  const educationGuideEntries: SitemapEntry[] = GUIDES_DIRECTORY.flatMap((pillar) =>
+    pillar.subcategories.flatMap((subcategory) =>
+      subcategory.items.map((item) => {
+        const path = item.path === "/grooming/shelby-county" ? "/grooming/shelby-county-tn" : item.path
+        return {
+          loc: `${BASE}${path}`,
+          path,
+          lastModified: now,
+          changeFrequency: "monthly" as const,
+          priority: 0.8,
+          pageType: "guide",
+          label: item.name,
+        }
+      }),
+    ),
+  )
 
   // Merge + dedupe by path + exclude known redirects.
-  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...sellerEntries, ...collectionEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
+  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...sellerEntries, ...collectionEntries, ...educationHubEntries, ...educationCategoryEntries, ...educationGuideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
   const seen = new Set<string>()
   const deduped = all
     .filter((e) => {

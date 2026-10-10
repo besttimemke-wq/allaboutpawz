@@ -41,16 +41,16 @@ const EDUCATION_CARDS: {
   href: string
   icon: React.ElementType
 }[] = [
-  { name: "Pet Education Center", meta: "Start here", href: "/pet-education", icon: BookOpen },
-  { name: "Articles By Pets", meta: "The full library", href: "/pet-education/articles", icon: FileText },
-  { name: "Pet Care Sheets", meta: "Quick reference", href: "/pet-education/care-sheets", icon: ClipboardList },
-  { name: "Grooming", meta: "58 guides", href: "/pet-education/articles#pillar-grooming", icon: Scissors },
-  { name: "Nutrition", meta: "27 guides", href: "/pet-education/articles#pillar-nutrition", icon: Utensils },
-  { name: "Health & Wellness", meta: "8 guides", href: "/pet-education/articles#pillar-health", icon: HeartPulse },
-  { name: "Buying Guides", meta: "12 guides", href: "/pet-education/articles#pillar-buying-guides", icon: Package },
-  { name: "Local Mid-South", meta: "6 guides", href: "/pet-education/articles#pillar-local", icon: MapPin },
-  { name: "Feeding & Watering", meta: "9 guides", href: "/pet-education/feeding-and-watering", icon: Bath },
-  { name: "Grooming Essentials", meta: "12 guides", href: "/pet-education/grooming-essentials", icon: ClipboardList },
+  { name: "Pet Education Center", meta: "Start here", href: "/guides", icon: BookOpen },
+  { name: "Articles By Pets", meta: "The full library", href: "/guides", icon: FileText },
+  { name: "Pet Care Sheets", meta: "Quick reference", href: "/guides", icon: ClipboardList },
+  { name: "Grooming", meta: "58 guides", href: "/guides#grooming", icon: Scissors },
+  { name: "Nutrition", meta: "27 guides", href: "/guides#nutrition", icon: Utensils },
+  { name: "Health & Wellness", meta: "8 guides", href: "/guides#health", icon: HeartPulse },
+  { name: "Buying Guides", meta: "12 guides", href: "/guides#buying-guides", icon: Package },
+  { name: "Local Mid-South", meta: "6 guides", href: "/guides#local", icon: MapPin },
+  { name: "Feeding & Watering", meta: "9 guides", href: "/feeding-and-watering", icon: Bath },
+  { name: "Grooming Essentials", meta: "12 guides", href: "/grooming-essentials", icon: ClipboardList },
 ]
 
 export function FaqFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; onEnter: () => void; onLeave: () => void }) {
@@ -124,7 +124,7 @@ export function FaqFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; 
                 <h2 className="font-display text-[26px] font-bold leading-tight text-[#002B5C]">Pet Education Center</h2>
                 <p className="mt-1 text-[15px] text-neutral-700">Care guides, articles, and quick reference sheets — written by our groomers.</p>
               </div>
-              <Link href="/pet-education" onClick={onClose} className="shrink-0 text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">
+              <Link href="/guides" onClick={onClose} className="shrink-0 text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">
                 Visit the center
               </Link>
             </div>

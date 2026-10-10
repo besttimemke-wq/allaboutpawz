@@ -152,10 +152,11 @@ export default async function ShopPage({ searchParams }: PageProps) {
             <ul>{seo.relatedSearches.map((s, i) => <li key={i}><Link href={`/shop?q=${encodeURIComponent(s)}`}>{s}</Link></li>)}</ul>
           )}
           {seo.relatedGuides.length > 0 && (
-            <ul>{seo.relatedGuides.map((g, i) => {
-              const slug = g.split("/").pop() || g
-              return <li key={i}><Link href={`/guides/grooming/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
-            })}</ul>
+            <ul>{seo.relatedGuides.map((g, i) => (
+              // seo-copy relatedGuides are already canonical Education Center
+              // paths (/guides/<slug>, /grooming/<city>) — used verbatim.
+              <li key={i}><Link href={g}>{g.split("/").pop()?.replace(/-/g, " ")}</Link></li>
+            ))}</ul>
           )}
         </details>
       )}

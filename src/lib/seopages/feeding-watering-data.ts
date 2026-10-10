@@ -18,7 +18,7 @@ export const FEEDING_WATERING_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Bloat (GDV) & Ergonomics',
         items: [
           { highlight: 'Slow-feeder maze ridges', text: 'slows consumption from 30 seconds to over 5 minutes, slashing aerophagia.' },
@@ -150,7 +150,7 @@ export const FEEDING_WATERING_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Dispensing Mechanics',
         items: [
           { highlight: 'One-handed push-button release', text: 'allows easy dispensing while maintaining leash control with your other hand.' },
@@ -253,7 +253,7 @@ export const FEEDING_WATERING_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Post-Feed Care & Weaning',
         items: [
           { highlight: 'Warm moist cotton stimulation', text: 'gently massage anogenital area to trigger reflex urination and defecation.' },
@@ -329,7 +329,7 @@ export const FEEDING_WATERING_PROFILES: Record<string, DomainProfile> = {
     introSummary: 'Licking is a natural canine and feline self-soothing mechanism. When a pet licks a textured surface repetitively, their brain releases endorphins, lowering cortisol levels and heart rate. At All About Pawz, lick mats with heavy suction cups are an essential fear-free grooming tool, keeping pets happily engaged during high-anxiety procedures like ear flushing, blow-drying, and nail trimming.',
     takeaways: [
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Endorphin Calming Science',
         items: [
           { highlight: 'Cortisol reduction', text: 'repetitive tongue action activates the parasympathetic nervous system.' },
@@ -427,7 +427,7 @@ export const FEEDING_WATERING_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Urological Protection',
         items: [
           { highlight: 'FLUTD & Crystal prevention', text: 'dilutes feline urine, preventing struvite and calcium oxalate stones.' },
@@ -507,7 +507,7 @@ export const FEEDING_WATERING_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Airtight Gasket Defense',
         items: [
           { highlight: 'Silicone double-lip seals', text: 'blocks moisture infiltration and locks in roasted aroma and palatability.' },
@@ -573,7 +573,7 @@ export const FEEDING_WATERING_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Hygiene & Cleanliness',
         items: [
           { highlight: '100% Dishwasher safe', text: 'rolls up easily to fit inside dishwasher racks for heat sanitization.' },
@@ -625,7 +625,7 @@ export const FEEDING_WATERING_PROFILES: Record<string, DomainProfile> = {
         ],
       },
       {
-        icon: 'check',
+        icon: 'sparkles',
         title: 'Snout & Facial Geometry',
         items: [
           { highlight: 'Brachycephalic shallow bowls', text: 'slanted 15° angles allow flat-faced Pugs and Frenchies to breathe while eating.' },

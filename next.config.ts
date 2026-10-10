@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // The seopages Education Center design (ported from the owner's standalone
+  // repo) links its "Shelby County" service-area chip to /grooming/shelby-
+  // county — a URL his repo served via grooming/[city]. The live site's city
+  // hub is /grooming/shelby-county-tn, so map the short slug onto it.
+  async redirects() {
+    return [
+      { source: "/grooming/shelby-county", destination: "/grooming/shelby-county-tn", permanent: true },
+    ];
+  },
   // The sandbox preview gateway forwards requests with the browser's real
   // origin (https://preview-chat-*.space-z.ai) while rewriting Host to
   // localhost:3000 — Next dev flags those /_next requests as cross-origin.

@@ -36,26 +36,21 @@ import {
   departmentPath,
   subcategoryPath,
 } from "@/lib/shop-nav"
-import {
-  GROOMING_COAT_TYPES,
-  GROOMING_FIRST_TIMER,
-  GROOMING_GENERAL,
-  GROOMING_GUIDES,
-} from "@/lib/guides-data"
+import { GUIDES_DIRECTORY } from "@/lib/seopages/taxonomy-data"
 
 // ---------------------------------------------------------------------------
-// Static guide list — guides-data.ts exports 4 grooming arrays rather than
-// a single GUIDES list. Flatten them here for substring matching.
+// Static guide list — the owner's seopages Education Center library
+// (GUIDES_DIRECTORY). Items carry their own canonical path (root-level
+// guide URLs, /grooming/<city> for locals) — used verbatim.
 // ---------------------------------------------------------------------------
 
 type GuideEntry = { slug: string; title: string; href: string }
 
-const ALL_GUIDES: GuideEntry[] = [
-  ...GROOMING_GUIDES.map((g) => ({ slug: g.slug, title: g.title, href: `/guides/grooming/${g.slug}` })),
-  ...GROOMING_FIRST_TIMER.map((g) => ({ slug: g.slug, title: g.title, href: `/guides/grooming/${g.slug}` })),
-  ...GROOMING_COAT_TYPES.map((g) => ({ slug: g.slug, title: g.title, href: `/guides/grooming/${g.slug}` })),
-  ...GROOMING_GENERAL.map((g) => ({ slug: g.slug, title: g.title, href: `/guides/grooming/${g.slug}` })),
-]
+const ALL_GUIDES: GuideEntry[] = GUIDES_DIRECTORY.flatMap((pillar) =>
+  pillar.subcategories.flatMap((subcategory) =>
+    subcategory.items.map((item) => ({ slug: item.slug, title: item.name, href: item.path })),
+  ),
+)
 
 // ---------------------------------------------------------------------------
 // Popular searches — always rendered at the bottom of the dropdown.
