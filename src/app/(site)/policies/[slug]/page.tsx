@@ -6,6 +6,7 @@ import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { getResource } from "@/lib/site-data"
 import { SITE_URL } from "@/lib/site-url"
+import { legalDocumentBySlug } from "@/lib/legal-documents"
 
 type Policy = { id: string; title: string; body?: string }
 
@@ -51,6 +52,16 @@ const BUILTIN_PRIVACY = {
   ].join("\n"),
 }
 
+function unpublishedDocument(slug: string) {
+  const document = legalDocumentBySlug(slug)
+  if (!document) return null
+  return {
+    id: `placeholder-${document.slug}`,
+    title: document.title,
+    body: `${document.description}\n\nThis document is being prepared for publication. Please contact help@aapawz.com if you need the current version before it is published here.`,
+  }
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
   const policy = await getPolicy(slug)
@@ -67,14 +78,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PolicyPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const policy = (await getPolicy(slug)) ?? (slug === "privacy-policy" ? BUILTIN_PRIVACY : null)
+  const policy = (await getPolicy(slug)) ?? (slug === "privacy-policy" ? BUILTIN_PRIVACY : unpublishedDocument(slug))
   if (!policy) notFound()
 
   const others = ((await getResource<Policy>("policies")) || []).filter((p) => p.id !== policy.id)
 
   return (
     <>
-      <PageHeader n="11" label="FAQ / POLICIES" />
+      <PageHeader n="11" label="LEGAL CENTER" />
 
       {/* POLICY — spacious single-column reading page. */}
       <section className="marble bg-cream px-8 py-16 lg:px-12 lg:py-20">
@@ -89,7 +100,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug: s
           </div>
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <Link href="/book" className="btn-gold">BOOK A VISIT</Link>
-            <Link href="/faq" className="btn-ghost">BACK TO FAQ</Link>
+            <Link href="/faq" className="btn-ghost">BACK TO LEGAL CENTER</Link>
           </div>
         </div>
       </section>

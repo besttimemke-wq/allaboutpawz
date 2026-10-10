@@ -36,25 +36,25 @@ import {
   departmentPath,
   subcategoryPath,
 } from "@/lib/shop-nav"
-import {
-  GROOMING_COAT_TYPES,
-  GROOMING_FIRST_TIMER,
-  GROOMING_GENERAL,
-  GROOMING_GUIDES,
-} from "@/lib/guides-data"
+import { GUIDES_DIRECTORY } from "@/lib/pawsly-u/taxonomy-data"
 
 // ---------------------------------------------------------------------------
-// Static guide list — guides-data.ts exports 4 grooming arrays rather than
-// a single GUIDES list. Flatten them here for substring matching.
+// Pawsly U guide list — sourced from the imported education taxonomy so the
+// search result always lands on the canonical public education route.
 // ---------------------------------------------------------------------------
 
 type GuideEntry = { slug: string; title: string; href: string }
 
 const ALL_GUIDES: GuideEntry[] = [
-  ...GROOMING_GUIDES.map((g) => ({ slug: g.slug, title: g.title, href: `/guides/grooming/${g.slug}` })),
-  ...GROOMING_FIRST_TIMER.map((g) => ({ slug: g.slug, title: g.title, href: `/guides/grooming/${g.slug}` })),
-  ...GROOMING_COAT_TYPES.map((g) => ({ slug: g.slug, title: g.title, href: `/guides/grooming/${g.slug}` })),
-  ...GROOMING_GENERAL.map((g) => ({ slug: g.slug, title: g.title, href: `/guides/grooming/${g.slug}` })),
+  ...GUIDES_DIRECTORY.flatMap((pillar) =>
+    pillar.subcategories.flatMap((subcategory) =>
+      subcategory.items.map((item) => ({
+        slug: item.slug,
+        title: item.name,
+        href: `/pawsly-u/memphis/${item.slug}`,
+      })),
+    ),
+  ),
 ]
 
 // ---------------------------------------------------------------------------

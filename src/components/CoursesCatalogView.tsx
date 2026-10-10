@@ -187,10 +187,10 @@ export function CoursesCatalogView() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-cream text-ink">
+    <div className="min-h-screen flex flex-col bg-white text-ink">
       {/* Hero Header Banner — split grid: marble/cream left, image right */}
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr]">
-        <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
+        <div className="flex flex-col justify-center bg-white px-8 py-16 lg:px-12">
           <div className="flex items-center gap-2">
             <GraduationCap className="w-4 h-4 text-gold-deep" strokeWidth={1.5} />
             <p className="eyebrow">ACADEMY CURRICULUM &amp; SYLLABUS</p>
@@ -262,7 +262,7 @@ export function CoursesCatalogView() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
           {/* Left Sidebar Filters */}
           <aside className="lg:col-span-4 xl:col-span-3 space-y-6 px-8 lg:px-12">
-            <div className="bg-cream rounded-2xl p-6 border border-gold/25 shadow-sm sticky top-24">
+            <div className="bg-white p-6 border border-gold/25 sticky top-24">
               {/* Academy Nav Header */}
               <div className="flex items-center justify-between pb-4 border-b border-gold/25">
                 <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-ink uppercase">

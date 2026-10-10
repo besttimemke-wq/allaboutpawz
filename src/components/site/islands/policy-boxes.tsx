@@ -15,9 +15,9 @@ export function PolicyBoxes() {
     return (
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="border border-gold/25 px-6 py-5">
-            <div className="h-2.5 w-28 animate-pulse bg-white/10" />
-            <div className="mt-1.5 h-2 w-20 animate-pulse bg-white/10" />
+          <div key={i} className="border border-gold/25 bg-cream/35 px-5 py-5">
+            <div className="h-2.5 w-28 animate-pulse bg-ink/10" />
+            <div className="mt-1.5 h-2 w-20 animate-pulse bg-ink/10" />
           </div>
         ))}
       </div>
@@ -30,13 +30,13 @@ export function PolicyBoxes() {
         <Link
           key={p.id}
           href={`/policies/${policySlug(p.title)}`}
-          className="group flex items-center justify-between gap-4 border border-gold/25 px-6 py-5 transition-colors hover:border-gold-deep hover:bg-gold/5"
+          className="group flex items-center justify-between gap-4 border border-gold/25 bg-cream/35 px-5 py-5 transition-colors hover:border-gold-deep hover:bg-cream"
         >
           <div>
-            <p className="text-[10.5px] font-bold tracking-[0.18em] text-gold">{p.title}</p>
-            <p className="mt-1.5 text-[11px] leading-[1.6] text-on-dark-muted">Read the policy</p>
+            <p className="text-[10.5px] font-bold tracking-[0.18em] text-gold-deep">{p.title}</p>
+            <p className="mt-1.5 text-[11px] leading-[1.6] text-ink-soft">Read the policy</p>
           </div>
-          <Plus className="h-4 w-4 shrink-0 text-gold transition-transform duration-300 group-hover:rotate-45" strokeWidth={1.8} />
+          <Plus className="h-4 w-4 shrink-0 text-gold-deep transition-transform duration-300 group-hover:rotate-45" strokeWidth={1.8} />
         </Link>
       ))}
     </div>

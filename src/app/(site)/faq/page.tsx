@@ -1,25 +1,20 @@
-import Link from "next/link"
 import { Divider } from "@/components/site/brand"
-import { PageHeader } from "@/components/site/site-chrome"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { FaqAccordion } from "@/components/site/islands/faq-accordion"
 import { PolicyBoxes } from "@/components/site/islands/policy-boxes"
+import { PageHeader } from "@/components/site/site-chrome"
 import { getResource } from "@/lib/site-data"
 import { SITE_URL } from "@/lib/site-url"
 
 export const metadata = {
-  title: "FAQ & Policies | All About Pawz",
-  description: "Answers to the questions pet parents ask most — appointments, vaccines, matted coats, and the salon policies that keep every pup safe.",
+  title: "Legal Center | All About Pawz",
+  description: "Answers to common questions and the policies that keep every appointment safe and on time.",
   alternates: { canonical: `${SITE_URL}/faq` },
 }
 
 type Faq = { id: string; question: string; answer: string }
 
 export default async function FaqPage() {
-  // The accordion fetches its rows client-side after paint; the page reads
-  // the SAME rows server-side (fail-safe — the static shell always renders)
-  // to (1) seed the accordion so the questions land in the initial HTML for
-  // crawlers and (2) emit FAQPage structured data.
   let faqs: Faq[] = []
   try {
     faqs = (await getResource<Faq>("faqs")) || []
@@ -27,14 +22,10 @@ export default async function FaqPage() {
     faqs = []
   }
 
-  // Structured data: one entry per unique question (the live table currently
-  // holds each FAQ twice from a double seed — duplicated Question entities
-  // are noise for rich results; when the rows are deduped, this mirrors the
-  // page 1:1 automatically).
   const seen = new Set<string>()
-  const uniqueFaqs = faqs.filter((f) => {
-    if (!f.question || !f.answer || seen.has(f.question)) return false
-    seen.add(f.question)
+  const uniqueFaqs = faqs.filter((faq) => {
+    if (!faq.question || !faq.answer || seen.has(faq.question)) return false
+    seen.add(faq.question)
     return true
   })
   const faqJsonLd =
@@ -42,20 +33,19 @@ export default async function FaqPage() {
       ? {
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          mainEntity: uniqueFaqs.map((f) => ({
+          mainEntity: uniqueFaqs.map((faq) => ({
             "@type": "Question",
-            name: f.question,
-            acceptedAnswer: { "@type": "Answer", text: f.answer },
+            name: faq.question,
+            acceptedAnswer: { "@type": "Answer", text: faq.answer },
           })),
         }
       : null
 
   return (
     <>
-      <PageHeader n="11" label="FAQ / POLICIES" />
+      <PageHeader n="10" label="FAQ / POLICIES" />
 
-      {/* HERO — site standard: centered text left, photo right filling the column. */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.25fr] lg:min-h-[520px]">
+      <section className="grid grid-cols-1 lg:min-h-[520px] lg:grid-cols-[1fr_1.25fr]">
         <div className="marble flex flex-col justify-center bg-cream px-8 py-16 lg:px-12">
           <h1 className="font-display text-[46px] leading-[1.08] text-ink lg:text-[58px]">Good<br />To Know.</h1>
           <div className="mt-6"><Divider /></div>
@@ -79,9 +69,6 @@ export default async function FaqPage() {
         </div>
       </section>
 
-      {/* SECTION TWO — thin band: four clickable policy boxes. Each box opens
-          its own page (/policies/[slug]) so the owner can publish and update
-          every policy from the admin portal. */}
       <section className="bg-ink px-8 py-8 lg:px-12">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="eyebrow-dark">HOUSE RULES</p>
@@ -90,8 +77,6 @@ export default async function FaqPage() {
         <PolicyBoxes />
       </section>
 
-      {/* FAQ RAIL — the schnauzer sits LEFT of the accordion, stretched to the
-          accordion's full height; the accordion takes the right column. */}
       <section className="marble grid grid-cols-1 gap-10 bg-cream px-8 py-14 lg:grid-cols-[0.7fr_1fr] lg:px-12">
         <div className="relative hidden min-h-[200px] lg:block">
           <img
@@ -107,8 +92,6 @@ export default async function FaqPage() {
         </div>
       </section>
 
-      {/* FAQPage structured data — server-rendered from the same rows the
-          accordion shows; omitted entirely if the data layer is unavailable. */}
       {faqJsonLd && (
         <script
           type="application/ld+json"

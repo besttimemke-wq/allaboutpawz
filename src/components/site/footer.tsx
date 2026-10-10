@@ -144,13 +144,8 @@ export function SiteFooter() {
               <Link href="/veterinary-partners" className="block text-base text-on-dark-muted hover:text-gold-deep">Veterinary Partners</Link>
               <Link href="/pet-insurance" className="block text-base text-on-dark-muted hover:text-gold-deep">Pet Insurance</Link>
               <Link href="/pet-adoption" className="block text-base text-on-dark-muted hover:text-gold-deep">Pet Adoption</Link>
-              <Expandable label="Pet Education Center" href="/pet-education" subItems={[
-                { label: "Articles By Pets", href: "/pet-education/articles" },
-                { label: "Pet Care Sheets", href: "/pet-education/care-sheets" },
-              ]} />
-              <Expandable label="Product Collections" href="/shop/collections" subItems={[
-                { label: "Pets in the Classroom", href: "/shop/collections/pets-in-the-classroom" },
-              ]} />
+              <Link href="/pawsly-u/memphis" className="block text-base text-on-dark-muted hover:text-gold-deep">Pawsly U</Link>
+              <Link href="/faq" className="block text-base text-on-dark-muted hover:text-gold-deep">Legal Center</Link>
             </div>
           </div>
 
@@ -166,7 +161,7 @@ export function SiteFooter() {
               <Expandable label="Sellers" href="/seller" subItems={[
                 { label: "Seller Program", href: "/seller" },
               ]} />
-              <Link href="/shop/collections/gift-cards" className="block text-base text-on-dark-muted hover:text-gold-deep">Gift Cards</Link>
+              <Link href="/gift-cards" className="block text-base text-on-dark-muted hover:text-gold-deep">Gift Cards</Link>
               <Link href="/pricing" className="block text-base text-on-dark-muted hover:text-gold-deep">Coupons and Promos</Link>
               <Link href="/contact" className="block text-base text-on-dark-muted hover:text-gold-deep">Investors</Link>
               <Link href="/sustainability" className="block text-base text-on-dark-muted hover:text-gold-deep">Sustainability</Link>
