@@ -21,44 +21,59 @@ import {
 import { FOOTER_NAV } from "@/lib/footer-nav"
 
 // ---------------------------------------------------------------------------
-// FaqFlyout — the SHOP flyout methodology applied to the FAQ / Education
-// side of the site (owner directive): full-screen overlay, left sidebar with
-// hover-select rows, right panel with linked cards. Routes to the FAQ page
-// and the Pet Education Center so neither is reachable from the footer only.
+// FaqFlyout — the SHOP flyout methodology applied to the LEARN side of the
+// site (owner directive). LEARN is three things, verbatim:
+//   1. Classroom — the Learning Academy (/learn): courses, classroom, enroll.
+//   2. The SEO pages — the production SEO page library imported from
+//      github.com/allaboutpawz901-beep/seopages (guides hub, pillars, breed
+//      directory, and the shopping-category SEO hubs).
+//   3. FAQs & legal — the FAQ page plus the policy library (policies sourced
+//      from footer-nav so the flyout can never drift from the footer).
 //
-// Two views mirror the shop flyout's "animal / brands" views:
-//   - "education" — the Pet Education Center: hub, articles, care sheets,
-//     and one card per content pillar (guide counts live in the labels).
-//   - "faq" — the FAQ page plus the policy library (policies sourced from
-//     footer-nav so the flyout can never drift from the footer).
-//
-// NOTE: the seopages education hub (/guides, /pet-education, pillar anchors)
-// was removed at the owner's direction, so every card below routes to a LIVE
-// surface only (learn, sitemap, faq, shop, a real grooming guide, contact).
+// Every card routes to a LIVE page only — no card maps into /sitemap.
 // ---------------------------------------------------------------------------
 
-type FaqView = "education" | "faq"
+type LearnView = "classroom" | "seo" | "faq"
 
-const EDUCATION_CARDS: {
+const CLASSROOM_CARDS: {
   name: string
   meta: string
   href: string
   icon: React.ElementType
 }[] = [
-  { name: "Pet Education Center", meta: "Start here", href: "/learn", icon: BookOpen },
-  { name: "Articles By Pets", meta: "The full library", href: "/sitemap", icon: FileText },
-  { name: "Pet Care Sheets", meta: "Quick reference", href: "/faq", icon: ClipboardList },
-  { name: "Grooming", meta: "58 guides", href: "/guides/grooming/labrador-retriever-grooming", icon: Scissors },
-  { name: "Nutrition", meta: "27 guides", href: "/learn/courses", icon: Utensils },
-  { name: "Health & Wellness", meta: "8 guides", href: "/faq", icon: HeartPulse },
-  { name: "Buying Guides", meta: "12 guides", href: "/shop/catalog", icon: Package },
-  { name: "Local Mid-South", meta: "6 guides", href: "/contact", icon: MapPin },
-  { name: "Feeding & Watering", meta: "9 guides", href: "/shop", icon: Bath },
-  { name: "Grooming Essentials", meta: "12 guides", href: "/shop/collections", icon: ClipboardList },
+  { name: "Learning Academy", meta: "Start here", href: "/learn", icon: BookOpen },
+  { name: "Course Catalog", meta: "Every program", href: "/learn/courses", icon: ClipboardList },
+  { name: "Classroom", meta: "Your enrolled courses", href: "/learn/classroom", icon: FileText },
+  { name: "Enroll", meta: "Join a program", href: "/learn/enroll", icon: Package },
+  { name: "Pet Grooming", meta: "Flagship program", href: "/learn/courses/pet-grooming", icon: Scissors },
+  { name: "Veterinary Assistant", meta: "Clinical track", href: "/learn/courses/veterinary-assistant", icon: HeartPulse },
+]
+
+const SEO_CARDS: {
+  name: string
+  meta: string
+  href: string
+  icon: React.ElementType
+}[] = [
+  { name: "Guide Library", meta: "Every guide & article", href: "/guides", icon: BookOpen },
+  { name: "Grooming", meta: "Breed & how-to guides", href: "/guides#grooming", icon: Scissors },
+  { name: "Nutrition", meta: "Feeding & diet guides", href: "/guides#nutrition", icon: Utensils },
+  { name: "Health & Wellness", meta: "Vet-reviewed care", href: "/guides#health", icon: HeartPulse },
+  { name: "Buying Guides", meta: "What to buy & why", href: "/guides#buying-guides", icon: Package },
+  { name: "Local Mid-South", meta: "City grooming guides", href: "/guides#local", icon: MapPin },
+  { name: "Dog Breeds", meta: "Breed directory", href: "/dog-breeds", icon: FileText },
+  { name: "Feeding & Watering", meta: "Category hub", href: "/feeding-and-watering", icon: Bath },
+  { name: "Grooming Essentials", meta: "Category hub", href: "/grooming-essentials", icon: ClipboardList },
+  { name: "Treats", meta: "Category hub", href: "/treats", icon: Package },
+  { name: "Wellness", meta: "Category hub", href: "/wellness", icon: HeartPulse },
+  { name: "Travel & Outdoor", meta: "Category hub", href: "/travel-and-outdoor", icon: MapPin },
+  { name: "Apparel & Accessories", meta: "Category hub", href: "/apparel-and-accessories", icon: Package },
+  { name: "Beds & Furniture", meta: "Category hub", href: "/beds-and-furniture", icon: Bath },
+  { name: "Collars, Harnesses & Leashes", meta: "Category hub", href: "/collars-harnesses-and-leashes", icon: ClipboardList },
 ]
 
 export function FaqFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; onEnter: () => void; onLeave: () => void }) {
-  const [view, setView] = useState<FaqView>("education")
+  const [view, setView] = useState<LearnView>("seo")
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -78,7 +93,7 @@ export function FaqFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; 
       <div className="relative flex w-[200px] shrink-0 flex-col overflow-y-auto border-r border-neutral-200 bg-white px-4 py-7 sm:w-[270px] sm:px-6">
         <button
           onClick={onClose}
-          aria-label="Close help menu"
+          aria-label="Close learn menu"
           className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center text-neutral-600 transition-colors hover:text-black"
         >
           <X className="h-5 w-5" />
@@ -88,8 +103,9 @@ export function FaqFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; 
 
         <div>
           {([
-            { key: "education" as FaqView, label: "Pet Education" },
-            { key: "faq" as FaqView, label: "FAQ & Policies" },
+            { key: "classroom" as LearnView, label: "Classroom" },
+            { key: "seo" as LearnView, label: "SEO Pages" },
+            { key: "faq" as LearnView, label: "FAQs & Legal" },
           ]).map(item => (
             <button
               key={item.key}
@@ -121,20 +137,51 @@ export function FaqFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; 
 
       {/* Right panel */}
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        {view === "education" && (
+        {view === "classroom" && (
           <div className="flex-1 px-3 py-5 sm:px-5 sm:py-6 lg:px-7">
             <div className="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-4">
               <div>
-                <h2 className="font-display text-[26px] font-bold leading-tight text-[#002B5C]">Pet Education Center</h2>
-                <p className="mt-1 text-[15px] text-neutral-700">Care guides, articles, and quick reference sheets — written by our groomers.</p>
+                <h2 className="font-display text-[26px] font-bold leading-tight text-[#002B5C]">Classroom</h2>
+                <p className="mt-1 text-[15px] text-neutral-700">The Learning Academy — career programs and courses for the animal-care professionals of tomorrow.</p>
               </div>
               <Link href="/learn" onClick={onClose} className="shrink-0 text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">
-                Visit the center
+                Visit the academy
               </Link>
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {EDUCATION_CARDS.map(card => {
+              {CLASSROOM_CARDS.map(card => {
+                const Icon = card.icon
+                return (
+                  <article key={card.name} className="min-w-0 border border-neutral-200 bg-white">
+                    <Link href={card.href} onClick={onClose} className="relative block aspect-[16/9] overflow-hidden bg-cream-deep/40">
+                      <Icon className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/50" strokeWidth={1.1} aria-hidden="true" />
+                    </Link>
+                    <Link href={card.href} onClick={onClose} className="flex min-h-12 items-center px-3 pt-1 text-[16px] font-semibold leading-snug text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
+                      {card.name}
+                    </Link>
+                    <p className="px-3 pb-3 text-[13px] text-neutral-600">{card.meta}</p>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {view === "seo" && (
+          <div className="flex-1 px-3 py-5 sm:px-5 sm:py-6 lg:px-7">
+            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-4">
+              <div>
+                <h2 className="font-display text-[26px] font-bold leading-tight text-[#002B5C]">Guides &amp; Articles</h2>
+                <p className="mt-1 text-[15px] text-neutral-700">The full SEO page library — care guides, breed grooming, buying advice, and category hubs, written for Mid-South pet parents.</p>
+              </div>
+              <Link href="/guides" onClick={onClose} className="shrink-0 text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">
+                Browse the library
+              </Link>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {SEO_CARDS.map(card => {
                 const Icon = card.icon
                 return (
                   <article key={card.name} className="min-w-0 border border-neutral-200 bg-white">
@@ -156,7 +203,7 @@ export function FaqFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; 
           <div className="flex-1 px-3 py-5 sm:px-5 sm:py-6 lg:px-7">
             <div className="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-4">
               <div>
-                <h2 className="font-display text-[26px] font-bold leading-tight text-[#002B5C]">FAQ &amp; Policies</h2>
+                <h2 className="font-display text-[26px] font-bold leading-tight text-[#002B5C]">FAQs &amp; Legal</h2>
                 <p className="mt-1 text-[15px] text-neutral-700">Answers to the questions pet parents ask most, plus the policies that keep every pup safe.</p>
               </div>
               <Link href="/faq" onClick={onClose} className="shrink-0 text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">
