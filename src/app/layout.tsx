@@ -6,6 +6,7 @@ import { ga4ConfigScript, gtmContainerScript } from "@/components/consent/google
 import { CookieConsent } from "@/components/consent/CookieConsent";
 import { GoogleAnalytics } from "@/components/consent/GoogleAnalytics";
 import { PostHogProvider } from "./providers";
+import PawzslyChat from "@/components/site/islands/pawzsly-chat";
 import { Clarity } from "@/components/analytics/Clarity";
 import { SITE_URL } from "@/lib/site-url";
 import { localBusinessSchema, BUSINESS } from "@/lib/business";
@@ -172,6 +173,7 @@ export default function RootLayout({
             analytics consent; autocapture + $pageview + the shared track()
             fan-out all flow through it. */}
         <PostHogProvider>{children}</PostHogProvider>
+        <PawzslyChat />
         <Toaster />
         {/* Cookie consent: load-time banner + Consent Management Center */}
         <CookieConsent />

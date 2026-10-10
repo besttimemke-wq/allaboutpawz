@@ -15,6 +15,10 @@
 // ---------------------------------------------------------------------------
 
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
+
+const STORE_KEY = "pawzsly:v1";
+const HIDDEN_PREFIXES = ["/admin", "/groomer", "/seller", "/access-", "/learn", "/auth"];
 
 interface Product {
   id: string;
@@ -41,18 +45,42 @@ const URGENCY_COLORS: Record<string, string> = {
   INFO: "bg-gray-100 text-gray-700 border-gray-300",
 };
 
+const GREETING: Message = {
+  role: "pawzsly",
+  content: "Hey! I'm Pawzsly 🐾 How can I help your pet today? Describe any symptoms or ask me about products.",
+};
+
 export default function PawzslyChat() {
+  const pathname = usePathname() || "/";
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "pawzsly",
-      content: "Hey! I'm Pawzsly 🐾 How can I help your pet today? Describe any symptoms or ask me about products.",
-    },
-  ]);
+  const [hydrated, setHydrated] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<Array<{ role: string; content: string }>>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Restore the conversation + open state so context follows the visitor
+  // across every page (including into the customer portal).
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (Array.isArray(saved.messages) && saved.messages.length) setMessages(saved.messages);
+        if (Array.isArray(saved.history)) setHistory(saved.history);
+        if (typeof saved.open === "boolean") setOpen(saved.open);
+      }
+    } catch {}
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      sessionStorage.setItem(STORE_KEY, JSON.stringify({ open, messages, history }));
+    } catch {}
+  }, [hydrated, open, messages, history]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -106,22 +134,25 @@ export default function PawzslyChat() {
     setLoading(false);
   };
 
+  if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+
   return (
     <>
-      {/* Floating button */}
+      {/* Collapsed: slim side tab on the right edge */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 flex items-center justify-center text-2xl"
-          aria-label="Chat with Pawzsly"
+          className="fixed right-0 top-1/2 z-50 -translate-y-1/2 rounded-l-xl bg-indigo-600 px-2 py-4 text-white shadow-lg hover:bg-indigo-700 flex flex-col items-center gap-2"
+          aria-label="Open Pawzsly chat"
         >
-          🐾
+          <span className="text-xl">🐾</span>
+          <span className="text-[11px] font-semibold tracking-widest [writing-mode:vertical-rl]">ASK PAWZSLY</span>
         </button>
       )}
 
-      {/* Chat panel — bottom rail */}
+      {/* Open: docked side card, persists across pages */}
       {open && (
-        <div className="fixed bottom-0 right-0 sm:right-6 sm:bottom-6 z-50 w-full sm:w-[380px] h-[70vh] sm:h-[540px] bg-white sm:rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden">
+        <div className="fixed bottom-0 right-0 z-50 w-full sm:w-[380px] h-[70vh] sm:h-[calc(100vh-6rem)] sm:max-h-[720px] sm:right-4 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 bg-white sm:rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden">
           {/* Header */}
           <div className="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">

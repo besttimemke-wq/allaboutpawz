@@ -7,8 +7,6 @@ import { HomeHeroCopy, HomeHeroSubtitle, HomeTestimonial } from "@/components/si
 import { FeaturedServicesGrid } from "@/components/site/islands/featured-services-grid"
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
 import { HomeShopBento } from "@/components/site/islands/home-shop-bento"
-import { HomeAaPicks } from "@/components/site/islands/home-aa-picks"
-import { HomePawzsly } from "@/components/site/islands/home-pawzsly"
 import { SITE_URL } from "@/lib/site-url"
 
 const STEPS = [
@@ -94,17 +92,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* PAWZLY — the AI triage section (owner directive: create a section
-          for the triage AI and wire it; owner placement ruling: ABOVE the
-          shop bento, BELOW the Pawzitive Difference; background matches the
-          footer black). The floating 🐾 widget itself is mounted site-wide
-          from the site layout. */}
-      <HomePawzsly />
 
-      {/* SHOP VISUALS — the full-bleed pet-type bento, then the dense AA
-          Picks rail (owner's structure). */}
+      {/* SHOP VISUALS — the full-bleed pet-type bento. */}
       <HomeShopBento />
-      <HomeAaPicks />
 
       {/* CTA BAND — RESTORED VERBATIM (was deleted without authorization in
           dab9d63; the owner's ruling: nothing gets removed unless told). It
