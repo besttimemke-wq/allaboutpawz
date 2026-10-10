@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { GUIDES_DIRECTORY, getProductCategoryPaths } from "@/lib/seopages/taxonomy-data"
+import { getAllGroomingSlugs, findGroomingGuide, GROOMING_GUIDES, GROOMING_FIRST_TIMER, GROOMING_COAT_TYPES, GROOMING_GENERAL } from "@/lib/guides-data"
 import { SITE_URL } from "@/lib/site-url"
 import { CITY_LANDINGS, SHELBY_HUB } from "@/lib/business"
 
@@ -156,27 +156,11 @@ export default function SitemapPage() {
     { label: "Valentine's Day", href: "/shop/collections/valentines-day" },
     { label: "Winter", href: "/shop/collections/winter" },
   ]
-  // Education Center — the owner's seopages inventory (guides hub,
-  // dog-breeds index, category hubs, every guide-directory article).
-  // Replaces the retired /guides/grooming/* list; hrefs are the owner's
-  // own paths (root-level guide URLs + /grooming/<city> locals), and the
-  // short Shelby County slug maps to the live city-hub URL.
-  const guideLinks = [
-    { label: "Pet Care Guides (hub)", href: "/guides" },
-    { label: "Dog Breed Grooming Guides", href: "/dog-breeds" },
-    ...getProductCategoryPaths().map((p) => ({
-      label: p.replace(/^\//, "").split("/").join(" — ").replace(/-/g, " "),
-      href: p,
-    })),
-    ...GUIDES_DIRECTORY.flatMap((pillar) =>
-      pillar.subcategories.flatMap((subcategory) =>
-        subcategory.items.map((item) => ({
-          label: item.name,
-          href: item.path === "/grooming/shelby-county" ? "/grooming/shelby-county-tn" : item.path,
-        })),
-      ),
-    ),
-  ]
+  // Grooming guides — all 58 (the owner's restored guide pages)
+  const guideLinks = getAllGroomingSlugs().map(({ slug }) => {
+    const guide = findGroomingGuide(slug)
+    return { label: guide?.title || slug.replace(/-/g, " "), href: `/guides/grooming/${slug}` }
+  })
 
   return (
     <>
@@ -223,8 +207,7 @@ export default function SitemapPage() {
           {/* Collections — Special Occasions */}
           <CollectionSection heading="Collections — Special Occasions" links={collectionLinks} />
 
-          {/* Education Center — the owner's seopages library */}
-          <CollectionSection heading="Education Center" links={guideLinks} />
+          <CollectionSection heading="Grooming Guides" links={guideLinks} />
 
           {/* Learning Academy */}
           <CollectionSection heading="Learning Academy" links={learnLinks} />

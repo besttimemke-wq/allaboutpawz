@@ -22,7 +22,6 @@ import { loadPdpData } from "@/lib/shop/pdp"
 import type { MiniRec, PdpData } from "@/lib/shop/taxonomy-db"
 import { cleanText } from "@/lib/shop/clean-text"
 import { getStockSettings } from "@/lib/app-settings"
-import { GUIDES_DIRECTORY } from "@/lib/seopages/taxonomy-data"
 import {
   ProductBuyBox,
   ProductGallery,
@@ -40,7 +39,7 @@ import { SITE_URL } from "@/lib/site-url"
 //   TOP   breadcrumb · gallery | center info + variant pickers | buy column
 //   BELOW at-a-glance · frequently-bought-together · Q&A · reviews ·
 //         attributes · ingredients · directions · warranty · the details ·
-//         3 recommendation rails · associated articles
+//         3 recommendation rails
 //
 // Data: loadPdpData() ONLY (feed catalog first, legacy fallback) — cached 60s
 // and pool-budgeted. Never imports listCatalogProducts / getNavTree (those
@@ -173,29 +172,6 @@ function optionHeading(names: string[]): string {
   }
   if (names.every((n) => SIZE_WORD_RE.test(n))) return "Size"
   return "Option"
-}
-
-// ---- Associated articles (guides) ------------------------------------------
-// Sourced from the owner's seopages Education Center (his Grooming pillar,
-// split dog/cat by subcategory). hrefs use the owner's own canonical paths.
-
-type ArticlePick = { slug: string; title: string; animal: "dog" | "cat"; href: string }
-
-const GROOMING_SUBCATS =
-  GUIDES_DIRECTORY.find((pillar) => pillar.pillar === "Grooming")?.subcategories ?? []
-const DOG_GROOMING_ITEMS = (GROOMING_SUBCATS.find((s) => s.name.startsWith("Dog Breed"))?.items ?? []).map(
-  (i): ArticlePick => ({ slug: i.slug, title: i.name, animal: "dog", href: i.path }),
-)
-const CAT_GROOMING_ITEMS = (GROOMING_SUBCATS.find((s) => s.name.startsWith("Cat Breed"))?.items ?? []).map(
-  (i): ArticlePick => ({ slug: i.slug, title: i.name, animal: "cat", href: i.path }),
-)
-const ALL_ARTICLE_PICKS = [...DOG_GROOMING_ITEMS, ...CAT_GROOMING_ITEMS]
-
-function articlePicks(petKind: string | null): ArticlePick[] {
-  const kind = petKind?.toLowerCase() ?? ""
-  const want = kind.startsWith("dog") ? "dog" : kind.startsWith("cat") ? "cat" : null
-  const pool = want ? ALL_ARTICLE_PICKS.filter((g) => g.animal === want) : ALL_ARTICLE_PICKS
-  return pool.slice(0, 3)
 }
 
 // ---- Recommendation card mapping (global ProductCard contract) -------------
@@ -405,7 +381,6 @@ export default async function ProductPage({ params }: Params) {
   const specs = hasText(product.specifications) ? specRows(cleanText(product.specifications)) : []
   const glance = glanceChips(hasText(product.specifications) ? cleanText(product.specifications) : null)
   const freeOf = hasText(product.ingredients) ? parseFreeOf(cleanText(product.ingredients)) : null
-  const articles = articlePicks(product.petKind)
   const fbtTotal =
     product.priceCents != null
       ? product.frequentlyBoughtTogether.reduce((sum, m) => sum + (m.priceCents ?? 0), product.priceCents)
@@ -902,36 +877,6 @@ export default async function ProductPage({ params }: Params) {
       {product.bestSellersForPet.length > 0 && (
         <PdpSection eyebrow="TOP RATED" title={`Best Sellers for Your ${product.petKind ?? "Pet"}`} tone="muted">
           <Rail items={product.bestSellersForPet} />
-        </PdpSection>
-      )}
-
-      {/* 19 — Associated articles */}
-      {articles.length > 0 && (
-        <PdpSection eyebrow="GUIDES & TIPS" title="Associated Articles">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {articles.map((g) => (
-              <Link
-                key={g.slug}
-                href={g.href}
-                className="group flex flex-col rounded-lg border border-neutral-200 bg-white p-5 transition-colors hover:border-[#002B5C]"
-              >
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#002B5C]">
-                  {g.animal === "dog" ? "Dog grooming guide" : "Cat grooming guide"}
-                </p>
-                <h3 className="mt-2 flex-1 font-display text-[17px] leading-snug text-neutral-900">
-                  {g.title}
-                </h3>
-                <span className="mt-4 inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[#002B5C]">
-                  Read the guide
-                  <ArrowRight
-                    size={14}
-                    aria-hidden
-                    className="transition-transform group-hover:translate-x-0.5"
-                  />
-                </span>
-              </Link>
-            ))}
-          </div>
         </PdpSection>
       )}
 

@@ -1,13 +1,5 @@
 import { buildSitemap } from "@/lib/shop/sitemap-source"
 
-// EDUCATION CENTER: the owner's seopages inventory (his standalone
-// app/sitemap.ts — /guides, /dog-breeds, every product-category path,
-// every guide-directory item) lives INSIDE buildSitemap() in
-// src/lib/shop/sitemap-source.ts, replacing the retired /pet-education
-// and /guides/grooming/* entries. Keeping it there (not appended here)
-// preserves the single-source-of-truth contract below: /sitemap.xml and
-// the HTML /sitemap page render the same URL set, deduped, never drifting.
-
 // ---------------------------------------------------------------------------
 // /sitemap.xml — served by an explicit route handler (instead of the
 // app/sitemap.ts metadata convention) because the site ALSO ships a
@@ -46,12 +38,11 @@ function esc(s: string): string {
 }
 
 export async function GET() {
-  const allEntries = await buildSitemap()
-
+  const entries = await buildSitemap()
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    allEntries
+    entries
       .map(
         (e) =>
           `  <url>\n` +
