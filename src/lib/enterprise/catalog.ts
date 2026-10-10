@@ -77,6 +77,12 @@ export type CatalogProduct = {
   stripePriceId: string | null
   // sort
   sortOrder: number
+  // live-taxonomy link (metadata.taxonomy_node_ids — node uuids the item is
+  // merchandised under) + merch flags carried from the feed sync
+  taxonomyNodeIds: string[]
+  isNew: boolean
+  isBestseller: boolean
+  isSalonFavorite: boolean
   // timestamps
   createdAt: string
   updatedAt: string
@@ -201,6 +207,12 @@ function rowToCatalogProduct(r: any): CatalogProduct {
     stripeProductId: epMeta.stripe_product_id || null,
     stripePriceId: epMeta.stripe_price_id || null,
     sortOrder: Number(ciMeta.sort_order) || 99,
+    taxonomyNodeIds: Array.isArray(ciMeta.taxonomy_node_ids)
+      ? ciMeta.taxonomy_node_ids.filter((x: unknown): x is string => typeof x === "string")
+      : [],
+    isNew: epMeta.is_new === true,
+    isBestseller: epMeta.is_best_seller === true,
+    isSalonFavorite: epMeta.is_salon_favorite === true,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   }
