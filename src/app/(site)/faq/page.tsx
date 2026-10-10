@@ -64,13 +64,17 @@ export default async function FaqPage() {
           </p>
           <HeroCtas />
         </div>
-        <div className="relative min-h-[300px]">
+        {/* Owner directive: show the FULL dog. The photo renders at its own
+            aspect ratio (w-full h-auto) instead of object-cover cropping the
+            top of the dog's head on wide/short hero columns. Bottom-anchored
+            so any leftover column height stays above the photo. */}
+        <div className="relative flex min-h-[300px] items-end">
           <img
             src="/FAQ-Policies/faqhero-v3.jpeg"
             alt="Fluffy white poodle with blue-tipped ears and a blue bow tie sitting in the All About Pawz salon"
             width={1448}
             height={1206}
-            className="absolute inset-0 h-full w-full object-cover object-bottom"
+            className="block h-auto w-full"
           />
         </div>
       </section>
