@@ -336,9 +336,28 @@ function labelFromPath(path: string, pageType: string): string {
 
 // ---------------------------------------------------------------------------
 // Tier 2 — catalog resolvers fallback. Builds entries from the existing
-// catalog.ts resolvers (getNavTree + flattenNav + getProducts +
-// getMerchCollections). Shallower coverage than v_sitemap but functional.
+// catalog resolvers (getNavTree + flattenNav + getMerchCollections) plus the
+// ENTERPRISE product slugs. Shallower coverage than v_sitemap but functional.
 // ---------------------------------------------------------------------------
+/**
+ * Enterprise product slugs — the sitemap needs only slugs + dates, NEVER the
+ * full catalog object graph. (listCatalogProducts with its per-item media
+ * LATERAL aggregation timed out build workers once the enterprise tables
+ * filled with the 12.8k feed items.)
+ */
+async function getEnterpriseProductSlugs(): Promise<{ slug: string; name: string; created_at: string | null }[]> {
+  const tenant = process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001"
+  return pgQuery<{ slug: string; name: string; created_at: string | null }>(
+    `SELECT ci.metadata->>'slug' AS slug, ci.name, ci.created_at
+       FROM commerce_catalog_items ci
+      WHERE ci.tenant_id = $1::uuid
+        AND ci.active = true AND ci.ecommerce_enabled = true AND ci.sellable = true
+        AND COALESCE(ci.metadata->>'slug','') <> ''
+      ORDER BY ci.created_at DESC NULLS LAST`,
+    [tenant],
+  )
+}
+
 async function fallbackCatalogEntries(): Promise<SitemapEntry[]> {
   const now = new Date()
   const entries: SitemapEntry[] = []
@@ -382,11 +401,11 @@ async function fallbackCatalogEntries(): Promise<SitemapEntry[]> {
   }
 
   try {
-    for (const p of await getProducts()) {
+    for (const p of await getEnterpriseProductSlugs()) {
       entries.push({
         loc: `${BASE}/products/${p.slug}`,
         path: `/products/${p.slug}`,
-        lastModified: p.createdAt ? new Date(p.createdAt) : now,
+        lastModified: p.created_at ? new Date(p.created_at) : now,
         changeFrequency: "weekly",
         priority: 0.7,
         pageType: "product",
