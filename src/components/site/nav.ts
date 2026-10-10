@@ -9,7 +9,8 @@ export const NAV = [
   { n: "07", label: "GALLERY", to: "/gallery" },
   { n: "08", label: "BOOK", to: "/book" },
   { n: "09", label: "CONTACT", to: "/contact" },
-  { n: "10", label: "LEARN", to: "/learn" },
+  { n: "10", label: "FAQ / POLICIES", to: "/faq" },
+  { n: "11", label: "LEARN", to: "/learn" },
 ] as const
 
 export type Route = (typeof NAV)[number]["to"] | "/admin"

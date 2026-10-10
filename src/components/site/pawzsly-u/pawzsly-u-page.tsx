@@ -1,13 +1,13 @@
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowRight, BookOpen, PawPrint } from "lucide-react"
-import type { GuidePageData } from "@/lib/pawsly-u/types"
+import type { GuidePageData } from "@/lib/pawzsly-u/types"
 
 function routeFor(path: string): string {
-  return `/pawsly-u/memphis${path.startsWith("/") ? path : `/${path}`}`
+  return `/pawzsly-u/memphis${path.startsWith("/") ? path : `/${path}`}`
 }
 
-export function PawslyULanding({
+export function PawzslyULanding({
   categories,
 }: {
   categories: { name: string; slug: string; children?: { name: string; slug: string }[] }[]
@@ -30,7 +30,7 @@ export function PawslyULanding({
       <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 sm:px-6 lg:px-8">
         <section className="my-5 grid overflow-hidden bg-[#f1f2ed] md:grid-cols-[1.08fr_0.92fr] lg:my-8">
           <div className="flex flex-col items-start justify-center px-6 py-9 sm:px-10 sm:py-12 lg:px-14 lg:py-16">
-            <p className="mb-4 text-xs font-bold uppercase text-orange-800">Pawsly U · Memphis pet care library</p>
+            <p className="mb-4 text-xs font-bold uppercase text-orange-800">Pawzsly U · Memphis pet care library</p>
             <h1 className="max-w-2xl text-3xl font-black leading-tight text-stone-950 sm:text-4xl lg:text-5xl">
               Pet care guides, organized by animal.
             </h1>
@@ -47,7 +47,7 @@ export function PawslyULanding({
             </div>
           </div>
           <div className="relative min-h-56 sm:min-h-72 md:min-h-full">
-            <Image src="/pawsly-u/images/hero_grooming_dog_1791411047518.jpg" alt="A freshly groomed dog in a salon" fill priority sizes="(max-width: 768px) 100vw, 46vw" className="object-cover" />
+            <Image src="/pawzsly-u/images/hero_grooming_dog_1791411047518.jpg" alt="A freshly groomed dog in a salon" fill priority sizes="(max-width: 768px) 100vw, 46vw" className="object-cover" />
           </div>
         </section>
 
@@ -111,13 +111,13 @@ export function PawslyULanding({
   )
 }
 
-export function PawslyUArticle({ data }: { data: GuidePageData }) {
+export function PawzslyUArticle({ data }: { data: GuidePageData }) {
   return (
     <article className="bg-white text-stone-900">
       <section className="border-b border-stone-200 bg-[#f1f2ed] px-6 py-10 lg:px-12 lg:py-16">
         <div className="mx-auto max-w-4xl">
           <nav className="text-[12px] text-stone-600" aria-label="Breadcrumb">
-            <Link href="/pawsly-u/memphis" className="hover:text-stone-950">Pawsly U</Link>
+            <Link href="/pawzsly-u/memphis" className="hover:text-stone-950">Pawzsly U</Link>
             <span className="px-2">/</span>
             <span>{data.pillar}</span>
           </nav>
@@ -214,7 +214,7 @@ export function PawslyUArticle({ data }: { data: GuidePageData }) {
 
           {data.relatedArticles && data.relatedArticles.length > 0 && (
             <section className="mt-12 border-t border-stone-300 pt-8">
-              <h2 className="text-3xl font-black text-stone-950">Related Pawsly U guides</h2>
+              <h2 className="text-3xl font-black text-stone-950">Related Pawzsly U guides</h2>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {data.relatedArticles.slice(0, 8).map((article) => (
                   <Link key={article.path} href={routeFor(article.path)} className="border border-stone-300 bg-white p-4 text-[14px] font-semibold text-stone-900 transition-colors hover:border-orange-600 hover:text-orange-800">

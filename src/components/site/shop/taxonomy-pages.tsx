@@ -258,7 +258,6 @@ export async function AnimalLandingPage({
         description={animal.tagline}
         image={imageForCard(`${animal.slug}/${animal.departments[0]?.slug}`, 0)}
         imageAlt={`${animal.name} collection at All About Pawz`}
-        quickLinks={departmentCards.slice(0, 3)}
       />
       <ShopPromoBanner
         image={imageForCard(`${animal.slug}/${animal.departments[0]?.slug}`, 0)}
@@ -306,7 +305,7 @@ export async function AnimalLandingPage({
           {seo.relatedGuides.length > 0 && (
             <ul>{seo.relatedGuides.map((g, i) => {
               const slug = g.split("/").pop() || g
-              return <li key={i}><Link href={`/pawsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+              return <li key={i}><Link href={`/pawzsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
             })}</ul>
           )}
         </details>
@@ -389,7 +388,6 @@ export async function DepartmentPage({
         description={descriptionFor(`${animal.slug}/${dept.slug}`)}
         image={parentImage}
         imageAlt={`${dept.name} at All About Pawz`}
-        quickLinks={subcategoryCards.slice(0, 3)}
       />
       <ShopPromoBanner image={parentImage} imageAlt={`${dept.name} shop offer`} href={path} />
 
@@ -437,7 +435,7 @@ export async function DepartmentPage({
           {seo.relatedGuides.length > 0 && (
             <ul>{seo.relatedGuides.map((g, i) => {
               const slug = g.split("/").pop() || g
-              return <li key={i}><Link href={`/pawsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+              return <li key={i}><Link href={`/pawzsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
             })}</ul>
           )}
         </details>
@@ -547,7 +545,7 @@ export async function SubcategoryPage({
           {seo.relatedGuides.length > 0 && (
             <ul>{seo.relatedGuides.map((g, i) => {
               const slug = g.split("/").pop() || g
-              return <li key={i}><Link href={`/pawsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+              return <li key={i}><Link href={`/pawzsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
             })}</ul>
           )}
         </details>

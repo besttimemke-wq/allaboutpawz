@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { getAllSlugs, getGuideDataBySlug } from "@/lib/pawsly-u/taxonomy-data"
+import { getAllSlugs, getGuideDataBySlug } from "@/lib/pawzsly-u/taxonomy-data"
 import { SITE_URL } from "@/lib/site-url"
 import { CITY_LANDINGS, SHELBY_HUB } from "@/lib/business"
 
@@ -158,7 +158,7 @@ export default function SitemapPage() {
   ]
   const guideLinks = getAllSlugs().map((slug) => {
     const guide = getGuideDataBySlug(slug, [slug])
-    return { label: guide.heroTitle, href: `/pawsly-u/memphis/${slug}` }
+    return { label: guide.heroTitle, href: `/pawzsly-u/memphis/${slug}` }
   })
 
   return (
@@ -206,7 +206,7 @@ export default function SitemapPage() {
           {/* Collections — Special Occasions */}
           <CollectionSection heading="Collections — Special Occasions" links={collectionLinks} />
 
-          <CollectionSection heading="Pawsly U Pet Care Guides" links={guideLinks} />
+          <CollectionSection heading="Pawzsly U Pet Care Guides" links={guideLinks} />
 
           {/* Learning Academy */}
           <CollectionSection heading="Learning Academy" links={learnLinks} />

@@ -33,7 +33,7 @@ import { getNavTree, flattenNav, getProducts, getMerchCollections } from "@/lib/
 import { getResource } from "@/lib/site-data"
 import { pgQuery } from "@/lib/pg"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { getAllSlugs, getGuideDataBySlug } from "@/lib/pawsly-u/taxonomy-data"
+import { getAllSlugs, getGuideDataBySlug } from "@/lib/pawzsly-u/taxonomy-data"
 
 // GATE: Tier 1 (v_sitemap) is disabled until Wave 1 pages have real content.
 // Flip to true per-wave when pages pass §11a (products + unique copy).
@@ -502,12 +502,12 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
   // Convert seller + collection routes
   const sellerEntries: SitemapEntry[] = SELLER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
   const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  // Pawsly U routes — the imported education library is the canonical guide surface.
+  // Pawzsly U routes — the imported education library is the canonical guide surface.
   const guideEntries: SitemapEntry[] = getAllSlugs().map((slug) => {
     const guide = getGuideDataBySlug(slug, [slug])
     return {
-      loc: `${BASE}/pawsly-u/memphis/${slug}`,
-      path: `/pawsly-u/memphis/${slug}`,
+      loc: `${BASE}/pawzsly-u/memphis/${slug}`,
+      path: `/pawzsly-u/memphis/${slug}`,
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.6,

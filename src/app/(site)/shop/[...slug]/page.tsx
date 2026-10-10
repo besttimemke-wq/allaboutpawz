@@ -26,7 +26,7 @@ import {
 } from "@/lib/shop/catalog"
 import { resolveTaxPath } from "@/lib/shop/taxonomy-db"
 import { SalonFavoritesCollection } from "@/components/site/shop/salon-favorites-collection"
-import { departmentPath, subcategoryPath } from "@/lib/shop-nav"
+import { departmentPath, subcategoryPath, SHOP_NAV_TAXONOMY } from "@/lib/shop-nav"
 import { SITE_URL } from "@/lib/site-url"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 
@@ -125,6 +125,28 @@ function merchKey(seg: string | undefined): MerchKey | null {
   return null
 }
 
+function staticShopFallback(segments: string[]) {
+  const animalSlug = segments[0] === "small-animal" ? "small-pet" : segments[0]
+  const animal = SHOP_NAV_TAXONOMY.find((candidate) => candidate.slug === animalSlug)
+  if (!animal || segments.length > 3) return null
+  if (segments.length === 1) return { kind: "animal" as const, animal }
+
+  const dept = animal.departments.find((candidate) => candidate.slug === segments[1])
+  if (!dept) return null
+  if (segments.length === 2) return { kind: "department" as const, animal, dept }
+
+  const findSubcategory = (nodes: typeof dept.subcategories): { slug: string; name: string } | null => {
+    for (const node of nodes) {
+      if (node.slug === segments[2]) return node
+      const nested = node.children ? findSubcategory(node.children) : null
+      if (nested) return nested
+    }
+    return null
+  }
+  const sub = findSubcategory(dept.subcategories)
+  return sub ? { kind: "subcategory" as const, animal, dept, sub } : null
+}
+
 // BreadcrumbList structured data — Home → Shop → the trail the visible
 // breadcrumb shows for this category (or merchandising collection).
 function breadcrumbJsonLd(trail: { name: string; path: string }[]) {
@@ -167,6 +189,17 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       return <DepartmentPage animal={resolved.animal} dept={resolved.group} searchParams={sp} />
     }
     return <SubcategoryPage animal={resolved.animal} dept={resolved.group} sub={resolved.sub} searchParams={sp} />
+  }
+
+  const staticFallback = staticShopFallback(segments)
+  if (staticFallback?.kind === "animal") {
+    return <AnimalLandingPage animal={staticFallback.animal} searchParams={sp} />
+  }
+  if (staticFallback?.kind === "department") {
+    return <DepartmentPage animal={staticFallback.animal} dept={staticFallback.dept} searchParams={sp} />
+  }
+  if (staticFallback?.kind === "subcategory") {
+    return <SubcategoryPage animal={staticFallback.animal} dept={staticFallback.dept} subSlug={staticFallback.sub.slug} subName={staticFallback.sub.name} searchParams={sp} />
   }
 
   // ---- Merchandising collections (legacy) ----

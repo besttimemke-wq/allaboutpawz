@@ -8,7 +8,7 @@ import { FeaturedServicesGrid } from "@/components/site/islands/featured-service
 import { NewsletterForm } from "@/components/site/islands/newsletter-form"
 import { HomeShopBento } from "@/components/site/islands/home-shop-bento"
 import { HomeAaPicks } from "@/components/site/islands/home-aa-picks"
-import { HomePawzly } from "@/components/site/islands/home-pawzly"
+import { HomePawzsly } from "@/components/site/islands/home-pawzsly"
 import { SITE_URL } from "@/lib/site-url"
 
 const STEPS = [
@@ -99,7 +99,7 @@ export default function HomePage() {
           shop bento, BELOW the Pawzitive Difference; background matches the
           footer black). The floating 🐾 widget itself is mounted site-wide
           from the site layout. */}
-      <HomePawzly />
+      <HomePawzsly />
 
       {/* SHOP VISUALS — the full-bleed pet-type bento, then the dense AA
           Picks rail (owner's structure). */}

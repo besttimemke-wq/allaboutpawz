@@ -34,16 +34,16 @@ function PickCard({ f }: { f: SalonFavorite }) {
     <Link
       href={`/products/${f.slug}`}
       aria-label={`Get ${f.name}${price ? ` — ${price}` : ""}`}
-      className="group/pick flex h-full overflow-hidden border border-ink/10 bg-white transition-colors hover:border-[#F2C500]"
+      className="group/pick flex h-full overflow-hidden border border-ink/10 bg-white transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:border-[#F2C500] hover:shadow-[0_14px_30px_rgba(28,25,23,0.12)]"
     >
       {/* Product shot — white plate, gold AA PICK badge. object-contain so
           packshots sit on the plate the same way every time. */}
-      <div className="relative w-[42%] shrink-0 bg-white">
+      <div className="relative w-[46%] shrink-0 bg-[#faf9f6]">
         {f.image && imgOk ? (
           <img
             src={f.image}
             alt={f.brand ? `${f.brand} — ${f.name}` : f.name}
-            className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover/pick:scale-[1.03]"
+            className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover/pick:scale-[1.03] lg:p-6"
             loading="lazy"
             decoding="async"
             onError={() => setImgOk(false)}
@@ -54,7 +54,7 @@ function PickCard({ f }: { f: SalonFavorite }) {
           </div>
         )}
         <span
-          className="absolute left-0 top-3 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em]"
+          className="absolute left-0 top-4 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.14em]"
           style={{ backgroundColor: GOLD, color: INK }}
         >
           AA Pick
@@ -63,7 +63,7 @@ function PickCard({ f }: { f: SalonFavorite }) {
 
       {/* Copy — brand eyebrow, name, price, GET THIS NOW. Name clamps to 2
           lines so long titles can never grow the card. */}
-      <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-1.5 px-4 py-4 lg:px-5">
+      <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-2 px-5 py-5 lg:px-7">
         <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-ink-soft">
           {f.brand || "All About Pawz"}
         </p>
@@ -75,7 +75,7 @@ function PickCard({ f }: { f: SalonFavorite }) {
           {compareAt && <span className="text-[12.5px] font-semibold text-ink-soft line-through">{compareAt}</span>}
         </p>
         <span
-          className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-2 text-[10.5px] font-extrabold uppercase tracking-[0.1em] transition-colors group-hover/pick:brightness-95"
+          className="mt-2 inline-flex items-center gap-1.5 px-4 py-2.5 text-[10.5px] font-extrabold uppercase tracking-[0.1em] transition-colors group-hover/pick:brightness-95"
           style={{ backgroundColor: GOLD, color: INK }}
         >
           Get This Now
@@ -161,7 +161,7 @@ export function SalonFavoritesScroller({ products }: { products: SalonFavorite[]
           <div
             key={f.id}
             data-pick-card
-            className="h-[220px] w-[86%] shrink-0 snap-start sm:w-[calc(50%-7px)] lg:h-[240px] lg:w-[calc(33.333%-11px)]"
+            className="h-[260px] w-[92%] shrink-0 snap-start sm:w-[calc(50%-7px)] lg:h-[280px] lg:w-[calc(33.333%-11px)]"
           >
             <PickCard f={f} />
           </div>

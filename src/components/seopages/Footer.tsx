@@ -244,7 +244,6 @@ export function SiteFooter() {
                 { label: "Veterinary Technician", href: "/learn/courses/veterinary-technician" },
                 { label: "Veterinary Technology", href: "/learn/courses/veterinary-technology" },
                 { label: "Zookeeper Assistant", href: "/learn/courses/zookeeper-assistant" },
-                { label: "Positive Dog Training", href: "/learn/courses/positive-dog-training" },
               ]} />
             </div>
           </div>
@@ -255,7 +254,6 @@ export function SiteFooter() {
             <div className="mt-4 space-y-3">
               <Link href="/veterinary-partners" className="block text-base text-on-dark-muted hover:text-gold-deep">Veterinary Partners</Link>
               <Link href="/pet-insurance" className="block text-base text-on-dark-muted hover:text-gold-deep">Pet Insurance</Link>
-              <Link href="/pet-adoption" className="block text-base text-on-dark-muted hover:text-gold-deep">Pet Adoption</Link>
               <Expandable label="Pet Education Center" href="/pet-education" subItems={[
                 { label: "Articles By Pets", href: "/pet-education/articles" },
                 { label: "Pet Care Sheets", href: "/pet-education/care-sheets" },
@@ -275,7 +273,6 @@ export function SiteFooter() {
               <Expandable label="About Us" href="/about" subItems={[
                 { label: "Code of Ethics", href: "/about#code-of-ethics" },
               ]} />
-              <Link href="/events" className="block text-base text-on-dark-muted hover:text-gold-deep">Event Sponsorships</Link>
               <Expandable label="Sellers" href="/seller" subItems={[
                 { label: "Seller Program", href: "/seller" },
               ]} />

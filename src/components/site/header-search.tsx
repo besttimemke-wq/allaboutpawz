@@ -36,10 +36,10 @@ import {
   departmentPath,
   subcategoryPath,
 } from "@/lib/shop-nav"
-import { GUIDES_DIRECTORY } from "@/lib/pawsly-u/taxonomy-data"
+import { GUIDES_DIRECTORY } from "@/lib/pawzsly-u/taxonomy-data"
 
 // ---------------------------------------------------------------------------
-// Pawsly U guide list — sourced from the imported education taxonomy so the
+// Pawzsly U guide list — sourced from the imported education taxonomy so the
 // search result always lands on the canonical public education route.
 // ---------------------------------------------------------------------------
 
@@ -51,7 +51,7 @@ const ALL_GUIDES: GuideEntry[] = [
       subcategory.items.map((item) => ({
         slug: item.slug,
         title: item.name,
-        href: `/pawsly-u/memphis/${item.slug}`,
+        href: `/pawzsly-u/memphis/${item.slug}`,
       })),
     ),
   ),

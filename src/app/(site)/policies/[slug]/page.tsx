@@ -100,7 +100,7 @@ export default async function PolicyPage({ params }: { params: Promise<{ slug: s
           </div>
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <Link href="/book" className="btn-gold">BOOK A VISIT</Link>
-            <Link href="/faq" className="btn-ghost">BACK TO LEGAL CENTER</Link>
+            <Link href="/legal-center" className="btn-ghost">BACK TO LEGAL CENTER</Link>
           </div>
         </div>
       </section>

@@ -8,7 +8,7 @@ import type { NextRequest } from "next/server"
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.aapawz.com").replace(/\/$/, "")
 
-export const SEO_BASE_PATH = "/pawsly-u/memphis"
+export const SEO_BASE_PATH = "/pawzsly-u/memphis"
 export const SEO_SITE_URL = `${SITE_URL}${SEO_BASE_PATH}`
 
 export function seoUrl(path: string): string {

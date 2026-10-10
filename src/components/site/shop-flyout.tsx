@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Minus, PawPrint, Plus, X } from "lucide-react"
+import { Minus, Plus, X } from "lucide-react"
 import { SHOP_ANIMALS, SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath, type ShopNavAnimal } from "@/lib/shop-nav"
 
 // ---------------------------------------------------------------------------
@@ -41,22 +41,6 @@ const DEPARTMENT_IMAGES: Record<string, string> = {
   "dog/toys": "dog-toys",
   "dog/treats-chews": "dog-treats-chews",
 }
-const BRANDS = [
-  { name: "All About Pawz", slug: "all-about-pawz" },
-  { name: "Hill's Science Diet", slug: "hills-science-diet" },
-  { name: "Blue Buffalo", slug: "blue-buffalo" },
-  { name: "Purina Pro Plan", slug: "purina-pro-plan" },
-  { name: "Stella & Chewy's", slug: "stella-and-chewys" },
-  { name: "The Honest Kitchen", slug: "the-honest-kitchen" },
-  { name: "Merrick", slug: "merrick" },
-  { name: "Nulo", slug: "nulo" },
-  { name: "ACANA", slug: "acana" },
-  { name: "Earthbath", slug: "earthbath" },
-  { name: "Burt's Bees Pets", slug: "burts-bees-pets" },
-  { name: "Kong", slug: "kong" },
-]
-
-type PanelView = "animal" | "brands"
 type FlyoutTile = {
   key: string
   name: string
@@ -90,7 +74,6 @@ function flyoutTiles(animal: ShopNavAnimal): FlyoutTile[] {
 
 export function ShopFlyout({ onClose }: { onClose: () => void }) {
   const [selectedAnimal, setSelectedAnimal] = useState(SHOP_NAV_TAXONOMY[0]?.slug || "cat")
-  const [view, setView] = useState<PanelView>("animal")
   const [expandedDepartment, setExpandedDepartment] = useState<string | null>(null)
 
   useEffect(() => {
@@ -107,11 +90,6 @@ export function ShopFlyout({ onClose }: { onClose: () => void }) {
   const handleAnimalSelect = (slug: string) => {
     setSelectedAnimal(slug)
     setExpandedDepartment(null)
-    setView("animal")
-  }
-
-  const handleBrandHover = () => {
-    setView("brands")
   }
 
   return (
@@ -133,13 +111,13 @@ export function ShopFlyout({ onClose }: { onClose: () => void }) {
               key={a.slug}
               onClick={() => handleAnimalSelect(a.slug)}
               className={`flex w-full items-center justify-between gap-2 py-2.5 text-left text-[16px] leading-snug underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline ${
-                selectedAnimal === a.slug && view === "animal"
+                selectedAnimal === a.slug
                   ? "font-bold text-orange-800 underline"
                   : "text-stone-900"
               }`}
             >
               {a.name}
-              {selectedAnimal === a.slug && view === "animal"
+              {selectedAnimal === a.slug
                 ? <Minus size={16} aria-hidden="true" />
                 : <Plus size={16} aria-hidden="true" />}
             </button>
@@ -156,19 +134,10 @@ export function ShopFlyout({ onClose }: { onClose: () => void }) {
 
         <div className="my-4 border-t border-stone-300" />
 
-        <button
-          onClick={handleBrandHover}
-          className={`block w-full py-2.5 text-left text-[16px] underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline ${
-            view === "brands" ? "font-bold text-orange-800 underline" : "text-stone-900"
-          }`}
-        >
-          Shop by brand
-        </button>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        {view === "animal" && (
-          <div className="flex-1 px-3 py-5 sm:px-5 sm:py-6 lg:px-7">
+        <div className="flex-1 px-3 py-5 sm:px-5 sm:py-6 lg:px-7">
             <div className="flex items-end justify-between gap-4 border-b border-stone-200 pb-4">
               <div>
                 <h2 className="text-[26px] font-black leading-tight text-stone-950">{selectedAnimalName}</h2>
@@ -196,7 +165,7 @@ export function ShopFlyout({ onClose }: { onClose: () => void }) {
                             className="object-cover transition-transform duration-300 hover:scale-[1.03]"
                           />
                         )}
-                        {!imageName && <PawPrint className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/40" strokeWidth={1.1} aria-hidden="true" />}
+                        {!imageName && <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold uppercase tracking-[0.16em] text-stone-400">Category</span>}
                       </Link>
                       <Link href={tile.href} onClick={onClose} className="flex min-h-12 items-center px-3 text-[16px] font-semibold leading-snug text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
                         {tile.name}
@@ -234,30 +203,6 @@ export function ShopFlyout({ onClose }: { onClose: () => void }) {
               <p className="mt-5 text-[15px] text-neutral-700">Browse the {selectedAnimalName.toLowerCase()} catalog.</p>
             )}
           </div>
-        )}
-
-        {/* --- Brand grid --- */}
-        {view === "brands" && (
-          <div className="flex-1 px-8 py-8">
-            <div className="flex items-center justify-between">
-              <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500">Shop by brand</p>
-              <Link href="/shop/brands" onClick={onClose} className="text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">View all</Link>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {BRANDS.slice(0, 12).map(brand => (
-                <Link
-                  key={brand.slug}
-                  href={`/shop/brands/${brand.slug}`}
-                  onClick={onClose}
-                  className="flex items-center justify-center border border-neutral-200 bg-white px-3 py-5 text-center transition-colors hover:border-[#F2C500]"
-                >
-                  <span className="text-[15px] font-semibold text-neutral-900">{brand.name}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
       </div>
     </div>
   )

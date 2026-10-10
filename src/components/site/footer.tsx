@@ -132,7 +132,6 @@ export function SiteFooter() {
                 { label: "Veterinary Technician", href: "/learn/courses/veterinary-technician" },
                 { label: "Veterinary Technology", href: "/learn/courses/veterinary-technology" },
                 { label: "Zookeeper Assistant", href: "/learn/courses/zookeeper-assistant" },
-                { label: "Positive Dog Training", href: "/learn/courses/positive-dog-training" },
               ]} />
             </div>
           </div>
@@ -143,9 +142,7 @@ export function SiteFooter() {
             <div className="mt-4 space-y-3">
               <Link href="/veterinary-partners" className="block text-base text-on-dark-muted hover:text-gold-deep">Veterinary Partners</Link>
               <Link href="/pet-insurance" className="block text-base text-on-dark-muted hover:text-gold-deep">Pet Insurance</Link>
-              <Link href="/pet-adoption" className="block text-base text-on-dark-muted hover:text-gold-deep">Pet Adoption</Link>
-              <Link href="/pawsly-u/memphis" className="block text-base text-on-dark-muted hover:text-gold-deep">Pawsly U</Link>
-              <Link href="/faq" className="block text-base text-on-dark-muted hover:text-gold-deep">Legal Center</Link>
+              <Link href="/pawzsly-u/memphis" className="block text-base text-on-dark-muted hover:text-gold-deep">Pawzsly U</Link>
             </div>
           </div>
 
@@ -157,7 +154,6 @@ export function SiteFooter() {
               <Expandable label="About Us" href="/about" subItems={[
                 { label: "Code of Ethics", href: "/about#code-of-ethics" },
               ]} />
-              <Link href="/events" className="block text-base text-on-dark-muted hover:text-gold-deep">Event Sponsorships</Link>
               <Expandable label="Sellers" href="/seller" subItems={[
                 { label: "Seller Program", href: "/seller" },
               ]} />
@@ -165,6 +161,7 @@ export function SiteFooter() {
               <Link href="/pricing" className="block text-base text-on-dark-muted hover:text-gold-deep">Coupons and Promos</Link>
               <Link href="/contact" className="block text-base text-on-dark-muted hover:text-gold-deep">Investors</Link>
               <Link href="/sustainability" className="block text-base text-on-dark-muted hover:text-gold-deep">Sustainability</Link>
+              <Link href="/legal-center" className="block text-base text-on-dark-muted hover:text-gold-deep">Legal Center</Link>
               <Link href="/contact" className="block text-base text-on-dark-muted hover:text-gold-deep">Advertise with Us</Link>
             </div>
           </div>

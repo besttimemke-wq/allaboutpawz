@@ -76,9 +76,9 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
   }
 
   return (
-    <article className="group flex flex-col overflow-hidden border border-stone-200 bg-white transition-colors hover:border-orange-600">
-      {/* 1. Image — 1:1 crop */}
-      <div className="relative aspect-square overflow-hidden bg-stone-100">
+    <article className="group flex flex-col overflow-hidden border border-stone-200 bg-white transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-1 hover:border-orange-600 hover:shadow-[0_14px_30px_rgba(28,25,23,0.10)]">
+      {/* Preserve source image proportions instead of forcing a square crop. */}
+      <div className="relative aspect-[4/5] overflow-hidden bg-stone-50 p-3 sm:p-5">
         {badge && (
           <span className="absolute left-0 top-0 z-10 bg-stone-950 px-3 py-1.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase">
             {badge}
@@ -92,7 +92,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
               width={512}
               height={512}
               loading={priority ? "eager" : "lazy"}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
             />
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -103,7 +103,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
       </div>
 
       {/* 2-7. Info block */}
-      <div className="flex flex-1 flex-col p-4">
+      <div className="flex flex-1 flex-col p-5">
         {/* 3. Category eyebrow */}
         {product.category && (
           <Link
@@ -117,7 +117,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
         {/* 4. Product name — 2-line clamp */}
         <Link
           href={href}
-          className="mt-2 text-[16px] leading-[1.35] font-semibold text-stone-950 underline-offset-4 decoration-orange-600 decoration-2 hover:underline line-clamp-2"
+          className="mt-2 text-[17px] leading-[1.35] font-semibold text-stone-950 underline-offset-4 decoration-orange-600 decoration-2 hover:underline line-clamp-2"
         >
           {product.name}
         </Link>
@@ -144,7 +144,7 @@ export function ProductCard({ product, priority = false }: { product: ProductDat
 
         {/* 6. Price row */}
         <div className="mt-2 flex items-center gap-2">
-          <span className="text-[19px] font-bold text-stone-950">{product.price}</span>
+          <span className="text-[20px] font-bold text-stone-950">{product.price}</span>
           {strikePrice && (
             <span className="text-[14px] text-neutral-500 line-through">{strikePrice}</span>
           )}

@@ -135,7 +135,7 @@ export default async function ShopPage({ searchParams }: PageProps) {
           {seo.relatedGuides.length > 0 && (
             <ul>{seo.relatedGuides.map((g, i) => {
               const slug = g.split("/").pop() || g
-              return <li key={i}><Link href={`/pawsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+              return <li key={i}><Link href={`/pawzsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
             })}</ul>
           )}
         </details>

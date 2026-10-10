@@ -2,21 +2,21 @@ import Link from "next/link"
 import { ArrowRight, Stethoscope, ShoppingBag, ShieldAlert } from "lucide-react"
 
 // ---------------------------------------------------------------------------
-// HomePawzly — the triage-AI section (owner directive: "we need to create a
-// section for triage AI Pawzly and then wire it").
+// HomePawzsly — the triage-AI section (owner directive: "we need to create a
+// section for triage AI Pawzsly and then wire it").
 //
-// It introduces the floating Pawzly 🐾 assistant (mounted site-wide from the
+// It introduces the floating Pawzsly 🐾 assistant (mounted site-wide from the
 // site layout) and routes people to the two outcomes the triage ladder
 // produces: urgency guidance + vet booking, and product picks from the shop.
 // Static server component — no hydration cost; the live chat itself is the
-// PawzlyChat floating widget.
+// PawzslyChat floating widget.
 // ---------------------------------------------------------------------------
 
 const PAWZLY_POINTS = [
   {
     Icon: ShieldAlert,
     title: "SYMPTOM TRIAGE",
-    body: "Describe what's going on and Pawzly grades it — emergency, urgent, or keep-an-eye-on-it — using veterinary triage protocols.",
+    body: "Describe what's going on and Pawzsly grades it — emergency, urgent, or keep-an-eye-on-it — using veterinary triage protocols.",
   },
   {
     Icon: Stethoscope,
@@ -30,15 +30,15 @@ const PAWZLY_POINTS = [
   },
 ]
 
-export function HomePawzly() {
+export function HomePawzsly() {
   return (
-    <section aria-labelledby="home-pawzly-heading" className="border-y border-gold/25 bg-black">
+    <section aria-labelledby="home-pawzsly-heading" className="border-y border-gold/25 bg-black">
       <div className="mx-auto max-w-[1600px] px-6 py-14 lg:px-12">
         <div className="flex flex-col items-start gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-[640px]">
             <p className="eyebrow-dark">MEET PAWZLY 🐾</p>
-            <h2 id="home-pawzly-heading" className="mt-2 font-display text-[30px] leading-[1.15] text-on-dark">
-              Not sure if it&apos;s an emergency? Ask Pawzly first.
+            <h2 id="home-pawzsly-heading" className="mt-2 font-display text-[30px] leading-[1.15] text-on-dark">
+              Not sure if it&apos;s an emergency? Ask Pawzsly first.
             </h2>
             <p className="mt-3 text-[12.5px] leading-[1.75] text-on-dark-muted">
               Our AI triage assistant is on every page — tap the paw button, describe any symptom,
@@ -67,7 +67,7 @@ export function HomePawzly() {
 
         <p className="mt-6 flex items-center gap-2 text-[11px] text-on-dark-muted">
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          Pawzly provides general guidance only — it is not veterinary diagnosis, and when in doubt it will always tell you to see a vet.
+          Pawzsly provides general guidance only — it is not veterinary diagnosis, and when in doubt it will always tell you to see a vet.
         </p>
       </div>
     </section>

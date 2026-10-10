@@ -1,4 +1,5 @@
 import { Divider } from "@/components/site/brand"
+import Link from "next/link"
 import { HeroCtas } from "@/components/site/hero-ctas"
 import { FaqAccordion } from "@/components/site/islands/faq-accordion"
 import { PolicyBoxes } from "@/components/site/islands/policy-boxes"
@@ -62,6 +63,16 @@ export default async function FaqPage() {
             height={1206}
             className="absolute inset-0 h-full w-full object-cover object-bottom"
           />
+        </div>
+      </section>
+
+      <section className="border-y border-gold/25 bg-white px-8 py-7 lg:px-12">
+        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="eyebrow">LEGAL CENTER</p>
+            <p className="mt-2 max-w-xl text-[12.5px] leading-relaxed text-ink-soft">Need a policy, term, accessibility statement, or privacy information? Visit the Legal Center to browse every document by purpose.</p>
+          </div>
+          <Link href="/legal-center" className="btn-ghost shrink-0">OPEN LEGAL CENTER</Link>
         </div>
       </section>
 

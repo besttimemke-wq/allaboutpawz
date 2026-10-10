@@ -50,12 +50,10 @@ export const FOOTER_NAV: FooterColumn[] = [
         { label: "Veterinary Technician", href: "/learn/courses/veterinary-technician" },
         { label: "Veterinary Technology", href: "/learn/courses/veterinary-technology" },
         { label: "Zookeeper Assistant", href: "/learn/courses/zookeeper-assistant" },
-        { label: "Positive Dog Training", href: "/learn/courses/positive-dog-training" },
       ]},
       { label: "Veterinary Partners", href: "/veterinary-partners" },
       { label: "Pet Insurance", href: "/pet-insurance" },
-      { label: "Pet Adoption", href: "/pet-adoption" },
-      { label: "Pawsly U", href: "/pawsly-u/memphis" },
+      { label: "Pawzsly U", href: "/pawzsly-u/memphis" },
     ],
   },
   {
@@ -65,7 +63,6 @@ export const FOOTER_NAV: FooterColumn[] = [
       { label: "About Us", href: "/about", children: [
         { label: "Code of Ethics", href: "/about#code-of-ethics" },
       ]},
-      { label: "Event Sponsorships", href: "/events" },
       { label: "Sellers", href: "/seller", children: [
         { label: "Seller Program", href: "/seller" },
       ]},

@@ -1,7 +1,7 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// PawzlyChat — the floating AI triage assistant, wired to the owner's
+// PawzslyChat — the floating AI triage assistant, wired to the owner's
 // `triage-chat` Supabase edge function (deployed + verified live).
 //
 // The owner supplied this widget code verbatim; the only change is the vet
@@ -27,7 +27,7 @@ interface Product {
 }
 
 interface Message {
-  role: "user" | "pawzly";
+  role: "user" | "pawzsly";
   content: string;
   urgency?: string;
   products?: Product[];
@@ -41,12 +41,12 @@ const URGENCY_COLORS: Record<string, string> = {
   INFO: "bg-gray-100 text-gray-700 border-gray-300",
 };
 
-export default function PawzlyChat() {
+export default function PawzslyChat() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
-      role: "pawzly",
-      content: "Hey! I'm Pawzly 🐾 How can I help your pet today? Describe any symptoms or ask me about products.",
+      role: "pawzsly",
+      content: "Hey! I'm Pawzsly 🐾 How can I help your pet today? Describe any symptoms or ask me about products.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -84,7 +84,7 @@ export default function PawzlyChat() {
       const data = await res.json();
 
       const reply: Message = {
-        role: "pawzly",
+        role: "pawzsly",
         content: data.message || "Sorry, I had trouble with that. Can you try again?",
         urgency: data.urgency,
         products: data.products || [],
@@ -100,7 +100,7 @@ export default function PawzlyChat() {
     } catch {
       setMessages((m) => [
         ...m,
-        { role: "pawzly", content: "Something went wrong. Please try again." },
+        { role: "pawzsly", content: "Something went wrong. Please try again." },
       ]);
     }
     setLoading(false);
@@ -113,7 +113,7 @@ export default function PawzlyChat() {
         <button
           onClick={() => setOpen(true)}
           className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 flex items-center justify-center text-2xl"
-          aria-label="Chat with Pawzly"
+          aria-label="Chat with Pawzsly"
         >
           🐾
         </button>
@@ -127,7 +127,7 @@ export default function PawzlyChat() {
             <div className="flex items-center gap-2">
               <span className="text-2xl">🐾</span>
               <div>
-                <div className="font-semibold">Pawzly</div>
+                <div className="font-semibold">Pawzsly</div>
                 <div className="text-xs text-indigo-200">AI Pet Care Assistant</div>
               </div>
             </div>
@@ -194,7 +194,7 @@ export default function PawzlyChat() {
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-2 text-sm text-gray-500">
-                  <span className="animate-pulse">Pawzly is thinking...</span>
+                  <span className="animate-pulse">Pawzsly is thinking...</span>
                 </div>
               </div>
             )}
@@ -221,7 +221,7 @@ export default function PawzlyChat() {
               </button>
             </div>
             <div className="text-[10px] text-gray-400 mt-1 text-center">
-              Pawzly provides general guidance only, not veterinary diagnosis.
+              Pawzsly provides general guidance only, not veterinary diagnosis.
             </div>
           </div>
         </div>

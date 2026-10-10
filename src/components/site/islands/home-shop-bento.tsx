@@ -12,8 +12,8 @@ import { NewCustomerSignup } from "@/components/site/islands/home-final-cta-clie
 // Owner rulings applied:
 //  - NO blue tint over the photos (neutral black scrim only)
 //  - every animal must be visible in its tile (eager-loaded, no lazy pop-in)
-//  - the band is FULL-BLEED with a paw-print background so the area left and
-//    right of the grid reads as designed texture, not dead space
+//  - the band uses a restrained editorial texture rather than decorative paw
+//    prints, keeping the space around the grid intentional
 //  - LAYOUT v2 (owner directive): Bento cards LEFT, the 10%-off new-customer
 //    offer as the BOTTOM RAIL of the bento (absorbing the old standalone
 //    HomeFinalCta banner — which also fixed the cavapoo photo appearing
@@ -71,15 +71,10 @@ const PET_TYPE_TILES: BentoTile[] = [
   },
 ]
 
-// Subtle paw-print pattern — fills the full-bleed band so the sides of the
-// grid are textured, not empty cream (owner ruling: no dead space).
-const PAW_PATTERN =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='%231a1a1a' fill-opacity='0.05'%3E%3Cellipse cx='52' cy='38' rx='11' ry='9'/%3E%3Cellipse cx='33' cy='20' rx='5' ry='7'/%3E%3Cellipse cx='47' cy='14' rx='5' ry='7'/%3E%3Cellipse cx='61' cy='16' rx='5' ry='7'/%3E%3Cellipse cx='73' cy='26' rx='5' ry='7'/%3E%3Cellipse cx='118' cy='104' rx='11' ry='9'/%3E%3Cellipse cx='99' cy='86' rx='5' ry='7'/%3E%3Cellipse cx='113' cy='80' rx='5' ry='7'/%3E%3Cellipse cx='127' cy='82' rx='5' ry='7'/%3E%3Cellipse cx='139' cy='92' rx='5' ry='7'/%3E%3Cellipse cx='24' cy='112' rx='9' ry='7'/%3E%3Cellipse cx='8' cy='96' rx='4' ry='6'/%3E%3Cellipse cx='21' cy='90' rx='4' ry='6'/%3E%3Cellipse cx='33' cy='94' rx='4' ry='6'/%3E%3C/g%3E%3C/svg%3E\")"
-
 export function HomeShopBento() {
   return (
-    <section aria-labelledby="home-shop-heading" className="marble bg-cream" style={{ backgroundImage: PAW_PATTERN }}>
-      <div className="mx-auto max-w-[1600px] px-6 py-14 lg:px-12">
+    <section aria-labelledby="home-shop-heading" className="marble bg-cream">
+      <div className="mx-auto max-w-[1680px] px-6 py-16 lg:px-12 lg:py-20">
         {/* Centered headline — symmetry with the rest of the page (owner
             complaint: the shop headline hung left with no symmetry). */}
         <div className="mx-auto max-w-[640px] text-center">
@@ -99,12 +94,12 @@ export function HomeShopBento() {
         </div>
 
         {/* Bento cards LEFT · two CTA boxes RIGHT (owner directive) */}
-        <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div>
+        <div className="mt-10 grid items-stretch gap-7 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
+          <div className="lg:-ml-5">
             <BentoGrid
               tiles={PET_TYPE_TILES}
               eager
-              autoRows="auto-rows-[124px] sm:auto-rows-[156px] lg:auto-rows-[196px]"
+              autoRows="auto-rows-[148px] sm:auto-rows-[184px] lg:auto-rows-[232px]"
             />
           </div>
 
@@ -150,7 +145,7 @@ export function HomeShopBento() {
         {/* 10% OFF — the new-customer offer, now the BOTTOM RAIL of the bento
             (owner directive). Banner-only; the cavapoo photo stays in the CTA
             band so the dog is on the page exactly once. */}
-        <div className="relative mt-6 overflow-hidden bg-[#002B5C]">
+        <div className="relative mt-6 overflow-hidden bg-black lg:-ml-5 lg:w-[calc(100%+5px)]">
           <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10 lg:py-9">
             <div className="max-w-[560px]">
               <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-[#F2C500]">
