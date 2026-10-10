@@ -26,7 +26,7 @@ import {
 } from "@/lib/shop/catalog"
 import { resolveTaxPath } from "@/lib/shop/taxonomy-db"
 import { SalonFavoritesCollection } from "@/components/site/shop/salon-favorites-collection"
-import { departmentPath, subcategoryPath, SHOP_NAV_TAXONOMY } from "@/lib/shop-nav"
+import { departmentPath, subcategoryPath, SHOP_NAV_TAXONOMY, type ShopNavAnimal } from "@/lib/shop-nav"
 import { SITE_URL } from "@/lib/site-url"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 
@@ -182,13 +182,27 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   if (resolved) {
     if (resolved.notFound) notFound()
     if (resolved.canonicalPath) permanentRedirect(resolved.canonicalPath)
+    // Adapt the LIVE taxonomy animal (TaxAnimal — Supabase taxonomy_nodes with
+    // `groups`) to the nav-tree shape (ShopNavAnimal — `departments` +
+    // `tagline`) the three templates render from. Without this the animal /
+    // department / subcategory pages crash on animal.departments.map().
+    const navAnimal: ShopNavAnimal = {
+      slug: resolved.animal.slug,
+      name: resolved.animal.name,
+      tagline: `Shop ${resolved.animal.name} at All About Pawz Memphis`,
+      departments: resolved.animal.groups.map((g) => ({
+        slug: g.slug,
+        name: g.name,
+        subcategories: g.subcategories,
+      })),
+    }
     if (!resolved.group) {
-      return <AnimalLandingPage animal={resolved.animal} searchParams={sp} />
+      return <AnimalLandingPage animal={navAnimal} searchParams={sp} />
     }
     if (!resolved.sub) {
-      return <DepartmentPage animal={resolved.animal} dept={resolved.group} searchParams={sp} />
+      return <DepartmentPage animal={navAnimal} dept={resolved.group} searchParams={sp} />
     }
-    return <SubcategoryPage animal={resolved.animal} dept={resolved.group} sub={resolved.sub} searchParams={sp} />
+    return <SubcategoryPage animal={navAnimal} dept={resolved.group} subSlug={resolved.sub.slug} subName={resolved.sub.name} searchParams={sp} />
   }
 
   const staticFallback = staticShopFallback(segments)

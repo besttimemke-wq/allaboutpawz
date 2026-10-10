@@ -146,14 +146,14 @@ function TaxonomyHero({
   description,
   image,
   imageAlt,
-  quickLinks,
+  quickLinks = [],
 }: {
   eyebrow: string
   title: string
   description: string
   image?: string
   imageAlt: string
-  quickLinks: { name: string; href: string; image?: string; imageAlt: string }[]
+  quickLinks?: { name: string; href: string; image?: string; imageAlt: string }[]
 }) {
   return (
     <section className="px-6 pb-7 pt-5 lg:px-12">
