@@ -197,12 +197,12 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       })),
     }
     if (!resolved.group) {
-      return <AnimalLandingPage animal={navAnimal} searchParams={sp} />
+      return <AnimalLandingPage animal={navAnimal} nodeId={resolved.animal.id} scopeNodeIds={resolved.nodeIds} searchParams={sp} />
     }
     if (!resolved.sub) {
-      return <DepartmentPage animal={navAnimal} dept={resolved.group} searchParams={sp} />
+      return <DepartmentPage animal={navAnimal} dept={resolved.group} scopeNodeIds={resolved.nodeIds} rootId={resolved.group.id} searchParams={sp} />
     }
-    return <SubcategoryPage animal={navAnimal} dept={resolved.group} subSlug={resolved.sub.slug} subName={resolved.sub.name} searchParams={sp} />
+    return <SubcategoryPage animal={navAnimal} dept={resolved.group} subSlug={resolved.sub.slug} subName={resolved.sub.name} scopeNodeIds={resolved.nodeIds} rootId={resolved.sub.id} searchParams={sp} />
   }
 
   const staticFallback = staticShopFallback(segments)

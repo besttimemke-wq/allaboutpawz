@@ -67,14 +67,19 @@ export async function loadPdpData(slug: string): Promise<PdpData | null> {
 }
 
 async function loadPdpDataUncached(slug: string): Promise<PdpData | null> {
-  // 1 — live feed catalog (cached; the fast path).
+  // 1 — ENTERPRISE catalog (normalized tables — source of truth). Cached.
+  const legacy = await getCatalogProductBySlug(slug)
+  if (legacy) return mapLegacyToPdp(legacy, slug)
+
+  // 2 — live feed catalog fallback (flat tables; retained until the flat
+  // drop, then this path simply returns null).
   const feed = await getTaxPdpData(slug)
   if (feed) return feed
 
-  // 2 — legacy normalized enterprise catalog → same contract.
-  const legacy = await getCatalogProductBySlug(slug)
-  if (!legacy) return null
+  return null
+}
 
+async function mapLegacyToPdp(legacy: NonNullable<Awaited<ReturnType<typeof getCatalogProductBySlug>>>, slug: string): Promise<PdpData> {
   const [allReviews] = await Promise.all([repo.list("product_reviews")])
   const reviews: PdpReview[] = (allReviews as Record<string, unknown>[])
     .filter((r) => r.productId === legacy.id && r.visible)
@@ -110,9 +115,12 @@ async function loadPdpDataUncached(slug: string): Promise<PdpData | null> {
     priceCents: legacy.priceCents ?? null,
     compareAtPriceCents: legacy.compareAtPriceCents ?? null,
     isOnSale: legacy.isOnSale,
-    isNew: legacy.badge === "NEW",
-    isBestseller: legacy.badge === "BEST SELLER",
-    inStock: (legacy.stock ?? 0) > 0,
+    isNew: legacy.isNew || legacy.badge === "NEW",
+    isBestseller: legacy.isBestseller || legacy.badge === "BEST SELLER",
+    // Dropship model: no inventory tracking until opening stock lands, so
+    // items are purchasable by default (mirrors the grid's variant-attribute
+    // default in_stock = true).
+    inStock: true,
     stockQuantity: legacy.stock ?? null,
     ratingAvg: avg != null ? Math.round(avg * 10) / 10 : null,
     ratingCount: reviews.length,

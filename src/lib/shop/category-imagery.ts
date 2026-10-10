@@ -76,41 +76,39 @@ export async function getNodeImageCandidates(nodeId: string, limit = 5): Promise
     is_salon_favorite: boolean
     created_at: string
   }>(
+    // ENTERPRISE SOURCE — candidates from commerce_catalog_items (scoped via
+    // metadata.taxonomy_node_ids jsonb ?|), media from commerce_product_media.
     `WITH RECURSIVE sub AS (
-       SELECT id, depth FROM taxonomy_nodes WHERE id = $1::uuid
+       SELECT id FROM taxonomy_nodes WHERE id = $1::uuid
        UNION ALL
-       SELECT tn.id, tn.depth FROM taxonomy_nodes tn JOIN sub ON tn.parent_id = sub.id
+       SELECT tn.id FROM taxonomy_nodes tn JOIN sub ON tn.parent_id = sub.id
      ),
      attached AS (
-       SELECT DISTINCT p.id, p.name, p.created_at, p.is_salon_favorite
-       FROM products p
-       WHERE p.status = 'published'
-         AND (p.category_id IN (SELECT id FROM sub)
-              OR EXISTS (SELECT 1 FROM product_nodes pn
-                         WHERE pn.product_id = p.id AND pn.node_id IN (SELECT id FROM sub)))
+       SELECT DISTINCT ci.id, ci.name, ci.created_at,
+              COALESCE((ep.metadata->>'is_salon_favorite')::bool,
+                       (ci.metadata->>'is_salon_favorite')::bool, false) AS is_salon_favorite
+       FROM commerce_catalog_items ci
+       JOIN erp_product_skus es ON es.id = ci.sku_id
+       JOIN erp_products ep ON ep.id = es.product_id
+       WHERE ci.tenant_id = $2::uuid
+         AND ci.active = true AND ci.sellable = true AND ci.ecommerce_enabled = true
+         AND COALESCE(ci.metadata->>'slug', '') <> ''
+         AND ci.metadata->'taxonomy_node_ids' ?| (SELECT ARRAY(SELECT id::text FROM sub))
      ),
      best_media AS (
-       SELECT DISTINCT ON (pm.product_id) pm.product_id, pm.url
-       FROM product_media pm
-       JOIN attached a ON a.id = pm.product_id
-       WHERE pm.media_type = 'image'
-       ORDER BY pm.product_id, pm.sort_order NULLS LAST
-     ),
-     review_agg AS (
-       SELECT pr."productId" AS pid, AVG(pr.rating) AS avg_rating, COUNT(*) AS cnt
-       FROM product_reviews pr
-       WHERE pr.visible = true
-       GROUP BY 1
+       SELECT DISTINCT ON (mm.catalog_item_id) mm.catalog_item_id, mm.url
+       FROM commerce_product_media mm
+       JOIN attached a ON a.id = mm.catalog_item_id
+       ORDER BY mm.catalog_item_id, mm.is_primary DESC, mm.sort_order NULLS LAST
      )
      SELECT a.id, a.name, bm.url,
-            r.avg_rating AS rating, r.cnt AS reviews,
+            NULL::text AS rating, 0::text AS reviews,
             a.is_salon_favorite, a.created_at
        FROM attached a
-       JOIN best_media bm ON bm.product_id = a.id
-       LEFT JOIN review_agg r ON r.pid = a.id::text
-      ORDER BY a.is_salon_favorite DESC, r.cnt DESC NULLS LAST, r.avg_rating DESC NULLS LAST, a.created_at DESC
+       JOIN best_media bm ON bm.catalog_item_id = a.id
+      ORDER BY a.is_salon_favorite DESC, a.created_at DESC
       LIMIT 200`,
-    [nodeId],
+    [nodeId, process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001"],
   )
 
   return rows

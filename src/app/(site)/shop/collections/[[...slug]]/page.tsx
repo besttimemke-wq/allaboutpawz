@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowRight, ChevronRight, PawPrint } from "lucide-react"
 import { PageHeader } from "@/components/site/site-chrome"
 import { COLLECTION_THEMES, collectionTheme } from "@/lib/shop/collection-themes"
+import { SalonFavoritesCollection } from "@/components/site/shop/salon-favorites-collection"
 import { SITE_URL } from "@/lib/site-url"
 
 type PageProps = { params: Promise<{ slug?: string[] }> }
@@ -13,7 +14,15 @@ function pathFrom(slug?: string[]) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const theme = collectionTheme(pathFrom((await params).slug))
+  const path = pathFrom((await params).slug)
+  if (path === "salon-favorites") {
+    return {
+      title: "AA Picks — Salon Favorites | All About Pawz",
+      description: "The products our groomers keep on the shelf and use on the table — hand-picked in Memphis.",
+      alternates: { canonical: `${SITE_URL}/shop/collections/salon-favorites` },
+    }
+  }
+  const theme = collectionTheme(path)
   if (!theme) return { title: "Collections | All About Pawz" }
   return {
     title: `${theme.title} | All About Pawz`,
@@ -24,6 +33,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CollectionsPage({ params }: PageProps) {
   const path = pathFrom((await params).slug)
+  // AA Picks · Salon Favorites — the owner-curated trust collection lives on
+  // this route (the optional catch-all shadows /shop/[...slug] here).
+  if (path === "salon-favorites") {
+    return (
+      <>
+        <PageHeader n="06" label="SHOP / AA PICKS — SALON FAVORITES" />
+        <SalonFavoritesCollection />
+      </>
+    )
+  }
   if (path && !collectionTheme(path)) notFound()
   const theme = path ? collectionTheme(path) : null
 

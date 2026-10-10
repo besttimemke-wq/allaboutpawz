@@ -20,6 +20,10 @@
 import { pgQuery } from "@/lib/pg"
 import { cached, invalidate } from "@/lib/cache"
 import { SHOP_NAV_TAXONOMY } from "@/lib/shop-nav"
+import {
+  queryEnterpriseTaxProducts,
+  queryEnterpriseFacetRows,
+} from "@/lib/enterprise/catalog"
 
 // FACET/Grid TTLs — these reads hit the REMOTE Supabase over the pooler, so
 // every uncached view costs a network round trip. Facet definitions and
@@ -1022,40 +1026,37 @@ export async function queryTaxProducts(opts: {
 
   // Grid cache — identical (scope, sort, page, filter) requests within the
   // TTL reuse the same result. Key includes every filter dimension.
-  const cacheKey = `tax:grid:${[...opts.nodeIds].sort().join(",")}|${sort}|${page}|${perPage}|${JSON.stringify(opts.filters ?? {})}`
+  const cacheKey = `ent:grid:${[...opts.nodeIds].sort().join(",")}|${sort}|${page}|${perPage}|${JSON.stringify(opts.filters ?? {})}`
+  // ENTERPRISE SOURCE — the grid reads commerce_catalog_items ⋈ erp_product_skus
+  // ⋈ erp_products (+ commerce_prices / commerce_product_media / variant
+  // attributes), scoped via metadata.taxonomy_node_ids jsonb ?| (the migration
+  // replaced the product_nodes join). Paged SQL — never loads the full catalog.
+  const { facets: _dropped, ...entFilters } = opts.filters ?? {}
   return cached(cacheKey, GRID_TTL_MS, async () => {
-    // SEPARATE param arrays — buildWhere appends its filter params to the
-    // array it receives. A shared array made the second (count) query bind
-    // duplicated params ("supplies 7 parameters, but requires 4") and every
-    // facet-filtered grid silently render empty.
-    const paramsRows: unknown[] = [opts.nodeIds]
-    const paramsCount: unknown[] = [opts.nodeIds]
-  const orderBy = SORT_SQL[sort]
-  const offset = (page - 1) * perPage
-
-    const [rows, countRows] = await Promise.all([
-      pgQuery<Record<string, unknown>>(
-        PLP_ROWS_SQL +
-        ` SELECT id, slug, name, brand, short_description,
-               is_sale, is_new, is_best_seller, created_at,
-               price, compare_at, in_stock, image, review_n, review_avg
-          FROM ranked
-         WHERE rn = 1` +
-        buildWhere(opts.filters ?? {}, paramsRows, WHERE_COLS_RANKED) +
-        ` ORDER BY ${orderBy} LIMIT ${perPage} OFFSET ${offset}`,
-        paramsRows,
-      ),
-      pgQuery<{ n: number }>(SCOPE_COUNT_SQL + buildWhere(opts.filters ?? {}, paramsCount), paramsCount),
-    ])
-
-    const total = Number(countRows[0]?.n) || 0
-    const pages = Math.max(1, Math.ceil(total / perPage))
-    return {
-      items: rows.map(mapProduct),
-      total,
-      page: Math.min(page, pages),
-      pages,
-    }
+    const res = await queryEnterpriseTaxProducts({
+      nodeIds: opts.nodeIds,
+      sort,
+      page,
+      perPage,
+      filters: entFilters,
+    })
+    const items: TaxProduct[] = res.items.map((it) => ({
+      id: it.id,
+      name: it.name,
+      slug: it.slug,
+      brand: it.brand,
+      image: it.image,
+      shortDescription: it.shortDescription,
+      priceCents: it.priceCents,
+      compareAtPriceCents: it.compareAtPriceCents,
+      isOnSale: it.isOnSale,
+      isNew: it.isNew,
+      isBestseller: it.isBestseller || it.isSalonFavorite,
+      inStock: it.inStock,
+      ratingAvg: null,
+      ratingCount: 0,
+    }))
+    return { items, total: res.total, page: Math.min(res.page, res.pages), pages: res.pages }
   })
 }
 
@@ -1071,17 +1072,17 @@ export type TaxFacets = {
 
 export async function getTaxFacets(nodeIds: string[]): Promise<TaxFacets> {
   // Facet counts scope to the FULL node set — cache keyed on the sorted ids.
-  const key = `tax:facets:${[...nodeIds].sort().join(",")}`
+  // ENTERPRISE SOURCE — same scoped set as the grid, from the normalized tables.
+  const key = `ent:facets:${[...nodeIds].sort().join(",")}`
   return cached(key, FACET_TTL_MS, async () => {
-  const rows = await pgQuery<{
-    brand: string | null; price: number | null; in_stock: boolean | null;
-    review_n: number; review_avg: number | null;
-  }>(
-    PLP_ROWS_SQL + `
-     SELECT brand, price, in_stock, review_n, review_avg FROM ranked WHERE rn = 1`,
-    [nodeIds],
-  )
-  const products = rows.map(mapProduct)
+  const facetRows = await queryEnterpriseFacetRows(nodeIds)
+  const products = facetRows.map((r) => ({
+    brand: r.brand,
+    priceCents: r.priceCents,
+    inStock: r.inStock,
+    ratingAvg: null as number | null,
+    ratingCount: 0,
+  }))
   const priced = products.filter((p) => p.priceCents != null)
 
   const brandCounts = new Map<string, number>()

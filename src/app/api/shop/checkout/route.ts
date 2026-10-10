@@ -110,20 +110,55 @@ export async function POST(req: NextRequest) {
       String(it.productId || it.id || ""),
     )
     const feedIds = [...new Set(itemIds.filter((id: string) => isUuid.test(id)))]
-    const feedRows = feedIds.length
+
+    // ENTERPRISE price verification — the normalized catalog is the source of
+    // truth. Bag ids hit BOTH bridges:
+    //   - ep.id = the original feed products.id (migration preserved ids), so
+    //     erp_products.id = ANY(ids) resolves every feed item.
+    //   - ci.id = the storefront PK for hand-curated items.
+    // Price = commerce_prices on the active RETAIL list, falling back to
+    // erp_product_skus.unit_price; image = primary commerce_product_media.
+    const entRows = feedIds.length
       ? await pgQuery<Record<string, unknown>>(
-          `SELECT p.id::text AS id, COALESCE(p.title, p.name) AS name,
-                  (SELECT mm.url FROM product_media mm
-                    WHERE mm.product_id = p.id AND mm.media_type = 'image'
-                    ORDER BY mm.sort_order ASC LIMIT 1) AS image,
-                  (SELECT MIN(v.price) FROM product_variants v
-                    WHERE v.product_id = p.id AND v.status = 'active' AND v.price IS NOT NULL) AS price
-             FROM products p
-            WHERE p.id = ANY($1::uuid[]) AND p.status = 'published'`,
+          `SELECT ep.id::text AS id, ci.name AS name,
+                  (SELECT mm.url FROM commerce_product_media mm
+                    WHERE mm.catalog_item_id = ci.id
+                    ORDER BY mm.is_primary DESC, mm.sort_order ASC NULLS LAST
+                    LIMIT 1) AS image,
+                  COALESCE(cp.price, es.unit_price) AS price
+             FROM erp_products ep
+             JOIN erp_product_skus es ON es.product_id = ep.id AND es.is_active = true
+             JOIN commerce_catalog_items ci ON ci.sku_id = es.id
+               AND ci.active = true AND ci.ecommerce_enabled = true AND ci.sellable = true
+             LEFT JOIN commerce_prices cp ON cp.catalog_item_id = ci.id
+               AND cp.price_list_id = (SELECT id FROM commerce_price_lists WHERE tenant_id = ci.tenant_id AND code = 'RETAIL' AND active LIMIT 1)
+               AND (cp.valid_to IS NULL OR cp.valid_to >= now())
+            WHERE ep.id = ANY($1::uuid[]) AND ep.is_active = true
+            ORDER BY ep.id, COALESCE(cp.price, es.unit_price) ASC`,
           [feedIds],
         )
       : []
-    const feedById = new Map(feedRows.map((r) => [String(r.id), r]))
+    const entRows2 = feedIds.length
+      ? await pgQuery<Record<string, unknown>>(
+          `SELECT ci.id::text AS id, ci.name AS name,
+                  (SELECT mm.url FROM commerce_product_media mm
+                    WHERE mm.catalog_item_id = ci.id
+                    ORDER BY mm.is_primary DESC, mm.sort_order ASC NULLS LAST
+                    LIMIT 1) AS image,
+                  COALESCE(cp.price, es.unit_price) AS price
+             FROM commerce_catalog_items ci
+             JOIN erp_product_skus es ON es.id = ci.sku_id AND es.is_active = true
+             LEFT JOIN commerce_prices cp ON cp.catalog_item_id = ci.id
+               AND cp.price_list_id = (SELECT id FROM commerce_price_lists WHERE tenant_id = ci.tenant_id AND code = 'RETAIL' AND active LIMIT 1)
+               AND (cp.valid_to IS NULL OR cp.valid_to >= now())
+            WHERE ci.id = ANY($1::uuid[]) AND ci.active = true AND ci.ecommerce_enabled = true AND ci.sellable = true`,
+          [feedIds],
+        )
+      : []
+    const feedById = new Map<string, Record<string, unknown>>()
+    // Rows arrive cheapest-first per product — keep the FIRST (canonical) row.
+    for (const r of entRows) if (!feedById.has(String(r.id))) feedById.set(String(r.id), r)
+    for (const r of entRows2) if (!feedById.has(String(r.id))) feedById.set(String(r.id), r)
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
     const orderItems: { productId: string; name: string; quantity: number; unitPrice: string }[] = []

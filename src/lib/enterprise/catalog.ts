@@ -164,6 +164,232 @@ export async function getCatalogProductById(id: string): Promise<CatalogProduct 
   })) ?? null
 }
 
+// ============================================================================
+// READ — taxonomy-scoped grid query (PLP) — paged, no full-catalog loads.
+//
+// Replaces the flat products/product_nodes join: the live-taxonomy mapping
+// lives on commerce_catalog_items.metadata.taxonomy_node_ids (uuid array),
+// probed with the jsonb ?| operator (GIN-indexed). Scope = the passed node
+// ids UNION all their descendants (recursive CTE). One card per slug
+// (variant-group dedup — the canonical card is the cheapest active listing).
+// ============================================================================
+
+export type EntGridFilters = {
+  minPrice?: number
+  maxPrice?: number
+  priceBucket?: string | null
+  rating?: number | null
+  availability?: string[]
+  q?: string | null
+  brands?: string[]
+}
+
+export type EntGridItem = {
+  id: string
+  slug: string
+  name: string
+  brand: string | null
+  image: string | null
+  shortDescription: string | null
+  priceCents: number
+  compareAtPriceCents: number | null
+  isOnSale: boolean
+  isNew: boolean
+  isBestseller: boolean
+  isSalonFavorite: boolean
+  inStock: boolean
+  createdAt: string | null
+}
+
+export type EntGridResult = {
+  items: EntGridItem[]
+  total: number
+  page: number
+  pages: number
+}
+
+const GRID_ITEM_SQL = `
+  WITH RECURSIVE scope AS (
+    SELECT id FROM taxonomy_nodes WHERE id = ANY($1::uuid[])
+    UNION
+    SELECT tn.id FROM taxonomy_nodes tn JOIN scope s ON tn.parent_id = s.id
+  ),
+  items AS (
+    SELECT
+      ci.id,
+      ci.metadata->>'slug' AS slug,
+      ci.name,
+      ci.brand,
+      ci.short_description,
+      ci.created_at,
+      COALESCE(cp.price, es.unit_price) AS price,
+      cp.compare_at_price AS compare_at,
+      COALESCE((ev.attributes->>'in_stock')::bool, true) AS in_stock,
+      COALESCE((ep.metadata->>'is_new')::bool, (ci.metadata->>'is_new')::bool, false) AS is_new,
+      COALESCE((ep.metadata->>'is_best_seller')::bool, (ci.metadata->>'is_best_seller')::bool, false) AS is_best_seller,
+      COALESCE((ep.metadata->>'is_salon_favorite')::bool, (ci.metadata->>'is_salon_favorite')::bool, false) AS is_salon_favorite,
+      (SELECT m.url FROM commerce_product_media m
+        WHERE m.catalog_item_id = ci.id
+        ORDER BY m.is_primary DESC, m.sort_order ASC NULLS LAST
+        LIMIT 1) AS image,
+      ROW_NUMBER() OVER (
+        PARTITION BY ci.metadata->>'slug'
+        ORDER BY COALESCE(cp.price, es.unit_price) ASC NULLS LAST, ci.created_at DESC
+      ) AS slug_rn
+    FROM commerce_catalog_items ci
+    JOIN erp_product_skus es ON es.id = ci.sku_id
+    JOIN erp_products ep ON ep.id = es.product_id
+    LEFT JOIN erp_product_variants ev ON ev.id = es.variant_id
+    LEFT JOIN commerce_prices cp ON cp.catalog_item_id = ci.id
+      AND cp.price_list_id = (SELECT id FROM commerce_price_lists WHERE tenant_id = ci.tenant_id AND code = 'RETAIL' AND active LIMIT 1)
+      AND (cp.valid_to IS NULL OR cp.valid_to >= now())
+    WHERE ci.tenant_id = $2::uuid
+      AND ci.active = true
+      AND ci.sellable = true
+      AND ci.ecommerce_enabled = true
+      AND COALESCE(ci.metadata->>'slug', '') <> ''
+      AND COALESCE(cp.price, es.unit_price) > 0
+      AND ci.metadata->'taxonomy_node_ids' ?| (SELECT ARRAY(SELECT id::text FROM scope))
+  ),
+  ranked AS (
+    SELECT * FROM items WHERE slug_rn = 1
+  )
+`
+
+const GRID_SORT: Record<string, string> = {
+  "best-selling": `is_best_seller DESC, created_at DESC NULLS LAST, price ASC`,
+  newest: `created_at DESC NULLS LAST`,
+  "price-asc": `price ASC`,
+  "price-desc": `price DESC`,
+  "top-rated": `is_best_seller DESC, created_at DESC NULLS LAST`,
+}
+
+function gridFilterWhere(filters: EntGridFilters, params: unknown[], startIdx: number): string {
+  const clauses: string[] = []
+  const cents = (v: unknown) => {
+    const n = Number(v)
+    return Number.isFinite(n) ? Math.round(n * 100) : null
+  }
+  if (filters.priceBucket) {
+    const map: Record<string, [number | null, number | null]> = {
+      "under-10": [null, 999],
+      "10-25": [1000, 2499],
+      "25-50": [2500, 5000],
+      "50-100": [5001, 10000],
+      "over-100": [10001, null],
+    }
+    const b = map[filters.priceBucket]
+    if (b) {
+      if (b[0] != null) clauses.push(`price >= $${params.push(b[0]) + startIdx}`)
+      if (b[1] != null) clauses.push(`price < $${params.push(b[1]) + startIdx}`)
+    }
+  }
+  if (filters.minPrice != null) {
+    const c = cents(filters.minPrice)
+    if (c != null) clauses.push(`price >= $${params.push(c) + startIdx}`)
+  }
+  if (filters.maxPrice != null) {
+    const c = cents(filters.maxPrice)
+    if (c != null) clauses.push(`price <= $${params.push(c) + startIdx}`)
+  }
+  if (filters.availability && filters.availability.length > 0 && filters.availability.length < 2) {
+    clauses.push(filters.availability[0] === "in-stock" ? `in_stock = true` : `in_stock = false`)
+  }
+  if (filters.q && filters.q.trim().length >= 2) {
+    const tokens = filters.q.trim().toLowerCase().split(/\s+/).slice(0, 6)
+    for (const t of tokens) {
+      clauses.push(`(LOWER(COALESCE(name, '')) LIKE $${params.push("%" + t + "%") + startIdx} OR LOWER(COALESCE(brand, '')) LIKE $${params.push("%" + t + "%") + startIdx})`)
+    }
+  }
+  if (filters.brands && filters.brands.length > 0) {
+    const list = filters.brands.map((b) => b.toLowerCase())
+    clauses.push(`LOWER(COALESCE(brand, '')) = ANY($${params.push(list) + startIdx}::text[])`)
+  }
+  return clauses.length > 0 ? ` AND ${clauses.join(" AND ")}` : ""
+}
+
+export async function queryEnterpriseTaxProducts(opts: {
+  nodeIds: string[]
+  sort?: string
+  page?: number
+  perPage?: number
+  filters?: EntGridFilters
+}): Promise<EntGridResult> {
+  const perPage = Math.max(1, Math.min(48, opts.perPage ?? 48))
+  const page = Math.max(1, opts.page ?? 1)
+  const sort = GRID_SORT[opts.sort || "best-selling"] ? (opts.sort || "best-selling") : "best-selling"
+  const orderBy = GRID_SORT[sort]
+  const offset = (page - 1) * perPage
+  const tenant = DEFAULT_TENANT()
+  const filters = opts.filters ?? {}
+
+  return (await withPg(async (client) => {
+    const paramsRows: unknown[] = []
+    const where = gridFilterWhere(filters, paramsRows, 2)
+    const rowsParams = [opts.nodeIds, tenant, ...paramsRows]
+    const { rows } = await client.query(
+      GRID_ITEM_SQL +
+      ` SELECT id, slug, name, brand, short_description, created_at, price, compare_at, image, in_stock, is_new, is_best_seller, is_salon_favorite
+        FROM ranked
+        WHERE price IS NOT NULL${where}
+        ORDER BY ${orderBy}
+        LIMIT ${perPage} OFFSET ${offset}`,
+      rowsParams,
+    )
+
+    const { rows: countRows } = await client.query(
+      GRID_ITEM_SQL +
+      ` SELECT COUNT(*)::int AS n FROM ranked WHERE price IS NOT NULL${where}`,
+      rowsParams,
+    )
+
+    const total = Number(countRows[0]?.n) || 0
+    const items: EntGridItem[] = rows.map((r: any) => {
+      const priceCents = Math.round(Number(r.price) * 100)
+      const compareCents = r.compare_at != null ? Math.round(Number(r.compare_at) * 100) : null
+      return {
+        id: String(r.id),
+        slug: String(r.slug),
+        name: String(r.name || ""),
+        brand: r.brand || null,
+        image: r.image || null,
+        shortDescription: r.short_description || null,
+        priceCents,
+        compareAtPriceCents: compareCents,
+        isOnSale: compareCents != null && compareCents > priceCents,
+        isNew: r.is_new === true,
+        isBestseller: r.is_best_seller === true,
+        isSalonFavorite: r.is_salon_favorite === true,
+        inStock: r.in_stock !== false,
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
+      }
+    })
+    return { items, total, page, pages: Math.max(1, Math.ceil(total / perPage)) }
+  })) ?? { items: [], total: 0, page, pages: 1 }
+}
+
+/** Facet source rows for the scoped set (brand / price / stock) — no pagination. */
+export async function queryEnterpriseFacetRows(nodeIds: string[]): Promise<
+  { brand: string | null; priceCents: number; inStock: boolean }[]
+> {
+  const tenant = DEFAULT_TENANT()
+  return (await withPg(async (client) => {
+    const { rows } = await client.query(
+      GRID_ITEM_SQL +
+      ` SELECT brand, price, in_stock
+        FROM ranked
+        WHERE price IS NOT NULL
+        LIMIT 20000`,
+      [nodeIds, tenant],
+    )
+    return rows.map((r: any) => ({
+      brand: r.brand || null,
+      priceCents: Math.round(Number(r.price) * 100),
+      inStock: r.in_stock !== false,
+    }))
+  })) ?? []
+}
+
 // ---- row → CatalogProduct (the normalizer) ----
 function rowToCatalogProduct(r: any): CatalogProduct {
   const ciMeta = typeof r.ci_metadata === "string" ? safeJson(r.ci_metadata) : (r.ci_metadata || {})

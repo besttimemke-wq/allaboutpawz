@@ -80,12 +80,16 @@ async function handle(req: NextRequest) {
     if (enqueueMissing > 0) {
       const ins = await pgQuery<{ product_id: string }>(
         `INSERT INTO product_page_queue (product_id, slug, status)
-         SELECT p.id, p.slug, 'pending'
-           FROM products p
-          WHERE p.status = 'published'
-            AND NOT EXISTS (SELECT 1 FROM product_page_queue q WHERE q.product_id = p.id)
+         SELECT ep.id, ci.metadata->>'slug', 'pending'
+           FROM commerce_catalog_items ci
+           JOIN erp_product_skus es ON es.id = ci.sku_id
+           JOIN erp_products ep ON ep.id = es.product_id
+          WHERE ci.tenant_id = $2::uuid
+            AND ci.active = true AND ci.ecommerce_enabled = true
+            AND COALESCE(ci.metadata->>'slug','') <> ''
+            AND NOT EXISTS (SELECT 1 FROM product_page_queue q WHERE q.product_id = ep.id)
           LIMIT $1`,
-        [enqueueMissing],
+        [enqueueMissing, process.env.SUPABASE_TENANT_ID || "00000000-0000-0000-0000-000000000001"],
       )
       enqueued = ins.length
     }
@@ -113,9 +117,16 @@ async function handle(req: NextRequest) {
     for (const row of claimed) {
       const slug = row.slug || ""
       try {
-        // The product must still exist and be published.
+        // The product must still exist and be active in the enterprise catalog.
         const prod = await pgQuery<{ slug: string }>(
-          `SELECT slug FROM products WHERE id = $1::uuid AND status = 'published'`,
+          `SELECT ci.metadata->>'slug' AS slug
+             FROM erp_products ep
+             JOIN erp_product_skus es ON es.product_id = ep.id AND es.is_active = true
+             JOIN commerce_catalog_items ci ON ci.sku_id = es.id
+              AND ci.active = true AND ci.ecommerce_enabled = true
+            WHERE ep.id = $1::uuid AND ep.is_active = true
+              AND COALESCE(ci.metadata->>'slug','') <> ''
+            LIMIT 1`,
           [row.product_id],
         )
         if (!prod.length) {
