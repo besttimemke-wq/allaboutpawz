@@ -32,6 +32,23 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // --- Shop: filtered/sorted/paged category URLs render dynamically; the bare
+  // category URL stays a CDN-cached ISR page. ---
+  const first = pathname.split("/")[2]
+  const hasFilterParams = [...request.nextUrl.searchParams.keys()].some(
+    (k) => !/^(utm_|gclid|fbclid|msclkid)/.test(k),
+  )
+  if (
+    hasFilterParams &&
+    pathname.startsWith("/shop/") &&
+    first &&
+    !["bag", "category", "collections", "cart"].includes(first)
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = `/shop-filtered${pathname.slice("/shop".length)}`
+    return NextResponse.rewrite(url)
+  }
+
   // --- Multi-tenant role isolation for /portal/* routes ---
   const matchedPrefix = Object.keys(ROLE_ROUTES).find(prefix => pathname.startsWith(prefix))
 
