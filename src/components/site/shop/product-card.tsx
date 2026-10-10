@@ -2,11 +2,10 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { Star, ShoppingBag, PawPrint } from "lucide-react"
+import { Star, ShoppingBag } from "lucide-react"
 import { useCart } from "@/lib/wizard/cart-store"
-import { cleanText } from "@/lib/shop/clean-text"
 
-const NAVY = "#002B5C"
+const NAVY = "#1c1917"
 
 // ---------------------------------------------------------------------------
 // ProductCard — the ONE global card component per enterprise-page-spec.md §6.
@@ -21,20 +20,15 @@ const NAVY = "#002B5C"
 //   7. ADD TO CART (full-width, always visible)
 // ---------------------------------------------------------------------------
 
-export type ProductCardData = {
+type ProductData = {
   id: string
   name: string
   slug: string
   price: string
   image: string | null
-  /** Category-page image used when the feed product has no photo. */
-  fallbackImage?: string | null
   alt?: string | null
   badge?: string | null
   category?: string | null
-  /** Clean plain-text blurb (products.short_description) — decoded for
-   *  display via cleanText(); never HTML. */
-  shortDescription?: string | null
   isOnSale?: boolean
   isNew?: boolean
   isBestseller?: boolean
@@ -44,15 +38,10 @@ export type ProductCardData = {
   rating?: { avg: number; count: number }
 }
 
-export function ProductCard({ product, priority = false }: { product: ProductCardData; priority?: boolean }) {
+export function ProductCard({ product, priority = false }: { product: ProductData; priority?: boolean }) {
   const href = `/products/${product.slug}`
   const add = useCart((s) => s.add)
   const [added, setAdded] = useState(false)
-  // Broken image URLs (feed catalog items with dead hosts) fall back to the
-  // paw placeholder instead of a grey box.
-  const [imgOk, setImgOk] = useState(true)
-  const imageSrc = product.image || product.fallbackImage || null
-  const showImage = imageSrc != null && imgOk
 
   // Badge priority per spec: SALE → NEW → BEST SELLER (one max)
   const badge = product.isOnSale ? "SALE"
@@ -77,7 +66,7 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
       productId: product.id,
       name: product.name,
       price: product.price,
-      image: imageSrc,
+      image: product.image,
       alt: product.alt,
       badge: product.badge,
       category: product.category,
@@ -87,28 +76,27 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
   }
 
   return (
-    <article className="group flex flex-col rounded-lg border border-neutral-200 bg-white overflow-hidden transition-all hover:border-[#F2C500] hover:shadow-md">
+    <article className="group flex flex-col overflow-hidden border border-stone-200 bg-white transition-colors hover:border-orange-600">
       {/* 1. Image — 1:1 crop */}
-      <div className="relative aspect-square overflow-hidden bg-neutral-50">
+      <div className="relative aspect-square overflow-hidden bg-stone-100">
         {badge && (
-          <span className="absolute left-0 top-0 z-10 bg-[#002B5C] px-3 py-1.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase">
+          <span className="absolute left-0 top-0 z-10 bg-stone-950 px-3 py-1.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase">
             {badge}
           </span>
         )}
         <Link href={href} aria-label={`View ${product.name}`} className="block h-full w-full">
-          {showImage ? (
+          {product.image ? (
             <img
-              src={imageSrc as string}
+              src={product.image}
               alt={product.alt || product.name}
               width={512}
               height={512}
               loading={priority ? "eager" : "lazy"}
-              onError={() => setImgOk(false)}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
-            <div className="flex h-full items-center justify-center" aria-hidden="true">
-              <PawPrint className="h-10 w-10 text-neutral-300" strokeWidth={1.2} />
+            <div className="flex h-full items-center justify-center">
+              <span className="text-[14px] text-neutral-400">No image</span>
             </div>
           )}
         </Link>
@@ -120,7 +108,7 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
         {product.category && (
           <Link
             href={`/shop?category=${encodeURIComponent(product.category)}`}
-            className="text-[12px] font-bold tracking-[0.12em] text-neutral-500 uppercase underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline"
+            className="text-[10px] font-bold tracking-[0.16em] text-stone-500 uppercase underline-offset-4 decoration-orange-600 decoration-2 hover:underline"
           >
             {product.category}
           </Link>
@@ -129,19 +117,10 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
         {/* 4. Product name — 2-line clamp */}
         <Link
           href={href}
-          className="mt-1.5 text-[16px] leading-[1.35] font-semibold text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline line-clamp-2"
+          className="mt-2 text-[16px] leading-[1.35] font-semibold text-stone-950 underline-offset-4 decoration-orange-600 decoration-2 hover:underline line-clamp-2"
         >
           {product.name}
         </Link>
-
-        {/* 4b. Short description — the trigger-written clean blurb. 2-line
-            clamp so long copy can never change the card's dimensions; the
-            grid stays uniform (every card same height at every breakpoint). */}
-        {product.shortDescription && (
-          <p className="mt-1.5 line-clamp-2 text-[13px] leading-[1.5] text-neutral-600">
-            {cleanText(product.shortDescription)}
-          </p>
-        )}
 
         {/* 5. Stars + count — empty state: unfilled stars */}
         <div className="mt-2 flex items-center gap-1.5">
@@ -151,36 +130,34 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
                 key={i}
                 className={`h-[15px] w-[15px] ${
                   product.rating && product.rating.count > 0 && i < Math.round(product.rating.avg)
-                    ? "fill-[#002B5C] text-[#002B5C]"
-                    : "fill-none text-neutral-300"
+                    ? "fill-orange-600 text-orange-600"
+                    : "fill-none text-stone-300"
                 }`}
                 strokeWidth={1.5}
               />
             ))}
           </span>
-          <span className="text-[13px] text-neutral-600">
+          <span className="text-[13px] text-stone-600">
             ({product.rating?.count || 0})
           </span>
         </div>
 
         {/* 6. Price row */}
-        <div className="mb-3 mt-2 flex items-center gap-2">
-          <span className="text-[19px] font-bold text-neutral-900">{product.price}</span>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-[19px] font-bold text-stone-950">{product.price}</span>
           {strikePrice && (
             <span className="text-[14px] text-neutral-500 line-through">{strikePrice}</span>
           )}
           {discountPct && discountPct > 0 && (
-            <span className="text-[13px] font-bold text-[#002B5C]">-{discountPct}%</span>
+            <span className="text-[13px] font-bold text-orange-800">-{discountPct}%</span>
           )}
         </div>
 
-        {/* 7. ADD TO CART — full-width, always visible. mt-auto pins it to
-            the card bottom so every card in a grid row is the same height
-            (the description block varies; the button never moves). */}
+        {/* 7. ADD TO CART — full-width, always visible */}
         <button
           onClick={handleAddToCart}
           disabled={added}
-          className="mt-auto flex w-full items-center justify-center gap-2 rounded-md py-3 text-[14px] font-bold tracking-[0.06em] uppercase transition-colors"
+          className="mt-4 flex w-full items-center justify-center gap-2 border border-stone-950 py-3 text-[12px] font-bold tracking-[0.1em] uppercase transition-colors hover:bg-orange-800"
           style={{
             backgroundColor: added ? "#16a34a" : NAVY,
             color: "#fff",

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useSyncExternalStore, useRef, type ReactNode } from "react"
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -17,7 +17,6 @@ import { useCart } from "@/lib/wizard/cart-store"
 import { BUSINESS } from "@/lib/business"
 import { SiteFooter } from "@/components/site/footer"
 import { ShopFlyout } from "@/components/site/shop-flyout"
-import { FaqFlyout } from "@/components/site/faq-flyout"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet"
@@ -129,7 +128,7 @@ const ACCOUNT_NAV: { category?: string; items: { label: string; icon: React.Elem
       { label: "Order History", icon: Receipt, href: "/customer/orders" },
       { label: "Buy Again", icon: RotateCcw, href: "/customer/orders/buy-again" },
       { label: "Wish List", icon: Heart, href: "/customer/orders/wish-list" },
-      { label: "Reship", icon: Repeat, href: "/customer/orders/reship" },
+      { label: "Autoship", icon: Repeat, href: "/customer/orders/autoship" },
       { label: "Subscriptions", icon: CalendarClock, href: "/customer/orders/subscriptions" },
       { label: "Perks Dashboard", icon: Gift, href: "/customer/orders/perks" },
     ],
@@ -356,43 +355,11 @@ function HeaderAccountLink({ variant = "label" }: { variant?: "label" | "icon" }
 export function SiteChrome({ children, settings: initialSettings }: { children: ReactNode; settings?: Record<string, string> }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const [shopHovered, setShopHovered] = useState(false)
-  const [faqHovered, setFaqHovered] = useState(false)
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const faqCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [shopOpen, setShopOpen] = useState(false)
 
-  const openShopFlyout = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-    // One flyout at a time — entering SHOP retires the FAQ panel.
-    if (faqCloseTimer.current) clearTimeout(faqCloseTimer.current)
-    setFaqHovered(false)
-    setShopHovered(true)
-  }
-  const scheduleCloseShopFlyout = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-    closeTimer.current = setTimeout(() => setShopHovered(false), 300)
-  }
+  const toggleShopFlyout = () => setShopOpen((current) => !current)
   const closeShopFlyout = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-    setShopHovered(false)
-  }
-
-  // FAQ flyout — the SHOP methodology applied to item 10 (FAQ / POLICIES):
-  // hover the sidebar item, the panel takes over the screen, routes into the
-  // FAQ page and the Pet Education Center so neither lives in the footer only.
-  const openFaqFlyout = () => {
-    if (faqCloseTimer.current) clearTimeout(faqCloseTimer.current)
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-    setShopHovered(false)
-    setFaqHovered(true)
-  }
-  const scheduleCloseFaqFlyout = () => {
-    if (faqCloseTimer.current) clearTimeout(faqCloseTimer.current)
-    faqCloseTimer.current = setTimeout(() => setFaqHovered(false), 300)
-  }
-  const closeFaqFlyout = () => {
-    if (faqCloseTimer.current) clearTimeout(faqCloseTimer.current)
-    setFaqHovered(false)
+    setShopOpen(false)
   }
 
   // Nav promo popups — the Services / Pricing / Shop / Book nav clicks offer
@@ -420,7 +387,15 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
     <div className="min-h-screen bg-white">
       {/* Hamburger sidebar — slides in from left on ALL screen sizes. */}
 
-      <Sidebar settings={s} pathname={pathname} gate={gate} open={open} onClose={() => { setOpen(false); closeShopFlyout(); closeFaqFlyout(); }} onShopHover={openShopFlyout} onShopLeave={scheduleCloseShopFlyout} onFaqHover={openFaqFlyout} onFaqLeave={scheduleCloseFaqFlyout} />
+      <Sidebar
+        settings={s}
+        pathname={pathname}
+        gate={gate}
+        open={open}
+        onClose={() => { setOpen(false); closeShopFlyout(); }}
+        shopOpen={shopOpen}
+        onShopToggle={toggleShopFlyout}
+      />
       {/* ONE tan header bar. `relative` ensures the mobile search overlay
           (absolute inset-0) covers the entire header bar, not the viewport. */}
       <div className="sticky top-0 z-30 flex items-center gap-3 bg-cream px-4 py-3 lg:px-6 relative">
@@ -433,16 +408,10 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
           <HeaderBagLink variant="icon" />
         </div>
       </div>
-      {/* Shop mega-menu flyout — rendered at SiteChrome level (outside
-          sidebar's transform) so fixed positioning works correctly.
-          Grace period: 300ms between trigger-leave and panel-enter. */}
-      {open && shopHovered && (
-        <ShopFlyout onClose={closeShopFlyout} onEnter={openShopFlyout} onLeave={scheduleCloseShopFlyout} />
-      )}
-      {/* FAQ / Education flyout — same placement rules as the shop panel:
-          rendered outside the sidebar transform, 300ms hover grace. */}
-      {open && faqHovered && (
-        <FaqFlyout onClose={closeFaqFlyout} onEnter={openFaqFlyout} onLeave={scheduleCloseFaqFlyout} />
+      {/* Shop flyout — rendered outside the sidebar transform so its fixed
+          second-sidebar panel is independent of the trigger sidebar. */}
+      {open && shopOpen && (
+        <ShopFlyout onClose={closeShopFlyout} />
       )}
       <main>{children}</main>
       {dialog}
@@ -451,7 +420,7 @@ export function SiteChrome({ children, settings: initialSettings }: { children: 
   )
 }
 
-function Sidebar({ settings, pathname, gate, open, onClose, onShopHover, onShopLeave, onFaqHover, onFaqLeave }: { settings: Record<string, string>; pathname: string; gate: ReturnType<typeof useNavPromoGate>["gate"]; open: boolean; onClose: () => void; onShopHover: () => void; onShopLeave: () => void; onFaqHover: () => void; onFaqLeave: () => void }) {
+function Sidebar({ settings, pathname, gate, open, onClose, shopOpen, onShopToggle }: { settings: Record<string, string>; pathname: string; gate: ReturnType<typeof useNavPromoGate>["gate"]; open: boolean; onClose: () => void; shopOpen: boolean; onShopToggle: () => void }) {
   const s = settings
   const phone = s.phone || "901-722-1114"
   const email = s.email || "booking@aapawz.com"
@@ -477,19 +446,17 @@ function Sidebar({ settings, pathname, gate, open, onClose, onShopHover, onShopL
           {NAV.map((item) => {
             const active = pathname === item.to
             const isShop = item.label === "SHOP"
-            const isFaq = item.label === "FAQ / POLICIES"
             return (
               <li
                 key={item.to}
-                className={isShop || isFaq ? "relative" : ""}
-                onMouseEnter={isShop ? onShopHover : isFaq ? onFaqHover : undefined}
-                onMouseLeave={isShop ? onShopLeave : isFaq ? onFaqLeave : undefined}
+                className={isShop ? "relative" : ""}
               >
-                {isShop || isFaq ? (
+                {isShop ? (
                   <button
                     type="button"
-                    onMouseEnter={isShop ? onShopHover : onFaqHover}
-                    onMouseLeave={isShop ? onShopLeave : onFaqLeave}
+                    onClick={onShopToggle}
+                    aria-expanded={shopOpen}
+                    aria-haspopup="dialog"
                     className="group relative flex w-full cursor-pointer items-center gap-3"
                   >
                     <span className={`relative z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-colors ${active ? "border-gold-deep bg-gold-deep text-on-dark" : "border-gold/45 bg-cream text-black"}`}>
@@ -518,9 +485,6 @@ function Sidebar({ settings, pathname, gate, open, onClose, onShopHover, onShopL
                       {item.label}
                     </span>
                   </Link>
-                )}
-                {isShop && false && (
-                  <ShopFlyout onClose={onClose} />
                 )}
               </li>
             )
@@ -584,4 +548,3 @@ export function TopUtilityBar() {
 // Old inline SiteFooter removed — replaced by the data-driven
 // SiteFooter component in src/components/site/footer.tsx (7 columns +
 // NAP block + legal row, driven by src/lib/footer-nav.ts).
-

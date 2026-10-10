@@ -33,8 +33,7 @@ import { getNavTree, flattenNav, getProducts, getMerchCollections } from "@/lib/
 import { getResource } from "@/lib/site-data"
 import { pgQuery } from "@/lib/pg"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { resolveTaxPath } from "@/lib/shop/taxonomy-db"
-import { getAllGroomingSlugs, findGroomingGuide } from "@/lib/guides-data"
+import { getAllSlugs, getGuideDataBySlug } from "@/lib/pawsly-u/taxonomy-data"
 
 // GATE: Tier 1 (v_sitemap) is disabled until Wave 1 pages have real content.
 // Flip to true per-wave when pages pass §11a (products + unique copy).
@@ -108,6 +107,7 @@ const LEARN_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/learn/courses/veterinary-technician",             label: "Veterinary Technician",             pageType: "course", changeFrequency: "monthly", priority: 0.6 },
   { path: "/learn/courses/veterinary-technology",             label: "Veterinary Technology",              pageType: "course", changeFrequency: "monthly", priority: 0.6 },
   { path: "/learn/courses/zookeeper-assistant",               label: "Zookeeper Assistant",               pageType: "course", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/learn/courses/positive-dog-training",             label: "Positive Dog Training",              pageType: "course", changeFrequency: "monthly", priority: 0.6 },
 ]
 
 // Customer portal routes
@@ -117,7 +117,7 @@ const CUSTOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/customer/appointments/vet",              label: "Vet Appointments",             pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
   { path: "/customer/pets",                          label: "My Pets",                     pageType: "portal", changeFrequency: "weekly",  priority: 0.4 },
   { path: "/customer/orders",                        label: "My Orders",                    pageType: "portal", changeFrequency: "weekly",  priority: 0.4 },
-  { path: "/customer/orders/reship",               label: "Reship Orders",              pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
+  { path: "/customer/orders/autoship",               label: "Autoship Orders",              pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
   { path: "/customer/orders/buy-again",              label: "Buy Again",                   pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
   { path: "/customer/orders/perks",                  label: "Perks",                        pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
   { path: "/customer/orders/subscriptions",         label: "Subscriptions",                pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
@@ -142,8 +142,7 @@ const CUSTOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
 
 // Seller routes (per seller platform spec — /seller → /seller)
 const SELLER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
-  // NOTE: no /seller landing — the platform's entry point is /seller/onboarding
-  // (the bare /seller path has no route and 404s; verified by crawl).
+  { path: "/seller",                     label: "Seller Dashboard",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
   { path: "/seller/onboarding",          label: "Seller Onboarding",      pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
   { path: "/seller/products",            label: "Seller Products",         pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
   { path: "/seller/products/new",        label: "Add Product",            pageType: "portal", changeFrequency: "monthly", priority: 0.2 },
@@ -195,7 +194,7 @@ const COLLECTION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/shop/collections/new/new-for-cats",               label: "New for Cats",                   pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
   { path: "/shop/collections/new/new-for-dogs",               label: "New for Dogs",                    pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
   { path: "/shop/collections/new/new-for-pet-parents",        label: "New for Pet Parents",              pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
-  { path: "/shop/collections/salon-favorites",               label: "AA Picks — Salon Favorites",     pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
+  { path: "/shop/collections/all-about-pawz-picks",          label: "All About Pawz Picks",           pageType: "collection", changeFrequency: "weekly",  priority: 0.5 },
   { path: "/shop/collections/pride-for-pets",                 label: "Pride for Pets",                  pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
   { path: "/shop/collections/pride-for-pets/dog-pride",       label: "Dog Pride",                      pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
   { path: "/shop/collections/spring",                          label: "Spring",                          pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
@@ -243,10 +242,37 @@ const LOCATION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
 // resolveTaxonomyPage). These are the animal landings, departments,
 // and subcategories from the full cat/dog taxonomy tree.
 // ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-// Taxonomy routes are built INLINE inside buildSitemap() (see below) — every
-// candidate is validated through the live resolver before it is advertised.
-// ---------------------------------------------------------------------------
+const TAXONOMY_ROUTES: Omit<SitemapEntry, "lastModified">[] = []
+for (const animal of SHOP_NAV_TAXONOMY) {
+  // Animal landing: /shop/dog, /shop/cat
+  TAXONOMY_ROUTES.push({
+    path: `/shop/${animal.slug}`,
+    label: animal.name,
+    pageType: "animal",
+    changeFrequency: "weekly",
+    priority: 0.8,
+  })
+  for (const dept of animal.departments) {
+    // Department: /shop/dog/food, /shop/cat/beds-bedding
+    TAXONOMY_ROUTES.push({
+      path: departmentPath(animal.slug, dept.slug),
+      label: dept.name,
+      pageType: "department",
+      changeFrequency: "weekly",
+      priority: 0.7,
+    })
+    for (const sub of dept.subcategories) {
+      // Subcategory: /shop/cat/beds-bedding/bolster-cat-beds
+      TAXONOMY_ROUTES.push({
+        path: subcategoryPath(animal.slug, dept.slug, sub.slug),
+        label: sub.name,
+        pageType: "subcategory",
+        changeFrequency: "weekly",
+        priority: 0.6,
+      })
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Tier 1 — v_sitemap view query. Returns empty if the view doesn't exist
@@ -338,28 +364,6 @@ async function fallbackCatalogEntries(): Promise<SitemapEntry[]> {
   } catch {
     // Catalog unavailable — static routes still stand.
   }
-
-  // SITEMAP HONESTY — the legacy nav tree predates the live feed taxonomy;
-  // a chunk of its URLs no longer resolve (the production 404s). Validate
-  // every nav-derived entry through the LIVE resolver and keep only paths
-  // that render 200: resolvable, not marked notFound, and not a canonical
-  // redirect (redirecting URLs don't belong in a sitemap). Errors keep the
-  // entry (fail-open to the old behavior, never silently gut the sitemap).
-  const honest: SitemapEntry[] = []
-  for (const e of entries) {
-    if (!e.path.startsWith("/shop/")) {
-      honest.push(e)
-      continue
-    }
-    try {
-      const resolved = await resolveTaxPath(e.path.replace("/shop/", "").split("/").filter(Boolean))
-      if (resolved && !resolved.notFound && !resolved.canonicalPath) honest.push(e)
-    } catch {
-      honest.push(e)
-    }
-  }
-  entries.length = 0
-  entries.push(...honest)
 
   try {
     for (const m of await getMerchCollections()) {
@@ -483,54 +487,13 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
     lastModified: now,
   }))
   // Taxonomy entries — all animal landings, departments, and subcategories
-  // from SHOP_NAV_TAXONOMY. Validated through the LIVE resolver so the
-  // sitemap only advertises paths that render 200 (the static tree's slugs
-  // drift from the feed tree; redirecting/unresolvable paths are dropped —
-  // they remain reachable for users via the resolver's redirects, they just
-  // don't belong in the sitemap).
-  const taxonomyEntries: SitemapEntry[] = []
-  for (const animal of SHOP_NAV_TAXONOMY) {
-    const candidates: Omit<SitemapEntry, "lastModified">[] = [
-      // Animal landing: /shop/dog, /shop/cat
-      {
-        path: `/shop/${animal.slug}`,
-        label: animal.name,
-        pageType: "animal",
-        changeFrequency: "weekly",
-        priority: 0.8,
-      },
-    ]
-    for (const dept of animal.departments) {
-      // Department: /shop/dog/food, /shop/cat/beds-bedding
-      candidates.push({
-        path: departmentPath(animal.slug, dept.slug),
-        label: dept.name,
-        pageType: "department",
-        changeFrequency: "weekly",
-        priority: 0.7,
-      })
-      for (const sub of dept.subcategories) {
-        // Subcategory: /shop/cat/beds-bedding/bolster-cat-beds
-        candidates.push({
-          path: subcategoryPath(animal.slug, dept.slug, sub.slug),
-          label: sub.name,
-          pageType: "subcategory",
-          changeFrequency: "weekly",
-          priority: 0.6,
-        })
-      }
-    }
-    for (const c of candidates) {
-      try {
-        const resolved = await resolveTaxPath(c.path.replace("/shop/", "").split("/").filter(Boolean))
-        if (resolved && !resolved.notFound && !resolved.canonicalPath)
-          taxonomyEntries.push({ ...c, loc: `${BASE}${c.path}`, lastModified: now })
-      } catch {
-        // resolver unavailable — keep the entry (fail-open)
-        taxonomyEntries.push({ ...c, loc: `${BASE}${c.path}`, lastModified: now })
-      }
-    }
-  }
+  // from SHOP_NAV_TAXONOMY. All routes now return 200 (wired in the
+  // /shop/[...slug] catch-all via resolveTaxonomyPage).
+  const taxonomyEntries: SitemapEntry[] = TAXONOMY_ROUTES.map((r) => ({
+    ...r,
+    loc: `${BASE}${r.path}`,
+    lastModified: now,
+  }))
   const policyEntriesResolved = await policyEntries()
 
   // Merge + dedupe by path + exclude known redirects.
@@ -538,25 +501,18 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
   const learnEntries: SitemapEntry[] = LEARN_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
   // Convert seller + collection routes
   const sellerEntries: SitemapEntry[] = SELLER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  // SITEMAP HONESTY — the collections router only serves the AA Picks
-  // salon-favorites page; every seasonal collection URL in this list has no
-  // route handler and 404s (verified by crawl). Advertise only what renders;
-  // the dead entries stay cataloged in the error report for the owner.
-  const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES
-    .filter((r) => r.path === "/shop/collections/salon-favorites")
-    .map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  // Guide routes — 58 grooming guides from guides-data.ts (the owner's
-  // guide pages, restored byte-for-byte from his repo).
-  const guideEntries: SitemapEntry[] = getAllGroomingSlugs().map(({ slug }) => {
-    const guide = findGroomingGuide(slug)
+  const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  // Pawsly U routes — the imported education library is the canonical guide surface.
+  const guideEntries: SitemapEntry[] = getAllSlugs().map((slug) => {
+    const guide = getGuideDataBySlug(slug, [slug])
     return {
-      loc: `${BASE}/guides/grooming/${slug}`,
-      path: `/guides/grooming/${slug}`,
+      loc: `${BASE}/pawsly-u/memphis/${slug}`,
+      path: `/pawsly-u/memphis/${slug}`,
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.6,
       pageType: "guide",
-      label: guide?.title || slug.replace(/-/g, " "),
+      label: guide.heroTitle,
     }
   })
 

@@ -1,26 +1,14 @@
 "use client"
 
-import { Fragment, useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Minus, PawPrint, Plus, X } from "lucide-react"
-import { SHOP_ANIMALS, SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { categoryImage } from "@/lib/shop/category-images"
-import { cachedLiveNav, loadLiveShopNav } from "@/lib/shop/nav-client"
+import { SHOP_ANIMALS, SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath, type ShopNavAnimal } from "@/lib/shop-nav"
 
 // ---------------------------------------------------------------------------
 // ShopFlyout — full-screen category menu with image-led department cards.
-//
-// SYMMETRY PATCH (data-only, design untouched): the static tree gives fish /
-// bird / reptile / small-animal a SINGLE department each, so those panels had
-// one route while dog / cat had 12-15 cards. When the live nav is available,
-// a single-department animal's L3 categories render as extra cards INSIDE the
-// same grid, using the exact same card markup and image rules. Dog / cat
-// panels and every visual class are untouched.
 // ---------------------------------------------------------------------------
-
-/** Hydrated L3 card (live nav only — never rendered from the static fallback). */
-type LiveSubCard = { name: string; path: string; image: string | null }
 
 const ANIMALS = SHOP_ANIMALS
 const DEPARTMENT_IMAGES: Record<string, string> = {
@@ -69,54 +57,41 @@ const BRANDS = [
 ]
 
 type PanelView = "animal" | "brands"
+type FlyoutTile = {
+  key: string
+  name: string
+  href: string
+  imageKey: string
+  subcategories: { slug: string; name: string }[]
+}
 
-export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void; onEnter: () => void; onLeave: () => void }) {
+function flyoutTiles(animal: ShopNavAnimal): FlyoutTile[] {
+  const showLeafCategories = !["cat", "dog"].includes(animal.slug)
+  if (showLeafCategories) {
+    return animal.departments.flatMap((department) =>
+      department.subcategories.map((subcategory) => ({
+        key: `${animal.slug}/${department.slug}/${subcategory.slug}`,
+        name: subcategory.name,
+        href: subcategoryPath(animal.slug, department.slug, subcategory.slug),
+        imageKey: `${animal.slug}/${department.slug}`,
+        subcategories: [],
+      })),
+    )
+  }
+
+  return animal.departments.map((department) => ({
+    key: `${animal.slug}/${department.slug}`,
+    name: department.name,
+    href: departmentPath(animal.slug, department.slug),
+    imageKey: `${animal.slug}/${department.slug}`,
+    subcategories: department.subcategories,
+  }))
+}
+
+export function ShopFlyout({ onClose }: { onClose: () => void }) {
   const [selectedAnimal, setSelectedAnimal] = useState(SHOP_NAV_TAXONOMY[0]?.slug || "cat")
   const [view, setView] = useState<PanelView>("animal")
   const [expandedDepartment, setExpandedDepartment] = useState<string | null>(null)
-  // "<animal>/<dept>" → L3 cards for single-department animals (live nav only)
-  const [liveSubCards, setLiveSubCards] = useState<Record<string, LiveSubCard[]>>({})
-  // "<animal>/<dept>" → live subcategory links for EVERY department. The
-  // static tree's L3 slugs predate the feed import; the LIVE sub slugs are
-  // what the server actually routes. Same markup — only hrefs/names upgrade.
-  const [liveSubLinks, setLiveSubLinks] = useState<Record<string, { slug: string; name: string; href: string }[]>>({})
-
-  useEffect(() => {
-    let alive = true
-    loadLiveShopNav().then(() => {
-      const nav = cachedLiveNav()
-      if (!alive || !nav) return // API unavailable — keep the static design
-      const next: Record<string, LiveSubCard[]> = {}
-      const links: Record<string, { slug: string; name: string; href: string }[]> = {}
-      for (const a of nav) {
-        for (const dept of a.departments) {
-          if (dept.subcategories.length === 0) continue
-          const entry = dept.subcategories.map((s) => ({ slug: s.slug, name: s.name, href: s.path }))
-          links[`${a.slug}/${dept.slug}`] = entry
-          // Also join the STATIC panel key ("cat/food" → cat-cat-food's live
-          // subs) so the owner-designed static tree links live routes.
-          const sk = dept.staticKey
-          if (sk && sk !== dept.slug && !links[`${a.slug}/${sk}`]) {
-            links[`${a.slug}/${sk}`] = entry
-          }
-        }
-        if (a.departments.length !== 1) continue
-        const dept = a.departments[0]
-        if (dept.subcategories.length === 0) continue
-        const key = `${a.slug}/${dept.slug}`
-        next[key] = dept.subcategories.map((s) => ({
-          name: s.name,
-          path: s.path,
-          image: s.image,
-        }))
-        // Static-nav alias: SHOP_NAV_TAXONOMY calls this animal "small-pet".
-        if (a.slug === "small-animal") next[`small-pet/${dept.slug}`] = next[key]
-      }
-      setLiveSubCards(next)
-      setLiveSubLinks(links)
-    })
-    return () => { alive = false }
-  }, [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -127,6 +102,7 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
   const animal = SHOP_NAV_TAXONOMY.find(a => a.slug === selectedAnimal)
   const selectedAnimalName = ANIMALS.find(a => a.slug === selectedAnimal)?.name || "Shop"
   const selectedAnimalHref = ANIMALS.find(a => a.slug === selectedAnimal)?.href || "/shop"
+  const tiles = animal ? flyoutTiles(animal) : []
 
   const handleAnimalSelect = (slug: string) => {
     setSelectedAnimal(slug)
@@ -139,32 +115,27 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
   }
 
   return (
-    <div
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      className="fixed inset-0 z-[60] flex h-screen w-screen bg-white shadow-2xl"
-    >
-      <div className="relative flex w-[200px] shrink-0 flex-col overflow-y-auto border-r border-neutral-200 bg-white px-4 py-7 sm:w-[270px] sm:px-6">
+    <div className="fixed inset-0 z-[60] flex h-screen w-screen bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Shop departments">
+      <div className="relative flex w-[200px] shrink-0 flex-col overflow-y-auto border-r border-stone-200 bg-[#f1f2ed] px-4 py-7 sm:w-[270px] sm:px-6">
         <button
           onClick={onClose}
           aria-label="Close mega menu"
-          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center text-neutral-600 transition-colors hover:text-black"
+          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center text-stone-600 transition-colors hover:text-orange-800"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <p className="mb-3 pr-10 text-[13px] font-semibold uppercase tracking-[0.12em] text-neutral-500">Shop by</p>
+        <p className="mb-3 pr-10 text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Shop by</p>
 
         <div>
           {ANIMALS.map(a => (
             <button
               key={a.slug}
-              onMouseEnter={() => handleAnimalSelect(a.slug)}
               onClick={() => handleAnimalSelect(a.slug)}
               className={`flex w-full items-center justify-between gap-2 py-2.5 text-left text-[16px] leading-snug underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline ${
                 selectedAnimal === a.slug && view === "animal"
-                  ? "font-semibold text-[#002B5C] underline"
-                  : "text-neutral-900"
+                  ? "font-bold text-orange-800 underline"
+                  : "text-stone-900"
               }`}
             >
               {a.name}
@@ -175,21 +146,20 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
           ))}
         </div>
 
-        <div className="my-4 border-t border-neutral-200" />
+        <div className="my-4 border-t border-stone-300" />
 
         <div>
-          <Link href="/shop/sale" onClick={onClose} className="block py-2.5 text-[16px] text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">Sale</Link>
-          <Link href="/shop/collections" onClick={onClose} className="block py-2.5 text-[16px] text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">Promotions</Link>
-          <Link href="/gift-cards" onClick={onClose} className="block py-2.5 text-[16px] text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">Gift cards</Link>
+          <Link href="/shop/sale" onClick={onClose} className="block py-2.5 text-[16px] text-stone-900 underline-offset-4 decoration-orange-600 decoration-2 hover:underline">Sale</Link>
+          <Link href="/shop/collections" onClick={onClose} className="block py-2.5 text-[16px] text-stone-900 underline-offset-4 decoration-orange-600 decoration-2 hover:underline">Promotions</Link>
+          <Link href="/gift-cards" onClick={onClose} className="block py-2.5 text-[16px] text-stone-900 underline-offset-4 decoration-orange-600 decoration-2 hover:underline">Gift cards</Link>
         </div>
 
-        <div className="my-4 border-t border-neutral-200" />
+        <div className="my-4 border-t border-stone-300" />
 
         <button
-          onMouseEnter={handleBrandHover}
           onClick={handleBrandHover}
           className={`block w-full py-2.5 text-left text-[16px] underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline ${
-            view === "brands" ? "font-semibold text-[#002B5C] underline" : "text-neutral-900"
+            view === "brands" ? "font-bold text-orange-800 underline" : "text-stone-900"
           }`}
         >
           Shop by brand
@@ -199,101 +169,64 @@ export function ShopFlyout({ onClose, onEnter, onLeave }: { onClose: () => void;
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         {view === "animal" && (
           <div className="flex-1 px-3 py-5 sm:px-5 sm:py-6 lg:px-7">
-            <div className="flex items-end justify-between gap-4 border-b border-neutral-200 pb-4">
+            <div className="flex items-end justify-between gap-4 border-b border-stone-200 pb-4">
               <div>
-                <h2 className="font-display text-[26px] font-bold leading-tight text-[#002B5C]">{selectedAnimalName}</h2>
-                {animal?.tagline && <p className="mt-1 text-[15px] text-neutral-700">{animal.tagline}</p>}
+                <h2 className="text-[26px] font-black leading-tight text-stone-950">{selectedAnimalName}</h2>
+                {animal?.tagline && <p className="mt-1 text-[15px] text-stone-700">{animal.tagline}</p>}
               </div>
-              <Link href={selectedAnimalHref} onClick={onClose} className="shrink-0 text-[15px] font-semibold text-[#002B5C] underline decoration-[#F2C500] decoration-2 underline-offset-4">
+              <Link href={selectedAnimalHref} onClick={onClose} className="shrink-0 text-[13px] font-bold text-stone-900 underline decoration-orange-600 decoration-2 underline-offset-4">
                 Shop all
               </Link>
             </div>
 
             {animal ? (
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {animal.departments.map(dept => {
-                  const departmentKey = `${animal.slug}/${dept.slug}`
-                  const imageName = DEPARTMENT_IMAGES[departmentKey]
-                  // Wikimedia species/department imagery as fallback for
-                  // departments without a generated image (fish, bird, reptile,
-                  // small-pet). categoryImage already walks up to the species.
-                  const departmentSrc = imageName
-                    ? `/Shop/departments/${imageName}.jpeg`
-                    : categoryImage(departmentKey)
-                  const expanded = expandedDepartment === departmentKey
-                  // Live L3 cards for single-department animals (fish / bird /
-                  // reptile / small-animal). Same card markup, same image rules.
-                  const hydratedCards = liveSubCards[departmentKey]
+                {tiles.map((tile) => {
+                  const imageName = DEPARTMENT_IMAGES[tile.imageKey]
+                  const expanded = expandedDepartment === tile.key
                   return (
-                    <Fragment key={dept.slug}>
-                    <article className="min-w-0 border border-neutral-200 bg-white">
-                      <Link href={departmentPath(animal.slug, dept.slug)} onClick={onClose} className="relative block aspect-[16/9] overflow-hidden bg-neutral-100">
-                        {departmentSrc && (
+                    <article key={tile.key} className="min-w-0 border border-stone-200 bg-white transition-colors hover:border-orange-600">
+                      <Link href={tile.href} onClick={onClose} className="relative block aspect-[16/9] overflow-hidden bg-stone-100">
+                        {imageName && (
                           <Image
-                            src={departmentSrc}
-                            alt={dept.name}
+                            src={`/Shop/departments/${imageName}.jpeg`}
+                            alt={tile.name}
                             fill
                             sizes="(min-width: 1280px) 24vw, (min-width: 1024px) 32vw, 48vw"
                             className="object-cover transition-transform duration-300 hover:scale-[1.03]"
                           />
                         )}
-                        {!departmentSrc && <PawPrint className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/40" strokeWidth={1.1} aria-hidden="true" />}
+                        {!imageName && <PawPrint className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/40" strokeWidth={1.1} aria-hidden="true" />}
                       </Link>
-                      <Link href={departmentPath(animal.slug, dept.slug)} onClick={onClose} className="flex min-h-12 items-center px-3 text-[16px] font-semibold leading-snug text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
-                        {dept.name}
+                      <Link href={tile.href} onClick={onClose} className="flex min-h-12 items-center px-3 text-[16px] font-semibold leading-snug text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
+                        {tile.name}
                       </Link>
-                      {dept.subcategories.length > 0 && (
+                      {tile.subcategories.length > 0 && (
                         <>
                           <button
                             type="button"
                             aria-expanded={expanded}
-                            aria-label={`${expanded ? "Hide" : "Browse"} ${dept.name} categories`}
-                            onClick={() => setExpandedDepartment(expanded ? null : departmentKey)}
+                            aria-label={`${expanded ? "Hide" : "Browse"} ${tile.name} categories`}
+                            onClick={() => setExpandedDepartment(expanded ? null : tile.key)}
                             className="flex min-h-11 w-full items-center justify-between border-t border-neutral-200 px-3 text-left text-[15px] text-neutral-700"
                           >
                             Browse categories
                             {expanded ? <Minus size={16} /> : <Plus size={16} />}
                           </button>
-                          {expanded && (() => {
-                            // Live sub slugs when the nav has them (they are
-                            // what the server routes); static list otherwise.
-                            const subs = liveSubLinks[departmentKey] ?? dept.subcategories.map(s => ({ slug: s.slug, name: s.name, href: subcategoryPath(animal.slug, dept.slug, s.slug) }))
-                            return (
+                          {expanded && (
                             <ul className="border-t border-neutral-200 px-3 py-2">
-                              {subs.map(sub => (
+                              {tile.subcategories.map(sub => (
                                 <li key={sub.slug}>
-                                  <Link href={sub.href} onClick={onClose} className="block py-1.5 text-[15px] leading-snug text-neutral-800 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
+                                  <Link href={`${tile.href}/${sub.slug}`} onClick={onClose} className="block py-1.5 text-[15px] leading-snug text-neutral-800 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
                                     {sub.name}
                                   </Link>
                                 </li>
                               ))}
                             </ul>
-                            )
-                          })()}
+                          )}
                         </>
                       )}
                     </article>
-                    {hydratedCards?.map(card => (
-                      <article key={card.path} className="min-w-0 border border-neutral-200 bg-white">
-                        <Link href={card.path} onClick={onClose} className="relative block aspect-[16/9] overflow-hidden bg-neutral-100">
-                          {card.image ? (
-                            <Image
-                              src={card.image}
-                              alt={card.name}
-                              fill
-                              sizes="(min-width: 1280px) 24vw, (min-width: 1024px) 32vw, 48vw"
-                              className="object-cover transition-transform duration-300 hover:scale-[1.03]"
-                            />
-                          ) : (
-                            <PawPrint className="absolute left-1/2 top-1/2 h-8 w-8 -translate-x-1/2 -translate-y-1/2 text-[#002B5C]/40" strokeWidth={1.1} aria-hidden="true" />
-                          )}
-                        </Link>
-                        <Link href={card.path} onClick={onClose} className="flex min-h-12 items-center px-3 text-[16px] font-semibold leading-snug text-neutral-900 underline-offset-4 decoration-[#F2C500] decoration-2 hover:underline">
-                          {card.name}
-                        </Link>
-                      </article>
-                    ))}
-                    </Fragment>
                   )
                 })}
               </div>

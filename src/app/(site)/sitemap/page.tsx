@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { getAllGroomingSlugs, findGroomingGuide, GROOMING_GUIDES, GROOMING_FIRST_TIMER, GROOMING_COAT_TYPES, GROOMING_GENERAL } from "@/lib/guides-data"
+import { getAllSlugs, getGuideDataBySlug } from "@/lib/pawsly-u/taxonomy-data"
 import { SITE_URL } from "@/lib/site-url"
 import { CITY_LANDINGS, SHELBY_HUB } from "@/lib/business"
 
@@ -146,7 +146,7 @@ export default function SitemapPage() {
     { label: "New for Cats", href: "/shop/collections/new/new-for-cats" },
     { label: "New for Dogs", href: "/shop/collections/new/new-for-dogs" },
     { label: "New for Pet Parents", href: "/shop/collections/new/new-for-pet-parents" },
-    { label: "AA Picks — Salon Favorites", href: "/shop/collections/salon-favorites" },
+    { label: "All About Pawz Picks", href: "/shop/collections/all-about-pawz-picks" },
     { label: "Pride for Pets", href: "/shop/collections/pride-for-pets" },
     { label: "Spring", href: "/shop/collections/spring" },
     { label: "St. Patrick's Day", href: "/shop/collections/st-patricks-day" },
@@ -156,10 +156,9 @@ export default function SitemapPage() {
     { label: "Valentine's Day", href: "/shop/collections/valentines-day" },
     { label: "Winter", href: "/shop/collections/winter" },
   ]
-  // Grooming guides — all 58 (the owner's restored guide pages)
-  const guideLinks = getAllGroomingSlugs().map(({ slug }) => {
-    const guide = findGroomingGuide(slug)
-    return { label: guide?.title || slug.replace(/-/g, " "), href: `/guides/grooming/${slug}` }
+  const guideLinks = getAllSlugs().map((slug) => {
+    const guide = getGuideDataBySlug(slug, [slug])
+    return { label: guide.heroTitle, href: `/pawsly-u/memphis/${slug}` }
   })
 
   return (
@@ -207,7 +206,7 @@ export default function SitemapPage() {
           {/* Collections — Special Occasions */}
           <CollectionSection heading="Collections — Special Occasions" links={collectionLinks} />
 
-          <CollectionSection heading="Grooming Guides" links={guideLinks} />
+          <CollectionSection heading="Pawsly U Pet Care Guides" links={guideLinks} />
 
           {/* Learning Academy */}
           <CollectionSection heading="Learning Academy" links={learnLinks} />

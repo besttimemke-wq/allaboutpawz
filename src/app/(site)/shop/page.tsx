@@ -1,11 +1,11 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, ArrowRight, PawPrint } from "lucide-react"
 import { SITE_URL } from "@/lib/site-url"
 import { findSeoCopy } from "@/lib/shop/seo-copy"
 import { BUSINESS } from "@/lib/business"
+import { SHOP_ANIMALS, SHOP_NAV_TAXONOMY } from "@/lib/shop-nav"
 import { ShopPromoBanner } from "@/components/site/shop/shop-promo-banner"
-import { ShopHeroBento, type BentoTile } from "@/components/site/shop/hero-bento"
 
 export const metadata: Metadata = {
   title: "Dog & Cat Supplies, grooming & shopping in Memphis, TN | All About Pawz",
@@ -15,79 +15,32 @@ export const metadata: Metadata = {
 }
 
 // ---------------------------------------------------------------------------
-// /shop — the shop landing. Clean header + animal bento (Chewy-style): ONE
-// navigation surface where every tile routes to its animal (or a collection),
-// then the promo banner. No expandable accordion cards, no duplicated
-// category surfaces.
+// /shop — the shop landing. Petco-style: H1 + promo banner + horizontal
+// animal cards (Cat, Dog). NO sidebar (it appears on the leaf subcategory
+// pages). NO narrative. The customer picks an animal to drill in.
 // ---------------------------------------------------------------------------
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-// Animal tile imagery — real photography where we have it (Wikimedia animal
-// portraits / studio shots), generated portraits otherwise.
-const ANIMAL_TILE_IMAGE: Record<string, string> = {
-  dog: "/Shop/heroes/beagle.jpeg",
-  cat: "/Shop/departments/cat-furniture-scratchers.jpeg",
-  fish: "/Shop/categories/fish.jpg",
-  bird: "/Shop/categories/bird.jpg",
-  reptile: "/Shop/categories/reptile.jpg",
-  "small-pet": "/Shop/categories/small-animal.jpg",
-}
-
 export default async function ShopPage({ searchParams }: PageProps) {
   await searchParams // searchParams read for stability; not used in landing
   const seo = findSeoCopy("/shop")
 
-  const tiles: BentoTile[] = [
-    {
-      name: "Dog Supplies",
-      href: "/shop/dog",
-      image: ANIMAL_TILE_IMAGE.dog,
-      imageAlt: "Beagle studio portrait — shop dog supplies at All About Pawz Memphis",
-      note: "Food, treats, gear, and grooming for every breed.",
-    },
-    {
-      name: "Cat Supplies",
-      href: "/shop/cat",
-      image: ANIMAL_TILE_IMAGE.cat,
-      imageAlt: "Cat tree and scratchers — shop cat supplies at All About Pawz Memphis",
-      note: "Litter, towers, toys, and everything feline.",
-    },
-    {
-      name: "Fish & Aquatics",
-      href: "/shop/fish",
-      image: ANIMAL_TILE_IMAGE.fish,
-      imageAlt: "Aquarium fish — shop fish supplies at All About Pawz Memphis",
-    },
-    {
-      name: "New Arrivals",
-      href: "/shop/new-arrivals",
-      imageAlt: "Shop new arrivals at All About Pawz Memphis",
-      note: "Fresh stock, just landed.",
-      accent: true,
-    },
-    {
-      name: "Bird Supplies",
-      href: "/shop/bird",
-      image: ANIMAL_TILE_IMAGE.bird,
-      imageAlt: "Companion bird — shop bird supplies at All About Pawz Memphis",
-    },
-    {
-      name: "Reptile Supplies",
-      href: "/shop/reptile",
-      image: ANIMAL_TILE_IMAGE.reptile,
-      imageAlt: "Reptile habitat — shop reptile supplies at All About Pawz Memphis",
-    },
-    {
-      name: "Small Animal Supplies",
-      href: "/shop/small-pet",
-      image: ANIMAL_TILE_IMAGE["small-pet"],
-      imageAlt: "Small animal — shop small pet supplies at All About Pawz Memphis",
-      note: "Hamsters, rabbits, ferrets, and more.",
-    },
-  ]
+  const animalCards = SHOP_ANIMALS.map((animal) => {
+    const taxonomy = SHOP_NAV_TAXONOMY.find((entry) => entry.slug === animal.slug)
+    return {
+      ...animal,
+      description: taxonomy?.tagline || "Browse the full collection.",
+      departments: taxonomy?.departments || [],
+      image: animal.slug === "cat"
+        ? "/Shop/departments/cat-food.jpeg"
+        : animal.slug === "dog"
+          ? "/Shop/departments/dog-food.jpeg"
+          : null,
+    }
+  })
 
   return (
     <article className="bg-white">
@@ -105,25 +58,53 @@ export default async function ShopPage({ searchParams }: PageProps) {
         }}
       />
 
-      {/* Breadcrumb — the hero header itself lives inside ShopHeroBento */}
-      <section className="border-b border-neutral-200 px-6 py-3 lg:px-12">
+      {/* Breadcrumb + H1 + 1-sentence intro. NO narrative wall. */}
+      <section className="border-b border-neutral-200 px-6 py-6 lg:px-12 lg:py-8">
         <div className="mx-auto max-w-7xl">
           <nav className="flex items-center gap-2 text-[12px] text-ink-soft" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-black">Home</Link>
             <ChevronRight className="h-3 w-3 text-black/40" aria-hidden="true" />
             <span className="text-ink">Shop</span>
           </nav>
+          <h1 className="mt-3 font-display text-[28px] leading-[1.15] text-ink lg:text-[36px]">
+            {seo?.h1 || "Shop Dog & Cat Supplies in Memphis, TN"}
+          </h1>
+          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-ink-soft">
+            Locally owned pet supply shop and grooming salon at {BUSINESS.address.street}.
+            Pick an animal to start.
+          </p>
         </div>
       </section>
 
-      {/* Hero bento — the SINGLE navigation surface: every animal routes from
-          here, New Arrivals plugs the freshest stock. */}
-      <ShopHeroBento
-        eyebrow="ALL ABOUT PAWZ · MEMPHIS"
-        title={seo?.h1 || "Shop Dog & Cat Supplies in Memphis, TN"}
-        description={`Locally owned pet supply shop and grooming salon at ${BUSINESS.address.street}. Pick your animal to start.`}
-        tiles={tiles}
-      />
+      <section className="px-6 py-8 lg:px-12 lg:py-10">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="font-display text-[20px] font-bold text-[#002B5C] lg:text-[24px]">Shop by Animal</h2>
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {animalCards.map((c) => (
+              <Link key={c.href} href={c.href} className="group block border border-neutral-200 bg-white transition-colors hover:border-[#F2C500]">
+                <div>
+                  <div className="relative aspect-[16/9] overflow-hidden bg-neutral-100">
+                    {c.image ? (
+                      <img src={c.image} alt={c.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[#002B5C]/45">
+                        <PawPrint className="h-10 w-10" strokeWidth={1.3} aria-hidden="true" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-3 transition-colors group-hover:bg-[#FFF9D9]">
+                    <div>
+                      <h3 className="text-[13px] font-bold text-[#002B5C]">{c.name}</h3>
+                      <p className="mt-1 text-[11px] text-neutral-600">{c.description}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-[#002B5C]" aria-hidden="true" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <ShopPromoBanner image="/Shop/departments/cat-food.jpeg" imageAlt="All About Pawz shop offer" href="/shop" />
 
@@ -152,11 +133,10 @@ export default async function ShopPage({ searchParams }: PageProps) {
             <ul>{seo.relatedSearches.map((s, i) => <li key={i}><Link href={`/shop?q=${encodeURIComponent(s)}`}>{s}</Link></li>)}</ul>
           )}
           {seo.relatedGuides.length > 0 && (
-            <ul>{seo.relatedGuides.map((g, i) => (
-              // seo-copy relatedGuides are already canonical Education Center
-              // paths (/guides/<slug>, /grooming/<city>) — used verbatim.
-              <li key={i}><Link href={g}>{g.split("/").pop()?.replace(/-/g, " ")}</Link></li>
-            ))}</ul>
+            <ul>{seo.relatedGuides.map((g, i) => {
+              const slug = g.split("/").pop() || g
+              return <li key={i}><Link href={`/pawsly-u/memphis/${slug}`}>{slug.replace(/-/g, " ")}</Link></li>
+            })}</ul>
           )}
         </details>
       )}
