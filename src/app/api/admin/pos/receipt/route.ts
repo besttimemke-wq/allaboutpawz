@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
 
   const pdfBytes = await generateReceiptPdf(data)
 
-  return new NextResponse(pdfBytes, {
+  return new NextResponse(pdfBytes as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="receipt-${data.receiptNumber}.pdf"`,

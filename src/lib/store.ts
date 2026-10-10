@@ -41,7 +41,7 @@ interface AppState {
   selectedLocation: string;
   setSelectedLocation: (loc: string) => void;
   locations: LocationItem[];
-  addLocation: (loc: LocationItem) => void;
+  addLocation: (loc: Partial<LocationItem>) => void;
   deleteLocation: (id: string) => void;
 
   // Data
@@ -85,7 +85,7 @@ export const useAppStore = create<AppState>()(
       selectedLocation: 'All About Pawz – Main Location',
       setSelectedLocation: (loc) => set({ selectedLocation: loc }),
       locations: INITIAL_LOCATIONS,
-      addLocation: (loc) => set((s) => ({ locations: [...s.locations, loc] })),
+      addLocation: (loc) => set((s) => ({ locations: [...s.locations, loc as LocationItem] })),
       deleteLocation: (id) => set((s) => ({ locations: s.locations.filter((l) => l.id !== id) })),
 
       // Data

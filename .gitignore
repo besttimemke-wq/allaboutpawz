@@ -58,6 +58,7 @@ server.log
 .zscripts/dev.pid
 *.pem
 .env*
+!.env.example
 .env.backup
 
 # owner pasted screenshots/uploads — local only

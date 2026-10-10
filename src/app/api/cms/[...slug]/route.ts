@@ -35,7 +35,7 @@ const RESOURCES = new Set<CmsResource>([
 //
 // Anything else (orders, order_items, customers, staff, invoices,
 // invoice_items, services, products, …) is admin-only on writes.
-const PUBLIC_WRITE_RESOURCES = new Set<CmsResource>([
+const PUBLIC_WRITE_RESOURCES = new Set<string>([
   "bookings", "consultations", "dogs", "messages", "newsletter", "product_reviews",
 ])
 

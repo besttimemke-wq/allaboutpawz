@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const lastName = user.user_metadata?.lastName || ""
 
     // Find linked CRM customer
-    let customer = null
+    let customer: any = null
     if (role === "customer") {
       const res = await fetch(`${supabaseUrl}/rest/v1/customers?userId=eq.${user.id}&select=*`, {
         headers: { apikey: supabaseServiceKey, Authorization: `Bearer ${supabaseServiceKey}` },
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Find linked staff record
-    let staff = null
+    let staff: any = null
     if (role === "groomer" || role === "admin" || role === "manager" || role === "seller") {
       const res = await fetch(`${supabaseUrl}/rest/v1/staff?userId=eq.${user.id}&select=*`, {
         headers: { apikey: supabaseServiceKey, Authorization: `Bearer ${supabaseServiceKey}` },

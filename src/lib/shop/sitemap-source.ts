@@ -33,7 +33,9 @@ import { getNavTree, flattenNav, getProducts, getMerchCollections } from "@/lib/
 import { getResource } from "@/lib/site-data"
 import { pgQuery } from "@/lib/pg"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { getAllSlugs, getGuideDataBySlug } from "@/lib/pawzsly-u/taxonomy-data"
+import { getAllSlugs, getGuideDataBySlug, getProductCategoryPaths } from "@/lib/pawzsly-u/taxonomy-data"
+import { SHOP_SEO_COPY } from "@/lib/shop/seo-copy"
+import { flattenTaxonomyDb } from "@/lib/shop/taxonomy-db"
 
 // GATE: Tier 1 (v_sitemap) is disabled until Wave 1 pages have real content.
 // Flip to true per-wave when pages pass §11a (products + unique copy).
@@ -53,9 +55,11 @@ export type SitemapEntry = {
 
 const BASE = SITE_URL
 
+// A hand-written route: everything except what buildSitemap() derives.
+type RouteDef = Omit<SitemapEntry, "loc" | "lastModified">
 // Static routes — always present. These are the core site pages that don't
 // depend on the taxonomy or catalog data layer.
-const STATIC_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+const STATIC_ROUTES: RouteDef[] = [
   // Core site pages
   { path: "",            label: "Home",              pageType: "home",          changeFrequency: "weekly",  priority: 1.0 },
   { path: "/about",      label: "About Us",          pageType: "about",         changeFrequency: "monthly", priority: 0.8 },
@@ -69,28 +73,15 @@ const STATIC_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/book",       label: "Booking Overview",   pageType: "static",        changeFrequency: "monthly", priority: 0.9 },
   { path: "/book/appointment",  label: "Book Appointment",    pageType: "static", changeFrequency: "monthly", priority: 0.9 },
   { path: "/book/consultation", label: "Free Consultation",   pageType: "static", changeFrequency: "monthly", priority: 0.8 },
-  // Auth + access doors
-  { path: "/account",            label: "Account",               pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
-  { path: "/access-customer",    label: "Customer Portal Login",  pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
-  { path: "/access-seller",   label: "Seller Login",       pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
-  { path: "/access-groomer",     label: "Groomer Portal Login",   pageType: "auth",   changeFrequency: "yearly", priority: 0.3 },
-  { path: "/admin-login",        label: "Admin Login",             pageType: "auth",   changeFrequency: "yearly", priority: 0.2 },
-  { path: "/auth/set-password",  label: "Set Password",            pageType: "auth",   changeFrequency: "yearly", priority: 0.2 },
-  // Shop bag
-  { path: "/shop/bag",           label: "Shopping Bag",           pageType: "utility", changeFrequency: "weekly", priority: 0.3 },
+  // Seller program — the only seller URL that is a public page.
+  { path: "/seller",     label: "Seller Program",     pageType: "seller",        changeFrequency: "monthly", priority: 0.5 },
 ]
 
 // Learning Academy routes
-const LEARN_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+const LEARN_ROUTES: RouteDef[] = [
   { path: "/learn",                          label: "Learning Academy",              pageType: "learn",     changeFrequency: "monthly", priority: 0.7 },
   { path: "/learn/courses",                  label: "Course Catalog",                pageType: "learn",     changeFrequency: "weekly",  priority: 0.7 },
-  { path: "/learn/classroom",                label: "Classroom",                     pageType: "learn",     changeFrequency: "weekly",  priority: 0.6 },
   { path: "/learn/enroll",                   label: "Enroll",                        pageType: "learn",     changeFrequency: "monthly", priority: 0.6 },
-  { path: "/learn/sign-in",                  label: "Sign In",                       pageType: "learn",     changeFrequency: "yearly",  priority: 0.3 },
-  { path: "/learn/instructor/sessions",      label: "Instructor Sessions",           pageType: "learn",     changeFrequency: "weekly",  priority: 0.5 },
-  { path: "/learn/instructor/review",        label: "Instructor Review",             pageType: "learn",     changeFrequency: "weekly",  priority: 0.5 },
-  { path: "/learn/admin/architect",          label: "Course Architect",              pageType: "learn",     changeFrequency: "monthly", priority: 0.4 },
-  { path: "/learn/admin/knowledge",          label: "Knowledge Management",          pageType: "learn",     changeFrequency: "monthly", priority: 0.4 },
   // Individual courses (15 from footer)
   { path: "/learn/courses/animal-behavior-technician",         label: "Animal Behavior Technician",         pageType: "course", changeFrequency: "monthly", priority: 0.6 },
   { path: "/learn/courses/animal-care-assistant",              label: "Animal Care Assistant",             pageType: "course", changeFrequency: "monthly", priority: 0.6 },
@@ -110,56 +101,8 @@ const LEARN_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
   { path: "/learn/courses/positive-dog-training",             label: "Positive Dog Training",              pageType: "course", changeFrequency: "monthly", priority: 0.6 },
 ]
 
-// Customer portal routes
-const CUSTOMER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
-  { path: "/customer/dashboard",                    label: "Customer Dashboard",          pageType: "portal", changeFrequency: "daily",   priority: 0.4 },
-  { path: "/customer/appointments",                  label: "My Appointments",              pageType: "portal", changeFrequency: "daily",   priority: 0.4 },
-  { path: "/customer/appointments/vet",              label: "Vet Appointments",             pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/pets",                          label: "My Pets",                     pageType: "portal", changeFrequency: "weekly",  priority: 0.4 },
-  { path: "/customer/orders",                        label: "My Orders",                    pageType: "portal", changeFrequency: "weekly",  priority: 0.4 },
-  { path: "/customer/orders/autoship",               label: "Autoship Orders",              pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
-  { path: "/customer/orders/buy-again",              label: "Buy Again",                   pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
-  { path: "/customer/orders/perks",                  label: "Perks",                        pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/orders/subscriptions",         label: "Subscriptions",                pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/orders/wish-list",              label: "Wish List",                    pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/invoices",                     label: "My Invoices",                  pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/messages",                     label: "Messages",                     pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/customer/notifications",                label: "Notifications",                pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/customer/help",                          label: "Help",                         pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/learn",                         label: "Customer Learning",           pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/health/records",               label: "Health Records",               pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
-  { path: "/customer/health/my-vet",                 label: "My Vet",                       pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/health/insurance",              label: "Pet Insurance",                pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/health/prescriptions",          label: "Prescriptions",                pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/customer/profile/address-book",          label: "Address Book",                 pageType: "portal", changeFrequency: "monthly", priority: 0.2 },
-  { path: "/customer/profile/communication-preferences", label: "Communication Preferences", pageType: "portal", changeFrequency: "yearly", priority: 0.2 },
-  { path: "/customer/profile/payment-methods",      label: "Payment Methods",              pageType: "portal", changeFrequency: "monthly", priority: 0.2 },
-]
-
-// Seller routes (to be renamed to /seller)
-
-// Groomer portal routes
-
-// Seller routes (per seller platform spec — /seller → /seller)
-const SELLER_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
-  { path: "/seller",                     label: "Seller Dashboard",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/seller/onboarding",          label: "Seller Onboarding",      pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/seller/products",            label: "Seller Products",         pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/seller/products/new",        label: "Add Product",            pageType: "portal", changeFrequency: "monthly", priority: 0.2 },
-  { path: "/seller/inventory",           label: "Seller Inventory",       pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/seller/orders",              label: "Seller Orders",           pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/seller/pricing",             label: "Seller Pricing",          pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/seller/promotions",          label: "Seller Promotions",      pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/seller/advertising",         label: "Seller Advertising",     pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/seller/reports",             label: "Seller Reports",          pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/seller/payments",            label: "Seller Payments",        pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-  { path: "/seller/performance",         label: "Seller Performance",     pageType: "portal", changeFrequency: "weekly",  priority: 0.3 },
-  { path: "/seller/messages",            label: "Seller Messages",        pageType: "portal", changeFrequency: "daily",   priority: 0.3 },
-  { path: "/seller/settings",            label: "Seller Settings",        pageType: "portal", changeFrequency: "monthly", priority: 0.3 },
-]
-
 // Special Occasions collections (/shop/collections/*)
-const COLLECTION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+const COLLECTION_ROUTES: RouteDef[] = [
   { path: "/shop/collections/my-human-favorites",            label: "$10 & Under My Human Favorites",  pageType: "collection", changeFrequency: "weekly", priority: 0.5 },
   { path: "/shop/collections/back-to-school",                 label: "Back to School",                   pageType: "collection", changeFrequency: "weekly", priority: 0.5 },
   { path: "/shop/collections/better-for-your-dog",            label: "Better for Your Dog",             pageType: "collection", changeFrequency: "monthly", priority: 0.4 },
@@ -219,7 +162,7 @@ const COLLECTION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
 
 // Location pages — the 5 city landings + Shelby County hub. These are money
 // pages for "dog grooming in [city]" — always included, never excluded.
-const LOCATION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
+const LOCATION_ROUTES: RouteDef[] = [
   ...CITY_LANDINGS.map((c) => ({
     path: `/grooming/${c.slug}`,
     label: c.titleShort,
@@ -242,7 +185,7 @@ const LOCATION_ROUTES: Omit<SitemapEntry, "lastModified">[] = [
 // resolveTaxonomyPage). These are the animal landings, departments,
 // and subcategories from the full cat/dog taxonomy tree.
 // ---------------------------------------------------------------------------
-const TAXONOMY_ROUTES: Omit<SitemapEntry, "lastModified">[] = []
+const TAXONOMY_ROUTES: RouteDef[] = []
 for (const animal of SHOP_NAV_TAXONOMY) {
   // Animal landing: /shop/dog, /shop/cat
   TAXONOMY_ROUTES.push({
@@ -358,7 +301,7 @@ async function getEnterpriseProductSlugs(): Promise<{ slug: string; name: string
   )
 }
 
-async function fallbackCatalogEntries(): Promise<SitemapEntry[]> {
+async function fallbackCatalogEntries(includeProducts: boolean): Promise<SitemapEntry[]> {
   const now = new Date()
   const entries: SitemapEntry[] = []
 
@@ -401,7 +344,7 @@ async function fallbackCatalogEntries(): Promise<SitemapEntry[]> {
   }
 
   try {
-    for (const p of await getEnterpriseProductSlugs()) {
+    for (const p of includeProducts ? await getEnterpriseProductSlugs() : []) {
       entries.push({
         loc: `${BASE}/products/${p.slug}`,
         path: `/products/${p.slug}`,
@@ -417,6 +360,32 @@ async function fallbackCatalogEntries(): Promise<SitemapEntry[]> {
   }
 
   return entries
+}
+
+// ---------------------------------------------------------------------------
+// Category pages from the live taxonomy (animal → department → subcategory).
+// Empty categories are skipped so the sitemap never lists a "no products" page.
+// ---------------------------------------------------------------------------
+async function dbCategoryEntries(now: Date): Promise<SitemapEntry[]> {
+  try {
+    const nodes = await flattenTaxonomyDb()
+    return nodes
+      .filter((n) => n.count > 0)
+      .map((n) => {
+        const depth = n.path.split("/").filter(Boolean).length
+        return {
+          loc: `${BASE}${n.path}`,
+          path: n.path,
+          lastModified: now,
+          changeFrequency: "weekly" as const,
+          priority: depth === 2 ? 0.8 : depth === 3 ? 0.7 : 0.6,
+          pageType: depth === 2 ? "animal" : depth === 3 ? "department" : "subcategory",
+          label: n.name,
+        }
+      })
+  } catch {
+    return []
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -485,14 +454,17 @@ const KNOWN_REDIRECT_PATHS = new Set<string>([
   // Phase 2 will add the 5 redirecting URLs here.
 ])
 
-export async function buildSitemap(): Promise<SitemapEntry[]> {
+export async function buildSitemap(
+  opts: { includeProducts?: boolean } = {},
+): Promise<SitemapEntry[]> {
+  const { includeProducts = true } = opts
   const now = new Date()
 
   // Tier 1: try v_sitemap view (when taxonomy SQL is applied).
   const vSitemap = await tryVSitemap()
 
   // Tier 2: fallback to catalog resolvers if v_sitemap is empty.
-  const catalogEntries = vSitemap.length > 0 ? [] : await fallbackCatalogEntries()
+  const catalogEntries = vSitemap.length > 0 ? [] : await fallbackCatalogEntries(includeProducts)
 
   // Tier 3: static + location + policies (always present).
   const staticEntries: SitemapEntry[] = STATIC_ROUTES.map((r) => ({
@@ -518,25 +490,42 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
   // Merge + dedupe by path + exclude known redirects.
   // Convert all route arrays to full SitemapEntry with loc + lastModified
   const learnEntries: SitemapEntry[] = LEARN_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  // Convert seller + collection routes
-  const sellerEntries: SitemapEntry[] = SELLER_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  const collectionEntries: SitemapEntry[] = COLLECTION_ROUTES.map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
-  // Pawzsly U routes — the imported education library is the canonical guide surface.
-  const guideEntries: SitemapEntry[] = getAllSlugs().map((slug) => {
-    const guide = getGuideDataBySlug(slug, [slug])
+  // Collections: the hand-curated list plus every collection in the SEO copy.
+  const collectionEntries: SitemapEntry[] = [
+    ...COLLECTION_ROUTES,
+    ...SHOP_SEO_COPY.filter((b) => b.type === "collection").map<RouteDef>((b) => ({
+      path: b.path,
+      label: b.h1,
+      pageType: "collection",
+      changeFrequency: "monthly",
+      priority: 0.4,
+    })),
+  ].map((r) => ({ ...r, loc: `${BASE}${r.path}`, lastModified: now }))
+  // Category pages — parents and children straight from the live taxonomy.
+  const categoryEntries = await dbCategoryEntries(now)
+  // Pawzsly U — the imported education library is the canonical guide surface:
+  // every guide slug plus every product-category path.
+  const guideEntries: SitemapEntry[] = [
+    ...getAllSlugs().map((slug) => ({ slug, segments: [slug] })),
+    ...getProductCategoryPaths().map((p) => {
+      const segments = p.split("/").filter(Boolean)
+      return { slug: segments[segments.length - 1], segments }
+    }),
+  ].map(({ slug, segments }) => {
+    const path = `/pawzsly-u/memphis/${segments.join("/")}`
     return {
-      loc: `${BASE}/pawzsly-u/memphis/${slug}`,
-      path: `/pawzsly-u/memphis/${slug}`,
+      loc: `${BASE}${path}`,
+      path,
       lastModified: now,
       changeFrequency: "monthly" as const,
       priority: 0.6,
       pageType: "guide",
-      label: guide.heroTitle,
+      label: getGuideDataBySlug(slug, segments).heroTitle,
     }
   })
 
   // Merge + dedupe by path + exclude known redirects.
-  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...learnEntries, ...sellerEntries, ...collectionEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
+  const all = [...staticEntries, ...locationEntries, ...taxonomyEntries, ...categoryEntries, ...learnEntries, ...collectionEntries, ...guideEntries, ...vSitemap, ...catalogEntries, ...policyEntriesResolved]
   const seen = new Set<string>()
   const deduped = all
     .filter((e) => {
@@ -554,8 +543,9 @@ export async function buildSitemap(): Promise<SitemapEntry[]> {
 }
 
 // Convenience — for the HTML sitemap page, group entries by section.
+// Product URLs are skipped by default: a human page doesn't list 12.8k items.
 export async function buildSitemapSections() {
-  const entries = await buildSitemap()
+  const entries = await buildSitemap({ includeProducts: false })
   return {
     salon: entries.filter((e) =>
       ["home", "about", "services", "static"].includes(e.pageType) &&
@@ -576,8 +566,7 @@ export async function buildSitemapSections() {
     policies: entries.filter((e) => e.pageType === "policy"),
     guides: entries.filter((e) => e.pageType === "guide"),
     learn: entries.filter((e) => e.pageType === "learn" || e.pageType === "course"),
-    seller: entries.filter((e) => e.path.startsWith("/seller")),
-    auth: entries.filter((e) => e.pageType === "auth" || e.pageType === "utility"),
+    seller: entries.filter((e) => e.path === "/seller"),
     total: entries.length,
   }
 }

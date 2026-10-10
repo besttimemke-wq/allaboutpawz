@@ -34,7 +34,7 @@ const PROD_BASE = "https://apis.usps.com"
 const BASE = PROD_BASE
 
 // ---- OAuth2 token cache (module-level, survives across requests) ----
-let _token: { value: string; expiresAt: number } | null = null
+let _token: { value: string; expiresAt: number; scope?: string } | null = null
 
 export async function getUspsAccessToken(scope = "tracking"): Promise<string | null> {
   const key = process.env.USPS_CONSUMER_KEY
@@ -67,7 +67,7 @@ export async function getUspsAccessToken(scope = "tracking"): Promise<string | n
       value: data.access_token,
       expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000,
       scope: cacheKey,
-    } as any
+    }
     return _token.value
   } catch (e: any) {
     console.error("[usps-client] token fetch error:", e?.message || e)

@@ -232,4 +232,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 }
 
 // Type imports for handlers
-import type { AppointmentItem, Customer, PetRecord } from '@/lib/types';
+import type { AppointmentItem, Customer, PetRecord, DawgNavSection } from '@/lib/types';

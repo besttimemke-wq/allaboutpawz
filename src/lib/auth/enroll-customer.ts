@@ -90,7 +90,7 @@ async function ensureCrmIdentity(opts: {
   firstName?: string | null
   lastName?: string | null
   phone?: string | null
-}): Promise<{ crmCustomerId: string; portalAccountId: string } | null> {
+}): Promise<{ crmCustomerId: string | null; portalAccountId: string | null } | null> {
   return withPg(async (client) => {
     // 1. crm_customers — the CRM person record
     let crmId: string | null = null

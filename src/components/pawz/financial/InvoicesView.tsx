@@ -419,7 +419,7 @@ function CreateInvoiceModal({
         // /api/bookings returns { appointments: [...] } with customerName /
         // customerEmail / petName / serviceName; map onto the BookingOption
         // shape (ownerName / email / dogName / service) this picker uses.
-        const raw = Array.isArray(d) ? d : (d.appointments || d.bookings || []);
+        const raw = Array.isArray(d) ? d : ((d as any).appointments || (d as any).bookings || []);
         setBookings(raw.map((a: any) => ({
           id: String(a.id),
           ownerName: a.ownerName || a.customerName || '—',

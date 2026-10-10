@@ -88,6 +88,8 @@ export type SettingsTabId =
   | 'website'
   | 'cms-wizard'
   | 'portal'
+  | 'business-profile'
+  | 'legal-waivers'
   | 'customer-portal'
   | 'communications'
   | 'email-templates'

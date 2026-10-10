@@ -32,7 +32,7 @@ const CONFIG_KEY_BY_ID: Record<string, string> = {
   supabase_reauthentication: "reauthentication",
 }
 
-const outDir = join(import.meta.dir, "..", "supabase", "templates")
+const outDir = join(import.meta.dirname, "..", "supabase", "templates")
 mkdirSync(outDir, { recursive: true })
 
 let core = 0

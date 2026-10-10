@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { BookingWizardV2 } from "./booking-wizard-v2"
+import { BookingWizardV2, type WizardLookups as WizardV2Lookups } from "./booking-wizard-v2"
 
 // ---------------------------------------------------------------------------
 // Wizard loader — CSR shell for both wizard pages.
@@ -70,7 +70,7 @@ export function WizardLoader({ flow }: { flow: "appointment" | "consultation" })
       breeds={data.breeds}
       services={data.services}
       groomers={data.groomers}
-      lookups={data.lookups}
+      lookups={data.lookups as unknown as WizardV2Lookups}
     />
   )
 }

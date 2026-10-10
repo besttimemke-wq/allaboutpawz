@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const ordersRes = await supabaseAdmin.from("commerce_orders").select("id,customer_id,customer_email").catch(() => ({ data: null }));
+    const ordersRes = await supabaseAdmin.from("commerce_orders").select("id,customer_id,customer_email").then((r: any) => r, () => ({ data: null }));
     const ordersRows = ((ordersRes.data || []) as any[]).map((o: any) => ({ ...o, customerId: o.customerId ?? o.customer_id, email: o.email ?? o.customer_email }));
     const adminEmails = (process.env.ADMIN_EMAILS || "")
       .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);

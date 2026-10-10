@@ -216,7 +216,7 @@ function parseUrlLine(
  */
 function findTitleMetaH1(
   lines: string[]
-): { title: string; meta: string; h1: string } | null {
+): { title: string; metaDescription: string; h1: string } | null {
   const titleIdx = lines.findIndex((l) => /^Title:\s*/.test(l));
   if (titleIdx === -1) return null;
   const titleLine = lines[titleIdx];

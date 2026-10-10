@@ -9,7 +9,7 @@
 // respects admin locks). Typical cadence: after feed-sync, or on demand.
 
 import { NextResponse } from "next/server"
-import { refreshAnimalImagery, refreshCategoryImage } from "@/lib/shop/category-imagery"
+import { refreshAnimalImagery, refreshCategoryImage, type RefreshResult } from "@/lib/shop/category-imagery"
 
 export const dynamic = "force-dynamic"
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     )
   }
 
-  const results = []
+  const results: RefreshResult[] = []
   if (animals.length) {
     results.push(...(await refreshAnimalImagery(animals)))
   }

@@ -2,9 +2,8 @@ import Link from "next/link"
 import { Divider } from "@/components/site/brand"
 import { PageHeader } from "@/components/site/site-chrome"
 import { SHOP_NAV_TAXONOMY, departmentPath, subcategoryPath } from "@/lib/shop-nav"
-import { getAllSlugs, getGuideDataBySlug } from "@/lib/pawzsly-u/taxonomy-data"
+import { buildSitemapSections } from "@/lib/shop/sitemap-source"
 import { SITE_URL } from "@/lib/site-url"
-import { CITY_LANDINGS, SHELBY_HUB } from "@/lib/business"
 
 export const metadata = {
   title: "Sitemap | All About Pawz",
@@ -12,6 +11,15 @@ export const metadata = {
   robots: { index: false, follow: true },
   alternates: { canonical: `${SITE_URL}/sitemap` },
 }
+
+// Built on request, not at `next build`: buildSitemapSections() hits the
+// database (same data as /sitemap.xml), which must not block static generation.
+export const dynamic = "force-dynamic"
+
+type PageLink = { label: string; href: string }
+
+const toLinks = (entries: { label: string; path: string }[]): PageLink[] =>
+  entries.map((e) => ({ label: e.label, href: e.path || "/" }))
 
 // Department block for shop taxonomy sections
 function DepartmentBlock({ dept, animalSlug }: { dept: { slug: string; name: string; subcategories: { slug: string; name: string }[] }; animalSlug: string }) {
@@ -29,22 +37,23 @@ function DepartmentBlock({ dept, animalSlug }: { dept: { slug: string; name: str
   )
 }
 
-// Simple link list section
-function LinkSection({ heading, links }: { heading: string; links: { label: string; href: string }[] }) {
+// Compact column used in the top 4-up grid
+function ColumnSection({ heading, links }: { heading: string; links: PageLink[] }) {
   return (
-    <section className="mb-12">
-      <h2 className="text-lg font-bold text-ink">{heading}</h2>
-      <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
+    <div>
+      <h2 className="text-sm font-bold tracking-[0.18em] text-black">{heading}</h2>
+      <ul className="mt-3 space-y-2">
         {links.map(l => (
           <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>
         ))}
       </ul>
-    </section>
+    </div>
   )
 }
 
-// 3-column grid section for collections
-function CollectionSection({ heading, links }: { heading: string; links: { label: string; href: string }[] }) {
+// 3-column grid section for long lists
+function CollectionSection({ heading, links }: { heading: string; links: PageLink[] }) {
+  if (links.length === 0) return null
   return (
     <section className="mb-12">
       <h2 className="text-lg font-bold text-ink">{heading}</h2>
@@ -57,109 +66,23 @@ function CollectionSection({ heading, links }: { heading: string; links: { label
   )
 }
 
-export default function SitemapPage() {
-  const salonLinks = [
-    { label: "Home", href: "/" }, { label: "About Us", href: "/about" },
-    { label: "Services", href: "/services" }, { label: "Our Process", href: "/process" },
-    { label: "Pricing", href: "/pricing" }, { label: "Gallery", href: "/gallery" },
-    { label: "Contact", href: "/contact" }, { label: "FAQ & Policies", href: "/faq" },
-  ]
-  const bookingLinks = [
-    { label: "Booking Overview", href: "/book" },
-    { label: "Book Appointment", href: "/book/appointment" },
-    { label: "Free Consultation", href: "/book/consultation" },
-  ]
-  const locationLinks = [
-    ...CITY_LANDINGS.map(c => ({ label: c.titleShort, href: `/grooming/${c.slug}` })),
-    { label: SHELBY_HUB.titleShort, href: `/grooming/${SHELBY_HUB.slug}` },
-  ]
-  const policyLinks = [
-    { label: "Cancellations", href: "/policies/cancellations" },
-    { label: "Late Arrivals", href: "/policies/late-arrivals" },
-    { label: "Matted Coats", href: "/policies/matted-coats" },
-    { label: "Privacy Policy", href: "/policies/privacy-policy" },
-    { label: "Refunds & Returns", href: "/policies/refunds-returns" },
-    { label: "Shipping & Delivery", href: "/policies/shipping-delivery" },
-    { label: "Terms of Service", href: "/policies/terms-of-service" },
-    { label: "Terms of Use", href: "/policies/terms-of-use" },
-    { label: "Your Privacy Choices", href: "/policies/privacy-choices" },
-    { label: "Vaccinations", href: "/policies/vaccinations" },
-  ]
-  const learnLinks = [
-    { label: "Learning Academy", href: "/learn" },
-    { label: "Course Catalog", href: "/learn/courses" },
-    { label: "Classroom", href: "/learn/classroom" },
-    { label: "Enroll", href: "/learn/enroll" },
-    { label: "Animal Behavior Technician", href: "/learn/courses/animal-behavior-technician" },
-    { label: "Animal Care Assistant", href: "/learn/courses/animal-care-assistant" },
-    { label: "Equine Nursing Technicians", href: "/learn/courses/equine-nursing-technicians" },
-    { label: "Felines & Health", href: "/learn/courses/felines-and-health" },
-    { label: "Pet Grooming", href: "/learn/courses/pet-grooming" },
-    { label: "Grooming Salon Practice Management", href: "/learn/courses/grooming-salon-practice-management" },
-    { label: "Professional Trainer", href: "/learn/courses/professional-trainer" },
-    { label: "Pre-Veterinary Medicine", href: "/learn/courses/pre-veterinary-medicine" },
-    { label: "Veterinary Assistant", href: "/learn/courses/veterinary-assistant" },
-    { label: "Veterinary Practice Management", href: "/learn/courses/veterinary-practice-management" },
-    { label: "Veterinary Pathology Technician", href: "/learn/courses/veterinary-pathology-technician" },
-    { label: "Veterinary Surgical Technician", href: "/learn/courses/veterinary-surgical-technician" },
-    { label: "Veterinary Technician", href: "/learn/courses/veterinary-technician" },
-    { label: "Veterinary Technology", href: "/learn/courses/veterinary-technology" },
-    { label: "Zookeeper Assistant", href: "/learn/courses/zookeeper-assistant" },
-    { label: "Positive Dog Training", href: "/learn/courses/positive-dog-training" },
-  ]
-  const sellerLinks = [
-    { label: "Seller Dashboard", href: "/seller" }, { label: "Seller Onboarding", href: "/seller/onboarding" },
-    { label: "Seller Products", href: "/seller/products" }, { label: "Add Product", href: "/seller/products/new" },
-    { label: "Seller Inventory", href: "/seller/inventory" }, { label: "Seller Orders", href: "/seller/orders" },
-    { label: "Seller Pricing", href: "/seller/pricing" }, { label: "Seller Promotions", href: "/seller/promotions" },
-    { label: "Seller Advertising", href: "/seller/advertising" }, { label: "Seller Reports", href: "/seller/reports" },
-    { label: "Seller Payments", href: "/seller/payments" }, { label: "Seller Performance", href: "/seller/performance" },
-    { label: "Seller Messages", href: "/seller/messages" }, { label: "Seller Settings", href: "/seller/settings" },
-  ]
-  const collectionLinks = [
-    { label: "$10 & Under My Human Favorites", href: "/shop/collections/my-human-favorites" },
-    { label: "Back to School", href: "/shop/collections/back-to-school" },
-    { label: "Better for Your Dog", href: "/shop/collections/better-for-your-dog" },
-    { label: "Birthday", href: "/shop/collections/birthday" },
-    { label: "Pet Birthday Cakes & Treats", href: "/shop/collections/birthday/pet-birthday-cakes-treats" },
-    { label: "Pet Birthday Hats & Outfits", href: "/shop/collections/birthday/pet-birthday-hats-outfits" },
-    { label: "Pet Birthday Party Supplies & Gifts", href: "/shop/collections/birthday/pet-birthday-party-supplies-gifts" },
-    { label: "Pet Birthday Toys", href: "/shop/collections/birthday/pet-birthday-toys" },
-    { label: "Easter", href: "/shop/collections/easter" },
-    { label: "Cat Easter", href: "/shop/collections/easter/cat-easter" },
-    { label: "Dog Easter", href: "/shop/collections/easter/dog-easter" },
-    { label: "Exclusively by All About Pawz", href: "/shop/collections/exclusively-by-all-about-pawz" },
-    { label: "Fall", href: "/shop/collections/fall" },
-    { label: "Cozy Beds, Furniture & More", href: "/shop/collections/fall/cozy-beds-furniture-more" },
-    { label: "Fall Flavors", href: "/shop/collections/fall/fall-flavors" },
-    { label: "Fall Pet Apparel", href: "/shop/collections/fall/fall-pet-apparel" },
-    { label: "Travel Essentials", href: "/shop/collections/fall/travel-essentials" },
-    { label: "Family Game Night", href: "/shop/collections/family-game-night" },
-    { label: "Father's Day", href: "/shop/collections/fathers-day" },
-    { label: "Fourth of July", href: "/shop/collections/fourth-of-july" },
-    { label: "Fresh Finds Under $20", href: "/shop/collections/fresh-finds-under-20" },
-    { label: "Get Outside", href: "/shop/collections/get-outside" },
-    { label: "Low Prices Everyday Essentials", href: "/shop/collections/low-prices-everyday-essentials" },
-    { label: "Mother's Day", href: "/shop/collections/mothers-day" },
-    { label: "New Pet Essentials", href: "/shop/collections/new-pet-essentials" },
-    { label: "New", href: "/shop/collections/new" },
-    { label: "New for Cats", href: "/shop/collections/new/new-for-cats" },
-    { label: "New for Dogs", href: "/shop/collections/new/new-for-dogs" },
-    { label: "New for Pet Parents", href: "/shop/collections/new/new-for-pet-parents" },
-    { label: "All About Pawz Picks", href: "/shop/collections/all-about-pawz-picks" },
-    { label: "Pride for Pets", href: "/shop/collections/pride-for-pets" },
-    { label: "Spring", href: "/shop/collections/spring" },
-    { label: "St. Patrick's Day", href: "/shop/collections/st-patricks-day" },
-    { label: "Summer Adventures", href: "/shop/collections/summer-adventures" },
-    { label: "Summer BBQ", href: "/shop/collections/summer-bbq" },
-    { label: "Trending Now", href: "/shop/collections/trending-now" },
-    { label: "Valentine's Day", href: "/shop/collections/valentines-day" },
-    { label: "Winter", href: "/shop/collections/winter" },
-  ]
-  const guideLinks = getAllSlugs().map((slug) => {
-    const guide = getGuideDataBySlug(slug, [slug])
-    return { label: guide.heroTitle, href: `/pawzsly-u/memphis/${slug}` }
-  })
+export default async function SitemapPage() {
+  const sections = await buildSitemapSections()
+
+  // The taxonomy tree is rendered hierarchically from SHOP_NAV_TAXONOMY — the
+  // same source that feeds the taxonomy entries in the XML sitemap — so
+  // exclude those paths from the flat "more shop pages" list.
+  const taxonomyPaths = new Set<string>()
+  for (const animal of SHOP_NAV_TAXONOMY) {
+    taxonomyPaths.add(`/shop/${animal.slug}`)
+    for (const dept of animal.departments) {
+      taxonomyPaths.add(departmentPath(animal.slug, dept.slug))
+      for (const sub of dept.subcategories) taxonomyPaths.add(subcategoryPath(animal.slug, dept.slug, sub.slug))
+    }
+  }
+
+  const collectionEntries = sections.boutique.filter(e => e.pageType === "collection")
+  const moreShopEntries = sections.boutique.filter(e => e.pageType !== "collection" && !taxonomyPaths.has(e.path))
 
   return (
     <>
@@ -175,22 +98,10 @@ export default function SitemapPage() {
 
           {/* Core site links */}
           <div className="mt-12 grid grid-cols-2 gap-x-10 gap-y-8 sm:grid-cols-4">
-            <div>
-              <h2 className="text-sm font-bold tracking-[0.18em] text-black">SALON</h2>
-              <ul className="mt-3 space-y-2">{salonLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>)}</ul>
-            </div>
-            <div>
-              <h2 className="text-sm font-bold tracking-[0.18em] text-black">BOOKING</h2>
-              <ul className="mt-3 space-y-2">{bookingLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>)}</ul>
-            </div>
-            <div>
-              <h2 className="text-sm font-bold tracking-[0.18em] text-black">SERVING</h2>
-              <ul className="mt-3 space-y-2">{locationLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>)}</ul>
-            </div>
-            <div>
-              <h2 className="text-sm font-bold tracking-[0.18em] text-black">POLICIES & LEGAL</h2>
-              <ul className="mt-3 space-y-2">{policyLinks.map(l => <li key={l.href}><Link href={l.href} className="text-sm text-ink-soft hover:text-black">{l.label}</Link></li>)}</ul>
-            </div>
+            <ColumnSection heading="SALON" links={toLinks(sections.salon)} />
+            <ColumnSection heading="BOOKING" links={toLinks(sections.booking)} />
+            <ColumnSection heading="SERVING" links={toLinks(sections.serving)} />
+            <ColumnSection heading="POLICIES & LEGAL" links={toLinks(sections.policies)} />
           </div>
 
           {/* Shop taxonomy — Cat Supplies + Dog Supplies (3-column grid) */}
@@ -203,16 +114,13 @@ export default function SitemapPage() {
             </section>
           ))}
 
-          {/* Collections — Special Occasions */}
-          <CollectionSection heading="Collections — Special Occasions" links={collectionLinks} />
-
-          <CollectionSection heading="Pawzsly U Pet Care Guides" links={guideLinks} />
-
-          {/* Learning Academy */}
-          <CollectionSection heading="Learning Academy" links={learnLinks} />
-
-          {/* Seller */}
-          <CollectionSection heading="Seller Program" links={sellerLinks} />
+          <div className="mt-12">
+            <CollectionSection heading="More Shop Pages" links={toLinks(moreShopEntries)} />
+            <CollectionSection heading="Collections — Special Occasions" links={toLinks(collectionEntries)} />
+            <CollectionSection heading="Pawzsly U Pet Care Guides" links={toLinks(sections.guides)} />
+            <CollectionSection heading="Learning Academy" links={toLinks(sections.learn)} />
+            <CollectionSection heading="Seller Program" links={toLinks(sections.seller)} />
+          </div>
         </div>
       </section>
     </>

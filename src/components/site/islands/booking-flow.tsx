@@ -2570,7 +2570,7 @@ function Confirmation({
       date: booking.date,
       time: booking.time,
       durationMinutes: 120,
-      totalDisplay: booking.total,
+      totalDisplay: booking.total ?? undefined,
     }
     return {
       google: googleCalendarUrl(input),
@@ -2636,7 +2636,7 @@ function Confirmation({
               { label: "iCal", href: calendarLinks.ics },
               { label: "Outlook", href: calendarLinks.outlook },
             ]
-              .filter((l) => !!l.href)
+              .filter((l): l is { label: string; href: string } => !!l.href)
               .map((l, i) => (
                 <span key={l.label} className="flex items-center gap-2">
                   {i > 0 && <span className="text-neutral-300" aria-hidden="true">|</span>}

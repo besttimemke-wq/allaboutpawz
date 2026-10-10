@@ -51,7 +51,7 @@ export async function GET() {
     if (!user) {
       return noStore({ error: "not_signed_in", code: "NO_SESSION" }, 401)
     }
-    if (!usingSupabase) {
+    if (!(await usingSupabase())) {
       return noStore({ error: "Supabase not configured" }, 503)
     }
 
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return noStore({ error: "not_signed_in", code: "NO_SESSION" }, 401)
     }
-    if (!usingSupabase) {
+    if (!(await usingSupabase())) {
       return noStore({ error: "Supabase not configured" }, 503)
     }
 
@@ -131,6 +131,6 @@ export async function POST(req: NextRequest) {
 // Keep the route honest about its live dependency for tooling that probes it.
 export async function HEAD() {
   return new NextResponse(null, {
-    status: usingSupabase && supabaseConfig.key ? 204 : 503,
+    status: (await usingSupabase()) && supabaseConfig.key ? 204 : 503,
   })
 }

@@ -26,7 +26,11 @@ import { buildSitemap } from "@/lib/shop/sitemap-source"
 // URLs are excluded (Phase 2 populates KNOWN_REDIRECT_PATHS).
 // ---------------------------------------------------------------------------
 
-export const revalidate = 3600
+// Rendered on request, never during `next build`: the product-slug query
+// (12.8k enterprise items) plus catalog resolvers exceed Vercel's 60s
+// static-generation limit and failed every deploy. The CDN cache header
+// below keeps it cheap — Google still sees a fast, cached /sitemap.xml.
+export const dynamic = "force-dynamic"
 
 function esc(s: string): string {
   return s
@@ -58,7 +62,7 @@ export async function GET() {
   return new Response(xml, {
     headers: {
       "Content-Type": "application/xml",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
     },
   })
 }

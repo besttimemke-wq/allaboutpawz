@@ -174,7 +174,7 @@ async function handleCheckoutCompleted(supabase: any, event: Stripe.Event) {
             await sendMembershipActive({
               to: customerEmail,
               customerId: (membership as any).customerId || undefined,
-              firstName: memberName || undefined,
+              firstName: memberName || "there",
               planName: membership.planName,
               perks: [
                 { title: "Member pricing on every groom", body: "Reduced Bath Club rates apply automatically at checkout — nothing to remember, nothing to mention." },
@@ -440,7 +440,7 @@ async function handleChargeRefunded(supabase: any, event: Stripe.Event) {
 // Updates: ledger + subscription status + CRM
 // ============================================================================
 async function handleInvoicePaid(supabase: any, event: Stripe.Event) {
-  const invoice = event.data?.object as Stripe.Invoice
+  const invoice = event.data?.object as Stripe.Invoice & { payment_intent?: string | null; subscription?: string | { id: string } | null }
   const amount = invoice?.amount_paid ? invoice.amount_paid / 100 : 0
   const customerEmail = invoice?.customer_email
 
@@ -515,6 +515,29 @@ async function handleInvoicePaid(supabase: any, event: Stripe.Event) {
 // customer.updated — Stripe customer profile sync
 // Updates: CRM profile (name, address, etc.)
 // ============================================================================
+// ============================================================================
+// Helpers: customer display name lookup + invoice.upcoming (log-only)
+// ============================================================================
+async function customerNameFor(_supabase: any, email: string | null | undefined): Promise<string | null> {
+  if (!email) return null
+  try {
+    return await withPg(async (client) => {
+      const r = await client.query(
+        `SELECT first_name FROM public.crm_customers WHERE lower(email) = lower($1) LIMIT 1`,
+        [email],
+      )
+      return (r.rows[0]?.first_name as string | undefined) || null
+    })
+  } catch {
+    return null
+  }
+}
+
+async function handleInvoiceUpcoming(_supabase: any, event: Stripe.Event) {
+  const invoice = event.data?.object as Stripe.Invoice
+  console.log(`[stripe/webhook] invoice.upcoming: id=${invoice?.id} email=${invoice?.customer_email}`)
+}
+
 async function handleCustomerUpdated(supabase: any, event: Stripe.Event) {
   const customer = event.data?.object as Stripe.Customer
   const email = customer?.email

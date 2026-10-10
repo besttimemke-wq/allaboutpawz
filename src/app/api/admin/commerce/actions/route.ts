@@ -745,7 +745,7 @@ export async function POST(req: NextRequest) {
           orders = rows as any[];
         }
         // For each order, get its lines
-        const slips = [];
+        const slips: any[] = [];
         for (const o of orders) {
           const lineRows = await pgQuery<{ id: string; sku_id: string; description: string | null; quantity: string; unit_price: string }>(
             `SELECT id, sku_id, description, quantity::text, unit_price::text

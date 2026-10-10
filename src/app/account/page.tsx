@@ -14,7 +14,7 @@ type Customer = {
   id: string; firstName: string; lastName: string; email: string
   stripeCustomerId: string | null
 }
-type Dog = { id: string; name: string; breedName: string | null; weightLbs: string | null; sex: string | null; birthDate: string | null; color: string | null; markings: string | null; photoUrl: string | null }
+type Dog = { id: string; customerId?: string; name: string; breedName: string | null; weightLbs: string | null; sex: string | null; birthDate: string | null; color: string | null; markings: string | null; photoUrl: string | null }
 type Booking = { id: string; dogName: string; service: string; date: string; time: string; status: string; servicePrice: string | null }
 type Payment = { id: string; amount: string; type: string; status: string; createdAt: string }
 

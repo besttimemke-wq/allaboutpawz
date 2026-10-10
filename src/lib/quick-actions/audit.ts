@@ -141,7 +141,7 @@ export async function issueStoreCredit(params: {
 }): Promise<string | null> {
   const creditNumber = `SC-${Date.now().toString(36).toUpperCase()}`;
   const tid = TENANT_ID();
-  const rows = await pgQuery<{ id: string }>(
+  const rows = await pgQuery<{ id: string; credit_number?: string }>(
     `INSERT INTO public.commerce_store_credits
        (id, tenant_id, credit_number, customer_id, original_amount, balance, currency, status, issued_at, expires_at)
      VALUES (gen_random_uuid(), $1, $2, $3::uuid, $4, $4, 'USD', $5, now(), $6)

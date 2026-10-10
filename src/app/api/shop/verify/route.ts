@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     let order: any = null
     if (orderId) order = await repo.get("orders", orderId)
 
-    if (paid && order && order.paymentStatus !== "PAID") {
+    if (orderId && paid && order && order.paymentStatus !== "PAID") {
       await repo.update("orders", orderId, {
         status: "PAID",
         paymentStatus: "PAID",

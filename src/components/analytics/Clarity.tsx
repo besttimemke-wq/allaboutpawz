@@ -48,13 +48,13 @@ export function Clarity() {
           (c as unknown as Record<string, unknown>)[a] = { q: [] };
         }
         const t = l.createElement(r) as HTMLScriptElement;
-        t.async = 1;
+        t.async = true;
         t.src = "https://www.clarity.ms/tag/" + i;
         const y = l.getElementsByTagName(r)[0];
         y.parentNode?.insertBefore(t, y);
       })(window, document, "clarity", "script", CLARITY_ID);
       // Clarity's documented consent signal — recordings are consented.
-      window.clarity?.("consent");
+      (window as unknown as { clarity?: (...a: unknown[]) => void }).clarity?.("consent");
     } catch {
       /* never fatal */
     }

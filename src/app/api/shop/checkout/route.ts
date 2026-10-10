@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
       if (stripePriceId) {
         // Managed Stripe price — use it. Prices are tax-INCLUSIVE (Stripe Tax
         // account default), so declare it on the line for automatic_tax.
-        lineItems.push({ price: stripePriceId, quantity: qty, tax_behavior: "inclusive" })
+        lineItems.push({ price: stripePriceId, quantity: qty, tax_behavior: "inclusive" } as (typeof lineItems)[number])
       } else {
         if (cents == null) {
           return NextResponse.json(

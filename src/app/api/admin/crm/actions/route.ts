@@ -349,7 +349,7 @@ export async function POST(req: NextRequest) {
         const rows = await pgQuery<{
           id: string; name: string; status: string; document_type_id: string | null;
           storage_path: string | null; mime_type: string | null;
-          uploaded_at: string | null; signed_at: string | null; expires_at: date | null;
+          uploaded_at: string | null; signed_at: string | null; expires_at: Date | null;
         }>(
           `SELECT id, name, status, document_type_id, storage_path, mime_type,
                   uploaded_at::text, signed_at::text, expires_at

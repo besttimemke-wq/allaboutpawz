@@ -1,6 +1,7 @@
 // Verify every link the storefront nav ACTUALLY renders — /api/shop/nav is
 // what the flyout/mega menu consume, so its dept + subcategory paths are the
 // real UI contract. Run: bun scripts/verify-nav-links.ts
+export {}
 const base = process.env.DEV_BASE || "http://localhost:3000"
 
 const res = await fetch(base + "/api/shop/nav")
