@@ -11,10 +11,6 @@
     {
       "path": "/api/cron/subscription-reminders",
       "schedule": "0 14 * * *"
-    },
-    {
-      "path": "/api/automations/product-page-queue",
-      "schedule": "0 * * * *"
     }
   ]
 }
