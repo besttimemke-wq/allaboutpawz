@@ -1,21 +1,30 @@
-// api-pdp — Product detail page API.
+// api-pdp — ENTERPRISE VERSION
+// Product detail page API reading from enterprise tables
 // GET params: slug (preferred) or id.
-// Returns: product, variants[], images[], brand, reviews{avg,count,list[]},
-//          breadcrumbs[] (root -> leaf via product_nodes primary + parent walk),
-//          price_range, in_stock.
-//
-// Live-schema grounded (Oct 2026): products / product_variants / product_media /
-// product_nodes / taxonomy_nodes / brands / product_reviews.
+// Returns: product, variants[], images[], brand, reviews, breadcrumbs, price_range, in_stock.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+
+let _markup: number | null = null;
+async function getMarkup(sb: any): Promise<number> {
+  if (_markup) return _markup;
+  try {
+    const { data } = await sb.from("app_settings").select("value").eq("key", "pricing.markup_multiplier").single();
+    _markup = data ? parseFloat(JSON.parse(data.value)) : 2.00;
+  } catch { _markup = 2.00; }
+  return _markup;
+}
+async function applyMarkup(sb: any, price: number): Promise<number> {
+  const m = await getMarkup(sb);
+  return Math.round(price * m * 100) / 100;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Content-Type": "application/json",
 };
-
 function pubKey(): string {
   return Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 }
@@ -31,82 +40,128 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "slug or id required" }), { status: 400, headers: corsHeaders });
     }
 
-    let prodQuery = sb.from("products").select(
-      "id,slug,name,title,handle,brand,brand_id,short_description,description_html,details,specifications,directions,warnings,tags,pet,fulfillment_type,is_new,is_sale,is_best_seller,is_salon_favorite"
-    ).eq("status", "published");
-    prodQuery = slug ? prodQuery.eq("slug", slug) : prodQuery.eq("id", id);
-    const { data: prod, error: pErr } = await prodQuery.maybeSingle();
-    if (pErr) throw new Error("products: " + pErr.message);
-    if (!prod) {
+    // Find catalog item by slug (in metadata) or id
+    // Use filter for JSONB field access
+    let itemQuery = sb.from("commerce_catalog_items")
+      .select("id, sku_id, item_type, sku, name, description, short_description, brand, metadata")
+      .eq("active", true).eq("sellable", true);
+    if (slug) {
+      itemQuery = itemQuery.filter("metadata->>slug", "eq", slug);
+    } else {
+      itemQuery = itemQuery.eq("id", id);
+    }
+    const { data: item, error: iErr } = await itemQuery.maybeSingle();
+    if (iErr) throw new Error("catalog: " + iErr.message);
+    if (!item) {
       return new Response(JSON.stringify({ error: "product not found" }), { status: 404, headers: corsHeaders });
     }
 
-    const [varRes, medRes, pnRes, brandRes] = await Promise.all([
-      sb.from("product_variants").select("id,sku,variant_title,option_size,option_color,price,compare_at_price,in_stock,stock_quantity,weight_grams")
-        .eq("product_id", prod.id).eq("status", "active").order("price", { ascending: true }),
-      sb.from("product_media").select("url,alt_text,sort_order,variant_id")
-        .eq("product_id", prod.id).eq("media_type", "image").order("sort_order", { ascending: true }),
-      sb.from("product_nodes").select("node_id,is_primary").eq("product_id", prod.id),
-      prod.brand_id
-        ? sb.from("brands").select("id,name,slug,logo_url").eq("id", prod.brand_id).maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-    ]);
-    if (varRes.error) throw new Error("product_variants: " + varRes.error.message);
-    if (medRes.error) throw new Error("product_media: " + medRes.error.message);
-    // Reviews are optional — RLS may block anon reads; never fail the PDP for them.
-    let revRows: any[] = [];
-    try {
-      const { data } = await sb.from("product_reviews").select("author,rating,title,body,verified,created_at")
-        .eq("product_id", prod.id).eq("visible", true).order("created_at", { ascending: false }).limit(20);
-      revRows = data || [];
-    } catch { /* no reviews */ }
+    const skuId = (item as any).sku_id;
+    const meta = (item as any).metadata || {};
 
-    const variants = varRes.data || [];
-    const prices = variants.map((v: any) => Number(v.price)).filter((n: number) => Number.isFinite(n) && n > 0);
-    const reviews = revRows;
-    const avg = reviews.length ? reviews.reduce((s: number, r: any) => s + (Number(r.rating) || 0), 0) / reviews.length : null;
+    // Get SKU with variant details
+    const { data: sku, error: sErr } = await sb.from("erp_product_skus")
+      .select("id, product_id, unit_price, uom, erp_product_variants!inner(id, name, attributes)")
+      .eq("id", skuId).single();
+    if (sErr) throw new Error("sku: " + sErr.message);
 
-    // Breadcrumb: primary node, walk up via parent_id.
-    let breadcrumbs: any[] = [];
-    const pnRows = pnRes.data || [];
-    const primary = pnRows.find((r: any) => r.is_primary) || pnRows[0];
-    if (primary) {
-      const { data: allNodes } = await sb.from("taxonomy_nodes")
-        .select("id,name,display_name,slug,parent_id").eq("status", "published");
-      const byId = new Map((allNodes || []).map((n: any) => [n.id, n]));
-      let cur = byId.get(primary.node_id);
-      const trail = [];
-      while (cur) { trail.unshift({ slug: cur.slug, name: cur.display_name || cur.name }); cur = cur.parent_id ? byId.get(cur.parent_id) : undefined; }
-      breadcrumbs = trail;
+    // Get all variants for this product (for variant selector)
+    const { data: allSkus } = await sb.from("erp_product_skus")
+      .select("id, sku, unit_price, erp_product_variants!inner(id, name, attributes)")
+      .eq("product_id", (sku as any).product_id).eq("is_active", true);
+
+    // Get images
+    const { data: media } = await sb.from("commerce_product_media")
+      .select("url, alt_text, sort_order").eq("catalog_item_id", (item as any).id)
+      .order("sort_order", { ascending: true });
+
+    // Get product details from erp_products
+    const { data: erpProd } = await sb.from("erp_products")
+      .select("id, name, description, brand, metadata")
+      .eq("id", (sku as any).product_id).single();
+
+    // Get reviews
+    const { data: reviews } = await sb.from("reviews")
+      .select("id, author_name, rating, title, body, created_at")
+      .eq("product_id", (sku as any).product_id).eq("is_published", true)
+      .order("created_at", { ascending: false }).limit(20);
+
+    // Build breadcrumbs from taxonomy_node_ids
+    const breadcrumbs = [];
+    const nodeIds: string[] = meta.taxonomy_node_ids || [];
+    if (nodeIds.length) {
+      const { data: nodes } = await sb.from("taxonomy_nodes")
+        .select("id, slug, name, display_name, parent_id, path")
+        .in("id", nodeIds.slice(0, 5));
+      // Use first node's path for breadcrumbs
+      const node = (nodes || [])[0];
+      if (node) {
+        // Walk up parents
+        const byId = new Map((nodes || []).map((n: any) => [n.id, n]));
+        let cur = node;
+        const trail = [cur];
+        while (cur.parent_id) {
+          const { data: parent } = await sb.from("taxonomy_nodes")
+            .select("id, slug, name, display_name, parent_id, path")
+            .eq("id", cur.parent_id).single();
+          if (!parent) break;
+          trail.unshift(parent);
+          cur = parent;
+          if (trail.length > 5) break;
+        }
+        for (const t of trail) {
+          breadcrumbs.push({ slug: t.slug, name: t.display_name || t.name, path: t.path });
+        }
+      }
     }
+
+    // Build variants array
+    const variants = [];
+    for (const s of allSkus || []) {
+      const attrs = (s as any).erp_product_variants?.attributes || {};
+      const price = await applyMarkup(sb, Number((s as any).unit_price) || 0);
+      variants.push({
+        id: (s as any).id,
+        sku: (s as any).sku,
+        name: (s as any).erp_product_variants?.name || 'Default',
+        size: attrs.option_size || null,
+        color: attrs.option_color || null,
+        price,
+        compare_at_price: attrs.compare_at_price ? await applyMarkup(sb, Number(attrs.compare_at_price)) : null,
+        in_stock: attrs.in_stock !== false,
+        stock_quantity: attrs.stock_quantity || null,
+      });
+    }
+
+    const prices = variants.map(v => v.price).filter(p => p > 0);
+    const priceRange = prices.length ? { min: Math.min(...prices), max: Math.max(...prices) } : null;
+
+    const reviewList = reviews || [];
+    const avgRating = reviewList.length
+      ? Math.round((reviewList.reduce((s, r) => s + Number((r as any).rating), 0) / reviewList.length) * 10) / 10
+      : null;
 
     return new Response(JSON.stringify({
       product: {
-        id: prod.id, slug: prod.slug, name: prod.title || prod.name,
-        brand: prod.brand, short_description: prod.short_description,
-        description_html: prod.description_html, details: prod.details,
-        specifications: prod.specifications, directions: prod.directions, warnings: prod.warnings,
-        tags: prod.tags, pet: prod.pet, fulfillment_type: prod.fulfillment_type,
-        is_new: prod.is_new, is_sale: prod.is_sale,
-        is_best_seller: prod.is_best_seller, is_salon_favorite: prod.is_salon_favorite,
+        id: (item as any).id,
+        sku: (item as any).sku,
+        name: (item as any).name,
+        brand: (item as any).brand,
+        description: (item as any).description || (erpProd as any)?.description,
+        short_description: (item as any).short_description,
+        slug: meta.slug,
+        item_type: (item as any).item_type,
+        is_new: meta.is_new || false,
+        is_sale: meta.is_sale || false,
+        is_best_seller: meta.is_best_seller || false,
+        is_salon_favorite: meta.is_salon_favorite || false,
       },
-      variants: variants.map((v: any) => ({
-        id: v.id, sku: v.sku, title: v.variant_title,
-        size: v.option_size, color: v.option_color,
-        price: Number(v.price), compare_at_price: v.compare_at_price != null ? Number(v.compare_at_price) : null,
-        in_stock: !!v.in_stock, stock_quantity: v.stock_quantity,
-        cta: v.in_stock ? "ADD_TO_CART" : "NOTIFY_ME",
-      })),
-      images: (medRes.data || []).map((m: any) => ({ url: m.url, alt: m.alt_text })),
-      brand: brandRes.data || null,
-      reviews: {
-        avg: avg != null ? Math.round(avg * 10) / 10 : null,
-        count: reviews.length,
-        list: reviews.map((r: any) => ({ author: r.author, rating: r.rating, title: r.title, body: r.body, verified: r.verified })),
-      },
+      variants,
+      images: (media || []).map((m: any) => ({ url: m.url, alt: m.alt_text })),
+      reviews: { avg: avgRating, count: reviewList.length, list: reviewList },
       breadcrumbs,
-      price_range: prices.length ? { min: Math.min(...prices), max: Math.max(...prices) } : null,
-      in_stock: variants.some((v: any) => v.in_stock),
+      price_range: priceRange,
+      in_stock: variants.some(v => v.in_stock),
     }), { headers: corsHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: String((e as Error).message || e) }), { status: 500, headers: corsHeaders });
